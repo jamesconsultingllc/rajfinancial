@@ -5,7 +5,9 @@
     /*==================================================================
     [ Validate ]*/
     var input = $('.validate-input .input100');
-
+    var $message = $('#message');
+    $message.hide();
+    
     $('.validate-form').on('submit',function(){
         var check = true;
 
@@ -16,7 +18,36 @@
             }
         }
 
-        return check;
+        if( check) {
+            var $this = $(this);
+  $.ajax({
+      type: "GET", // GET & url for json slightly different
+      url: "https://rajfinancial.us5.list-manage.com/subscribe/post-json?c=?",
+      data: $this.serialize(),
+      dataType    : 'json',
+      contentType: "application/json; charset=utf-8",
+      error       : function(err) { alert("Could not connect to the registration server."); },
+      success     : function(data) {
+          if (data.result != "success") {
+              // Something went wrong, parse data.msg string and display message
+              
+              $message.html(data.msg);
+              $message.removeClass('alert-success');
+              $message.addClass('alert-danger');
+              
+          } else {
+              // It worked, so hide form and display thank-you message.
+              $message.html('Thank you for subscribing! We will be in touch soon.');
+              $message.addClass('alert-success');
+              $message.removeClass('alert-danger');
+              $('#form').hide();
+          }
+
+          $message.show();
+      }
+  });
+  return false;
+        }
     });
 
 
@@ -27,7 +58,7 @@
     });
 
     function validate (input) {
-        if($(input).attr('type') == 'email' || $(input).attr('name') == 'email') {
+        if($(input).attr('type') == 'email' || $(input).attr('name') == 'MERGE0') {
             if($(input).val().trim().match(/^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{1,5}|[0-9]{1,3})(\]?)$/) == null) {
                 return false;
             }
