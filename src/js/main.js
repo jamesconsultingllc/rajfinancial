@@ -5,8 +5,8 @@
     /*==================================================================
     [ Validate ]*/
     var input = $('.validate-input .input100');
-    var $error = $('#error');
-    $error.hide();
+    var $message = $('#message');
+    $message.hide();
     
     $('.validate-form').on('submit',function(){
         var check = true;
@@ -31,12 +31,19 @@
           if (data.result != "success") {
               // Something went wrong, parse data.msg string and display message
               
-              $error.html(data.msg);
-              $error.show();
+              $message.html(data.msg);
+              $message.removeClass('alert-success');
+              $message.addClass('alert-danger');
+              
           } else {
               // It worked, so hide form and display thank-you message.
-              alert(data.result);
+              $message.html('Thank you for subscribing! We will be in touch soon.');
+              $message.addClass('alert-success');
+              $message.removeClass('alert-danger');
+              $('#form').hide();
           }
+
+          $message.show();
       }
   });
   return false;
