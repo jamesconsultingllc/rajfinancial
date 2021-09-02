@@ -5,7 +5,9 @@
     /*==================================================================
     [ Validate ]*/
     var input = $('.validate-input .input100');
-
+    var $error = $('#error');
+    $error.hide();
+    
     $('.validate-form').on('submit',function(){
         var check = true;
 
@@ -16,7 +18,29 @@
             }
         }
 
-        return check;
+        if( check) {
+            var $this = $(this);
+  $.ajax({
+      type: "GET", // GET & url for json slightly different
+      url: "https://rajfinancial.us5.list-manage.com/subscribe/post-json?c=?",
+      data: $this.serialize(),
+      dataType    : 'json',
+      contentType: "application/json; charset=utf-8",
+      error       : function(err) { alert("Could not connect to the registration server."); },
+      success     : function(data) {
+          if (data.result != "success") {
+              // Something went wrong, parse data.msg string and display message
+              
+              $error.html(data.msg);
+              $error.show();
+          } else {
+              // It worked, so hide form and display thank-you message.
+              alert(data.result);
+          }
+      }
+  });
+  return false;
+        }
     });
 
 
