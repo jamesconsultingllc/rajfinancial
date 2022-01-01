@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'Nexa ';
+    src: local('Nexa  XBold'), local('Nexa--XBold'),
+        url('Nexa-XBold.woff2') format('woff2'),
+        url('Nexa-XBold.woff') format('woff'),
+        url('Nexa-XBold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
