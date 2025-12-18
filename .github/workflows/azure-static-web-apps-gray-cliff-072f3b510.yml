@@ -132,11 +132,11 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
         
-      - name: Build solution
-        run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
+      - name: Build test project
+        run: dotnet build ./tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Release
 
-      - name: Install Playwright browsers (.NET)
-        run: pwsh bin/Release/net*/playwright.ps1 install
+      - name: Install Playwright browsers
+        run: dotnet tool run playwright install
         working-directory: ./tests/AcceptanceTests
 
       - name: Wait for deployment to stabilize
@@ -147,7 +147,7 @@ jobs:
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}
-          
+      
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
