@@ -20,7 +20,9 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-
+  <ItemGroup>
+    <DotNetCliToolReference Include="Microsoft.Playwright.CLI" Version="*" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\RajFinancial.Shared.csproj" />
   </ItemGroup>
