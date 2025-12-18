@@ -117,6 +117,10 @@ jobs:
     runs-on: ubuntu-latest
     name: E2E Tests
     needs: build_and_deploy_job
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
@@ -128,24 +132,25 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
 
-      - name: Install Playwright
+      - name: Install Playwright Browsers
         run: |
           dotnet build src/RajFinancial.sln
-          pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium
+          pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }}
 
       - name: Wait for deployment to stabilize
         run: sleep 30
 
-      - name: Run E2E Acceptance Tests
+      - name: Run E2E Acceptance Tests (${{ matrix.browser }})
         run: dotnet test src/RajFinancial.sln --configuration Release --verbosity normal --logger trx
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
+          BROWSER: ${{ matrix.browser }}
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results
+          name: e2e-test-results-${{ matrix.browser }}
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7
