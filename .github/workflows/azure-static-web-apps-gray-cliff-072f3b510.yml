@@ -36,7 +36,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -45,7 +45,7 @@ jobs:
         run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
 
       - name: Run unit tests
-        run: dotnet test tests/UnitTests/UnitTests.csproj --configuration Release --verbosity normal --logger trx
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
     if: github.event_name != 'pull_request'
@@ -74,7 +74,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Build And Deploy
         id: builddeploy
@@ -85,9 +85,10 @@ jobs:
           action: upload
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
-          api_location: "src/Server"
+          api_location: "src/Api"
           output_location: "wwwroot"
           production_branch: main
+          skip_app_build: false
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
@@ -117,35 +118,41 @@ jobs:
     runs-on: ubuntu-latest
     name: E2E Tests
     needs: build_and_deploy_job
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
+        
+      - name: Build test project
+        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
-      - name: Install Playwright
-        run: |
-          dotnet build tests/AcceptanceTests/AcceptanceTests.csproj
-          pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium
+      - name: Install Playwright browsers
+        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
 
-      - name: Run E2E Acceptance Tests
-        run: dotnet test tests/AcceptanceTests/AcceptanceTests.csproj --configuration Release --verbosity normal --logger trx
+      - name: Run E2E Acceptance Tests (${{ matrix.browser }})
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
-
+          BROWSER: ${{ matrix.browser }}
+      
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results
+          name: e2e-test-results-${{ matrix.browser }}
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7
