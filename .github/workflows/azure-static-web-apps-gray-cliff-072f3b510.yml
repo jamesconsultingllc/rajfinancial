@@ -86,8 +86,9 @@ jobs:
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
           api_location: "src/Server"
-          output_location: "wwwroot"
+          output_location: ""
           production_branch: main
+          skip_app_build: false
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
