@@ -45,7 +45,7 @@ jobs:
         run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
 
       - name: Run unit tests
-        run: dotnet test tests/UnitTests/UnitTests.csproj --configuration Release --verbosity normal --logger trx
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
     if: github.event_name != 'pull_request'
@@ -130,14 +130,14 @@ jobs:
 
       - name: Install Playwright
         run: |
-          dotnet build tests/AcceptanceTests/AcceptanceTests.csproj
+          dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj
           pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium
 
       - name: Wait for deployment to stabilize
         run: sleep 30
 
       - name: Run E2E Acceptance Tests
-        run: dotnet test tests/AcceptanceTests/AcceptanceTests.csproj --configuration Release --verbosity normal --logger trx
+        run: dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Release --verbosity normal --logger trx
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
 

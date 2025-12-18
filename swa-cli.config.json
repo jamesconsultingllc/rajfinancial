@@ -1,0 +1,15 @@
+﻿{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "rajfinancial": {
+      "appLocation": "src/Client",
+      "apiLocation": "src/Server",
+      "outputLocation": "wwwroot",
+      "appDevserverUrl": "http://localhost:5000",
+      "run": "dotnet watch run --project src/Client/RajFinancial.Client.csproj",
+      "appBuildCommand": "dotnet build src/Client/RajFinancial.Client.csproj -c Release",
+      "apiBuildCommand": "dotnet build src/Server/RajFinancial.Server.csproj -c Release"
+    }
+  }
+}
+
