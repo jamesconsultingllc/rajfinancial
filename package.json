@@ -6,7 +6,7 @@
     "start": "swa start",
     "test:unit": "dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --verbosity normal",
     "test:e2e": "dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --verbosity normal",
-    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:all": "dotnet test src/RajFinancial.sln --verbosity normal",
     "build": "dotnet build src/RajFinancial.sln -c Release"
   },
   "devDependencies": {
