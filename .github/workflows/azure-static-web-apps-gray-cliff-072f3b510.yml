@@ -137,7 +137,7 @@ jobs:
 
       - name: Install Playwright browsers
         run: dotnet tool run playwright install
-        working-directory: ./tests/AcceptanceTests
+        working-directory: ./tests/AcceptanceTests/.config
 
       - name: Wait for deployment to stabilize
         run: sleep 30
