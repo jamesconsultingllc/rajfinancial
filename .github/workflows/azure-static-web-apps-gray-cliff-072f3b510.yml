@@ -133,11 +133,10 @@ jobs:
         run: dotnet restore src/RajFinancial.sln
         
       - name: Build test project
-        run: dotnet build ./tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
+        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
       - name: Install Playwright browsers
-        run: dotnet tool run playwright install
-        working-directory: ./tests/AcceptanceTests/.config
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
