@@ -36,7 +36,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -74,7 +74,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Build And Deploy
         id: builddeploy
@@ -85,7 +85,7 @@ jobs:
           action: upload
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
-          api_location: "src/Server"
+          api_location: "src/Api"
           output_location: "wwwroot"
           production_branch: main
           skip_app_build: false
@@ -128,7 +128,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -137,7 +137,7 @@ jobs:
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
       - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
+        run: pwsh tests/AcceptanceTests/bin/Debug/net10.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30

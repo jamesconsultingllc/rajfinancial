@@ -1,11 +1,11 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{DAD03CFC-D5FA-AC94-41C7-9ABAB326F09E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Api", "Api", "{DAD03CFC-D5FA-AC94-41C7-9ABAB326F09E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.Server", "Server\RajFinancial.Server.csproj", "{D3054244-B6AD-4B61-B34E-EF94640CBC39}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.Server", "Api\RajFinancial.Api.csproj", "{D3054244-B6AD-4B61-B34E-EF94640CBC39}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Client", "Client", "{2CB42F12-E813-91B3-7D11-3220E40BEF4A}"
 EndProject
