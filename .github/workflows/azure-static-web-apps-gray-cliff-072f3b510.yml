@@ -132,16 +132,17 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
 
+      - name: Build solution
+        run: dotnet build src/RajFinancial.sln --no-restore --configuration Debug
+
       - name: Install Playwright Browsers
-        run: |
-          dotnet build src/RajFinancial.sln
-          pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }}
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Release --verbosity normal --logger trx
+        run: dotnet test src/RajFinancial.sln --configuration Release --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}

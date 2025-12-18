@@ -7,19 +7,24 @@ public class SampleAcceptanceTests : IAsyncLifetime
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private string _baseUrl;
+    private string _browserName;
 
     public SampleAcceptanceTests()
     {
         _baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? "http://localhost:4280";
+        _browserName = Environment.GetEnvironmentVariable("BROWSER") ?? "chromium";
     }
 
     public async Task InitializeAsync()
     {
         _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new()
+        
+        _browser = _browserName.ToLowerInvariant() switch
         {
-            Headless = true
-        });
+            "firefox" => await _playwright.Firefox.LaunchAsync(new() { Headless = true }),
+            "webkit" => await _playwright.Webkit.LaunchAsync(new() { Headless = true }),
+            _ => await _playwright.Chromium.LaunchAsync(new() { Headless = true })
+        };
     }
 
     public async Task DisposeAsync()
