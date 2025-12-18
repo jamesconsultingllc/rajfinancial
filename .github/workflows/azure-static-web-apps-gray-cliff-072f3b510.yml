@@ -133,7 +133,7 @@ jobs:
         run: dotnet restore src/RajFinancial.sln
         
       - name: Build test project
-        run: dotnet build ./tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Release
+        run: dotnet build ./tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
       - name: Install Playwright browsers
         run: dotnet tool run playwright install
@@ -143,7 +143,7 @@ jobs:
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Release --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}
