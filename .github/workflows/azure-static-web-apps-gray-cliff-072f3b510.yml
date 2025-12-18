@@ -86,7 +86,7 @@ jobs:
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
           api_location: "src/Server"
-          output_location: ""
+          output_location: "wwwroot"
           production_branch: main
           skip_app_build: false
 
