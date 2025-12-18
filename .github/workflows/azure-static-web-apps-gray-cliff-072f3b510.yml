@@ -131,12 +131,12 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
-
+      
+      - name: Install Playwright browsers
+        run: playwright install
+        
       - name: Build solution
         run: dotnet build src/RajFinancial.sln --no-restore --configuration Debug
-
-      - name: Install Playwright Browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
