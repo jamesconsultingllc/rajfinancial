@@ -45,7 +45,7 @@ jobs:
         run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
 
       - name: Run unit tests
-        run: dotnet test src/RajFinancial.sln --configuration Release --verbosity normal --logger trx
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
     if: github.event_name != 'pull_request'
