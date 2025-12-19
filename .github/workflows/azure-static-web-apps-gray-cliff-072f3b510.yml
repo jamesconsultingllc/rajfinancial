@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Unit Tests
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
@@ -54,7 +54,7 @@ jobs:
     needs: unit_tests_job
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           submodules: true
           lfs: false
@@ -62,7 +62,7 @@ jobs:
 
       - name: Resolve Environment
         id: resolve-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
 
       - name: Azure Login with OIDC
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -72,7 +72,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
@@ -133,10 +133,10 @@ jobs:
       matrix:
         browser: [ chromium, firefox, webkit ]
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
@@ -160,7 +160,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: e2e-test-results-${{ matrix.browser }}
           path: tests/AcceptanceTests/TestResults/
@@ -179,17 +179,17 @@ jobs:
     name: Close Preview Environment
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Resolve Source Environment (PR head branch)
         id: source-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
         with:
           branch: ${{ github.event.pull_request.head.ref }}
 
       - name: Resolve Target Environment (PR base branch)
         id: target-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
         with:
           branch: ${{ github.event.pull_request.base.ref }}
           detect-source: 'false'
