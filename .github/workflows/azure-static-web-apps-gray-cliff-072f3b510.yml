@@ -15,7 +15,7 @@ on:
       - '*.sln'
       - '.github/workflows/**'
   pull_request:
-    types: [closed]
+    types: [ closed ]
     branches:
       - main
       - develop
@@ -100,6 +100,8 @@ jobs:
           target-environment: ${{ steps.resolve-env.outputs.target-slot }}
           direction: one-way
           overwrite: 'true'
+        outputs:
+          deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
 
       - name: Add Entra Redirect URI for Preview Environment
         if: steps.resolve-env.outputs.is-preview == 'true'
@@ -107,7 +109,7 @@ jobs:
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
+          origin: ${{ eeds.build_and_deploy_job.outputs.deployed-url }}
           callback-path: '/.auth/login/entraExternalId/callback'
           tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
 
@@ -120,8 +122,6 @@ jobs:
       #     storage-account: rajfinancialdevst
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
       #     origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
-    outputs:
-      deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
 
   e2e_tests_job:
     if: github.event_name != 'pull_request'
@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [ chromium, firefox, webkit ]
     steps:
       - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
@@ -142,7 +142,7 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
-        
+
       - name: Build test project
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
@@ -157,7 +157,7 @@ jobs:
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}
-      
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
