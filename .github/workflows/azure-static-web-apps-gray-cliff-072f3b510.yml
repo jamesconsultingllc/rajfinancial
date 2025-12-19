@@ -103,7 +103,7 @@ jobs:
 
       - name: Add Entra Redirect URI for Preview Environment
         if: steps.resolve-env.outputs.is-preview == 'true'
-        uses: jamesconsultingllc/manage-entra-redirect-uris@v1
+        uses: ./.github/actions/manage-entra-redirect-uris
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
@@ -203,7 +203,7 @@ jobs:
 
       - name: Find Source Slot in SWA
         id: find-slot
-        uses: jamesconsultingllc/find-swa-slot@v1
+        uses: ./.github/actions/find-swa-slot
         with:
           swa-name: raj-financial
           resource-group: rajfinancial
@@ -236,7 +236,7 @@ jobs:
 
       - name: Remove Entra Redirect URI for Preview Environment
         if: steps.find-slot.outputs.found == 'true'
-        uses: jamesconsultingllc/manage-entra-redirect-uris@v1
+        uses: ./.github/actions/manage-entra-redirect-uris
         with:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
