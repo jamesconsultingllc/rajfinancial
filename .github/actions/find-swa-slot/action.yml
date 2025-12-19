@@ -1,0 +1,75 @@
+﻿name: 'Find SWA Environment Slot'
+description: 'Find an Azure Static Web App environment slot by branch pattern'
+author: 'James Consulting LLC'
+
+inputs:
+  swa-name:
+    description: 'The name of the Static Web App'
+    required: true
+  resource-group:
+    description: 'The Azure resource group containing the SWA'
+    required: true
+  slot-pattern:
+    description: 'The slot pattern to search for (typically the sanitized branch name)'
+    required: true
+
+outputs:
+  slot:
+    description: 'The name of the found slot (empty if not found)'
+    value: ${{ steps.find-slot.outputs.slot }}
+  found:
+    description: 'Whether a matching slot was found (true/false)'
+    value: ${{ steps.find-slot.outputs.found }}
+  origin:
+    description: 'The full origin URL of the found slot'
+    value: ${{ steps.find-slot.outputs.origin }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Find Slot in SWA
+      id: find-slot
+      shell: bash
+      run: |
+        slot_pattern="${{ inputs.slot-pattern }}"
+        swa_name="${{ inputs.swa-name }}"
+        resource_group="${{ inputs.resource-group }}"
+        
+        echo "Looking for environment matching pattern: $slot_pattern"
+        echo "SWA: $swa_name, Resource Group: $resource_group"
+        
+        # Query SWA for environments matching the pattern (first 10 chars)
+        source_slot=$(az staticwebapp environment list \
+          --name "$swa_name" \
+          --resource-group "$resource_group" \
+          --query "[?starts_with(name, '${slot_pattern:0:10}')].name | [0]" -o tsv 2>/dev/null)
+        
+        if [[ -n "$source_slot" && "$source_slot" != "null" ]]; then
+          echo "Found source environment: $source_slot"
+          echo "slot=$source_slot" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          
+          # Get the default hostname to construct the origin
+          default_hostname=$(az staticwebapp environment show \
+            --name "$swa_name" \
+            --resource-group "$resource_group" \
+            --environment-name "$source_slot" \
+            --query "hostname" -o tsv 2>/dev/null)
+          
+          if [[ -n "$default_hostname" && "$default_hostname" != "null" ]]; then
+            echo "origin=https://$default_hostname" >> "$GITHUB_OUTPUT"
+            echo "Origin: https://$default_hostname"
+          else
+            echo "origin=" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "No environment found matching pattern: $slot_pattern"
+          echo "slot=" >> "$GITHUB_OUTPUT"
+          echo "found=false" >> "$GITHUB_OUTPUT"
+          echo "origin=" >> "$GITHUB_OUTPUT"
+        fi
+
+branding:
+  icon: 'search'
+  color: 'blue'
+

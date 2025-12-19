@@ -1,8 +1,14 @@
-﻿{
+﻿﻿{
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    
+    "AzureAdB2C__Instance": "https://rajfinancialdev.ciamlogin.com/",
+    "AzureAdB2C__Domain": "rajfinancialdev.onmicrosoft.com",
+    "AzureAdB2C__TenantId": "496527a2-41f8-4297-a979-c916e7255a22",
+    "AzureAdB2C__ClientId": "<dev-api-client-id>",
+    "AzureAdB2C__Scopes": "openid profile email offline_access"
   }
 }
 

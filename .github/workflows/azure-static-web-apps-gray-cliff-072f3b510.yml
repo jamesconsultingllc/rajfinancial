@@ -101,6 +101,16 @@ jobs:
           direction: one-way
           overwrite: 'true'
 
+      - name: Add Entra Redirect URI for Preview Environment
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: jamesconsultingllc/manage-entra-redirect-uris@v1
+        with:
+          action: add
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
+          callback-path: '/.auth/login/entraExternalId/callback'
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+
       # TODO: Add Storage CORS management when storage account is created
       # - name: Add Storage CORS for Preview Environment
       #   if: steps.resolve-env.outputs.is-preview == 'true'
@@ -193,26 +203,11 @@ jobs:
 
       - name: Find Source Slot in SWA
         id: find-slot
-        shell: bash
-        run: |
-          slot_pattern="${{ steps.source-env.outputs.sanitized-branch }}"
-          
-          echo "Looking for environment matching pattern: $slot_pattern"
-          
-          source_slot=$(az staticwebapp environment list \
-            --name raj-financial \
-            --resource-group rajfinancial \
-            --query "[?starts_with(name, '${slot_pattern:0:10}')].name | [0]" -o tsv)
-          
-          if [[ -n "$source_slot" ]]; then
-            echo "Found source environment: $source_slot"
-            echo "slot=$source_slot" >> "$GITHUB_OUTPUT"
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No environment found"
-            echo "slot=" >> "$GITHUB_OUTPUT"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          fi
+        uses: jamesconsultingllc/find-swa-slot@v1
+        with:
+          swa-name: raj-financial
+          resource-group: rajfinancial
+          slot-pattern: ${{ steps.source-env.outputs.sanitized-branch }}
 
       - name: Sync New Settings to Target
         if: steps.find-slot.outputs.found == 'true'
@@ -239,15 +234,25 @@ jobs:
             --yes
           echo "deleted=true" >> "$GITHUB_OUTPUT"
 
+      - name: Remove Entra Redirect URI for Preview Environment
+        if: steps.find-slot.outputs.found == 'true'
+        uses: jamesconsultingllc/manage-entra-redirect-uris@v1
+        with:
+          action: remove
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: ${{ steps.find-slot.outputs.origin }}
+          callback-path: '/.auth/login/entraExternalId/callback'
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+
       # TODO: Add Storage CORS cleanup when storage account is created
       # - name: Remove Storage CORS for Preview Environment
       #   if: steps.find-slot.outputs.found == 'true'
-      #   uses: jamesconsultingllc/manage-storage-cors-action@9f8436b1ef7625f81e621a0ebe6546808f68c7be # v1.0.2
+      #   uses: jamesconsultingllc/manage-storage-cors-action@v1
       #   with:
       #     action: remove
       #     storage-account: rajfinancialdevst
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
-      #     origin: https://${{ steps.find-slot.outputs.slot }}.gray-cliff-072f3b510.azurestaticapps.net
+      #     origin: ${{ steps.find-slot.outputs.origin }}
 
       - name: Fallback - Close with SWA Action
         if: steps.find-slot.outputs.found != 'true'

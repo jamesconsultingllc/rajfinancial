@@ -2,7 +2,59 @@
 applyTo: '**'
 ---
 
-# Texas Build Pros - Development Instructions
+# Raj Financial - Development Instructions
+
+## Brand Identity
+
+**Name**: RAJ Financial Software  
+**Logo**: RF monogram with wing motif (gold gradient)  
+**Font**: Nexa XBold (display), Inter (body)
+
+### Brand Colors (Gold Palette)
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| Lemon Chiffon | `#fffbcc` | Lightest backgrounds |
+| Light Cream | `#fff7b3` | Light backgrounds |
+| Soft Gold | `#f5e99a` | Subtle accents |
+| Flax | `#eed688` | Secondary elements |
+| Bright Gold | `#e8c94d` | Highlights |
+| **Spanish Yellow** | `#ebbb10` | **PRIMARY** |
+| Rich Gold | `#d4a80e` | Primary hover |
+| UC Gold | `#c3922e` | Accent/depth |
+| Deep Gold | `#a67c26` | Dark accents |
+| Darkest Gold | `#8a661f` | Text on light |
+
+### Assets Location
+
+Brand assets (logos, icons, images) source folder:
+```
+D:\OneDrive - RAJ Financial\RAJ Financial\Assets\All files
+```
+
+**Project assets** (copied to repo):
+```
+src/Client/wwwroot/images/brand/
+├── logo-icon.svg              # RF monogram only (black)
+├── logo-icon.png              # RF monogram only (color)
+├── logo-vertical.svg          # Logo with text below (black)
+├── logo-horizontal.svg        # Logo with text to the right (black)
+├── logo-horizontal-color.svg  # Logo with text to the right (color)
+├── logo-color.svg             # Full color logo
+└── logo.png                   # Full color logo (PNG)
+
+src/Client/wwwroot/
+├── favicon.ico
+├── favicon-16x16.png
+├── favicon-32x32.png
+├── apple-touch-icon.png
+├── android-chrome-192x192.png
+├── android-chrome-512x512.png
+├── safari-pinned-tab.svg
+└── site.webmanifest
+```
+
+---
 
 ## Core Principles
 
@@ -15,7 +67,7 @@ Follow these principles in order of priority:
 5. **Documentation** - All code must be fully documented
 6. **Observability** - Add logging, metrics, and telemetry
 7. **SOLID Principles** - Follow Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion
-8. **DRY (Don't Repeat Yourself)** - Avoid code duplication; extract reusable components, hooks, and utilities
+8. **DRY (Don't Repeat Yourself)** - Avoid code duplication; extract reusable components, services, and utilities
 
 ---
 
@@ -28,12 +80,16 @@ Follow these principles in order of priority:
 3. **Route Guards**: Redirect unauthorized route access attempts
 4. **No Client-Side Trust**: UI hiding is for UX only; always enforce server-side
 
-```tsx
-// ✅ Correct: Hide unauthorized features
-{hasPermission('users:manage') && <MenuItem>Manage Users</MenuItem>}
+```razor
+@* ✅ Correct: Hide unauthorized features *@
+<AuthorizeView Policy="users:manage">
+    <Authorized>
+        <MenuItem>Manage Users</MenuItem>
+    </Authorized>
+</AuthorizeView>
 
-// ❌ Incorrect: Don't just disable
-<MenuItem disabled={!hasPermission('users:manage')}>Manage Users</MenuItem>
+@* ❌ Incorrect: Don't just disable *@
+<MenuItem disabled="@(!HasPermission("users:manage"))">Manage Users</MenuItem>
 ```
 
 ### Authorization - Backend (API)
@@ -49,54 +105,115 @@ Follow these principles in order of priority:
 public async Task<IActionResult> ManageUsers() { ... }
 ```
 
-### API Error Codes
+### API Error Codes and HTTP Status Codes
 
-Always return structured error responses with error codes, NOT hardcoded messages:
+All API endpoints must return **proper HTTP status codes** along with **structured error responses** for localization:
+
+#### HTTP Status Code Standards
+
+| Status Code | Name | Usage |
+|-------------|------|-------|
+| `200` | OK | Successful GET, PUT, PATCH requests |
+| `201` | Created | Successful POST that creates a resource |
+| `204` | No Content | Successful DELETE or update with no response body |
+| `400` | Bad Request | Validation errors, malformed request |
+| `401` | Unauthorized | Missing or invalid authentication |
+| `403` | Forbidden | Authenticated but insufficient permissions |
+| `404` | Not Found | Resource does not exist |
+| `409` | Conflict | Duplicate resource, concurrent modification |
+| `422` | Unprocessable Entity | Business logic validation failure |
+| `429` | Too Many Requests | Rate limiting |
+| `500` | Internal Server Error | Unexpected server error |
+| `503` | Service Unavailable | Dependent service down, maintenance |
+
+#### Standardized Error Response Format
+
+All error responses must use this structure:
 
 ```csharp
-// ✅ Correct: Use error codes for localization
-return new ApiError 
+/// <summary>
+/// Standard API error response.
+/// </summary>
+public class ApiError
 {
-    Code = "PROJECT_NOT_FOUND",
-    Message = "Project not found", // Default English, client localizes by code
-    Details = new { ProjectId = id }
-};
-
-// ❌ Incorrect: Hardcoded messages that can't be localized
-return BadRequest("The project you requested was not found");
+    /// <summary>
+    /// Machine-readable error code for client-side localization.
+    /// </summary>
+    public required string Code { get; set; }
+    
+    /// <summary>
+    /// Human-readable message (default English, clients localize by Code).
+    /// </summary>
+    public required string Message { get; set; }
+    
+    /// <summary>
+    /// Optional additional details (field errors, resource IDs, etc.).
+    /// </summary>
+    public object? Details { get; set; }
+    
+    /// <summary>
+    /// Trace ID for debugging and support tickets.
+    /// </summary>
+    public string? TraceId { get; set; }
+}
 ```
 
-Standard error codes:
-- `AUTH_REQUIRED` - Authentication required
-- `AUTH_FORBIDDEN` - Insufficient permissions
-- `RESOURCE_NOT_FOUND` - Resource does not exist
-- `VALIDATION_FAILED` - Input validation error
-- `RATE_LIMITED` - Too many requests
-- `SERVER_ERROR` - Internal server error
+#### Returning Errors with Correct Status Codes
+
+```csharp
+// ✅ Correct: Return proper status code with structured error
+return req.CreateResponse(HttpStatusCode.NotFound, new ApiError
+{
+    Code = "ACCOUNT_NOT_FOUND",
+    Message = "Account not found",
+    Details = new { AccountId = id },
+    TraceId = Activity.Current?.Id
+});
+
+// ✅ Correct: 400 for validation errors
+return req.CreateResponse(HttpStatusCode.BadRequest, new ApiError
+{
+    Code = "VALIDATION_FAILED",
+    Message = "Invalid request data",
+    Details = new { Field = "email", Error = "Invalid email format" }
+});
+
+// ✅ Correct: 403 for authorization failures
+return req.CreateResponse(HttpStatusCode.Forbidden, new ApiError
+{
+    Code = "AUTH_FORBIDDEN",
+    Message = "Insufficient permissions to access this resource"
+});
+
+// ❌ Incorrect: Wrong status code or unstructured response
+return req.CreateResponse(HttpStatusCode.OK, "Account not found"); // Should be 404
+return req.CreateResponse(HttpStatusCode.BadRequest, "Error occurred"); // No structure
+```
+
+#### Standard Error Codes
+
+| Error Code | HTTP Status | Description |
+|------------|-------------|-------------|
+| `AUTH_REQUIRED` | 401 | Authentication required |
+| `AUTH_FORBIDDEN` | 403 | Insufficient permissions |
+| `AUTH_TOKEN_EXPIRED` | 401 | Token has expired |
+| `RESOURCE_NOT_FOUND` | 404 | Generic resource not found |
+| `ACCOUNT_NOT_FOUND` | 404 | Account does not exist |
+| `USER_NOT_FOUND` | 404 | User does not exist |
+| `VALIDATION_FAILED` | 400 | Input validation error |
+| `INVALID_INPUT` | 400 | Malformed request data |
+| `INSUFFICIENT_FUNDS` | 422 | Business rule: not enough balance |
+| `ACCOUNT_LOCKED` | 422 | Business rule: account is locked |
+| `DUPLICATE_REQUEST` | 409 | Idempotency conflict |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `SERVER_ERROR` | 500 | Internal server error |
+| `SERVICE_UNAVAILABLE` | 503 | Downstream service unavailable |
 
 ---
 
 ## Code Documentation
 
 All code must be fully documented:
-
-### TypeScript/JavaScript (JSDoc)
-
-```typescript
-/**
- * Fetches published projects for the public portfolio.
- * 
- * @description Retrieves all projects with status 'published', 
- * sorted by completion date descending. Results are cached for 5 minutes.
- * 
- * @returns Promise resolving to array of published projects
- * @throws {ApiError} When the API request fails
- * 
- * @example
- * const { data: projects, isLoading } = usePublishedProjects();
- */
-export function usePublishedProjects() { ... }
-```
 
 ### C# (.NET XML Documentation)
 
@@ -114,6 +231,37 @@ export function usePublishedProjects() { ... }
 [HttpGet]
 [ProducesResponseType(typeof(IEnumerable<ProjectDto>), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetPublishedProjects() { ... }
+```
+
+### Blazor Component Documentation
+
+```razor
+@*
+    AccountSummary.razor
+    
+    Displays a summary of the user's financial accounts with balances.
+    
+    Parameters:
+    - AccountId (Guid): The unique identifier for the account
+    - ShowTransactions (bool): Whether to display recent transactions
+    
+    Usage:
+    <AccountSummary AccountId="@selectedAccountId" ShowTransactions="true" />
+*@
+
+@code {
+    /// <summary>
+    /// The unique identifier for the account to display.
+    /// </summary>
+    [Parameter]
+    public Guid AccountId { get; set; }
+    
+    /// <summary>
+    /// Whether to show recent transactions in the summary.
+    /// </summary>
+    [Parameter]
+    public bool ShowTransactions { get; set; } = false;
+}
 ```
 
 ### Documentation Requirements
@@ -137,29 +285,32 @@ All UI must be mobile-friendly using a **mobile-first** design approach:
 3. **Responsive Layouts**: Use CSS Grid and Flexbox for fluid layouts that adapt to all screen sizes
 4. **No Horizontal Scroll**: Content must fit within viewport width on all devices
 
-### Tailwind CSS Breakpoints
+### CSS Breakpoints (Mobile-First)
 
-Use Tailwind's responsive prefixes consistently:
+Use CSS breakpoints consistently with a mobile-first approach:
 
-```tsx
-// ✅ Correct: Mobile-first approach
-<div className="flex flex-col md:flex-row gap-4">
-  <aside className="w-full md:w-64 lg:w-80">
-    {/* Sidebar - full width on mobile, fixed width on desktop */}
-  </aside>
-  <main className="flex-1">
-    {/* Main content */}
-  </main>
+```razor
+@* ✅ Correct: Mobile-first approach with Blazor *@
+<div class="flex flex-col md:flex-row gap-4">
+    <aside class="w-full md:w-64 lg:w-80">
+        @* Sidebar - full width on mobile, fixed width on desktop *@
+    </aside>
+    <main class="flex-1">
+        @* Main content *@
+    </main>
 </div>
 
-// ✅ Correct: Responsive grid
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-  {items.map(item => <Card key={item.id} />)}
+@* ✅ Correct: Responsive grid *@
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    @foreach (var item in Items)
+    {
+        <Card Item="@item" />
+    }
 </div>
 
-// ❌ Incorrect: Desktop-first (requires overrides for mobile)
-<div className="flex flex-row md:flex-col">
-  {/* This is harder to maintain */}
+@* ❌ Incorrect: Desktop-first (requires overrides for mobile) *@
+<div class="flex flex-row md:flex-col">
+    @* This is harder to maintain *@
 </div>
 ```
 
@@ -170,61 +321,68 @@ Use Tailwind's responsive prefixes consistently:
 - **Responsive Tables**: Use horizontal scroll or card layout for data tables on mobile
 - **Touch-Optimized Forms**: Larger form inputs and adequate spacing for mobile
 
-```tsx
-// ✅ Correct: Responsive admin layout
-<div className="min-h-screen bg-background">
-  {/* Mobile header with hamburger */}
-  <header className="sticky top-0 z-50 flex items-center justify-between p-4 md:hidden">
-    <Logo />
-    <Button variant="ghost" onClick={toggleSidebar} aria-label="Toggle menu">
-      <Menu className="h-6 w-6" />
-    </Button>
-  </header>
+```razor
+@* ✅ Correct: Responsive admin layout in Blazor *@
+<div class="min-h-screen bg-background">
+    @* Mobile header with hamburger *@
+    <header class="sticky top-0 z-50 flex items-center justify-between p-4 md:hidden">
+        <Logo />
+        <button @onclick="ToggleSidebar" aria-label="Toggle menu" class="ghost">
+            <span class="oi oi-menu h-6 w-6"></span>
+        </button>
+    </header>
 
-  <div className="flex">
-    {/* Sidebar - hidden on mobile, visible on desktop */}
-    <aside className={cn(
-      "fixed inset-y-0 left-0 z-40 w-64 transform bg-sidebar transition-transform md:relative md:translate-x-0",
-      isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-    )}>
-      <Navigation />
-    </aside>
+    <div class="flex">
+        @* Sidebar - hidden on mobile, visible on desktop *@
+        <aside class="@SidebarClass">
+            <Navigation />
+        </aside>
 
-    {/* Overlay for mobile sidebar */}
-    {isSidebarOpen && (
-      <div 
-        className="fixed inset-0 z-30 bg-black/50 md:hidden" 
-        onClick={() => setIsSidebarOpen(false)} 
-      />
-    )}
+        @* Overlay for mobile sidebar *@
+        @if (IsSidebarOpen)
+        {
+            <div class="fixed inset-0 z-30 bg-black/50 md:hidden" 
+                 @onclick="() => IsSidebarOpen = false">
+            </div>
+        }
 
-    <main className="flex-1 p-4 md:p-6 lg:p-8">
-      {children}
-    </main>
-  </div>
+        <main class="flex-1 p-4 md:p-6 lg:p-8">
+            @ChildContent
+        </main>
+    </div>
 </div>
+
+@code {
+    private bool IsSidebarOpen { get; set; }
+    
+    private string SidebarClass => 
+        $"fixed inset-y-0 left-0 z-40 w-64 transform bg-sidebar transition-transform md:relative md:translate-x-0 {(IsSidebarOpen ? "translate-x-0" : "-translate-x-full")}";
+    
+    private void ToggleSidebar() => IsSidebarOpen = !IsSidebarOpen;
+}
 ```
 
 ### Responsive Data Tables
 
-```tsx
-// ✅ Correct: Card layout on mobile, table on desktop
-<div className="hidden md:block">
-  <Table>{/* Full table for desktop */}</Table>
+```razor
+@* ✅ Correct: Card layout on mobile, table on desktop *@
+<div class="hidden md:block">
+    <table>@* Full table for desktop *@</table>
 </div>
-<div className="md:hidden space-y-4">
-  {items.map(item => (
-    <Card key={item.id}>
-      {/* Card layout for mobile */}
-    </Card>
-  ))}
+<div class="md:hidden space-y-4">
+    @foreach (var item in Items)
+    {
+        <div class="card">
+            @* Card layout for mobile *@
+        </div>
+    }
 </div>
 
-// ✅ Alternative: Horizontal scroll for complex tables
-<div className="overflow-x-auto -mx-4 px-4">
-  <Table className="min-w-[600px]">
-    {/* Table with minimum width */}
-  </Table>
+@* ✅ Alternative: Horizontal scroll for complex tables *@
+<div class="overflow-x-auto -mx-4 px-4">
+    <table class="min-w-[600px]">
+        @* Table with minimum width *@
+    </table>
 </div>
 ```
 
@@ -249,43 +407,41 @@ All UI components must be accessible (WCAG 2.1 AA minimum):
 
 ### Semantic HTML
 
-```tsx
-// ✅ Correct: Use semantic elements
+```razor
+@* ✅ Correct: Use semantic elements *@
 <nav aria-label="Main navigation">
-  <ul>
-    <li><a href="/portfolio">Portfolio</a></li>
-  </ul>
+    <ul>
+        <li><a href="/portfolio">Portfolio</a></li>
+    </ul>
 </nav>
 
 <main>
-  <article>
-    <h1>Project Title</h1>
-    <p>Description...</p>
-  </article>
+    <article>
+        <h1>Project Title</h1>
+        <p>Description...</p>
+    </article>
 </main>
 
-// ❌ Incorrect: Divs for everything
+@* ❌ Incorrect: Divs for everything *@
 <div class="nav">
-  <div class="link">Portfolio</div>
+    <div class="link">Portfolio</div>
 </div>
 ```
 
 ### Interactive Elements
 
-```tsx
-// ✅ Correct: Accessible button with keyboard support
-<button
-  onClick={handleSubmit}
-  aria-label="Submit contact form"
-  aria-busy={isSubmitting}
-  disabled={isSubmitting}
->
-  {isSubmitting ? 'Sending...' : 'Send Message'}
+```razor
+@* ✅ Correct: Accessible button with keyboard support *@
+<button @onclick="HandleSubmit"
+        aria-label="Submit contact form"
+        aria-busy="@IsSubmitting"
+        disabled="@IsSubmitting">
+    @(IsSubmitting ? "Sending..." : "Send Message")
 </button>
 
-// ✅ Correct: Icon button with label
-<button aria-label="Close dialog" onClick={onClose}>
-  <X className="h-4 w-4" aria-hidden="true" />
+@* ✅ Correct: Icon button with label *@
+<button aria-label="Close dialog" @onclick="OnClose">
+    <span class="oi oi-x" aria-hidden="true"></span>
 </button>
 ```
 
@@ -308,100 +464,99 @@ All UI components must be accessible (WCAG 2.1 AA minimum):
 
 All user-facing text must be localizable:
 
-### Translation Keys
+### Using .NET Localization with IStringLocalizer
 
-```tsx
-// ✅ Correct: Use translation keys
-import { useTranslation } from 'react-i18next';
+```csharp
+// In a Blazor component or service
+@inject IStringLocalizer<SharedResources> Localizer
 
-function ContactForm() {
-  const { t } = useTranslation();
-  
-  return (
-    <form>
-      <label htmlFor="name">{t('contact.form.name.label')}</label>
-      <input 
-        id="name"
-        placeholder={t('contact.form.name.placeholder')}
-      />
-      <button type="submit">{t('contact.form.submit')}</button>
-    </form>
-  );
+<form>
+    <label for="name">@Localizer["Contact.Form.Name.Label"]</label>
+    <input id="name" placeholder="@Localizer["Contact.Form.Name.Placeholder"]" />
+    <button type="submit">@Localizer["Contact.Form.Submit"]</button>
+</form>
+```
+
+```csharp
+// ✅ Correct: Use resource files for localization
+public class ContactService
+{
+    private readonly IStringLocalizer<ContactService> _localizer;
+    
+    public ContactService(IStringLocalizer<ContactService> localizer)
+    {
+        _localizer = localizer;
+    }
+    
+    public string GetValidationMessage(string key)
+    {
+        return _localizer[key];
+    }
 }
 
 // ❌ Incorrect: Hardcoded strings
-function ContactForm() {
-  return (
-    <form>
-      <label>Your Name</label>
-      <input placeholder="Enter your name" />
-      <button type="submit">Send Message</button>
-    </form>
-  );
+public string GetValidationMessage()
+{
+    return "Your Name is required"; // Not localizable!
 }
 ```
 
 ### Error Messages from API
 
-```tsx
+```csharp
 // ✅ Correct: Localize error codes from API
-function handleApiError(error: ApiError) {
-  const { t } = useTranslation();
-  
-  // Map error codes to localized messages
-  const message = t(`errors.${error.code}`, { 
-    defaultValue: t('errors.UNKNOWN'),
-    ...error.details 
-  });
-  
-  toast.error(message);
-}
-
-// Translation file (en.json)
+public void HandleApiError(ApiError error, IStringLocalizer<ErrorMessages> localizer)
 {
-  "errors": {
-    "PROJECT_NOT_FOUND": "Project not found",
-    "AUTH_REQUIRED": "Please sign in to continue",
-    "AUTH_FORBIDDEN": "You don't have permission to do that",
-    "VALIDATION_FAILED": "Please check your input and try again",
-    "UNKNOWN": "Something went wrong. Please try again."
-  }
+    // Map error codes to localized messages
+    var message = localizer[$"Errors.{error.Code}"];
+    
+    // Show toast or notification
+    NotificationService.ShowError(message);
 }
+```
+
+### Resource File Structure
+
+```
+Resources/
+├── SharedResources.resx           # Default (English)
+├── SharedResources.es.resx        # Spanish
+├── SharedResources.fr.resx        # French
+├── ErrorMessages.resx             # Error messages (English)
+└── ErrorMessages.es.resx          # Error messages (Spanish)
 ```
 
 ### Requirements Checklist
 
 - [ ] Never hardcode user-facing strings
-- [ ] Use translation keys with react-i18next
+- [ ] Use IStringLocalizer for all display text
 - [ ] Support RTL layouts (CSS logical properties)
-- [ ] Format dates/numbers/currencies per locale
+- [ ] Format dates/numbers/currencies per locale using CultureInfo
 - [ ] Account for text expansion (30-50% longer than English)
-- [ ] Externalize strings to resource files
-- [ ] Use ICU message format for pluralization
+- [ ] Externalize strings to .resx resource files
+- [ ] Use plural forms where appropriate
 
 ---
 
 ## Logging and Metrics
 
-### Frontend Telemetry
+### Blazor Client Telemetry
 
-```tsx
-import { appInsights } from '@/lib/telemetry';
+```csharp
+@inject TelemetryClient TelemetryClient
 
 // ✅ Track user actions
-function handleProjectView(projectId: string) {
-  appInsights.trackEvent({
-    name: 'ProjectViewed',
-    properties: { projectId }
-  });
+private void HandleProjectView(Guid projectId)
+{
+    TelemetryClient.TrackEvent("ProjectViewed", 
+        new Dictionary<string, string> { ["ProjectId"] = projectId.ToString() });
 }
 
 // ✅ Track errors
-function handleError(error: Error, context: string) {
-  appInsights.trackException({
-    exception: error,
-    properties: { context }
-  });
+private void HandleError(Exception error, string context)
+{
+    TelemetryClient.TrackException(error, 
+        new Dictionary<string, string> { ["Context"] = context });
 }
 ```
 
@@ -440,40 +595,146 @@ _logger.LogWarning(
 - **Minimum 90% code coverage** for all new code
 - Unit tests for all business logic
 - Integration tests for API endpoints
-- E2E tests for critical user flows
+- E2E/Acceptance tests for critical user flows
+
+### Testing Frameworks
+
+| Framework | Purpose |
+|-----------|---------|
+| **xUnit** | Unit testing framework |
+| **bUnit** | Blazor component testing |
+| **Reqnroll** | BDD acceptance tests (Gherkin `.feature` files) |
+| **Playwright** | Browser automation for E2E tests |
+
+### Blazor Component Testing with bUnit
+
+```csharp
+using Bunit;
+using Xunit;
+
+public class ProjectCardTests : TestContext
+{
+    [Fact]
+    public void ProjectCard_RendersProjectName()
+    {
+        // Arrange
+        var project = new ProjectDto { Name = "Test Project" };
+        
+        // Act
+        var cut = RenderComponent<ProjectCard>(parameters => 
+            parameters.Add(p => p.Project, project));
+        
+        // Assert
+        cut.Find("h2").MarkupMatches("<h2>Test Project</h2>");
+    }
+}
+```
 
 ### Accessibility Testing
 
-```typescript
-import { axe, toHaveNoViolations } from 'jest-axe';
-
-expect.extend(toHaveNoViolations);
-
-it('should have no accessibility violations', async () => {
-  const { container } = render(<ProjectCard project={mockProject} />);
-  const results = await axe(container);
-  expect(results).toHaveNoViolations();
-});
+```csharp
+// Use Playwright for accessibility testing
+[Fact]
+public async Task Page_ShouldHaveNoAccessibilityViolations()
+{
+    await Page.GotoAsync("/projects");
+    
+    var accessibilityResults = await Page.RunAxeCoreAsync();
+    
+    Assert.Empty(accessibilityResults.Violations);
+}
 ```
 
 ### Authorization Testing
 
-```typescript
+```csharp
 // Test unauthorized access returns 403
-it('should return 403 for non-admin users', async () => {
-  const response = await request(app)
-    .get('/api/admin/projects')
-    .set('Authorization', `Bearer ${userToken}`);
-  
-  expect(response.status).toBe(403);
-  expect(response.body.code).toBe('AUTH_FORBIDDEN');
-});
+[Fact]
+public async Task ManageProjects_ReturnsUnauthorized_ForNonAdminUsers()
+{
+    // Arrange
+    var client = _factory.CreateClient();
+    client.DefaultRequestHeaders.Authorization = 
+        new AuthenticationHeaderValue("Bearer", _userToken);
+    
+    // Act
+    var response = await client.GetAsync("/api/admin/projects");
+    
+    // Assert
+    Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    var error = await response.Content.ReadFromJsonAsync<ApiError>();
+    Assert.Equal("AUTH_FORBIDDEN", error?.Code);
+}
 
-// Test feature hiding
-it('should hide admin link for non-admin users', () => {
-  render(<Header />, { user: regularUser });
-  expect(screen.queryByText('Admin')).not.toBeInTheDocument();
-});
+// Test feature hiding with bUnit
+[Fact]
+public void Header_HidesAdminLink_ForNonAdminUsers()
+{
+    // Arrange
+    var authContext = this.AddTestAuthorization();
+    authContext.SetAuthorized("testuser");
+    // Note: Not adding admin role
+    
+    // Act
+    var cut = RenderComponent<Header>();
+    
+    // Assert
+    Assert.Throws<ElementNotFoundException>(() => cut.Find("[data-testid='admin-link']"));
+}
+```
+
+### BDD Acceptance Testing with Reqnroll
+
+```gherkin
+# Features/AccountManagement.feature
+Feature: Account Management
+    As a user
+    I want to view my account balance
+    So that I can track my finances
+
+Scenario: User views account balance
+    Given I am logged in as "testuser@example.com"
+    And I have an account with balance $1,500.00
+    When I navigate to the account summary page
+    Then I should see the balance "$1,500.00"
+```
+
+```csharp
+// StepDefinitions/AccountManagementSteps.cs
+[Binding]
+public class AccountManagementSteps
+{
+    private readonly ScenarioContext _scenarioContext;
+    private readonly IPage _page;
+
+    public AccountManagementSteps(ScenarioContext scenarioContext, IPage page)
+    {
+        _scenarioContext = scenarioContext;
+        _page = page;
+    }
+
+    [Given(@"I am logged in as ""(.*)""")]
+    public async Task GivenIAmLoggedInAs(string email)
+    {
+        await _page.GotoAsync("/login");
+        await _page.FillAsync("[data-testid='email']", email);
+        await _page.FillAsync("[data-testid='password']", "TestPassword123!");
+        await _page.ClickAsync("[data-testid='login-button']");
+    }
+
+    [When(@"I navigate to the account summary page")]
+    public async Task WhenINavigateToAccountSummary()
+    {
+        await _page.GotoAsync("/accounts/summary");
+    }
+
+    [Then(@"I should see the balance ""(.*)""")]
+    public async Task ThenIShouldSeeBalance(string expectedBalance)
+    {
+        var balance = await _page.TextContentAsync("[data-testid='account-balance']");
+        Assert.Equal(expectedBalance, balance);
+    }
+}
 ```
 
 ---
@@ -482,28 +743,46 @@ it('should hide admin link for non-admin users', () => {
 
 ```
 src/
-├── components/
-│   └── FeatureName/
-│       ├── FeatureName.tsx      # Component with JSDoc
-│       ├── FeatureName.test.tsx # Unit tests (90%+ coverage)
-│       └── index.ts             # Barrel export
-├── hooks/
-│   └── use-feature.ts           # Custom hook with JSDoc
-├── locales/
-│   ├── en/
-│   │   └── feature.json         # English translations
-│   └── es/
-│       └── feature.json         # Spanish translations
-└── types/
-    └── feature.ts               # TypeScript interfaces
+├── Client/                          # Blazor WebAssembly Client
+│   ├── Pages/
+│   │   └── FeatureName/
+│   │       ├── FeaturePage.razor    # Page component with XML docs
+│   │       └── FeaturePage.razor.cs # Code-behind (if needed)
+│   ├── Components/
+│   │   └── FeatureName/
+│   │       ├── FeatureCard.razor    # Reusable component
+│   │       └── FeatureList.razor    # List component
+│   ├── Services/
+│   │   └── FeatureService.cs        # Client-side service
+│   └── wwwroot/
+│       └── css/                     # Component-specific styles
+│
+├── Api/                             # Azure Functions API
+│   ├── Functions/
+│   │   └── FeatureFunction.cs       # XML documented endpoint
+│   ├── Services/
+│   │   └── FeatureService.cs        # Business logic with logging
+│   └── Models/
+│       └── FeatureDto.cs            # Data transfer objects
+│
+├── Shared/                          # Shared library
+│   ├── Models/
+│   │   └── Feature.cs               # Shared domain models
+│   └── Contracts/
+│       └── IFeatureService.cs       # Shared interfaces
+│
+└── Resources/                       # Localization resources
+    ├── Features.resx                # English strings
+    └── Features.es.resx             # Spanish strings
 
-api/
-├── Functions/
-│   └── FeatureFunction.cs       # XML documented endpoint
-├── Services/
-│   └── FeatureService.cs        # Business logic with logging
-└── Models/
-    └── FeatureDto.cs            # Data transfer objects
+tests/
+├── UnitTests/
+│   ├── Client/
+│   │   └── FeatureComponentTests.cs # bUnit component tests
+│   └── Api/
+│       └── FeatureServiceTests.cs   # Unit tests
+└── AcceptanceTests/
+    └── FeatureAcceptanceTests.cs    # E2E tests
 ```
 
 ---
@@ -557,18 +836,18 @@ git flow hotfix finish 1.2.1
 
 When using GitHub API or MCP tools to create branches:
 
-```typescript
+```csharp
 // ✅ Correct: Feature branch from develop
-create_branch({
-  branch: "feature/admin-mobile-responsive",
-  from_branch: "develop"  // ALWAYS develop for features
-})
+create_branch(
+    branch: "feature/admin-mobile-responsive",
+    from_branch: "develop"  // ALWAYS develop for features
+)
 
 // ❌ Incorrect: Feature branch from main
-create_branch({
-  branch: "feature/admin-mobile-responsive",
-  from_branch: "main"  // NEVER do this for features
-})
+create_branch(
+    branch: "feature/admin-mobile-responsive",
+    from_branch: "main"  // NEVER do this for features
+)
 ```
 
 ---

@@ -60,16 +60,37 @@ Safety & copyright notes:
 
 ### 0.1 Microsoft Entra External ID Configuration
 
+> **Strategy**: Use **separate tenants** for Development and Production to ensure complete isolation of user data, credentials, and configuration. See `RAJ_FINANCIAL_INTEGRATIONS_API.md` for detailed configuration.
+
+| Environment | Tenant Domain | Tenant ID | Purpose |
+|-------------|---------------|-----------|---------|
+| Development | `rajfinancialdev.onmicrosoft.com` | `496527a2-41f8-4297-a979-c916e7255a22` | Local dev, CI/CD, testing |
+| Production | `rajfinancialprod.onmicrosoft.com` | `cc4d96fb-ebb5-4aef-8ac3-1d4f947dd2b6` | Live users |
+
+#### Development Tenant Tasks
+
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create Entra External ID Tenant | ⬜ Not Started | P0 | External identities for customers |
-| Configure B2C User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
-| Register SPA Application | ⬜ Not Started | P0 | Blazor WASM client registration |
-| Register API Application | ⬜ Not Started | P0 | Azure Functions API scopes |
+| Create Dev Entra External ID Tenant | ✅ Complete | P0 | `rajfinancialdev.onmicrosoft.com` |
+| Configure Dev User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
+| Register Dev SPA Application | ⬜ Not Started | P0 | Redirect: localhost:5001 |
+| Register Dev API Application | ⬜ Not Started | P0 | Expose `user_impersonation` scope |
+| Create Test Users (all roles) | ⬜ Not Started | P1 | user, advisor, attorney, accountant, admin |
+| Store Dev Tenant IDs in Key Vault | ⬜ Not Started | P0 | Dev Key Vault only |
+
+#### Production Tenant Tasks
+
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Create Prod Entra External ID Tenant | ⬜ Not Started | P0 | `rajfinancial.onmicrosoft.com` |
+| Configure Prod User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
+| Register Prod SPA Application | ⬜ Not Started | P0 | Redirect: rajfinancial.com |
+| Register Prod API Application | ⬜ Not Started | P0 | Expose `user_impersonation` scope |
 | Configure Custom Branding | ⬜ Not Started | P1 | Gold theme, RAJ logo |
 | Set up MFA Policies | ⬜ Not Started | P0 | Require MFA for all users |
-| Configure Session Policies | ⬜ Not Started | P1 | Token lifetimes, refresh behavior |
+| Configure Session Policies | ⬜ Not Started | P1 | 24-hour token lifetime |
 | Social Identity Providers | ⬜ Not Started | P2 | Google, Microsoft, Apple (optional) |
+| Store Prod Tenant IDs in Key Vault | ⬜ Not Started | P0 | Prod Key Vault only |
 
 ### 0.2 Role Definitions & RBAC
 
@@ -88,11 +109,181 @@ Safety & copyright notes:
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
 | Define custom claims in Entra | ⬜ Not Started | P0 | `role`, `permissions` claims |
-| Create App Roles in manifest | ⬜ Not Started | P0 | user, advisor, attorney, accountant, admin |
+| Create App Roles in manifest | ✅ Complete | P0 | In register-entra-apps.ps1 script |
 | Implement role assignment API | ⬜ Not Started | P1 | Assign professionals to clients |
 | Create Authorization Policies | ⬜ Not Started | P0 | [Authorize(Roles = "...")] |
-| Build ClientRelationship entity | ⬜ Not Started | P1 | Maps professionals to clients |
-| Consent flow for data sharing | ⬜ Not Started | P1 | User grants access to professional |
+| Build DataAccessGrant entity | ⬜ Not Started | P0 | User-to-user data sharing |
+| Consent flow for data sharing | ⬜ Not Started | P1 | User grants access to another user |
+
+### 0.2.1 Data Access & Sharing Model
+
+> **Principle**: Every user can only access their own data by default. Access to another user's data requires an explicit grant from the data owner.
+
+#### Access Types
+
+| Access Type | Code | Description | Use Case |
+|-------------|------|-------------|----------|
+| **Owner** | `owner` | Full control - read, write, delete, share | The user's own data |
+| **Full Access** | `full` | Read and write, but cannot delete or share | Spouse, trusted family member |
+| **Read Only** | `read` | View data only, no modifications | Attorney reviewing estate plan |
+| **Limited** | `limited` | Specific data categories only | CPA seeing only tax-relevant accounts |
+
+#### Data Categories (for Limited Access)
+
+| Category | Code | Includes |
+|----------|------|----------|
+| Accounts | `accounts` | Linked bank accounts, balances, transactions |
+| Assets | `assets` | Manual assets (property, vehicles, valuables) |
+| Liabilities | `liabilities` | Debts, loans, mortgages |
+| Beneficiaries | `beneficiaries` | Beneficiary assignments, estate planning |
+| Documents | `documents` | Uploaded strategy documents |
+| All | `all` | Everything (used with `read` or `full` access) |
+
+#### DataAccessGrant Entity
+
+```csharp
+/// <summary>
+/// Represents a grant of access from one user (Grantor) to another user (Grantee).
+/// </summary>
+[MemoryPackable]
+public partial class DataAccessGrant
+{
+    /// <summary>Unique identifier for this grant.</summary>
+    public Guid Id { get; set; }
+    
+    /// <summary>The user who owns the data and is granting access.</summary>
+    public Guid GrantorUserId { get; set; }
+    
+    /// <summary>The user receiving access to the data.</summary>
+    public Guid GranteeUserId { get; set; }
+    
+    /// <summary>The email used to invite the grantee (before they accept).</summary>
+    public string? GranteeEmail { get; set; }
+    
+    /// <summary>Type of access granted (owner, full, read, limited).</summary>
+    public AccessType AccessType { get; set; }
+    
+    /// <summary>Data categories accessible (for limited access).</summary>
+    public List<string> Categories { get; set; } = new();
+    
+    /// <summary>Optional label for the relationship (e.g., "Spouse", "CPA").</summary>
+    public string? RelationshipLabel { get; set; }
+    
+    /// <summary>When the grant was created.</summary>
+    public DateTime CreatedAt { get; set; }
+    
+    /// <summary>When the grantee accepted the invitation (null if pending).</summary>
+    public DateTime? AcceptedAt { get; set; }
+    
+    /// <summary>When the grant expires (null for no expiration).</summary>
+    public DateTime? ExpiresAt { get; set; }
+    
+    /// <summary>When the grant was revoked (null if active).</summary>
+    public DateTime? RevokedAt { get; set; }
+    
+    /// <summary>Status: Pending, Active, Expired, Revoked.</summary>
+    public GrantStatus Status { get; set; }
+}
+
+public enum AccessType { Owner, Full, Read, Limited }
+public enum GrantStatus { Pending, Active, Expired, Revoked }
+```
+
+#### Sharing Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. INVITE: User A grants access to user@email.com                       │
+│    - Creates DataAccessGrant with Status = Pending                      │
+│    - Sends email invitation with secure link                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. ACCEPT: User B clicks link, logs in (or registers)                   │
+│    - GranteeUserId is set to User B's ID                                │
+│    - Status = Active, AcceptedAt = now                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. ACCESS: User B can now see User A's data (per AccessType)            │
+│    - API checks DataAccessGrant before returning data                   │
+│    - UI shows "Viewing as [User A]" indicator                           │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 4. REVOKE: User A can revoke access at any time                         │
+│    - Status = Revoked, RevokedAt = now                                  │
+│    - User B immediately loses access                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### API Endpoints for Sharing
+
+```
+POST   /api/access/grants              → CreateAccessGrant (invite someone)
+GET    /api/access/grants              → GetMyGrants (who I've shared with)
+GET    /api/access/grants/received     → GetReceivedGrants (who shared with me)
+POST   /api/access/grants/{id}/accept  → AcceptGrant (accept invitation)
+DELETE /api/access/grants/{id}         → RevokeGrant (revoke access)
+PATCH  /api/access/grants/{id}         → UpdateGrant (change access level)
+```
+
+#### Authorization Check Pattern
+
+```csharp
+/// <summary>
+/// Checks if the current user can access the specified user's data.
+/// </summary>
+public async Task<DataAccessResult> CanAccessUserDataAsync(
+    Guid currentUserId, 
+    Guid targetUserId, 
+    string category = "all",
+    AccessType minimumAccess = AccessType.Read)
+{
+    // Owner always has access
+    if (currentUserId == targetUserId)
+        return DataAccessResult.Allowed(AccessType.Owner);
+    
+    // Check for active grant
+    var grant = await _db.DataAccessGrants
+        .Where(g => g.GrantorUserId == targetUserId 
+                 && g.GranteeUserId == currentUserId
+                 && g.Status == GrantStatus.Active
+                 && (g.ExpiresAt == null || g.ExpiresAt > DateTime.UtcNow))
+        .FirstOrDefaultAsync();
+    
+    if (grant == null)
+        return DataAccessResult.Denied("No access grant found");
+    
+    // Check access type
+    if (grant.AccessType < minimumAccess)
+        return DataAccessResult.Denied("Insufficient access level");
+    
+    // Check category for limited access
+    if (grant.AccessType == AccessType.Limited 
+        && category != "all" 
+        && !grant.Categories.Contains(category))
+        return DataAccessResult.Denied($"No access to {category}");
+    
+    return DataAccessResult.Allowed(grant.AccessType);
+}
+```
+
+#### Implementation Tasks
+
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Create DataAccessGrant entity | ⬜ Not Started | P0 | EF Core model |
+| Create DataAccessGrant migration | ⬜ Not Started | P0 | Database schema |
+| Implement IDataAccessService | ⬜ Not Started | P0 | Authorization logic |
+| Create sharing API endpoints | ⬜ Not Started | P0 | CRUD for grants |
+| Email invitation service | ⬜ Not Started | P1 | SendGrid integration |
+| UI: Sharing management page | ⬜ Not Started | P1 | Manage who has access |
+| UI: Account switcher | ⬜ Not Started | P1 | Switch between own/shared data |
+| Audit logging for access | ⬜ Not Started | P0 | Log all data access |
 
 **Blazor WASM Auth Configuration:**
 
@@ -180,18 +371,115 @@ var configOptions = await ConfigurationOptions.Parse(redisConnectionString)
 
 ### 0.4 Infrastructure Setup
 
+> **Strategy**: Use **Bicep** templates for all Azure resource provisioning. Separate parameter files per environment (dev/prod). Store in `infra/` folder.
+
+#### Resource Naming Convention
+
+| Resource Type | Dev Name | Prod Name |
+|---------------|----------|-----------|
+| Resource Group | `rg-rajfinancial-dev` | `rg-rajfinancial-prod` |
+| Azure SQL Server | `sql-rajfinancial-dev` | `sql-rajfinancial-prod` |
+| Azure SQL Database | `sqldb-rajfinancial-dev` | `sqldb-rajfinancial-prod` |
+| Azure Functions | `func-rajfinancial-dev` | `func-rajfinancial-prod` |
+| Static Web App | `stapp-rajfinancial-dev` | `stapp-rajfinancial-prod` |
+| Key Vault | `kv-rajfinancial-dev` | `kv-rajfinancial-prod` |
+| Redis Cache | `redis-rajfinancial-dev` | `redis-rajfinancial-prod` |
+| Storage Account | `strajfinancialdev` | `strajfinancialprod` |
+| App Insights | `appi-rajfinancial-dev` | `appi-rajfinancial-prod` |
+| Log Analytics | `log-rajfinancial-dev` | `log-rajfinancial-prod` |
+
+#### Bicep File Structure
+
+```
+infra/
+├── main.bicep                    # Orchestrator - deploys all modules
+├── main.bicepparam               # Shared parameters
+├── parameters/
+│   ├── dev.bicepparam            # Development environment parameters
+│   └── prod.bicepparam           # Production environment parameters
+├── modules/
+│   ├── keyvault.bicep            # Key Vault + secrets
+│   ├── sql.bicep                 # Azure SQL Server + Database
+│   ├── functions.bicep           # Azure Functions + App Service Plan
+│   ├── staticwebapp.bicep        # Static Web Apps
+│   ├── redis.bicep               # Azure Redis Cache
+│   ├── storage.bicep             # Blob Storage (documents)
+│   ├── monitoring.bicep          # App Insights + Log Analytics
+│   └── identity.bicep            # Managed Identities + RBAC assignments
+└── scripts/
+    ├── deploy-dev.ps1            # Deploy to dev environment
+    ├── deploy-prod.ps1           # Deploy to prod environment
+    └── teardown.ps1              # Remove all resources
+```
+
+#### Infrastructure Tasks
+
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create Azure Resource Group | ⬜ Not Started | P0 | raj-financial-rg |
-| Deploy Azure SQL Database | ⬜ Not Started | P0 | Basic tier for MVP |
-| Deploy Azure Functions App | ⬜ Not Started | P0 | Consumption plan, .NET 9 |
-| Deploy Azure Static Web Apps | ⬜ Not Started | P0 | Free tier for MVP |
-| Deploy Azure Key Vault | ⬜ Not Started | P0 | Standard tier |
-| Deploy Azure Redis Cache | ⬜ Not Started | P1 | Basic tier for MVP |
-| Configure Entra External ID Tenant | ⬜ Not Started | P0 | Custom domain optional |
-| Setup GitHub Actions CI/CD | ⬜ Not Started | P0 | Build & deploy pipeline |
-| Configure Bicep/ARM templates | ⬜ Not Started | P1 | Infrastructure as code |
-| Setup Application Insights | ⬜ Not Started | P0 | Logging & monitoring |
+| Create `infra/` folder structure | ✅ Complete | P0 | Structure created |
+| Create `main.bicep` orchestrator | ✅ Complete | P0 | Imports all modules |
+| Create `modules/keyvault.bicep` | ✅ Complete | P0 | Standard tier, RBAC access |
+| Create `modules/sql.bicep` | ⬜ Not Started | P0 | Create when ready to deploy |
+| Create `modules/functions.bicep` | ⬜ Not Started | P0 | Create when ready to deploy |
+| Create `modules/staticwebapp.bicep` | ⬜ Not Started | P0 | Create when ready to deploy |
+| Create `modules/redis.bicep` | ⬜ Not Started | P1 | Create when ready to deploy |
+| Create `modules/storage.bicep` | ✅ Complete | P1 | Standard LRS, Blob containers |
+| Create `modules/monitoring.bicep` | ✅ Complete | P0 | App Insights + Log Analytics |
+| Create `modules/identity.bicep` | ⬜ Not Started | P0 | Create when ready to deploy |
+| Create `parameters/dev.bicepparam` | ✅ Complete | P0 | Tenant ID: 496527a2-... |
+| Create `parameters/prod.bicepparam` | ✅ Complete | P0 | Tenant ID: cc4d96fb-... |
+| Create deploy scripts (PowerShell) | ⬜ Not Started | P1 | Create when ready to deploy |
+| Setup GitHub Actions for IaC | ⬜ Not Started | P1 | Auto-deploy on infra changes |
+
+#### Deployment Commands
+
+```powershell
+# Deploy to Development
+az deployment sub create `
+  --location southcentralus `
+  --template-file infra/main.bicep `
+  --parameters infra/parameters/dev.bicepparam
+
+# Deploy to Production
+az deployment sub create `
+  --location southcentralus `
+  --template-file infra/main.bicep `
+  --parameters infra/parameters/prod.bicepparam
+
+# What-if (preview changes)
+az deployment sub what-if `
+  --location southcentralus `
+  --template-file infra/main.bicep `
+  --parameters infra/parameters/dev.bicepparam
+```
+
+#### Key Vault Secrets to Provision
+
+| Secret Name | Source | Notes |
+|-------------|--------|-------|
+| `Plaid--ClientId` | Plaid Dashboard | Per environment |
+| `Plaid--Secret` | Plaid Dashboard | Per environment |
+| `Claude--ApiKey` | Anthropic Console | Per environment |
+| `AzureAd--TenantId` | Entra Portal | Per environment tenant |
+| `AzureAd--ClientId` | Entra Portal | SPA app registration |
+| `AzureAd--ApiClientId` | Entra Portal | API app registration |
+| `ConnectionStrings--Redis` | Bicep output | Auto-provisioned |
+| `ConnectionStrings--SqlServer` | Bicep output | AAD auth string |
+
+> **Note**: Connection strings for SQL and Redis use Managed Identity authentication, not secrets. Only external service credentials (Plaid, Claude, Entra) need Key Vault secrets.
+
+### 0.5 CI/CD Pipeline Setup
+
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Create `.github/workflows/` folder | ⬜ Not Started | P0 | GitHub Actions |
+| Create `ci.yml` (build/test) | ⬜ Not Started | P0 | On PR to develop |
+| Create `deploy-dev.yml` | ⬜ Not Started | P0 | On push to develop |
+| Create `deploy-prod.yml` | ⬜ Not Started | P0 | On push to main |
+| Create `infra-deploy.yml` | ⬜ Not Started | P1 | On changes to `infra/` |
+| Configure GitHub Environments | ⬜ Not Started | P0 | dev, prod with approvals |
+| Setup OIDC for Azure auth | ⬜ Not Started | P0 | Federated credentials |
+| Configure branch protection | ⬜ Not Started | P0 | Require PR reviews |
 
 ---
 
