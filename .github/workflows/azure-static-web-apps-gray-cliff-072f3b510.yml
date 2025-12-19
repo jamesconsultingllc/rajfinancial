@@ -100,8 +100,6 @@ jobs:
           target-environment: ${{ steps.resolve-env.outputs.target-slot }}
           direction: one-way
           overwrite: 'true'
-        outputs:
-          deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
 
       - name: Add Entra Redirect URI for Preview Environment
         if: steps.resolve-env.outputs.is-preview == 'true'
@@ -109,7 +107,7 @@ jobs:
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: ${{ eeds.build_and_deploy_job.outputs.deployed-url }}
+          origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
           callback-path: '/.auth/login/entraExternalId/callback'
           tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
 
@@ -122,6 +120,8 @@ jobs:
       #     storage-account: rajfinancialdevst
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
       #     origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
+    outputs:
+      deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
 
   e2e_tests_job:
     if: github.event_name != 'pull_request'
