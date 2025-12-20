@@ -113,7 +113,7 @@ jobs:
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
+          origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net/
           callback-path: '/authentication/login-callback'
           uri-type: 'spa'
 
