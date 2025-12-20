@@ -206,7 +206,7 @@ if (-not $apiApp) {
 }
 
 # Set the Application ID URI
-$apiIdentifierUri = "$($envConfig.ApiAppIdUri)"
+$apiIdentifierUri = $envConfig.ApiAppIdUri
 az rest `
     --method PATCH `
     --uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" `
