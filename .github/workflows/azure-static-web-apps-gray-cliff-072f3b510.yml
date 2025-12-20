@@ -113,7 +113,7 @@ jobs:
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
+          origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
           callback-path: '/authentication/login-callback'
           uri-type: 'spa'
 
