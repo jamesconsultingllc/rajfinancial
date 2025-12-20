@@ -1,5 +1,5 @@
 ﻿name: 'Manage Entra Redirect URIs'
-description: 'Add or remove redirect URIs from Microsoft Entra (Azure AD) app registration for Azure Static Web Apps preview environments'
+description: 'Add or remove redirect URIs from Microsoft Entra (Azure AD) app registration for Azure Static Web Apps preview environments. Requires prior authentication via azure/login action.'
 author: 'James Consulting LLC'
 
 inputs:
@@ -20,9 +20,6 @@ inputs:
     description: 'Type of redirect URI: web or spa'
     required: false
     default: 'web'
-  tenant-id:
-    description: 'The Microsoft Entra tenant ID where the app registration exists'
-    required: true
 
 runs:
   using: 'composite'
@@ -39,25 +36,26 @@ runs:
         echo "redirect-uri=$REDIRECT_URI" >> $GITHUB_OUTPUT
         echo "Built redirect URI: $REDIRECT_URI"
 
-    - name: Login to Entra tenant
-      shell: bash
-      run: |
-        echo "Logging into Entra tenant: ${{ inputs.tenant-id }}"
-        az login --tenant ${{ inputs.tenant-id }} --allow-no-subscriptions --output none
-        
     - name: Get current redirect URIs
       id: get-uris
       shell: bash
       run: |
         echo "Getting current redirect URIs for app ${{ inputs.app-object-id }}..."
-        
+
         if [ "${{ inputs.uri-type }}" == "spa" ]; then
-          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "spa.redirectUris" -o tsv 2>/dev/null || echo "")
+          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "spa.redirectUris[]" -o tsv 2>/dev/null || echo "")
         else
-          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "web.redirectUris" -o tsv 2>/dev/null || echo "")
+          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "web.redirectUris[]" -o tsv 2>/dev/null || echo "")
         fi
-        
-        echo "Current URIs: $CURRENT_URIS"
+
+        # Handle case where property doesn't exist or is null
+        if [ "$CURRENT_URIS" == "null" ] || [ -z "$CURRENT_URIS" ]; then
+          CURRENT_URIS=""
+          echo "No existing redirect URIs found (this is normal for new app registrations)"
+        else
+          echo "Current URIs: $CURRENT_URIS"
+        fi
+
         echo "current-uris<<EOF" >> $GITHUB_OUTPUT
         echo "$CURRENT_URIS" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT

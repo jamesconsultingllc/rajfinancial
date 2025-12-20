@@ -101,6 +101,14 @@ jobs:
           direction: one-way
           overwrite: 'true'
 
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Add Entra Redirect URI for Preview Environment
         if: steps.resolve-env.outputs.is-preview == 'true'
         uses: ./.github/actions/manage-entra-redirect-uris
@@ -109,7 +117,6 @@ jobs:
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
           callback-path: '/.auth/login/entraExternalId/callback'
-          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
 
       # TODO: Add Storage CORS management when storage account is created
       # - name: Add Storage CORS for Preview Environment
@@ -225,7 +232,7 @@ jobs:
         continue-on-error: true
         run: |
           source_slot="${{ steps.find-slot.outputs.slot }}"
-          
+
           echo "Deleting environment: $source_slot"
           az staticwebapp environment delete \
             --name rajfinancial \
@@ -233,6 +240,14 @@ jobs:
             --environment-name "$source_slot" \
             --yes
           echo "deleted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.find-slot.outputs.found == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
 
       - name: Remove Entra Redirect URI for Preview Environment
         if: steps.find-slot.outputs.found == 'true'
@@ -242,7 +257,6 @@ jobs:
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: ${{ steps.find-slot.outputs.origin }}
           callback-path: '/.auth/login/entraExternalId/callback'
-          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
 
       # TODO: Add Storage CORS cleanup when storage account is created
       # - name: Remove Storage CORS for Preview Environment
