@@ -1,0 +1,129 @@
+﻿@*
+    LoginDisplay.razor
+    
+    Displays login/logout button based on authentication state.
+    Uses Azure Static Web Apps authentication endpoints.
+    
+    Usage:
+    <LoginDisplay />
+*@
+
+@inject HttpClient Http
+
+@if (_isLoading)
+{
+    <span class="auth-loading" aria-busy="true">
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        <span class="visually-hidden">Loading...</span>
+    </span>
+}
+else if (_isAuthenticated)
+{
+    <div class="auth-buttons">
+        <span class="user-name" title="@_userEmail">
+            <span class="oi oi-person me-1" aria-hidden="true"></span>
+            @_userName
+        </span>
+        <a href="/logout" class="btn btn-outline-secondary btn-sm" aria-label="Log out">
+            <span class="oi oi-account-logout me-1" aria-hidden="true"></span>
+            Log out
+        </a>
+    </div>
+}
+else
+{
+    <a href="/login" class="btn btn-primary btn-sm" aria-label="Log in">
+        <span class="oi oi-account-login me-1" aria-hidden="true"></span>
+        Log in
+    </a>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isAuthenticated;
+    private string? _userName;
+    private string? _userEmail;
+
+    /// <summary>
+    /// Initializes the component by checking the user's authentication state.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationStateAsync();
+    }
+
+    /// <summary>
+    /// Checks the authentication state by calling the Azure Static Web Apps /.auth/me endpoint.
+    /// </summary>
+    private async Task CheckAuthenticationStateAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync("/.auth/me");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var authData = await response.Content.ReadFromJsonAsync<AuthenticationData>();
+                var principal = authData?.ClientPrincipal;
+                
+                if (principal != null && !string.IsNullOrEmpty(principal.UserId))
+                {
+                    _isAuthenticated = true;
+                    _userName = GetClaimValue(principal.Claims, "name") ?? principal.UserDetails ?? "User";
+                    _userEmail = GetClaimValue(principal.Claims, "email") ?? GetClaimValue(principal.Claims, "preferred_username");
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // If we can't reach the auth endpoint, assume not authenticated
+            _isAuthenticated = false;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Gets a claim value by type from the claims collection.
+    /// </summary>
+    /// <param name="claims">The claims collection.</param>
+    /// <param name="claimType">The type of claim to find.</param>
+    /// <returns>The claim value if found, otherwise null.</returns>
+    private static string? GetClaimValue(IEnumerable<UserClaim>? claims, string claimType)
+    {
+        return claims?.FirstOrDefault(c => 
+            c.Type?.Equals(claimType, StringComparison.OrdinalIgnoreCase) == true)?.Value;
+    }
+
+    /// <summary>
+    /// Represents the authentication data returned by Azure Static Web Apps.
+    /// </summary>
+    private sealed class AuthenticationData
+    {
+        public ClientPrincipal? ClientPrincipal { get; set; }
+    }
+
+    /// <summary>
+    /// Represents the client principal from Azure Static Web Apps authentication.
+    /// </summary>
+    private sealed class ClientPrincipal
+    {
+        public string? IdentityProvider { get; set; }
+        public string? UserId { get; set; }
+        public string? UserDetails { get; set; }
+        public IEnumerable<string>? UserRoles { get; set; }
+        public IEnumerable<UserClaim>? Claims { get; set; }
+    }
+
+    /// <summary>
+    /// Represents a user claim from the authentication response.
+    /// </summary>
+    private sealed class UserClaim
+    {
+        public string? Type { get; set; }
+        public string? Value { get; set; }
+    }
+}
+
