@@ -222,7 +222,7 @@ jobs:
           swa-name: rajfinancial
           resource-group: rajfinancial
           source-environment: ${{ steps.find-slot.outputs.slot }}
-          target-environment: ${{ steps.target-env.outputs.target-slot }}
+          target-environment: ${{ steps.target-env.outputs.target-environment }}
 
       - name: Delete Preview Environment
         id: delete-env
