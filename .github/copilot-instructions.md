@@ -852,64 +852,78 @@ create_branch(
 
 ---
 
-## Implementation Plan Workflow
+## Planning & Progress Tracking
 
-**Before starting work on any new feature branch**, create an implementation plan:
+### ⚠️ IMPORTANT: Approval Required
 
-### Required Steps
+**NEVER commit changes without explicit user approval.** Always:
+1. Describe what changes you plan to make
+2. Wait for user confirmation before committing
+3. If in doubt, ask first
 
-1. **Create `IMPLEMENTATION_PLAN.md`** at the repository root with:
-   - Feature description and goals
-   - Numbered task checklist with checkboxes
-   - Files to be created/modified
-   - Testing requirements
-   - Acceptance criteria
+### Permanent Execution Plans (Source of Truth)
 
-2. **Follow the plan** - Check off each item as progress is made:
-   ```markdown
-   ## Tasks
-   - [x] 1. Install dependencies
-   - [x] 2. Create utility function
-   - [ ] 3. Add unit tests
-   - [ ] 4. Update documentation
-   ```
+All project planning and progress tracking is maintained in the `docs/` folder. **These are the authoritative documents** - always keep them up to date:
 
-3. **Resume work easily** - When returning to a branch, read `IMPLEMENTATION_PLAN.md` to see where you left off
+| Document | Purpose |
+|----------|---------|
+| `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md` | **Master execution plan** - phases, infrastructure, security tasks |
+| `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md` | API implementation progress and task tracking |
+| `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md` | UI implementation progress and task tracking |
 
-4. **Remove before merging** - Delete `IMPLEMENTATION_PLAN.md` before merging the feature branch to `develop`
+### When Starting Work
 
-### Template
+1. **Read the execution plans** to understand current progress
+2. **Update the permanent execution plans** as you complete tasks:
+   - Change `⬜ Not Started` to `🟡 In Progress` or `✅ Complete`
+   - Add notes with relevant details (dates, PRs, etc.)
+
+### Temporary Branch Plan (Optional)
+
+You may create a temporary `IMPLEMENTATION_PLAN.md` at the repository root for the current feature branch to:
+- Track which specific tasks from the execution plan you're working on
+- Make it easier to follow immediate progress
+- Reference task numbers from the permanent execution plans
+
+**Requirements for temp plans:**
+1. Reference tasks by number from the permanent execution plans
+2. Delete before merging the feature branch to `develop`
+3. Always sync completed work back to the permanent execution plans
+
+### Template for Temporary Plan
 
 ```markdown
 # Implementation Plan: [Feature Name]
 
-## Overview
-[Brief description of the feature and its goals]
+## Branch Info
+- **Branch**: `feature/xxx`
+- **Created From**: `develop`
 
-## Tasks
-- [ ] 1. [First task]
-- [ ] 2. [Second task]
-- [ ] 3. [Third task]
+## Tasks (from Execution Plan)
+References tasks from `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`:
+
+- [ ] Task 0.2.1.3: Create DataAccessGrant migration
+- [ ] Task 0.2.1.4: Implement IDataAccessService
+- [ ] Task 0.2.2.5: Add "Sign Up" button to LoginDisplay
 
 ## Files to Modify
-- `path/to/file.ts` - [what changes]
-- `path/to/another.ts` - [what changes]
+- `path/to/file.cs` - [what changes]
 
-## Testing Requirements
-- [ ] Unit tests for [component/function]
-- [ ] E2E tests for [user flow]
-- [ ] Accessibility tests
-
-## Acceptance Criteria
-- [ ] [Criterion 1]
-- [ ] [Criterion 2]
+## Notes
+[Any branch-specific notes]
 ```
 
-### Benefits
+### Workflow Summary
 
-- **Continuity**: Both Copilot and Claude can read the plan to understand context
-- **Progress tracking**: Know exactly where work left off
-- **Clean merges**: No plan files in develop/main branches
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Read permanent execution plans in docs/                      │
+│ 2. (Optional) Create temp IMPLEMENTATION_PLAN.md for branch     │
+│ 3. Work on tasks, checking them off in temp plan                │
+│ 4. Update permanent execution plans with completed work         │
+│ 5. Delete temp plan before merging to develop                   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
