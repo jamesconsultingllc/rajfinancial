@@ -85,11 +85,15 @@ runs:
         echo "Adding redirect URI: $NEW_URI"
         echo "New URI list: $NEW_URI_LIST"
 
-        # Convert JSON array to space-separated string for Azure CLI        URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
-
         if [ "${{ inputs.uri-type }}" == "spa" ]; then
-          az ad app update --id ${{ inputs.app-object-id }} --set spa.redirectUris="$NEW_URI_LIST"
+          # Use Microsoft Graph API for SPA redirect URIs
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${{ inputs.app-object-id }}" \
+            --headers "Content-Type=application/json" \
+            --body "{\"spa\":{\"redirectUris\":$NEW_URI_LIST}}"
         else
+          # Convert JSON array to space-separated string for web redirect URIs
+          URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
           az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
         fi
 
@@ -115,11 +119,15 @@ runs:
         echo "Removing redirect URI: $REMOVE_URI"
         echo "New URI list: $NEW_URI_LIST"
 
-        # Convert JSON array to space-separated string for Azure CLI        URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
-
         if [ "${{ inputs.uri-type }}" == "spa" ]; then
-          az ad app update --id ${{ inputs.app-object-id }} --set spa.redirectUris="$NEW_URI_LIST"
+          # Use Microsoft Graph API for SPA redirect URIs
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${{ inputs.app-object-id }}" \
+            --headers "Content-Type=application/json" \
+            --body "{\"spa\":{\"redirectUris\":$NEW_URI_LIST}}"
         else
+          # Convert JSON array to space-separated string for web redirect URIs
+          URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
           az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
         fi
 
