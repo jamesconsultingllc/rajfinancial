@@ -224,21 +224,6 @@ jobs:
           source-environment: ${{ steps.find-slot.outputs.slot }}
           target-environment: ${{ steps.target-env.outputs.target-environment }}
 
-      - name: Delete Preview Environment
-        id: delete-env
-        if: steps.find-slot.outputs.found == 'true'
-        shell: bash
-        continue-on-error: true
-        run: |
-          source_slot="${{ steps.find-slot.outputs.slot }}"
-
-          echo "Deleting environment: $source_slot"
-          az staticwebapp environment delete \
-            --name rajfinancial \
-            --resource-group rajfinancial \
-            --environment-name "$source_slot" \
-            --yes
-          echo "deleted=true" >> "$GITHUB_OUTPUT"
 
       - name: Azure Login with OIDC (Entra External ID)
         if: steps.find-slot.outputs.found == 'true'
@@ -255,7 +240,7 @@ jobs:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: ${{ steps.find-slot.outputs.origin }}
-          callback-path: '/.auth/login/entraExternalId/callback'
+          callback-path: '/authentication/login-callback'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS cleanup when storage account is created
@@ -268,8 +253,7 @@ jobs:
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
-      - name: Fallback - Close with SWA Action
-        if: steps.find-slot.outputs.found != 'true'
+      - name: Close Preview Environment
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
