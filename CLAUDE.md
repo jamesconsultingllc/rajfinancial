@@ -1,4 +1,4 @@
-﻿﻿# Claude AI Assistant Instructions
+# Claude AI Assistant Instructions
 
 ## Project Overview
 
