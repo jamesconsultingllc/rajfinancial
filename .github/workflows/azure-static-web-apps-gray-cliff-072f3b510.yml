@@ -117,7 +117,6 @@ jobs:
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: ${{ steps.builddeploy.outputs.static_web_app_url }}
           callback-path: '/.auth/login/entraExternalId/callback'
-          uri-type: 'spa'
 
       # TODO: Add Storage CORS management when storage account is created
       # - name: Add Storage CORS for Preview Environment

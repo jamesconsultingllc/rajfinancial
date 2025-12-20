@@ -84,13 +84,15 @@ runs:
         
         echo "Adding redirect URI: $NEW_URI"
         echo "New URI list: $NEW_URI_LIST"
-        
+
+        # Convert JSON array to space-separated string for Azure CLI        URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
+
         if [ "${{ inputs.uri-type }}" == "spa" ]; then
           az ad app update --id ${{ inputs.app-object-id }} --set spa.redirectUris="$NEW_URI_LIST"
         else
-          az ad app update --id ${{ inputs.app-object-id }} --set web.redirectUris="$NEW_URI_LIST"
+          az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
         fi
-        
+
         echo "✅ Redirect URI added successfully"
 
     - name: Remove redirect URI
@@ -112,13 +114,15 @@ runs:
         
         echo "Removing redirect URI: $REMOVE_URI"
         echo "New URI list: $NEW_URI_LIST"
-        
+
+        # Convert JSON array to space-separated string for Azure CLI        URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
+
         if [ "${{ inputs.uri-type }}" == "spa" ]; then
           az ad app update --id ${{ inputs.app-object-id }} --set spa.redirectUris="$NEW_URI_LIST"
         else
-          az ad app update --id ${{ inputs.app-object-id }} --set web.redirectUris="$NEW_URI_LIST"
+          az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
         fi
-        
+
         echo "✅ Redirect URI removed successfully"
 
 branding:
