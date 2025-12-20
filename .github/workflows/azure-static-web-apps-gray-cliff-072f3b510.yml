@@ -96,8 +96,8 @@ jobs:
         with:
           swa-name: rajfinancial
           resource-group: rajfinancial
-          source-environment: ${{ steps.resolve-env.outputs.source-slot }}
-          target-environment: ${{ steps.resolve-env.outputs.target-slot }}
+          source-environment: ${{ steps.resolve-env.outputs.source-environment }}
+          target-environment: ${{ steps.resolve-env.outputs.target-environment }}
           direction: one-way
           overwrite: 'true'
 
