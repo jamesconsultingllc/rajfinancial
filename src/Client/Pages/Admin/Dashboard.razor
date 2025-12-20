@@ -1,0 +1,183 @@
+﻿@*
+    Dashboard.razor
+    
+    Administrative dashboard demonstrating policy-based authorization.
+    This page requires the "RequireAdministrator" policy.
+    
+    Usage:
+    Navigate to /admin/dashboard when logged in with Administrator role.
+*@
+
+@page "/admin/dashboard"
+@attribute [Authorize(Policy = "RequireAdministrator")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>Admin Dashboard - RAJ Financial</PageTitle>
+
+<div class="container-fluid py-4">
+    @* Page Header *@
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Administrator Dashboard</h1>
+            <p class="text-muted">System overview and management tools</p>
+        </div>
+    </div>
+
+    @* Stats Cards Row - Responsive grid *@
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="oi oi-people fs-2 text-primary" aria-hidden="true"></span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-0">Total Users</h6>
+                        <h3 class="mb-0">@TotalUsers</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="oi oi-briefcase fs-2 text-success" aria-hidden="true"></span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-0">Active Advisors</h6>
+                        <h3 class="mb-0">@ActiveAdvisors</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="oi oi-wallet fs-2 text-warning" aria-hidden="true"></span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-0">Total Clients</h6>
+                        <h3 class="mb-0">@TotalClients</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="oi oi-dollar fs-2 text-info" aria-hidden="true"></span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-0">Assets Under Mgmt</h6>
+                        <h3 class="mb-0">@AssetsUnderManagement.ToString("C0")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Admin Quick Actions - Using AuthorizeView for granular control *@
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @* User Management - Admin only *@
+                        <AuthorizeView Policy="RequireAdministrator">
+                            <Authorized>
+                                <div class="col-md-6">
+                                    <a href="/admin/users" class="btn btn-outline-primary w-100 py-3">
+                                        <span class="oi oi-people me-2" aria-hidden="true"></span>
+                                        Manage Users
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="/admin/settings" class="btn btn-outline-secondary w-100 py-3">
+                                        <span class="oi oi-cog me-2" aria-hidden="true"></span>
+                                        System Settings
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="/admin/audit-logs" class="btn btn-outline-info w-100 py-3">
+                                        <span class="oi oi-list me-2" aria-hidden="true"></span>
+                                        Audit Logs
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="/admin/reports" class="btn btn-outline-success w-100 py-3">
+                                        <span class="oi oi-graph me-2" aria-hidden="true"></span>
+                                        System Reports
+                                    </a>
+                                </div>
+                            </Authorized>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Recent Activity *@
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="d-flex align-items-center mb-3">
+                            <span class="badge bg-success me-2">New</span>
+                            <span class="text-muted small">User registration pending approval</span>
+                        </li>
+                        <li class="d-flex align-items-center mb-3">
+                            <span class="badge bg-info me-2">Info</span>
+                            <span class="text-muted small">System backup completed</span>
+                        </li>
+                        <li class="d-flex align-items-center mb-3">
+                            <span class="badge bg-warning me-2">Alert</span>
+                            <span class="text-muted small">High-value transaction flagged</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Total number of registered users in the system.
+    /// </summary>
+    private int TotalUsers { get; set; } = 156;
+
+    /// <summary>
+    /// Number of advisors currently active.
+    /// </summary>
+    private int ActiveAdvisors { get; set; } = 12;
+
+    /// <summary>
+    /// Total number of client accounts.
+    /// </summary>
+    private int TotalClients { get; set; } = 142;
+
+    /// <summary>
+    /// Total assets under management in USD.
+    /// </summary>
+    private decimal AssetsUnderManagement { get; set; } = 45_750_000;
+
+    // TODO: Implement data fetching from API
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     await LoadDashboardData();
+    // }
+}
+

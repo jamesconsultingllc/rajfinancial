@@ -1,0 +1,64 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = "RequireAdministrator")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>User Management - RAJ Financial</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">User Management</h1>
+            <p class="text-muted">Manage user accounts and role assignments</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary">
+                <span class="oi oi-plus me-2" aria-hidden="true"></span>
+                Add User
+            </button>
+        </div>
+    </div>
+
+    <AuthorizeView Policy="RequireAdministrator">
+        <Authorized>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Active Users</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No users found. User data will be loaded from API.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Access Denied</h4>
+                <p>You do not have permission to access this page. Administrator role required.</p>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    // TODO: Implement user management logic
+    // This is a placeholder page to demonstrate policy-based authorization
+}

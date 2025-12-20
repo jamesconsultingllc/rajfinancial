@@ -15,7 +15,9 @@
       "Bash(az account show:*)",
       "Bash(az staticwebapp appsettings:*)",
       "Bash(az login:*)",
-      "Bash(dotnet add package:*)"
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)"
     ]
   }
 }
