@@ -1,31 +1,44 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using RajFinancial.Client.Data;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using RajFinancial.Client;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+// Configure MSAL authentication with Entra External ID
+builder.Services.AddMsalAuthentication(options =>
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
+    builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("openid");
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("profile");
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("email");
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("offline_access");
+});
 
-app.UseHttpsRedirection();
+// Configure authorization policies
+builder.Services.AddAuthorizationCore(options =>
+{
+    // Admin-only features (user management, system configuration)
+    options.AddPolicy("RequireAdministrator", policy =>
+        policy.RequireRole("Administrator"));
 
-app.UseStaticFiles();
+    // Advisor features (client management, portfolio operations)
+    // Administrators can also perform advisor tasks
+    options.AddPolicy("RequireAdvisor", policy =>
+        policy.RequireRole("Advisor", "Administrator"));
 
-app.UseRouting();
+    // Client features (view own portfolio, make transactions)
+    // All authenticated users with any role can access client features
+    options.AddPolicy("RequireClient", policy =>
+        policy.RequireRole("Client", "Advisor", "Administrator"));
 
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
+    // Any authenticated user
+    options.AddPolicy("RequireAuthenticated", policy =>
+        policy.RequireAuthenticatedUser());
+});
 
-app.Run();
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+
+await builder.Build().RunAsync();

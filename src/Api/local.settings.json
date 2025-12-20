@@ -1,8 +1,7 @@
-﻿{
-  "IsEncrypted": false,
+{
+  "IsEncrypted": true,
   "Values": {
-    "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
-  }
+    "FUNCTIONS_WORKER_RUNTIME": "CfDJ8D4i+txdiHVFpkCaWYXRa1WxUpo/jq3qT0zcT0ZgqB6cvvXzedVwJ0gIVP8fqH/xuHC/SdmSPM1O14CURleT5hfuvzVqiVKGCgIYipGYGRKhJIptEOblAM1AQ4te7jI29A=="
+  },
+  "ConnectionStrings": {}
 }
-

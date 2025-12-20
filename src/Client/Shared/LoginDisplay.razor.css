@@ -1,0 +1,34 @@
+﻿.auth-loading {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+}
+
+.auth-buttons {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-name {
+    color: #555;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640.98px) {
+    .auth-buttons {
+        gap: 0.5rem;
+    }
+
+    .user-name {
+        max-width: 120px;
+    }
+}
+

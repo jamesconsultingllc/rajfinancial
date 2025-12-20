@@ -1000,14 +1000,172 @@ POST   /api/analysis/insurance         → AnalyzeInsuranceCoverage
 GET    /api/analysis/insights          → GetAIInsights
 ```
 
-### Authentication Endpoints
+### Authentication & Authorization
+
+> **Important**: User authentication (registration, login, password reset, MFA, token refresh) is handled entirely by **Microsoft Entra External ID**. The Blazor WASM client uses MSAL to redirect users to Entra-hosted login pages. Our API only validates JWT tokens issued by Entra.
+
+**Entra External ID Handles (NOT in our API):**
+- User registration (sign-up flow)
+- User login (sign-in flow)
+- Password reset
+- MFA enrollment and verification
+- Token issuance and refresh
+- Social identity provider login (Google, Microsoft, Apple)
+
+**Our API Auth Endpoints (User Profile & Relationships):**
 
 ```
-POST   /api/auth/register              → Register
-POST   /api/auth/login                 → Login
-POST   /api/auth/refresh               → RefreshToken
-POST   /api/auth/logout                → Logout
+GET    /api/auth/me                    → GetCurrentUser (profile from token)
+GET    /api/auth/roles                 → GetUserRoles (roles/permissions)
+POST   /api/auth/clients               → AssignClient (professional assigns to client)
+GET    /api/auth/clients               → GetAssignedClients (list professional's clients)
+DELETE /api/auth/clients/{id}          → RemoveClientAccess (revoke access)
 ```
+
+### Multi-Tenant Environment Strategy
+
+> **Critical**: Use **separate Microsoft Entra External ID tenants** for development and production environments to ensure complete isolation of user data and configuration.
+
+#### Why Separate Tenants?
+
+| Benefit | Description |
+|---------|-------------|
+| **Complete Isolation** | Dev/test users cannot accidentally access production data |
+| **Independent Configuration** | Different branding, policies, user flows per environment |
+| **Safe Testing** | Test authentication changes without risking production |
+| **Compliance** | Financial regulations require production data isolation |
+| **Cost Tracking** | Easier to monitor usage per environment |
+| **Security** | Compromised dev credentials don't affect production |
+
+#### Tenant Structure
+
+| Environment | Tenant Domain | CIAM Login URL | Purpose |
+|-------------|---------------|----------------|---------|
+| **Development** | `rajfinancialdev.onmicrosoft.com` | `https://rajfinancialdev.ciamlogin.com/` | Local dev, CI/CD, testing |
+| **Production** | `rajfinancial.onmicrosoft.com` | `https://rajfinancial.ciamlogin.com/` | Live users, production data |
+
+#### App Registration Per Tenant
+
+Each tenant requires its own app registrations:
+
+| Registration | Dev Tenant | Prod Tenant |
+|--------------|------------|-------------|
+| **SPA (Blazor WASM)** | `rajfinancial-spa-dev` | `rajfinancial-spa` |
+| **API (Azure Functions)** | `rajfinancial-api-dev` | `rajfinancial-api` |
+
+#### Environment Configuration
+
+**appsettings.Development.json** (Development Tenant):
+
+```json
+{
+  "AzureAdB2C": {
+    "Instance": "https://rajfinancialdev.ciamlogin.com/",
+    "Domain": "rajfinancialdev.onmicrosoft.com",
+    "TenantId": "<dev-tenant-id>",
+    "ClientId": "<dev-spa-client-id>",
+    "CallbackPath": "/authentication/login-callback",
+    "SignedOutCallbackPath": "/authentication/logout-callback"
+  },
+  "ApiScopes": {
+    "Default": "https://rajfinancialdev.onmicrosoft.com/api/user_impersonation"
+  }
+}
+```
+
+**appsettings.Production.json** (Production Tenant):
+
+```json
+{
+  "AzureAdB2C": {
+    "Instance": "https://rajfinancial.ciamlogin.com/",
+    "Domain": "rajfinancial.onmicrosoft.com",
+    "TenantId": "<prod-tenant-id>",
+    "ClientId": "<prod-spa-client-id>",
+    "CallbackPath": "/authentication/login-callback",
+    "SignedOutCallbackPath": "/authentication/logout-callback"
+  },
+  "ApiScopes": {
+    "Default": "https://rajfinancial.onmicrosoft.com/api/user_impersonation"
+  }
+}
+```
+
+#### Azure Functions API Token Validation
+
+```csharp
+// Program.cs - Environment-aware Entra configuration
+var builder = new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults()
+    .ConfigureServices((context, services) =>
+    {
+        var config = context.Configuration;
+        
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddMicrosoftIdentityWebApi(options =>
+            {
+                config.Bind("AzureAdB2C", options);
+                options.TokenValidationParameters.ValidAudiences = new[]
+                {
+                    config["AzureAdB2C:ClientId"],
+                    $"api://{config["AzureAdB2C:ClientId"]}"
+                };
+            }, options =>
+            {
+                config.Bind("AzureAdB2C", options);
+            });
+    });
+```
+
+#### Tenant Setup Checklist
+
+**Development Tenant (`rajfinancialdev`):**
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Create Entra External ID tenant | ⬜ Not Started | Azure Portal → Create tenant |
+| Configure user flow (Sign up/Sign in) | ⬜ Not Started | Use default branding initially |
+| Register SPA application | ⬜ Not Started | Redirect: `https://localhost:5001/authentication/login-callback` |
+| Register API application | ⬜ Not Started | Expose `user_impersonation` scope |
+| Add test users | ⬜ Not Started | Create test accounts for each role |
+| Document tenant IDs in Key Vault | ⬜ Not Started | Store in dev Key Vault |
+
+**Production Tenant (`rajfinancial`):**
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Create Entra External ID tenant | ⬜ Not Started | Azure Portal → Create tenant |
+| Configure user flow (Sign up/Sign in) | ⬜ Not Started | Apply RAJ Financial branding |
+| Register SPA application | ⬜ Not Started | Redirect: `https://rajfinancial.com/authentication/login-callback` |
+| Register API application | ⬜ Not Started | Expose `user_impersonation` scope |
+| Configure MFA policy | ⬜ Not Started | Require MFA for all users |
+| Configure session lifetime | ⬜ Not Started | 24-hour token lifetime |
+| Document tenant IDs in Key Vault | ⬜ Not Started | Store in prod Key Vault |
+
+#### CI/CD Pipeline Integration
+
+```yaml
+# azure-pipelines.yml or GitHub Actions
+env:
+  # Development deployment
+  DEV_AZURE_AD_TENANT_ID: $(DEV_TENANT_ID)
+  DEV_AZURE_AD_CLIENT_ID: $(DEV_SPA_CLIENT_ID)
+  
+  # Production deployment  
+  PROD_AZURE_AD_TENANT_ID: $(PROD_TENANT_ID)
+  PROD_AZURE_AD_CLIENT_ID: $(PROD_SPA_CLIENT_ID)
+```
+
+#### Key Vault Secret Management
+
+| Secret Name | Dev Key Vault | Prod Key Vault |
+|-------------|---------------|----------------|
+| `AzureAd--TenantId` | Dev tenant GUID | Prod tenant GUID |
+| `AzureAd--ClientId` | Dev SPA client ID | Prod SPA client ID |
+| `AzureAd--ApiClientId` | Dev API client ID | Prod API client ID |
+| `AzureAd--ApiClientSecret` | Dev API secret | Prod API secret |
+
+> **Never** commit tenant IDs or client IDs to source control. Use Azure Key Vault references in app settings.
 
 ---
 

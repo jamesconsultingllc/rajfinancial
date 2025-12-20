@@ -1,0 +1,45 @@
+@*
+    LoginDisplay.razor
+
+    Displays login/logout button based on authentication state.
+    Uses MSAL authentication with Entra External ID.
+
+    Usage:
+    <LoginDisplay />
+*@
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <div class="auth-buttons d-flex align-items-center gap-2">
+            <span class="user-name text-muted" title="@context.User.Identity?.Name">
+                <span class="oi oi-person me-1" aria-hidden="true"></span>
+                @context.User.Identity?.Name
+            </span>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="BeginLogout" aria-label="Log out">
+                <span class="oi oi-account-logout me-1" aria-hidden="true"></span>
+                Log out
+            </button>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <a href="authentication/login" class="btn btn-primary btn-sm" aria-label="Log in">
+            <span class="oi oi-account-login me-1" aria-hidden="true"></span>
+            Log in
+        </a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    /// <summary>
+    /// Initiates the logout process by navigating to the logout page.
+    /// </summary>
+    private void BeginLogout()
+    {
+        Navigation.NavigateToLogout("authentication/logout");
+    }
+}

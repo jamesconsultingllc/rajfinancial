@@ -1,0 +1,272 @@
+﻿/* ============================================================================
+   RAJ Financial - Microsoft Entra External ID Custom Styles
+   ============================================================================
+   Brand Colors:
+   - Primary: #ebbb10 (Spanish Yellow)
+   - Primary Hover: #d4a80e (Rich Gold)
+   - Accent: #c3922e (UC Gold)
+   - Text: #1a1a1a
+   - Background: #ffffff
+   ============================================================================ */
+
+/* ==========================================================================
+   Primary Buttons (Sign In, Continue, Submit)
+   ========================================================================== */
+
+.ext-button-primary,
+.ext-sign-in-button,
+.win-button-primary,
+button[type="submit"],
+.button-primary {
+    background-color: #ebbb10 !important;
+    background-image: none !important;
+    border-color: #ebbb10 !important;
+    color: #1a1a1a !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+.ext-button-primary:hover,
+.ext-sign-in-button:hover,
+.win-button-primary:hover,
+button[type="submit"]:hover,
+.button-primary:hover {
+    background-color: #d4a80e !important;
+    border-color: #d4a80e !important;
+    color: #1a1a1a !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(235, 187, 16, 0.3) !important;
+}
+
+.ext-button-primary:active,
+.ext-sign-in-button:active,
+.win-button-primary:active,
+button[type="submit"]:active,
+.button-primary:active {
+    background-color: #c3922e !important;
+    border-color: #c3922e !important;
+    transform: translateY(0) !important;
+}
+
+/* ==========================================================================
+   Secondary Buttons
+   ========================================================================== */
+
+.ext-button-secondary,
+.win-button-secondary,
+.button-secondary {
+    background-color: transparent !important;
+    border-color: #ebbb10 !important;
+    color: #ebbb10 !important;
+}
+
+.ext-button-secondary:hover,
+.win-button-secondary:hover,
+.button-secondary:hover {
+    background-color: rgba(235, 187, 16, 0.1) !important;
+    border-color: #d4a80e !important;
+    color: #d4a80e !important;
+}
+
+/* ==========================================================================
+   Links
+   ========================================================================== */
+
+a,
+.ext-link,
+.win-link,
+.text-link {
+    color: #c3922e !important;
+    text-decoration: none !important;
+    transition: color 0.2s ease !important;
+}
+
+a:hover,
+.ext-link:hover,
+.win-link:hover,
+.text-link:hover {
+    color: #a67c26 !important;
+    text-decoration: underline !important;
+}
+
+a:focus,
+.ext-link:focus {
+    outline: 2px solid #ebbb10 !important;
+    outline-offset: 2px !important;
+}
+
+/* ==========================================================================
+   Form Inputs
+   ========================================================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+.ext-input,
+.win-textbox {
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+.ext-input:focus,
+.win-textbox:focus {
+    border-color: #ebbb10 !important;
+    box-shadow: 0 0 0 3px rgba(235, 187, 16, 0.2) !important;
+    outline: none !important;
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+
+.ext-title,
+.ext-header,
+.win-title,
+h1, h2, h3 {
+    color: #1a1a1a !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-weight: 700 !important;
+}
+
+body,
+.ext-body,
+p,
+label,
+span {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    color: #1a1a1a !important;
+}
+
+/* ==========================================================================
+   Page Background
+   ========================================================================== */
+
+body,
+.ext-background,
+.background-image-container {
+    background-color: #fffbcc !important; /* Lemon Chiffon - lightest gold */
+}
+
+/* Alternative options (uncomment one if preferred):
+
+/* Pure white - cleanest look */
+/*
+body,
+.ext-background,
+.background-image-container {
+    background-color: #ffffff !important;
+}
+*/
+
+/* Subtle gradient from white to light gold */
+/*
+body,
+.ext-background,
+.background-image-container {
+    background: linear-gradient(135deg, #ffffff 0%, #fffbcc 100%) !important;
+}
+*/
+
+/* ==========================================================================
+   Error Messages
+   ========================================================================== */
+
+.ext-error,
+.error-message,
+.win-error,
+.alert-danger {
+    color: #dc3545 !important;
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    border-color: #dc3545 !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+}
+
+/* ==========================================================================
+   Success Messages
+   ========================================================================== */
+
+.ext-success,
+.success-message,
+.win-success,
+.alert-success {
+    color: #28a745 !important;
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-color: #28a745 !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+}
+
+/* ==========================================================================
+   Loading Spinner
+   ========================================================================== */
+
+.ext-spinner,
+.win-progress-ring,
+.loading-spinner {
+    border-color: #f5e99a !important;
+    border-top-color: #ebbb10 !important;
+}
+
+/* ==========================================================================
+   Footer / Terms Links
+   ========================================================================== */
+
+.ext-footer,
+.footer-links,
+.terms-privacy {
+    color: #666666 !important;
+    font-size: 12px !important;
+}
+
+.ext-footer a,
+.footer-links a,
+.terms-privacy a {
+    color: #c3922e !important;
+}
+
+/* ==========================================================================
+   Accessibility - Focus States
+   ========================================================================== */
+
+*:focus-visible {
+    outline: 2px solid #ebbb10 !important;
+    outline-offset: 2px !important;
+}
+
+/* Skip to main content link (if present) */
+.skip-link:focus {
+    background-color: #ebbb10 !important;
+    color: #1a1a1a !important;
+}
+
+/* ==========================================================================
+   Mobile Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 480px) {
+    .ext-button-primary,
+    .ext-sign-in-button,
+    button[type="submit"] {
+        padding: 14px 20px !important;
+        font-size: 16px !important;
+        width: 100% !important;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+        font-size: 16px !important; /* Prevents iOS zoom on focus */
+        padding: 14px !important;
+    }
+}
+

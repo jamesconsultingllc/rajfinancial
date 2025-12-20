@@ -15,7 +15,7 @@ on:
       - '*.sln'
       - '.github/workflows/**'
   pull_request:
-    types: [closed]
+    types: [ closed ]
     branches:
       - main
       - develop
@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Unit Tests
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
@@ -54,7 +54,7 @@ jobs:
     needs: unit_tests_job
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           submodules: true
           lfs: false
@@ -62,7 +62,7 @@ jobs:
 
       - name: Resolve Environment
         id: resolve-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
 
       - name: Azure Login with OIDC
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -72,7 +72,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
@@ -83,23 +83,39 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
           api_location: "src/Api"
           output_location: "wwwroot"
-          production_branch: main
           skip_app_build: false
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
         uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
         with:
-          swa-name: raj-financial
+          swa-name: rajfinancial
           resource-group: rajfinancial
           source-environment: ${{ steps.resolve-env.outputs.source-environment }}
           target-environment: ${{ steps.resolve-env.outputs.target-environment }}
           direction: one-way
           overwrite: 'true'
+
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Add Entra Redirect URI for Preview Environment
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: ./.github/actions/manage-entra-redirect-uris
+        with:
+          action: add
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net/
+          callback-path: '/authentication/login-callback'
+          uri-type: 'spa'
 
       # TODO: Add Storage CORS management when storage account is created
       # - name: Add Storage CORS for Preview Environment
@@ -121,18 +137,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [ chromium, firefox, webkit ]
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
-        
+
       - name: Build test project
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
@@ -147,10 +163,10 @@ jobs:
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}
-      
+
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: e2e-test-results-${{ matrix.browser }}
           path: tests/AcceptanceTests/TestResults/
@@ -169,17 +185,17 @@ jobs:
     name: Close Preview Environment
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Resolve Source Environment (PR head branch)
         id: source-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
         with:
           branch: ${{ github.event.pull_request.head.ref }}
 
       - name: Resolve Target Environment (PR base branch)
         id: target-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@f05fd14e40a2714db885a3d7aa4b7aa5c41f3d5b # v1
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
         with:
           branch: ${{ github.event.pull_request.base.ref }}
           detect-source: 'false'
@@ -193,32 +209,17 @@ jobs:
 
       - name: Find Source Slot in SWA
         id: find-slot
-        shell: bash
-        run: |
-          slot_pattern="${{ steps.source-env.outputs.sanitized-branch }}"
-          
-          echo "Looking for environment matching pattern: $slot_pattern"
-          
-          source_slot=$(az staticwebapp environment list \
-            --name raj-financial \
-            --resource-group rajfinancial \
-            --query "[?starts_with(name, '${slot_pattern:0:10}')].name | [0]" -o tsv)
-          
-          if [[ -n "$source_slot" ]]; then
-            echo "Found source environment: $source_slot"
-            echo "slot=$source_slot" >> "$GITHUB_OUTPUT"
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No environment found"
-            echo "slot=" >> "$GITHUB_OUTPUT"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          fi
+        uses: ./.github/actions/find-swa-slot
+        with:
+          swa-name: rajfinancial
+          resource-group: rajfinancial
+          slot-pattern: ${{ steps.source-env.outputs.sanitized-branch }}
 
       - name: Sync New Settings to Target
         if: steps.find-slot.outputs.found == 'true'
         uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
         with:
-          swa-name: raj-financial
+          swa-name: rajfinancial
           resource-group: rajfinancial
           source-environment: ${{ steps.find-slot.outputs.slot }}
           target-environment: ${{ steps.target-env.outputs.target-environment }}
@@ -230,24 +231,42 @@ jobs:
         continue-on-error: true
         run: |
           source_slot="${{ steps.find-slot.outputs.slot }}"
-          
+
           echo "Deleting environment: $source_slot"
           az staticwebapp environment delete \
-            --name raj-financial \
+            --name rajfinancial \
             --resource-group rajfinancial \
             --environment-name "$source_slot" \
             --yes
           echo "deleted=true" >> "$GITHUB_OUTPUT"
 
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.find-slot.outputs.found == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Remove Entra Redirect URI for Preview Environment
+        if: steps.find-slot.outputs.found == 'true'
+        uses: ./.github/actions/manage-entra-redirect-uris
+        with:
+          action: remove
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: ${{ steps.find-slot.outputs.origin }}
+          callback-path: '/.auth/login/entraExternalId/callback'
+          uri-type: 'spa'
+
       # TODO: Add Storage CORS cleanup when storage account is created
       # - name: Remove Storage CORS for Preview Environment
       #   if: steps.find-slot.outputs.found == 'true'
-      #   uses: jamesconsultingllc/manage-storage-cors-action@9f8436b1ef7625f81e621a0ebe6546808f68c7be # v1.0.2
+      #   uses: jamesconsultingllc/manage-storage-cors-action@v1
       #   with:
       #     action: remove
       #     storage-account: rajfinancialdevst
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
-      #     origin: https://${{ steps.find-slot.outputs.slot }}.gray-cliff-072f3b510.azurestaticapps.net
+      #     origin: ${{ steps.find-slot.outputs.origin }}
 
       - name: Fallback - Close with SWA Action
         if: steps.find-slot.outputs.found != 'true'
@@ -255,3 +274,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
           action: close
+
