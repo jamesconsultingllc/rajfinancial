@@ -156,6 +156,18 @@ All coding standards are documented in [`.github/copilot-instructions.md`](.gith
 7. **SOLID Principles** - Clean architecture patterns
 8. **DRY** - Extract reusable components and services
 
+### UI Implementation
+
+**All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
+
+Before creating any UI component:
+1. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+2. Follow the exact component structure and props defined
+3. Use the CSS classes and design tokens specified
+4. Use Syncfusion Blazor v24+ for complex UI elements
+5. Apply glass morphism effects using the GlassCard component
+6. Implement mobile-first responsive design
+
 ### Code Documentation
 
 Always use XML documentation for C# code:

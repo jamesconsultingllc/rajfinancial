@@ -56,6 +56,51 @@ src/Client/wwwroot/
 
 ---
 
+## Project Overview
+
+**Raj Financial** is a financial services application built with:
+- **Frontend**: Blazor WebAssembly (Client)
+- **Backend**: Azure Functions (.NET Isolated Worker)
+- **Shared**: .NET Class Library for shared models and contracts
+- **Hosting**: Azure Static Web Apps
+
+### Project Structure
+
+```
+src/
+├── Api/                    # Azure Functions API (backend)
+│   ├── Functions/          # HTTP trigger functions
+│   ├── Services/           # Business logic services
+│   └── Components/         # Blazor SSR components (if applicable)
+├── Client/                 # Blazor WebAssembly (frontend)
+│   ├── Pages/              # Routable page components
+│   ├── Shared/             # Shared layout components
+│   └── wwwroot/            # Static assets
+├── Shared/                 # Shared library
+│   ├── Entities/           # Domain entities
+│   └── Contracts/          # Interfaces and DTOs
+tests/
+├── UnitTests/              # xUnit unit tests
+└── AcceptanceTests/        # E2E acceptance tests
+docs/                       # Documentation and planning
+```
+
+### Quick Start
+
+```bash
+# Navigate to API project
+cd src/Api
+
+# Run the Azure Functions locally
+func start
+
+# In another terminal, run the Blazor client
+cd src/Client
+dotnet run
+```
+
+---
+
 ## Core Principles
 
 Follow these principles in order of priority:
@@ -68,6 +113,36 @@ Follow these principles in order of priority:
 6. **Observability** - Add logging, metrics, and telemetry
 7. **SOLID Principles** - Follow Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion
 8. **DRY (Don't Repeat Yourself)** - Avoid code duplication; extract reusable components, services, and utilities
+
+---
+
+## UI Implementation Guidelines
+
+**All UI implementation must follow the specifications in [`docs/RAJ_FINANCIAL_UI.md`](../docs/RAJ_FINANCIAL_UI.md).**
+
+This document contains:
+- Complete component specifications with code examples
+- Design system (colors, typography, spacing, animations)
+- Syncfusion component usage patterns
+- Page layouts and component hierarchy
+- Responsive design patterns (mobile-first)
+- Glass morphism and premium visual effects
+
+### Key UI Principles
+
+1. **Use Syncfusion Components** - Leverage Syncfusion Blazor v24+ for complex UI elements (charts, grids, dialogs)
+2. **Follow Component Hierarchy** - Use the component structure defined in the UI doc
+3. **Apply Glass Morphism** - Use the GlassCard component for elevated surfaces
+4. **Animate Meaningfully** - Use defined animations (fadeIn, slideUp, celebrate, shimmer)
+5. **Mobile-First Always** - Design for mobile viewport first, then enhance for desktop
+
+### Before Creating Any UI Component
+
+1. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+2. Follow the exact component structure and props defined
+3. Use the CSS classes and design tokens specified
+4. Implement all responsive breakpoints as documented
+5. Include accessibility attributes (ARIA labels, roles, keyboard navigation)
 
 ---
 
@@ -927,6 +1002,64 @@ References tasks from `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`:
 
 ---
 
+## Common Tasks
+
+### Adding a New API Endpoint
+
+1. Create function in `src/Api/Functions/`
+2. Add service in `src/Api/Services/` if needed
+3. Add DTOs in `src/Shared/Contracts/`
+4. Add unit tests in `tests/UnitTests/`
+5. Update API tracking doc: `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`
+
+### Adding a New Blazor Page
+
+1. Create page in `src/Client/Pages/`
+2. Add route with `@page "/route"` directive
+3. Create child components in `src/Client/Components/`
+4. Add localization strings to `.resx` files
+5. Add bUnit tests in `tests/UnitTests/Client/`
+6. Update UI tracking doc: `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`
+
+### Adding Localization
+
+1. Add string to `Resources/SharedResources.resx` (English)
+2. Add translations to `Resources/SharedResources.{culture}.resx`
+3. Inject `IStringLocalizer<SharedResources>` in component
+4. Use `@Localizer["Key"]` in Razor markup
+
+---
+
+## Useful Commands
+
+```bash
+# Build the solution
+dotnet build src/RajFinancial.sln
+
+# Run API locally
+cd src/Api && func start
+
+# Run Client locally  
+cd src/Client && dotnet run
+
+# Run all tests
+dotnet test
+
+# Run unit tests only
+dotnet test tests/UnitTests
+
+# Run with coverage
+dotnet test --collect:"XPlat Code Coverage"
+
+# Add a new package
+dotnet add src/Api package PackageName
+
+# Format code
+dotnet format src/RajFinancial.sln
+```
+
+---
+
 ## Serialization
 
 ### Use MemoryPack for High-Performance Serialization
@@ -986,3 +1119,14 @@ public partial class CachedUserSession
 | Public REST APIs | JSON | Browser compatibility |
 | Config files | JSON/YAML | Human readable |
 | Logs | JSON | Tooling support |
+
+---
+
+## Links
+
+- **Execution Plan**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN.md)
+- **API Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md)
+- **UI Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md)
+- **Integrations API**: [docs/RAJ_FINANCIAL_INTEGRATIONS_API.md](../docs/RAJ_FINANCIAL_INTEGRATIONS_API.md)
+- **UI Design**: [docs/RAJ_FINANCIAL_UI.md](../docs/RAJ_FINANCIAL_UI.md)
+
