@@ -6,12 +6,42 @@ This document contains the API implementation tracking tables extracted from [RA
 
 ## Part 2: API Development Tracking
 
+### 2.0 Security & Identity (from Part 0)
+
+#### Entities
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| UserProfile entity | ✅ Complete | P0 | `src/Shared/Entities/UserProfile.cs` |
+| DataAccessGrant entity | ✅ Complete | P0 | `src/Shared/Entities/DataAccessGrant.cs` |
+| AccessType enum | ✅ Complete | P0 | Owner, Full, Read, Limited |
+| GrantStatus enum | ✅ Complete | P0 | Pending, Active, Expired, Revoked |
+
+#### Services
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| IDataAccessService interface | ⬜ Not Started | P0 | Authorization logic |
+| DataAccessService implementation | ⬜ Not Started | P0 | Check user access permissions |
+| UserProfileService (API) | ⬜ Not Started | P0 | Sync Entra claims with profile |
+
+#### Data Access Grant Functions
+| Endpoint | Function | Status | Priority |
+|----------|----------|--------|----------|
+| POST /api/access/grants | CreateAccessGrant | ⬜ Not Started | P0 |
+| GET /api/access/grants | GetMyGrants | ⬜ Not Started | P0 |
+| GET /api/access/grants/received | GetReceivedGrants | ⬜ Not Started | P0 |
+| POST /api/access/grants/{id}/accept | AcceptGrant | ⬜ Not Started | P0 |
+| DELETE /api/access/grants/{id} | RevokeGrant | ⬜ Not Started | P0 |
+| PATCH /api/access/grants/{id} | UpdateGrant | ⬜ Not Started | P1 |
+
+---
+
 ### 2.1 Project Setup
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create solution structure | ⬜ Not Started | P0 | Api, Core, Application, Infrastructure, Shared |
-| Configure Azure Functions project | ⬜ Not Started | P0 | Isolated worker, .NET 9 |
+| Create solution structure | ✅ Complete | P0 | Api, Client, Shared projects |
+| Configure Azure Functions project | ✅ Complete | P0 | Isolated worker, .NET 9 |
+| Add MemoryPack package | ⬜ Not Started | P0 | High-performance serialization |
 | Set up EF Core 9 with Azure SQL | ⬜ Not Started | P0 | DbContext, migrations, MI auth |
 | Configure Key Vault integration | ⬜ Not Started | P0 | Managed Identity access |
 | Set up Application Insights | ⬜ Not Started | P1 | Logging, telemetry |

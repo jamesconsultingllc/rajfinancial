@@ -1,4 +1,4 @@
-﻿# Claude AI Assistant Instructions
+# Claude AI Assistant Instructions
 
 ## Project Overview
 
@@ -100,13 +100,20 @@ docs/                       # Documentation and planning
 
 ## 📋 Planning & Progress Tracking
 
-### Active Planning Documents
+### ⚠️ IMPORTANT: Approval Required
 
-All project planning and progress tracking is maintained in the `docs/` folder:
+**NEVER commit changes without explicit user approval.** Always:
+1. Describe what changes you plan to make
+2. Wait for user confirmation before committing
+3. If in doubt, ask first
+
+### Permanent Execution Plans (Source of Truth)
+
+**All project planning and progress tracking is maintained in the `docs/` folder.** These are the authoritative documents - always keep them up to date:
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) | Master execution plan with phases and milestones |
+| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) | **Master execution plan** - phases, infrastructure, security tasks |
 | [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md) | API implementation progress and task tracking |
 | [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md) | UI implementation progress and task tracking |
 | [`docs/RAJ_FINANCIAL_INTEGRATIONS_API.md`](docs/RAJ_FINANCIAL_INTEGRATIONS_API.md) | API integration specifications |
@@ -114,13 +121,23 @@ All project planning and progress tracking is maintained in the `docs/` folder:
 
 ### When Starting Work
 
-1. **Read the tracking documents** to understand current progress:
-   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md` for API tasks
-   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md` for UI tasks
+1. **Read the execution plans** to understand current progress:
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md` for infrastructure/security tasks (Part 0)
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md` for API tasks (Part 2)
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md` for UI tasks (Part 1)
 
-2. **Update progress** as you complete tasks by checking off items in the tracking documents
+2. **Update the permanent execution plans** as you complete tasks:
+   - Change `⬜ Not Started` to `🟡 In Progress` or `✅ Complete`
+   - Add notes with relevant details (dates, PRs, etc.)
 
-3. **For new feature branches**, also create an `IMPLEMENTATION_PLAN.md` at the repo root (see copilot-instructions.md)
+3. **Reference task numbers** from the execution plan in commits and PRs
+
+### Temporary Branch Plans (Optional)
+
+You may create a temporary `IMPLEMENTATION_PLAN.md` at the repo root for the current feature branch to make it easier to follow immediate progress. Requirements:
+- Reference tasks by number from the permanent execution plans
+- Delete before merging to `develop`
+- Always sync completed work back to the permanent execution plans
 
 ---
 
@@ -138,6 +155,18 @@ All coding standards are documented in [`.github/copilot-instructions.md`](.gith
 6. **Observability** - Structured logging with ILogger
 7. **SOLID Principles** - Clean architecture patterns
 8. **DRY** - Extract reusable components and services
+
+### UI Implementation
+
+**All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
+
+Before creating any UI component:
+1. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+2. Follow the exact component structure and props defined
+3. Use the CSS classes and design tokens specified
+4. Use Syncfusion Blazor v24+ for complex UI elements
+5. Apply glass morphism effects using the GlassCard component
+6. Implement mobile-first responsive design
 
 ### Code Documentation
 

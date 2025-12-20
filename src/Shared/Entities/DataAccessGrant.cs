@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // RAJ Financial - Data Access Grant Entity
 // ============================================================================
 // Represents a grant of access from one user (Grantor) to another user (Grantee).
@@ -63,30 +63,30 @@ public partial class DataAccessGrant
     /// <summary>
     /// When the invitation token expires.
     /// </summary>
-    public DateTime? InvitationExpiresAt { get; set; }
+    public DateTimeOffset? InvitationExpiresAt { get; set; }
 
     /// <summary>
     /// When the grant was created.
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
     /// When the grantee accepted the invitation.
     /// Null if still pending.
     /// </summary>
-    public DateTime? AcceptedAt { get; set; }
+    public DateTimeOffset? AcceptedAt { get; set; }
 
     /// <summary>
     /// When the grant expires.
     /// Null for no expiration (permanent until revoked).
     /// </summary>
-    public DateTime? ExpiresAt { get; set; }
+    public DateTimeOffset? ExpiresAt { get; set; }
 
     /// <summary>
     /// When the grant was revoked.
     /// Null if still active.
     /// </summary>
-    public DateTime? RevokedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
 
     /// <summary>
     /// Current status of the grant.
@@ -101,7 +101,7 @@ public partial class DataAccessGrant
     /// <summary>
     /// When the record was last modified.
     /// </summary>
-    public DateTime UpdatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>

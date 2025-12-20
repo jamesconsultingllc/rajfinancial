@@ -127,11 +127,26 @@ This document contains the UI implementation tracking tables extracted from [RAJ
 | SecuritySection.razor | Components/Settings/ | ⬜ Not Started | P2 |
 | NotificationPrefs.razor | Components/Settings/ | ⬜ Not Started | P3 |
 
-### 1.12 Authentication Pages
+### 1.12 Authentication & Account Pages
 
+#### Authentication Components (Completed)
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| Authentication.razor | Pages/ | ✅ Complete | P0 | Handles login/logout callbacks |
+| LoginDisplay.razor | Shared/ | ✅ Complete | P0 | Login/logout buttons |
+| RedirectToLogin.razor | Shared/ | ✅ Complete | P0 | Redirect unauthenticated users |
+
+#### Sign-Up / Account Workflow
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| Add "Sign Up" button | Shared/LoginDisplay.razor | ⬜ Not Started | P0 | Separate from Log in |
+| CompleteProfile.razor | Pages/Account/ | ⬜ Not Started | P0 | Post-signup profile completion |
+| Settings.razor | Pages/Account/ | ⬜ Not Started | P1 | User profile management |
+| UserProfileService | Services/ | ⬜ Not Started | P0 | Sync Entra claims with profile |
+
+#### Auth Error/Redirect Pages
 | Component | File | Status | Priority |
 |-----------|------|--------|----------|
-| AuthRedirect.razor | Pages/Auth/ | ⬜ Not Started | P0 |
 | AccessDenied.razor | Pages/Auth/ | ⬜ Not Started | P0 |
 | LoggingIn.razor | Pages/Auth/ | ⬜ Not Started | P1 |
 

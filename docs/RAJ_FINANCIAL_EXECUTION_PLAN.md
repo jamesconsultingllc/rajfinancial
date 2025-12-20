@@ -73,8 +73,8 @@ Safety & copyright notes:
 |------|--------|----------|-------|
 | Create Dev Entra External ID Tenant | ✅ Complete | P0 | `rajfinancialdev.onmicrosoft.com` |
 | Configure Dev User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
-| Register Dev SPA Application | ⬜ Not Started | P0 | Redirect: localhost:5001 |
-| Register Dev API Application | ⬜ Not Started | P0 | Expose `user_impersonation` scope |
+| Register Dev SPA Application | ✅ Complete | P0 | `RajFinancial.Client.Dev` - Uses SWA auth |
+| Register Dev API Application | ✅ Complete | P0 | `RajFinancial.Api.Dev` - Exposes scopes |
 | Create Test Users (all roles) | ⬜ Not Started | P1 | user, advisor, attorney, accountant, admin |
 | Store Dev Tenant IDs in Key Vault | ⬜ Not Started | P0 | Dev Key Vault only |
 
@@ -82,10 +82,10 @@ Safety & copyright notes:
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create Prod Entra External ID Tenant | ⬜ Not Started | P0 | `rajfinancial.onmicrosoft.com` |
+| Create Prod Entra External ID Tenant | ✅ Complete | P0 | `rajfinancialprod.onmicrosoft.com` |
 | Configure Prod User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
-| Register Prod SPA Application | ⬜ Not Started | P0 | Redirect: rajfinancial.com |
-| Register Prod API Application | ⬜ Not Started | P0 | Expose `user_impersonation` scope |
+| Register Prod SPA Application | ✅ Complete | P0 | `RajFinancial.Client.Prod` |
+| Register Prod API Application | ✅ Complete | P0 | `RajFinancial.Api.Prod` |
 | Configure Custom Branding | ⬜ Not Started | P1 | Gold theme, RAJ logo |
 | Set up MFA Policies | ⬜ Not Started | P0 | Require MFA for all users |
 | Configure Session Policies | ⬜ Not Started | P1 | 24-hour token lifetime |
@@ -111,8 +111,9 @@ Safety & copyright notes:
 | Define custom claims in Entra | ⬜ Not Started | P0 | `role`, `permissions` claims |
 | Create App Roles in manifest | ✅ Complete | P0 | In register-entra-apps.ps1 script |
 | Implement role assignment API | ⬜ Not Started | P1 | Assign professionals to clients |
-| Create Authorization Policies | ⬜ Not Started | P0 | [Authorize(Roles = "...")] |
-| Build DataAccessGrant entity | ⬜ Not Started | P0 | User-to-user data sharing |
+| Create Authorization Policies | ✅ Complete | P0 | In Client Program.cs |
+| Build DataAccessGrant entity | ✅ Complete | P0 | In Shared/Entities |
+| Build UserProfile entity | ✅ Complete | P0 | In Shared/Entities |
 | Consent flow for data sharing | ⬜ Not Started | P1 | User grants access to another user |
 
 ### 0.2.1 Data Access & Sharing Model
@@ -276,7 +277,8 @@ public async Task<DataAccessResult> CanAccessUserDataAsync(
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create DataAccessGrant entity | ⬜ Not Started | P0 | EF Core model |
+| Create DataAccessGrant entity | ✅ Complete | P0 | EF Core model in Shared/Entities |
+| Create UserProfile entity | ✅ Complete | P0 | EF Core model in Shared/Entities |
 | Create DataAccessGrant migration | ⬜ Not Started | P0 | Database schema |
 | Implement IDataAccessService | ⬜ Not Started | P0 | Authorization logic |
 | Create sharing API endpoints | ⬜ Not Started | P0 | CRUD for grants |
@@ -284,6 +286,34 @@ public async Task<DataAccessResult> CanAccessUserDataAsync(
 | UI: Sharing management page | ⬜ Not Started | P1 | Manage who has access |
 | UI: Account switcher | ⬜ Not Started | P1 | Switch between own/shared data |
 | Audit logging for access | ⬜ Not Started | P0 | Log all data access |
+
+### 0.2.2 Sign-Up / Sign-In Workflow
+
+#### Blazor Client Implementation
+
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Configure MSAL authentication | ✅ Complete | P0 | In Program.cs |
+| Create Authentication.razor page | ✅ Complete | P0 | Handles login callbacks |
+| Create LoginDisplay.razor component | ✅ Complete | P0 | Login/logout buttons |
+| Create RedirectToLogin.razor | ✅ Complete | P0 | Redirect unauthenticated users |
+| Add "Sign Up" button to LoginDisplay | ⬜ Not Started | P0 | Separate from Log in button |
+| Create CompleteProfile.razor page | ⬜ Not Started | P0 | Post-signup profile completion |
+| Create AccountSettings.razor page | ⬜ Not Started | P1 | User profile management |
+| Create UserProfileService (Client) | ⬜ Not Started | P0 | Sync Entra claims with profile |
+| Add claims transformation | ⬜ Not Started | P1 | Extract custom attributes from tokens |
+
+#### Entra Portal Configuration (Manual)
+
+| Task | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Configure SWA environment variables | ⬜ Not Started | P0 | Azure Portal |
+| Configure Dev user flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
+| Configure Prod user flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
+| Apply Dev branding | ⬜ Not Started | P1 | Gold theme, RAJ logo |
+| Apply Prod branding | ⬜ Not Started | P1 | Gold theme, RAJ logo |
+| Test Dev authentication flow | ⬜ Not Started | P0 | End-to-end test |
+| Test Prod authentication flow | ⬜ Not Started | P0 | End-to-end test |
 
 **Blazor WASM Auth Configuration:**
 
@@ -472,13 +502,15 @@ az deployment sub what-if `
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| Create `.github/workflows/` folder | ⬜ Not Started | P0 | GitHub Actions |
-| Create `ci.yml` (build/test) | ⬜ Not Started | P0 | On PR to develop |
-| Create `deploy-dev.yml` | ⬜ Not Started | P0 | On push to develop |
-| Create `deploy-prod.yml` | ⬜ Not Started | P0 | On push to main |
+| Create `.github/workflows/` folder | ✅ Complete | P0 | GitHub Actions |
+| Create `azure-swa.yml` (build/deploy) | ✅ Complete | P0 | Build and deploy SWA |
+| Create preview environments | ✅ Complete | P0 | Auto-create on PR |
+| Create preview cleanup on merge | ✅ Complete | P0 | Auto-delete on merge |
+| Setup OIDC for Azure auth | ✅ Complete | P0 | Federated credentials configured |
+| Entra redirect URI management | ✅ Complete | P0 | Auto-add/remove URIs for preview |
+| SWA settings sync | ✅ Complete | P0 | Sync staticwebapp.config.json |
 | Create `infra-deploy.yml` | ⬜ Not Started | P1 | On changes to `infra/` |
 | Configure GitHub Environments | ⬜ Not Started | P0 | dev, prod with approvals |
-| Setup OIDC for Azure auth | ⬜ Not Started | P0 | Federated credentials |
 | Configure branch protection | ⬜ Not Started | P0 | Require PR reviews |
 
 ---
