@@ -1,4 +1,4 @@
-th# RAJ Financial Software - Execution Plan (API Tracking)
+# RAJ Financial Software - Execution Plan (API Tracking)
 
 This document contains the API implementation tracking tables extracted from [RAJ_FINANCIAL_EXECUTION_PLAN.md](RAJ_FINANCIAL_EXECUTION_PLAN.md).
 
