@@ -207,26 +207,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Find Source Slot in SWA
-        id: find-slot
-        uses: ./.github/actions/find-swa-slot
-        with:
-          swa-name: rajfinancial
-          resource-group: rajfinancial
-          slot-pattern: ${{ steps.source-env.outputs.sanitized-branch }}
-
       - name: Sync New Settings to Target
-        if: steps.find-slot.outputs.found == 'true'
         uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
         with:
           swa-name: rajfinancial
           resource-group: rajfinancial
-          source-environment: ${{ steps.find-slot.outputs.slot }}
+          source-environment: ${{ steps.source-env.outputs.sanitized-branch }}
           target-environment: ${{ steps.target-env.outputs.target-environment }}
 
 
       - name: Azure Login with OIDC (Entra External ID)
-        if: steps.find-slot.outputs.found == 'true'
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.ENTRA_CLIENT_ID }}
@@ -234,12 +224,11 @@ jobs:
           allow-no-subscriptions: true
 
       - name: Remove Entra Redirect URI for Preview Environment
-        if: steps.find-slot.outputs.found == 'true'
         uses: ./.github/actions/manage-entra-redirect-uris
         with:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: ${{ steps.find-slot.outputs.origin }}
+          origin: https://gray-cliff-072f3b510-${{ steps.source-env.outputs.sanitized-branch }}.centralus.azurestaticapps.net/
           callback-path: '/authentication/login-callback'
           uri-type: 'spa'
 
