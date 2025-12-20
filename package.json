@@ -1,0 +1,20 @@
+﻿{
+  "name": "rajfinancial",
+  "version": "1.0.0",
+  "description": "Raj Financial Blazor WebAssembly Application",
+  "scripts": {
+    "start": "swa start",
+    "test:unit": "dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --verbosity normal",
+    "test:e2e": "dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --verbosity normal",
+    "test:e2e:ci": "concurrently -k -s first \"npm run start\" \"npm run test:e2e:wait\"",
+    "test:e2e:wait": "wait-on http://localhost:4280 -t 60000 && npm run test:e2e",
+    "test:all": "dotnet test src/RajFinancial.sln --verbosity normal",
+    "build": "dotnet build src/RajFinancial.sln -c Release"
+  },
+  "devDependencies": {
+    "@azure/static-web-apps-cli": "^2.0.1",
+    "concurrently": "^9.1.0",
+    "wait-on": "^8.0.1"
+  }
+}
+

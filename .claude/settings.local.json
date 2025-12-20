@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(az ad app show:*)",
+      "Bash(az ad sp show:*)",
+      "Bash(az ad app federated-credential create:*)",
+      "Bash(az version:*)",
+      "Bash(az ad app update --help:*)",
+      "Bash(git add:*)",
+      "Bash(git push)",
+      "Bash(az staticwebapp show:*)",
+      "Bash(az account list:*)",
+      "Bash(az ad app credential reset:*)",
+      "Bash(az account set:*)",
+      "Bash(az account show:*)",
+      "Bash(az staticwebapp appsettings:*)",
+      "Bash(az login:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)"
+    ]
+  }
+}

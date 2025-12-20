@@ -1,0 +1,71 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+<PageTitle>Authentication</PageTitle>
+
+<RemoteAuthenticatorView Action="@Action">
+    <LoggingIn>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Signing you in...</p>
+            </div>
+        </div>
+    </LoggingIn>
+    <CompletingLoggingIn>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="spinner-border text-success mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Completing sign in...</p>
+            </div>
+        </div>
+    </CompletingLoggingIn>
+    <LogOut>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="spinner-border text-warning mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Signing you out...</p>
+            </div>
+        </div>
+    </LogOut>
+    <CompletingLogOut>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="spinner-border text-info mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Completing sign out...</p>
+            </div>
+        </div>
+    </CompletingLogOut>
+    <LogInFailed>
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Authentication Failed</h4>
+            <p>There was an error trying to log you in. Please try again.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    </LogInFailed>
+    <LogOutFailed>
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Logout Failed</h4>
+            <p>There was an error trying to log you out. Please try again.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    </LogOutFailed>
+</RemoteAuthenticatorView>
+
+@code {
+    /// <summary>
+    /// The authentication action to perform (login, logout, login-callback, logout-callback, etc.).
+    /// </summary>
+    [Parameter]
+    public string? Action { get; set; }
+}

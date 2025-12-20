@@ -1,0 +1,139 @@
+﻿name: 'Manage Entra Redirect URIs'
+description: 'Add or remove redirect URIs from Microsoft Entra (Azure AD) app registration for Azure Static Web Apps preview environments. Requires prior authentication via azure/login action.'
+author: 'James Consulting LLC'
+
+inputs:
+  action:
+    description: 'Action to perform: add or remove'
+    required: true
+  app-object-id:
+    description: 'The Object ID of the Entra app registration (not the Client/Application ID)'
+    required: true
+  origin:
+    description: 'The origin URL (e.g., https://example.azurestaticapps.net)'
+    required: true
+  callback-path:
+    description: 'The callback path to append to the origin for the redirect URI'
+    required: false
+    default: '/.auth/login/aad/callback'
+  uri-type:
+    description: 'Type of redirect URI: web or spa'
+    required: false
+    default: 'web'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build redirect URI
+      id: build-uri
+      shell: bash
+      run: |
+        ORIGIN="${{ inputs.origin }}"
+        # Remove trailing slash if present
+        ORIGIN="${ORIGIN%/}"
+        CALLBACK_PATH="${{ inputs.callback-path }}"
+        REDIRECT_URI="${ORIGIN}${CALLBACK_PATH}"
+        echo "redirect-uri=$REDIRECT_URI" >> $GITHUB_OUTPUT
+        echo "Built redirect URI: $REDIRECT_URI"
+
+    - name: Get current redirect URIs
+      id: get-uris
+      shell: bash
+      run: |
+        echo "Getting current redirect URIs for app ${{ inputs.app-object-id }}..."
+
+        if [ "${{ inputs.uri-type }}" == "spa" ]; then
+          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "spa.redirectUris[]" -o tsv 2>/dev/null || echo "")
+        else
+          CURRENT_URIS=$(az ad app show --id ${{ inputs.app-object-id }} --query "web.redirectUris[]" -o tsv 2>/dev/null || echo "")
+        fi
+
+        # Handle case where property doesn't exist or is null
+        if [ "$CURRENT_URIS" == "null" ] || [ -z "$CURRENT_URIS" ]; then
+          CURRENT_URIS=""
+          echo "No existing redirect URIs found (this is normal for new app registrations)"
+        else
+          echo "Current URIs: $CURRENT_URIS"
+        fi
+
+        echo "current-uris<<EOF" >> $GITHUB_OUTPUT
+        echo "$CURRENT_URIS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Add redirect URI
+      if: inputs.action == 'add'
+      shell: bash
+      run: |
+        NEW_URI="${{ steps.build-uri.outputs.redirect-uri }}"
+        CURRENT_URIS="${{ steps.get-uris.outputs.current-uris }}"
+        
+        # Check if URI already exists
+        if echo "$CURRENT_URIS" | grep -q "^${NEW_URI}$"; then
+          echo "Redirect URI already exists: $NEW_URI"
+          exit 0
+        fi
+        
+        # Build new URI list
+        if [ -z "$CURRENT_URIS" ]; then
+          NEW_URI_LIST="[\"$NEW_URI\"]"
+        else
+          # Convert newline-separated list to JSON array
+          URI_ARRAY=$(echo "$CURRENT_URIS" | jq -R -s 'split("\n") | map(select(length > 0))')
+          NEW_URI_LIST=$(echo "$URI_ARRAY" | jq --arg uri "$NEW_URI" '. + [$uri]')
+        fi
+        
+        echo "Adding redirect URI: $NEW_URI"
+        echo "New URI list: $NEW_URI_LIST"
+
+        if [ "${{ inputs.uri-type }}" == "spa" ]; then
+          # Use Microsoft Graph API for SPA redirect URIs
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${{ inputs.app-object-id }}" \
+            --headers "Content-Type=application/json" \
+            --body "{\"spa\":{\"redirectUris\":$NEW_URI_LIST}}"
+        else
+          # Convert JSON array to space-separated string for web redirect URIs
+          URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
+          az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
+        fi
+
+        echo "✅ Redirect URI added successfully"
+
+    - name: Remove redirect URI
+      if: inputs.action == 'remove'
+      shell: bash
+      run: |
+        REMOVE_URI="${{ steps.build-uri.outputs.redirect-uri }}"
+        CURRENT_URIS="${{ steps.get-uris.outputs.current-uris }}"
+        
+        # Check if URI exists
+        if ! echo "$CURRENT_URIS" | grep -q "^${REMOVE_URI}$"; then
+          echo "Redirect URI not found: $REMOVE_URI"
+          exit 0
+        fi
+        
+        # Convert newline-separated list to JSON array and remove the URI
+        URI_ARRAY=$(echo "$CURRENT_URIS" | jq -R -s 'split("\n") | map(select(length > 0))')
+        NEW_URI_LIST=$(echo "$URI_ARRAY" | jq --arg uri "$REMOVE_URI" 'map(select(. != $uri))')
+        
+        echo "Removing redirect URI: $REMOVE_URI"
+        echo "New URI list: $NEW_URI_LIST"
+
+        if [ "${{ inputs.uri-type }}" == "spa" ]; then
+          # Use Microsoft Graph API for SPA redirect URIs
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${{ inputs.app-object-id }}" \
+            --headers "Content-Type=application/json" \
+            --body "{\"spa\":{\"redirectUris\":$NEW_URI_LIST}}"
+        else
+          # Convert JSON array to space-separated string for web redirect URIs
+          URI_SPACE_SEPARATED=$(echo "$NEW_URI_LIST" | jq -r '.[] | @sh' | tr '\n' ' ')
+          az ad app update --id ${{ inputs.app-object-id }} --web-redirect-uris $URI_SPACE_SEPARATED
+        fi
+
+        echo "✅ Redirect URI removed successfully"
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+

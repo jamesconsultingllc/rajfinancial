@@ -1,45 +1,276 @@
 name: Azure Static Web Apps CI/CD
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+      - develop
+      - 'release/**'
+      - 'feature/**'
+      - 'hotfix/**'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - '.github/workflows/**'
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [ closed ]
     branches:
       - main
+      - develop
+      - 'release/**'
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
+  unit_tests_job:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build
+        run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
+
+      - name: Run unit tests
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
+
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    needs: unit_tests_job
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           submodules: true
+          lfs: false
+          fetch-depth: 0
+
+      - name: Resolve Environment
+        id: resolve-env
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Build And Deploy
         id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
-          action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/src" # App source code path
-          api_location: "api" # Api source code path - optional
-          output_location: "" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "src/Client"
+          api_location: "src/Api"
+          output_location: "wwwroot"
+          skip_app_build: false
+
+      - name: Copy Environment Variables from Source
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
+        with:
+          swa-name: rajfinancial
+          resource-group: rajfinancial
+          source-environment: ${{ steps.resolve-env.outputs.source-environment }}
+          target-environment: ${{ steps.resolve-env.outputs.target-environment }}
+          direction: one-way
+          overwrite: 'true'
+
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Add Entra Redirect URI for Preview Environment
+        if: steps.resolve-env.outputs.is-preview == 'true'
+        uses: ./.github/actions/manage-entra-redirect-uris
+        with:
+          action: add
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net/
+          callback-path: '/authentication/login-callback'
+          uri-type: 'spa'
+
+      # TODO: Add Storage CORS management when storage account is created
+      # - name: Add Storage CORS for Preview Environment
+      #   if: steps.resolve-env.outputs.is-preview == 'true'
+      #   uses: jamesconsultingllc/manage-storage-cors-action@9f8436b1ef7625f81e621a0ebe6546808f68c7be # v1.0.2
+      #   with:
+      #     action: add
+      #     storage-account: rajfinancialdevst
+      #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
+      #     origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
+    outputs:
+      deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
+
+  e2e_tests_job:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: E2E Tests
+    needs: build_and_deploy_job
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [ chromium, firefox, webkit ]
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build test project
+        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
+
+      - name: Install Playwright browsers
+        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install --with-deps
+
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Run E2E Acceptance Tests (${{ matrix.browser }})
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
+        env:
+          BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
+          BROWSER: ${{ matrix.browser }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-test-results-${{ matrix.browser }}
+          path: tests/AcceptanceTests/TestResults/
+          if-no-files-found: warn
+          retention-days: 7
 
   close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: |
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'feature/') || 
+       startsWith(github.event.pull_request.head.ref, 'hotfix/') ||
+       (startsWith(github.event.pull_request.head.ref, 'release/') && github.event.pull_request.base.ref == 'develop'))
     runs-on: ubuntu-latest
-    name: Close Pull Request Job
+    name: Close Preview Environment
     steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Resolve Source Environment (PR head branch)
+        id: source-env
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+        with:
+          branch: ${{ github.event.pull_request.head.ref }}
+
+      - name: Resolve Target Environment (PR base branch)
+        id: target-env
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+        with:
+          branch: ${{ github.event.pull_request.base.ref }}
+          detect-source: 'false'
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Find Source Slot in SWA
+        id: find-slot
+        uses: ./.github/actions/find-swa-slot
+        with:
+          swa-name: rajfinancial
+          resource-group: rajfinancial
+          slot-pattern: ${{ steps.source-env.outputs.sanitized-branch }}
+
+      - name: Sync New Settings to Target
+        if: steps.find-slot.outputs.found == 'true'
+        uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
+        with:
+          swa-name: rajfinancial
+          resource-group: rajfinancial
+          source-environment: ${{ steps.find-slot.outputs.slot }}
+          target-environment: ${{ steps.target-env.outputs.target-slot }}
+
+      - name: Delete Preview Environment
+        id: delete-env
+        if: steps.find-slot.outputs.found == 'true'
+        shell: bash
+        continue-on-error: true
+        run: |
+          source_slot="${{ steps.find-slot.outputs.slot }}"
+
+          echo "Deleting environment: $source_slot"
+          az staticwebapp environment delete \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$source_slot" \
+            --yes
+          echo "deleted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login with OIDC (Entra External ID)
+        if: steps.find-slot.outputs.found == 'true'
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.ENTRA_CLIENT_ID }}
+          tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Remove Entra Redirect URI for Preview Environment
+        if: steps.find-slot.outputs.found == 'true'
+        uses: ./.github/actions/manage-entra-redirect-uris
+        with:
+          action: remove
+          app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
+          origin: ${{ steps.find-slot.outputs.origin }}
+          callback-path: '/.auth/login/entraExternalId/callback'
+          uri-type: 'spa'
+
+      # TODO: Add Storage CORS cleanup when storage account is created
+      # - name: Remove Storage CORS for Preview Environment
+      #   if: steps.find-slot.outputs.found == 'true'
+      #   uses: jamesconsultingllc/manage-storage-cors-action@v1
+      #   with:
+      #     action: remove
+      #     storage-account: rajfinancialdevst
+      #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
+      #     origin: ${{ steps.find-slot.outputs.origin }}
+
+      - name: Fallback - Close with SWA Action
+        if: steps.find-slot.outputs.found != 'true'
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
-          action: "close"
+          action: close

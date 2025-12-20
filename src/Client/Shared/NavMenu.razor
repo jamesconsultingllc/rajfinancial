@@ -1,0 +1,120 @@
+﻿@*
+    NavMenu.razor
+    
+    Main navigation menu demonstrating policy-based authorization.
+    Menu items are hidden (not disabled) based on user's role using AuthorizeView.
+    
+    Authorization Policies Used:
+    - RequireClient: Visible to Clients, Advisors, and Administrators
+    - RequireAdvisor: Visible to Advisors and Administrators
+    - RequireAdministrator: Visible to Administrators only
+*@
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">RAJ Financial</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column" aria-label="Main navigation">
+        @* Public Links - Always visible *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        @* Client Features - Visible to authenticated users with Client, Advisor, or Administrator role *@
+        <AuthorizeView Policy="RequireClient">
+            <Authorized>
+                <div class="nav-item px-3 mt-3">
+                    <small class="text-muted text-uppercase px-3">My Account</small>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="portfolio">
+                        <span class="oi oi-pie-chart" aria-hidden="true"></span> My Portfolio
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="transactions">
+                        <span class="oi oi-list" aria-hidden="true"></span> Transactions
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="statements">
+                        <span class="oi oi-document" aria-hidden="true"></span> Statements
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        @* Advisor Features - Visible to Advisors and Administrators *@
+        <AuthorizeView Policy="RequireAdvisor">
+            <Authorized>
+                <div class="nav-item px-3 mt-3">
+                    <small class="text-muted text-uppercase px-3">Advisor Tools</small>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="advisor/clients">
+                        <span class="oi oi-people" aria-hidden="true"></span> My Clients
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="advisor/reports">
+                        <span class="oi oi-graph" aria-hidden="true"></span> Reports
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        @* Administrator Features - Visible to Administrators only *@
+        <AuthorizeView Policy="RequireAdministrator">
+            <Authorized>
+                <div class="nav-item px-3 mt-3">
+                    <small class="text-muted text-uppercase px-3">Administration</small>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/dashboard" data-testid="admin-dashboard-link">
+                        <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/users" data-testid="admin-users-link">
+                        <span class="oi oi-person" aria-hidden="true"></span> User Management
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/settings" data-testid="admin-settings-link">
+                        <span class="oi oi-cog" aria-hidden="true"></span> Settings
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+@code {
+    /// <summary>
+    /// Tracks the collapsed state of the navigation menu on mobile.
+    /// </summary>
+    private bool collapseNavMenu = true;
+
+    /// <summary>
+    /// Gets the CSS class for the navigation menu based on collapsed state.
+    /// </summary>
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    /// <summary>
+    /// Toggles the navigation menu visibility on mobile devices.
+    /// </summary>
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
