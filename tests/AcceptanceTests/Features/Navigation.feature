@@ -51,9 +51,10 @@ Scenario: Navigation is keyboard accessible
     Then I should be able to navigate through menu items
     And each focused item should have a visible focus indicator
 
-@mobile
+@mobile @authenticated @client
 Scenario: Mobile navigation uses hamburger menu
     Given the viewport is set to mobile size
+    And I am logged in as a "Client"
     And I am on the home page
     Then I should see a hamburger menu button
     When I click the hamburger menu button

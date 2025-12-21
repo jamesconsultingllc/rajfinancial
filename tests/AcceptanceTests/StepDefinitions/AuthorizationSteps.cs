@@ -126,13 +126,6 @@ public class AuthorizationSteps
         }
     }
 
-    [Then(@"I should see a ""(.*)"" button")]
-    public async Task ThenIShouldSeeAButton(string buttonText)
-    {
-        var button = Page.Locator($"text={buttonText}").First;
-        await Assertions.Expect(button).ToBeVisibleAsync();
-    }
-
     [Then(@"the page should use the brand styling")]
     public async Task ThenThePageShouldUseTheBrandStyling()
     {

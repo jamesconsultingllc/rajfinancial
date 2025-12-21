@@ -218,31 +218,6 @@ public class HomePageTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task HomePage_ViewPortfolioButton_ShouldBeClickable()
-    {
-        // Arrange
-        var page = await _browser!.NewPageAsync();
-        
-        try
-        {
-            // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-            await page.WaitForTimeoutAsync(2000);
-            
-            // Find View Portfolio button
-            var viewPortfolioButton = page.Locator("text=View Portfolio").First;
-            
-            // Assert it's visible and clickable
-            await Assertions.Expect(viewPortfolioButton).ToBeVisibleAsync();
-            await Assertions.Expect(viewPortfolioButton).ToBeEnabledAsync();
-        }
-        finally
-        {
-            await page.CloseAsync();
-        }
-    }
-
-    [Fact]
     public async Task HomePage_ShouldBeResponsive_Mobile()
     {
         // Arrange

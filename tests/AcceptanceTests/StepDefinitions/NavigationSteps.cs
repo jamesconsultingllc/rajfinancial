@@ -195,23 +195,26 @@ public class NavigationSteps
     [Then(@"I should see a hamburger menu button")]
     public async Task ThenIShouldSeeAHamburgerMenuButton()
     {
-        var hamburger = Page.Locator("[aria-label*='menu'], [aria-label*='Menu'], .hamburger, .menu-toggle, button:has(svg)").First;
+        // Hamburger menu only visible on mobile for authenticated users
+        var hamburger = Page.Locator(".raj-menu-toggle").First;
         await Assertions.Expect(hamburger).ToBeVisibleAsync();
     }
 
     [When(@"I click the hamburger menu button")]
     public async Task WhenIClickTheHamburgerMenuButton()
     {
-        var hamburger = Page.Locator("[aria-label*='menu'], [aria-label*='Menu'], .hamburger, .menu-toggle").First;
+        var hamburger = Page.Locator(".raj-menu-toggle").First;
         await hamburger.ClickAsync();
+        // Wait for sidebar animation to complete
         await Page.WaitForTimeoutAsync(300);
     }
 
     [Then(@"the navigation menu should be visible")]
     public async Task ThenTheNavigationMenuShouldBeVisible()
     {
-        var nav = Page.Locator("nav, .sidebar, .nav-menu");
-        await Assertions.Expect(nav.First).ToBeVisibleAsync();
+        // Check if the sidebar has the "open" class (mobile) or is visible (desktop)
+        var sidebar = Page.Locator(".raj-sidebar");
+        await Assertions.Expect(sidebar.First).ToBeVisibleAsync();
     }
 }
 

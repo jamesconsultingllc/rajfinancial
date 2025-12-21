@@ -21,7 +21,7 @@ Scenario: Home page displays brand identity
 Scenario: Home page displays hero section
     Then I should see the hero section
     And I should see a "Get Started" button
-    And I should see a "View Portfolio" button
+    And I should see a "Explore Features" button
 
 @ui
 Scenario: Home page displays feature cards

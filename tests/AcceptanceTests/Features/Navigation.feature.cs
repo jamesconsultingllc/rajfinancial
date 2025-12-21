@@ -379,10 +379,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         [global::Xunit.TraitAttribute("FeatureTitle", "Navigation Menu")]
         [global::Xunit.TraitAttribute("Description", "Mobile navigation uses hamburger menu")]
         [global::Xunit.TraitAttribute("Category", "mobile")]
+        [global::Xunit.TraitAttribute("Category", "authenticated")]
+        [global::Xunit.TraitAttribute("Category", "client")]
         public async global::System.Threading.Tasks.Task MobileNavigationUsesHamburgerMenu()
         {
             string[] tagsOfScenario = new string[] {
-                    "mobile"};
+                    "mobile",
+                    "authenticated",
+                    "client"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "5";
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Mobile navigation uses hamburger menu", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
@@ -402,15 +406,18 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
     await testRunner.GivenAsync("the viewport is set to mobile size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 57
-    await testRunner.AndAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I am logged in as a \"Client\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 58
-    await testRunner.ThenAsync("I should see a hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+    await testRunner.AndAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 59
-    await testRunner.WhenAsync("I click the hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.ThenAsync("I should see a hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 60
+    await testRunner.WhenAsync("I click the hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 61
     await testRunner.ThenAsync("the navigation menu should be visible", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

@@ -250,7 +250,7 @@ await this.FeatureBackgroundAsync();
     await testRunner.AndAsync("I should see a \"Get Started\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 24
-    await testRunner.AndAsync("I should see a \"View Portfolio\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see a \"Explore Features\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
