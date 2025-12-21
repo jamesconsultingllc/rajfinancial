@@ -83,9 +83,11 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
+          deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
           api_location: "src/Api"
           output_location: "wwwroot"
+          production_branch: main
           skip_app_build: false
 
       - name: Copy Environment Variables from Source
