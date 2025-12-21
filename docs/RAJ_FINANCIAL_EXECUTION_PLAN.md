@@ -627,28 +627,38 @@ The API tracking tables are maintained in [RAJ_FINANCIAL_EXECUTION_PLAN_API_TRAC
 | Validator tests | ⬜ Not Started | P1 | 100% |
 | Serialization tests | ⬜ Not Started | P1 | 100% |
 
-### 5.2 Integration Tests
+### 5.2 Integration Tests / E2E Acceptance Tests
 
 | Area | Status | Priority | Notes |
 |------|--------|----------|-------|
+| Reqnroll + Playwright setup | ✅ Complete | P0 | Full BDD framework with browser automation |
+| Test configuration system | ✅ Complete | P0 | appsettings.json with env override support |
+| Playwright hooks & lifecycle | ✅ Complete | P0 | Browser management, screenshot on failure |
+| HomePage feature tests | ✅ Complete | P1 | 10+ scenarios for landing page |
+| Authorization feature tests | ✅ Complete | P1 | Role-based access control scenarios |
+| Navigation feature tests | ✅ Complete | P1 | Mobile/desktop navigation scenarios |
+| Admin dashboard scenarios | ✅ Complete | P1 | Admin-specific feature tests |
+| Advisor clients scenarios | ✅ Complete | P1 | Advisor-specific feature tests |
+| Client portfolio scenarios | ✅ Complete | P1 | Client-specific feature tests |
 | API endpoint tests | ⬜ Not Started | P2 | In-memory DB |
 | Plaid integration tests | ⬜ Not Started | P2 | Sandbox |
-| Auth flow tests | ⬜ Not Started | P2 | |
+| Auth flow tests (with real Entra ID) | 🟡 In Progress | P1 | Infrastructure ready, needs Entra config |
 
 ### 5.3 Security Tests
 
 | Area | Status | Priority | Notes |
 |------|--------|----------|-------|
+| Authorization BDD scenarios | ✅ Complete | P1 | Feature file created, some tests need Entra ID |
 | Tenant isolation tests | ⬜ Not Started | P1 | Critical |
-| Authorization tests | ⬜ Not Started | P1 | |
 | Input validation tests | ⬜ Not Started | P1 | SQL injection, XSS |
 
 ### 5.4 Accessibility Tests
 
 | Area | Status | Priority | Notes |
 |------|--------|----------|-------|
-| axe-core integration | ⬜ Not Started | P2 | Automated |
-| Keyboard navigation | ⬜ Not Started | P2 | Manual |
+| Accessibility test infrastructure | ✅ Complete | P1 | Test class created with Playwright |
+| axe-core integration | 🟡 In Progress | P2 | Infrastructure ready |
+| Keyboard navigation tests | 🟡 In Progress | P2 | Scenarios written, needs implementation |
 | Screen reader testing | ⬜ Not Started | P3 | Manual |
 
 ---

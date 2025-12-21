@@ -1,20 +1,150 @@
-﻿@inherits LayoutComponentBase
+﻿@*
+    MainLayout.razor
+    
+    Main application layout with responsive sidebar navigation.
+    Follows RAJ Financial brand guidelines with gold accent colors.
+    
+    Features:
+    - Collapsible sidebar on mobile (hamburger menu) - ONLY for authenticated users
+    - Sticky header with user menu
+    - Skip to main content for accessibility
+    - Clean layout for public pages (no sidebar)
+    - WCAG 2.1 AA accessible
+    - Fully localized
+*@
 
-<PageTitle>RajFinancial.Client</PageTitle>
+@inherits LayoutComponentBase
+@using Microsoft.Extensions.Localization
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IStringLocalizer<MainLayout> L
 
-    <main>
-        <div class="top-row px-4 auth">
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-            <LoginDisplay />
+<PageTitle>@L["Brand.Name"]</PageTitle>
+
+@* Skip to main content for accessibility *@
+<a href="#main-content" class="skip-link">@L["SkipToContent"]</a>
+
+<AuthorizeView>
+    <Authorized>
+        @* Authenticated Layout with Sidebar *@
+        <div class="raj-layout">
+            @* Sidebar Navigation *@
+            <aside class="raj-sidebar @(SidebarOpen ? "open" : "")" 
+                   aria-label="Main navigation"
+                   aria-hidden="@(!SidebarOpen ? "true" : "false")"
+                   @onkeydown="HandleKeyDown">
+                <NavMenu OnNavigate="CloseSidebar" />
+            </aside>
+
+            @* Mobile Overlay *@
+            @if (SidebarOpen)
+            {
+                <div class="raj-overlay" 
+                     @onclick="CloseSidebar" 
+                     @onkeydown="HandleOverlayKeyDown"
+                     tabindex="0"
+                     role="button"
+                     aria-label="Close navigation menu"></div>
+            }
+
+            @* Main Content Area *@
+            <div class="raj-main">
+                @* Top Header Bar *@
+                <header class="raj-header" role="banner">
+                    @* Mobile Menu Button *@
+                    <button class="raj-menu-toggle" 
+                            @onclick="ToggleSidebar" 
+                            aria-label="@L["ToggleMenu"]"
+                            aria-expanded="@SidebarOpen"
+                            aria-controls="main-nav">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+
+                    <div class="raj-header-spacer"></div>
+
+                    @* Right side actions *@
+                    <div class="raj-header-actions">
+                        <LoginDisplay />
+                    </div>
+                </header>
+
+                @* Main Content *@
+                <main id="main-content" class="raj-content" tabindex="-1" role="main">
+                    @Body
+                </main>
+            </div>
         </div>
+    </Authorized>
+    
+    <NotAuthorized>
+        @* Public Layout - No Sidebar *@
+        <div class="raj-layout raj-layout-public">
+            <div class="raj-main raj-main-full">
+                @* Top Header Bar - Simplified for public *@
+                <header class="raj-header raj-header-public" role="banner">
+                    <nav class="raj-header-nav" aria-label="@L["Nav.Primary"]">
+                        @* Brand Logo *@
+                        <a href="" class="raj-header-brand" aria-label="@L["Brand.Name"] - Home">
+                            <img src="/images/brand/logo-icon.png" alt="" class="raj-header-logo" width="36" height="36" role="presentation" />
+                            <span class="raj-header-brand-text">@L["Brand.Name"]</span>
+                        </a>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+                        <div class="raj-header-spacer"></div>
+
+                        @* Right side actions *@
+                        <div class="raj-header-actions">
+                            <LoginDisplay />
+                        </div>
+                    </nav>
+                </header>
+
+                @* Main Content *@
+                <main id="main-content" class="raj-content raj-content-public" tabindex="-1" role="main">
+                    @Body
+                </main>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool SidebarOpen { get; set; }
+
+    /// <summary>
+    /// Toggles the sidebar visibility.
+    /// </summary>
+    private void ToggleSidebar() => SidebarOpen = !SidebarOpen;
+
+    /// <summary>
+    /// Closes the sidebar.
+    /// </summary>
+    private void CloseSidebar() => SidebarOpen = false;
+
+    /// <summary>
+    /// Handles keyboard navigation for the sidebar.
+    /// Closes on Escape key press.
+    /// </summary>
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CloseSidebar();
+        }
+    }
+
+    /// <summary>
+    /// Handles keyboard events on the overlay.
+    /// Closes on Escape or Enter key press.
+    /// </summary>
+    private void HandleOverlayKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" || e.Key == "Enter")
+        {
+            CloseSidebar();
+        }
+    }
+}

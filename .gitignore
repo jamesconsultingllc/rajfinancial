@@ -26,3 +26,7 @@ Thumbs.db
 playwright-report/
 
 node_modules/
+# Test settings with secrets
+testsettings.local.json
+.env.test
+appsettings.local.json

@@ -3,46 +3,157 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Raj Financial</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>RAJ Financial - Your Financial Future</title>
+    <meta name="description" content="RAJ Financial Software - Premium financial planning and wealth management solutions.">
     <base href="/" />
+    
+    <!-- RAJ Financial Theme (load first for design tokens) -->
+    <link rel="stylesheet" href="css/raj-theme.css" />
+    
+    <!-- Bootstrap (utility classes) -->
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    
+    <!-- App-specific overrides -->
     <link rel="stylesheet" href="css/app.css" />
+    
+    <!-- Component scoped styles -->
     <link href="RajFinancial.Client.styles.css" rel="stylesheet" />
     
-    <!-- Favicons and Web Manifest -->
-    <link rel="apple-touch-icon" sizes="57x57" href="/apple-icon-57x57.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="/apple-icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/apple-icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/apple-icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/apple-icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/apple-icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/apple-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="msapplication-TileColor" content="#ffffff">
-    <meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
-    <meta name="theme-color" content="#ffffff">
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#ebbb10">
+    <meta name="msapplication-TileColor" content="#1c1917">
+    <meta name="msapplication-TileImage" content="/mstile-144x144.png">
+    <meta name="theme-color" content="#0a0a0a">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="RAJ Financial - Your Financial Future">
+    <meta property="og:description" content="Premium financial planning and wealth management solutions.">
+    <meta property="og:image" content="/images/brand/logo-color.svg">
+    
+    <style>
+        /* Loading screen styles */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%);
+            gap: 2rem;
+        }
+        
+        .loading-logo-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 280px;
+            height: 280px;
+            animation: fadeInScale 0.6s ease-out;
+        }
+        
+        .loading-logo {
+            width: 180px;
+            height: 180px;
+            z-index: 2;
+        }
+        
+        .loading-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid rgba(235, 187, 16, 0.15);
+        }
+        
+        .loading-ring-progress {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: #ebbb10;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-text {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            animation: fadeIn 0.4s ease-out 0.3s both;
+        }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive - even larger on bigger screens */
+        @media (min-width: 768px) {
+            .loading-logo-container {
+                width: 360px;
+                height: 360px;
+            }
+            
+            .loading-logo {
+                width: 240px;
+                height: 240px;
+            }
+            
+            .loading-ring,
+            .loading-ring-progress {
+                border-width: 5px;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <!-- Loading state with brand styling -->
+        <div class="loading-screen">
+            <div class="loading-logo-container">
+                <!-- Outer ring (background) -->
+                <div class="loading-ring"></div>
+                <!-- Spinning progress ring -->
+                <div class="loading-ring-progress"></div>
+                <!-- Logo in center -->
+                <img src="/images/brand/logo-icon.svg" alt="RAJ Financial" class="loading-logo" />
+            </div>
+            <div class="loading-text">Loading...</div>
+        </div>
     </div>
 
-    <div id="blazor-error-ui">
+    <div id="blazor-error-ui" style="background: #fef2f2; border-top: 2px solid #ef4444; color: #dc2626;">
         An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
-        <a class="dismiss">🗙</a>
+        <a href="" class="reload" style="color: #dc2626; text-decoration: underline;">Reload</a>
+        <a class="dismiss" style="cursor: pointer; margin-left: 1rem;">✕</a>
     </div>
     <script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>

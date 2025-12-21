@@ -3,33 +3,44 @@
 
     Displays login/logout button based on authentication state.
     Uses MSAL authentication with Entra External ID.
+    
+    Accessibility:
+    - Proper ARIA labels for screen readers
+    - Keyboard accessible buttons
+    - Focus-visible styles
+    
+    Localization:
+    - All text uses IStringLocalizer
 
     Usage:
     <LoginDisplay />
 *@
-
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.Extensions.Localization
 
 @inject NavigationManager Navigation
+@inject IStringLocalizer<LoginDisplay> L
 
 <AuthorizeView>
     <Authorized>
         <div class="auth-buttons d-flex align-items-center gap-2">
             <span class="user-name text-muted" title="@context.User.Identity?.Name">
                 <span class="oi oi-person me-1" aria-hidden="true"></span>
-                @context.User.Identity?.Name
+                <span class="visually-hidden">Logged in as </span>@context.User.Identity?.Name
             </span>
-            <button class="btn btn-outline-secondary btn-sm" @onclick="BeginLogout" aria-label="Log out">
+            <button class="btn btn-outline-secondary btn-sm" 
+                    @onclick="BeginLogout" 
+                    aria-label="@L["Logout.AriaLabel"]">
                 <span class="oi oi-account-logout me-1" aria-hidden="true"></span>
-                Log out
+                @L["Logout"]
             </button>
         </div>
     </Authorized>
     <NotAuthorized>
-        <a href="authentication/login" class="btn btn-primary btn-sm" aria-label="Log in">
+        <a href="authentication/login" 
+           class="btn btn-primary btn-sm" 
+           aria-label="@L["Login.AriaLabel"]">
             <span class="oi oi-account-login me-1" aria-hidden="true"></span>
-            Log in
+            @L["Login"]
         </a>
     </NotAuthorized>
 </AuthorizeView>
