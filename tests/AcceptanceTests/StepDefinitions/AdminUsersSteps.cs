@@ -14,15 +14,9 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 /// Step definitions for admin user management scenarios.
 /// </summary>
 [Binding]
-public class AdminUsersSteps
+public class AdminUsersSteps(ScenarioContext scenarioContext)
 {
-    private readonly ScenarioContext _scenarioContext;
-    private IPage Page => _scenarioContext.GetPage();
-
-    public AdminUsersSteps(ScenarioContext scenarioContext)
-    {
-        _scenarioContext = scenarioContext;
-    }
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should see a table with user information")]
     public async Task ThenIShouldSeeATableWithUserInformation()

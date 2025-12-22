@@ -13,41 +13,36 @@ namespace RajFinancial.AcceptanceTests.Pages;
 /// </summary>
 public class HomePageTests : IAsyncLifetime
 {
-    private IPlaywright? _playwright;
-    private IBrowser? _browser;
-    private string _baseUrl;
-
-    public HomePageTests()
-    {
-        _baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
-    }
+    private IPlaywright? playwright;
+    private IBrowser? browser;
+    private string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
 
     public async Task InitializeAsync()
     {
-        _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new() { Headless = true });
+        playwright = await Playwright.CreateAsync();
+        browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
     }
 
     public async Task DisposeAsync()
     {
-        if (_browser != null)
+        if (browser != null)
         {
-            await _browser.CloseAsync();
-            await _browser.DisposeAsync();
+            await browser.CloseAsync();
+            await browser.DisposeAsync();
         }
-        _playwright?.Dispose();
+        playwright?.Dispose();
     }
 
     [Fact]
     public async Task HomePage_ShouldLoadSuccessfully()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            var response = await page.GotoAsync(_baseUrl);
+            var response = await page.GotoAsync(baseUrl);
 
             // Assert
             Assert.NotNull(response);
@@ -63,12 +58,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveCorrectTitle()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000); // Wait for Blazor
             
             var title = await page.TitleAsync();
@@ -86,12 +81,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayHeroSection()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert
@@ -108,12 +103,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayBrandName()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert
@@ -130,12 +125,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayTagline()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert
@@ -152,12 +147,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayFeatureCards()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert
@@ -174,12 +169,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayCtaSection()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert
@@ -196,12 +191,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_GetStartedButton_ShouldBeClickable()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Find Get Started button
@@ -221,7 +216,7 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldBeResponsive_Mobile()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
@@ -229,7 +224,7 @@ public class HomePageTests : IAsyncLifetime
             await page.SetViewportSizeAsync(375, 667); // iPhone SE size
             
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert - content should still be visible
@@ -251,7 +246,7 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldBeResponsive_Tablet()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
@@ -259,7 +254,7 @@ public class HomePageTests : IAsyncLifetime
             await page.SetViewportSizeAsync(768, 1024); // iPad size
             
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert - content should still be visible
@@ -276,7 +271,7 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldBeResponsive_Desktop()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
@@ -284,7 +279,7 @@ public class HomePageTests : IAsyncLifetime
             await page.SetViewportSizeAsync(1920, 1080);
             
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert - content should still be visible
@@ -301,12 +296,12 @@ public class HomePageTests : IAsyncLifetime
     public async Task HomePage_ShouldDisplayLoginButton_WhenNotAuthenticated()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Assert

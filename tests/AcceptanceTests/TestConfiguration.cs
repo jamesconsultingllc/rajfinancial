@@ -13,12 +13,12 @@ namespace RajFinancial.AcceptanceTests;
 /// </summary>
 public class TestConfiguration
 {
-    private static readonly Lazy<TestConfiguration> _instance = new(() => Load());
+    private static readonly Lazy<TestConfiguration> instance = new(() => Load());
     
     /// <summary>
     /// Gets the singleton instance of the test configuration.
     /// </summary>
-    public static TestConfiguration Instance => _instance.Value;
+    public static TestConfiguration Instance => instance.Value;
 
     /// <summary>
     /// Base URL for the application under test.
@@ -40,6 +40,22 @@ public class TestConfiguration
             return string.IsNullOrEmpty(user.Password) ? null : user.Password;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Gets the storage state path for a test user by role, checking configuration and environment variables.
+    /// </summary>
+    /// <param name="role">The role of the test user.</param>
+    /// <returns>The storage state file path if configured; otherwise, null.</returns>
+    public string? GetStorageStatePath(string role)
+    {
+        if (TestUsers.TryGetValue(role, out var user) && !string.IsNullOrWhiteSpace(user.StorageStatePath))
+        {
+            return user.StorageStatePath;
+        }
+
+        var envPath = Environment.GetEnvironmentVariable($"TEST_{role.ToUpperInvariant()}_STORAGE_STATE");
+        return string.IsNullOrWhiteSpace(envPath) ? null : envPath;
     }
 
     /// <summary>
@@ -79,4 +95,9 @@ public class TestUserConfig
     /// Password for the test user.
     /// </summary>
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional Playwright storage state file path for the test user.
+    /// </summary>
+    public string StorageStatePath { get; set; } = string.Empty;
 }

@@ -14,15 +14,9 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 /// Step definitions for advisor client management scenarios.
 /// </summary>
 [Binding]
-public class AdvisorClientsSteps
+public class AdvisorClientsSteps(ScenarioContext scenarioContext)
 {
-    private readonly ScenarioContext _scenarioContext;
-    private IPage Page => _scenarioContext.GetPage();
-
-    public AdvisorClientsSteps(ScenarioContext scenarioContext)
-    {
-        _scenarioContext = scenarioContext;
-    }
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should see a search box with placeholder ""(.*)""")]
     public async Task ThenIShouldSeeASearchBoxWithPlaceholder(string placeholder)
@@ -89,7 +83,7 @@ public class AdvisorClientsSteps
     }
 
     [Then(@"each client card should display YTD return")]
-    public async Task ThenEachClientCardShouldDisplayYTDReturn()
+    public async Task ThenEachClientCardShouldDisplayYtdReturn()
     {
         var cards = await Page.Locator(".card").AllAsync();
 

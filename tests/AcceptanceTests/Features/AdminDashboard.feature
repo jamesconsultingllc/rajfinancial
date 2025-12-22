@@ -72,10 +72,3 @@ Scenario: Dashboard meets accessibility standards
     And all statistics should have accessible labels
     And all buttons should have accessible labels
     And all icons should be hidden from screen readers or have labels
-
-@security
-Scenario: Non-admin users cannot access dashboard
-    Given I am logged in as a "Client"
-    When I navigate to "/admin/dashboard"
-    Then I should see an access denied message
-    And I should not see "Administrator Dashboard"

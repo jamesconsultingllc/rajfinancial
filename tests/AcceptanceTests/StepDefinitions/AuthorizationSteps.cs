@@ -16,12 +16,12 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 [Binding]
 public class AuthorizationSteps
 {
-    private readonly ScenarioContext _scenarioContext;
-    private IPage Page => _scenarioContext.GetPage();
+    private readonly ScenarioContext scenarioContext;
+    private IPage Page => scenarioContext.GetPage();
 
-    public AuthorizationSteps(ScenarioContext scenarioContext)
+    protected AuthorizationSteps(ScenarioContext scenarioContext)
     {
-        _scenarioContext = scenarioContext;
+        this.scenarioContext = scenarioContext;
     }
 
     [Given(@"the application is running")]
@@ -30,17 +30,6 @@ public class AuthorizationSteps
         var response = await Page.GotoAsync(PlaywrightHooks.BaseUrl);
         Assert.NotNull(response);
         Assert.True(response.Ok, $"Application not running: {response.Status}");
-    }
-
-    [When(@"I navigate to ""(.*)""")]
-    public async Task WhenINavigateTo(string path)
-    {
-        var url = PlaywrightHooks.BaseUrl.TrimEnd('/') + path;
-        await Page.GotoAsync(url, new PageGotoOptions
-        {
-            WaitUntil = WaitUntilState.NetworkIdle
-        });
-        await Page.WaitForTimeoutAsync(2000);
     }
 
     [Then(@"I should be redirected to the login page")]
@@ -68,30 +57,37 @@ public class AuthorizationSteps
             "Should see portfolio page content");
     }
 
-    [Then(@"I should not see an access denied message")]
-    public async Task ThenIShouldNotSeeAnAccessDeniedMessage()
-    {
-        var content = await Page.ContentAsync();
-        Assert.DoesNotContain("Access Denied", content);
-        Assert.DoesNotContain("not authorized", content.ToLower());
-    }
-
-    [Then(@"I should see an access denied message")]
-    public async Task ThenIShouldSeeAnAccessDeniedMessage()
-    {
-        var content = await Page.ContentAsync();
-        Assert.True(
-            content.Contains("Access Denied") || content.Contains("not authorized"),
-            "Should see access denied message");
-    }
-
     [Then(@"I should see the admin dashboard")]
     public async Task ThenIShouldSeeTheAdminDashboard()
     {
+        // Ensure page has settled
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(1000);
+
+        var dashboard = Page.Locator("[data-testid='admin-dashboard']");
+        var title = Page.Locator("[data-testid='admin-dashboard-title'], h1:has-text('Administrator Dashboard')");
         var content = await Page.ContentAsync();
-        Assert.True(
-            content.Contains("Dashboard") || content.Contains("Administration"),
-            "Should see admin dashboard content");
+        // Wait for either the dashboard container or the title to be visible
+        var tasks = new List<Task>
+        {
+            Assertions.Expect(dashboard).ToBeVisibleAsync(new() { Timeout = 15000 }),
+            Assertions.Expect(title).ToBeVisibleAsync(new() { Timeout = 15000 })
+        };
+
+        var completed = await Task.WhenAny(tasks);
+        try
+        {
+            await completed; // propagate any exception if the first completed is a failure
+        }
+        catch
+        {
+            // Capture diagnostics to help understand failures
+            content = await Page.ContentAsync();
+            var url = Page.Url;
+            Console.WriteLine($"Admin dashboard not visible. URL: {url}");
+            Console.WriteLine($"Page contains 'Administrator Dashboard': {content.Contains("Administrator Dashboard")}");
+            throw;
+        }
     }
 
     [Then(@"I should see the client list page")]

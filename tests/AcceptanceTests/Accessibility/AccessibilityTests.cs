@@ -15,41 +15,36 @@ namespace RajFinancial.AcceptanceTests.Accessibility;
 /// </summary>
 public class AccessibilityTests : IAsyncLifetime
 {
-    private IPlaywright? _playwright;
-    private IBrowser? _browser;
-    private string _baseUrl;
-
-    public AccessibilityTests()
-    {
-        _baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
-    }
+    private IPlaywright? playwright;
+    private IBrowser? browser;
+    private string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
 
     public async Task InitializeAsync()
     {
-        _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new() { Headless = true });
+        playwright = await Playwright.CreateAsync();
+        browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
     }
 
     public async Task DisposeAsync()
     {
-        if (_browser != null)
+        if (browser != null)
         {
-            await _browser.CloseAsync();
-            await _browser.DisposeAsync();
+            await browser.CloseAsync();
+            await browser.DisposeAsync();
         }
-        _playwright?.Dispose();
+        playwright?.Dispose();
     }
 
     [Fact]
     public async Task HomePage_ShouldHaveNoAccessibilityViolations()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             
             // Wait for Blazor to fully load
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
@@ -91,12 +86,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveProperHeadingHierarchy()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Check for h1
@@ -121,12 +116,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveAccessibleButtons()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Get all buttons and links styled as buttons
@@ -156,12 +151,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveAccessibleImages()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Get all images
@@ -176,9 +171,9 @@ public class AccessibilityTests : IAsyncLifetime
                 // Image should have alt text OR be marked as decorative
                 var hasAlt = alt != null; // Empty alt is valid for decorative images
                 var isDecorativeByRole = role == "presentation" || role == "none";
-                var isHiddenFromA11y = ariaHidden == "true";
+                var isHiddenFromA11Y = ariaHidden == "true";
                 
-                Assert.True(hasAlt || isDecorativeByRole || isHiddenFromA11y,
+                Assert.True(hasAlt || isDecorativeByRole || isHiddenFromA11Y,
                     $"Image should have alt attribute or be marked as decorative: {await img.GetAttributeAsync("src")}");
             }
         }
@@ -192,12 +187,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveGoodColorContrast()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Run axe with only color contrast rule
@@ -232,12 +227,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldBeFocusableWithKeyboard()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Press Tab to move through focusable elements
@@ -270,12 +265,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_FocusIndicatorsShouldBeVisible()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Tab to first focusable element
@@ -313,12 +308,12 @@ public class AccessibilityTests : IAsyncLifetime
     public async Task HomePage_ShouldHaveAccessibleLandmarks()
     {
         // Arrange
-        var page = await _browser!.NewPageAsync();
+        var page = await browser!.NewPageAsync();
         
         try
         {
             // Act
-            await page.GotoAsync(_baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
             // Check for main landmark

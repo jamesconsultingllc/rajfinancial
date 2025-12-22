@@ -14,15 +14,9 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 /// Step definitions for client portfolio scenarios.
 /// </summary>
 [Binding]
-public class ClientPortfolioSteps
+public class ClientPortfolioSteps(ScenarioContext scenarioContext)
 {
-    private readonly ScenarioContext _scenarioContext;
-    private IPage Page => _scenarioContext.GetPage();
-
-    public ClientPortfolioSteps(ScenarioContext scenarioContext)
-    {
-        _scenarioContext = scenarioContext;
-    }
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"the total portfolio value should display a dollar amount")]
     public async Task ThenTheTotalPortfolioValueShouldDisplayADollarAmount()

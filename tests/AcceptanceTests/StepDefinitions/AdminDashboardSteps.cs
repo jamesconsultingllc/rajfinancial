@@ -16,44 +16,39 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 [Binding]
 public class AdminDashboardSteps
 {
-    private readonly ScenarioContext _scenarioContext;
-    private IPage Page => _scenarioContext.GetPage();
+    private readonly ScenarioContext scenarioContext;
+    private IPage Page => scenarioContext.GetPage();
 
-    public AdminDashboardSteps(ScenarioContext scenarioContext)
+    protected AdminDashboardSteps(ScenarioContext scenarioContext)
     {
-        _scenarioContext = scenarioContext;
-    }
-
-    [Then(@"I should see ""(.*)""")]
-    public async Task ThenIShouldSee(string text)
-    {
-        var content = await Page.ContentAsync();
-        Assert.Contains(text, content);
-    }
-
-    [Then(@"I should see the ""(.*)"" section")]
-    public async Task ThenIShouldSeeTheSection(string sectionName)
-    {
-        var content = await Page.ContentAsync();
-        Assert.Contains(sectionName, content);
+        this.scenarioContext = scenarioContext;
     }
 
     [Then(@"I should see statistics cards with numeric values")]
     public async Task ThenIShouldSeeStatisticsCardsWithNumericValues()
     {
-        // Look for statistics cards (they should contain numbers)
-        var content = await Page.ContentAsync();
+        // Wait for page to settle and cards to render
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
 
-        // Check that we have numeric values displayed
-        var hasNumbers = await Page.EvaluateAsync<bool>(@"
-            () => {
-                const text = document.body.innerText;
-                // Look for dollar amounts or large numbers
-                return /\$[\d,]+/.test(text) || /\d{2,}/.test(text);
-            }
-        ");
+        var cards = Page.Locator(".card h3");
+        await Assertions.Expect(cards).ToHaveCountAsync(4, new() { Timeout = 15000 });
 
-        Assert.True(hasNumbers, "Statistics cards should display numeric values");
+        var count = await cards.CountAsync();
+        Assert.True(count >= 4, "Should have at least four statistic values");
+
+        for (int i = 0; i < Math.Min(4, count); i++)
+        {
+            var text = (await cards.Nth(i).InnerTextAsync()).Trim();
+            // Normalize currency symbols and commas
+            var normalized = text.Replace(",", string.Empty)
+                                  .Replace("$", string.Empty)
+                                  .Replace("€", string.Empty)
+                                  .Replace("£", string.Empty)
+                                  .Trim();
+
+            Assert.True(decimal.TryParse(normalized, out _), $"Card {i + 1} should display a numeric value but was '{text}'");
+        }
     }
 
     [Then(@"all statistics should have labels")]
@@ -84,21 +79,6 @@ public class AdminDashboardSteps
     {
         var activityItems = await Page.Locator("li").CountAsync();
         Assert.True(activityItems >= 1, "Recent activity should have items");
-    }
-
-    [When(@"I click the ""(.*)"" button")]
-    public async Task WhenIClickTheButton(string buttonText)
-    {
-        var button = Page.Locator($"text={buttonText}").First;
-        await button.ClickAsync();
-        await Page.WaitForTimeoutAsync(1000);
-    }
-
-    [Then(@"I should be on the ""(.*)"" page")]
-    public async Task ThenIShouldBeOnThePage(string path)
-    {
-        var url = Page.Url;
-        Assert.Contains(path, url);
     }
 
     [Then(@"the statistics cards should be stacked vertically")]
@@ -136,16 +116,23 @@ public class AdminDashboardSteps
     [Then(@"the quick actions should be visible")]
     public async Task ThenTheQuickActionsShouldBeVisible()
     {
-        var quickActions = Page.Locator("text=Quick Actions");
-        await Assertions.Expect(quickActions).ToBeVisibleAsync();
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
+
+        var quickActions = Page.Locator("[data-testid='quick-actions'], h5:has-text(\"Quick Actions\")");
+        await quickActions.First.WaitForAsync(new() { Timeout = 20000, State = WaitForSelectorState.Attached });
+        await quickActions.First.ScrollIntoViewIfNeededAsync();
+        await Assertions.Expect(quickActions.First).ToBeVisibleAsync(new() { Timeout = 20000 });
     }
 
     [Then(@"the statistics cards should adapt to tablet layout")]
     public async Task ThenTheStatisticsCardsShouldAdaptToTabletLayout()
     {
-        // On tablet, should show 2 columns or adapt appropriately
-        var cards = await Page.Locator(".card").AllAsync();
-        Assert.True(cards.Count >= 4, "Should have statistics cards");
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
+
+        var cards = Page.Locator(".grid .card");
+        await Assertions.Expect(cards).ToHaveCountAsync(4, new() { Timeout = 15000 });
     }
 
     [Then(@"all statistics should have accessible labels")]

@@ -13,11 +13,11 @@
 
 <PageTitle>Admin Dashboard - RAJ Financial</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" data-testid="admin-dashboard">
     @* Page Header *@
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h3 mb-0">Administrator Dashboard</h1>
+            <h1 class="h3 mb-0" data-testid="admin-dashboard-title">Administrator Dashboard</h1>
             <p class="text-muted">System overview and management tools</p>
         </div>
     </div>
@@ -86,7 +86,7 @@
         <div class="col-lg-8 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
+                    <h5 class="mb-0" data-testid="quick-actions">Quick Actions</h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -94,25 +94,25 @@
                         <AuthorizeView Policy="RequireAdministrator">
                             <Authorized>
                                 <div class="col-md-6">
-                                    <a href="/admin/users" class="btn btn-outline-primary w-100 py-3">
+                                    <a href="/admin/users" class="btn btn-outline-primary w-100 py-3" data-testid="qa-manage-users">
                                         <span class="oi oi-people me-2" aria-hidden="true"></span>
                                         Manage Users
                                     </a>
                                 </div>
                                 <div class="col-md-6">
-                                    <a href="/admin/settings" class="btn btn-outline-secondary w-100 py-3">
+                                    <a href="/admin/settings" class="btn btn-outline-secondary w-100 py-3" data-testid="qa-system-settings">
                                         <span class="oi oi-cog me-2" aria-hidden="true"></span>
                                         System Settings
                                     </a>
                                 </div>
                                 <div class="col-md-6">
-                                    <a href="/admin/audit-logs" class="btn btn-outline-info w-100 py-3">
+                                    <a href="/admin/audit-logs" class="btn btn-outline-info w-100 py-3" data-testid="qa-audit-logs">
                                         <span class="oi oi-list me-2" aria-hidden="true"></span>
                                         Audit Logs
                                     </a>
                                 </div>
                                 <div class="col-md-6">
-                                    <a href="/admin/reports" class="btn btn-outline-success w-100 py-3">
+                                    <a href="/admin/reports" class="btn btn-outline-success w-100 py-3" data-testid="qa-system-reports">
                                         <span class="oi oi-graph me-2" aria-hidden="true"></span>
                                         System Reports
                                     </a>
@@ -128,7 +128,7 @@
         <div class="col-lg-4 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Recent Activity</h5>
+                    <h5 class="mb-0" data-testid="recent-activity">Recent Activity</h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled mb-0">

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RajFinancial.Client;
 
@@ -10,14 +11,18 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // Configure MSAL authentication with Entra External ID
-builder.Services.AddMsalAuthentication(options =>
+builder.Services.AddMsalAuthentication<RemoteAuthenticationState, RemoteUserAccount>(options =>
 {
     builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
     options.ProviderOptions.DefaultAccessTokenScopes.Add("openid");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("profile");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("email");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("offline_access");
-});
+    
+    // Map the 'roles' claim from Entra ID to .NET's role claim
+    // This enables AuthorizeView Policy="..." and [Authorize(Roles = "...")] to work
+    options.UserOptions.RoleClaim = "roles";
+}).AddAccountClaimsPrincipalFactory<RemoteAuthenticationState, RemoteUserAccount, CustomAccountFactory>();
 
 // Configure authorization policies
 // 
