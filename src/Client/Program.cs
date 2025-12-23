@@ -19,6 +19,13 @@ builder.Services.AddMsalAuthentication<RemoteAuthenticationState, RemoteUserAcco
     options.ProviderOptions.DefaultAccessTokenScopes.Add("email");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("offline_access");
     
+    // Token cache location: "sessionStorage" (default, more secure) or "localStorage" (for testing).
+    // - sessionStorage: Tokens cleared when tab closes. More secure but requires re-login.
+    // - localStorage: Tokens persist across sessions. Better UX but larger XSS attack surface.
+    // Production uses sessionStorage; Development uses localStorage for Playwright test compatibility.
+    var cacheLocation = builder.Configuration.GetValue<string>("Msal:CacheLocation") ?? "sessionStorage";
+    options.ProviderOptions.Cache.CacheLocation = cacheLocation;
+    
     // Map the 'roles' claim from Entra ID to .NET's role claim
     // This enables AuthorizeView Policy="..." and [Authorize(Roles = "...")] to work
     options.UserOptions.RoleClaim = "roles";

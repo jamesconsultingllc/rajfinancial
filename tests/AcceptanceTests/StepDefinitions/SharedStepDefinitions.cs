@@ -233,8 +233,88 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     [Then(@"I should see the ""(.*)"" link")]
     public async Task ThenIShouldSeeTheLink(string linkText)
     {
-        var link = Page.Locator($"text={linkText}").First;
-        await Assertions.Expect(link).ToBeVisibleAsync();
+        // Ensure page is settled
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
+
+        // Wait for nav container if present
+        try
+        {
+            var content = await Page.ContentAsync(); 
+            await Page.WaitForSelectorAsync("nav, .nav-menu, .raj-sidebar", new() { Timeout = 5000, State = WaitForSelectorState.Attached });
+        }
+        catch { /* best-effort */ }
+
+        // Prefer data-testid if known
+        var candidateTestIds = new List<string>();
+        if (string.Equals(linkText, "Home", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-home-link");
+            candidateTestIds.Add("raj-header-brand"); // Public layout uses brand logo as home link
+        }
+        else if (string.Equals(linkText, "My Portfolio", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-portfolio-link");
+        }
+        else if (string.Equals(linkText, "Transactions", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-transactions-link");
+        }
+        else if (string.Equals(linkText, "Statements", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-statements-link");
+        }
+        else if (string.Equals(linkText, "My Clients", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-my-clients-link");
+        }
+        else if (string.Equals(linkText, "Reports", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTestIds.Add("nav-reports-link");
+        }
+
+        var candidates = new List<ILocator>();
+        candidates.AddRange(candidateTestIds.Select(id => Page.Locator($"[data-testid='{id}']")));
+        
+        // For "Home", also check the brand logo link (public layout)
+        if (string.Equals(linkText, "Home", StringComparison.OrdinalIgnoreCase))
+        {
+            candidates.Add(Page.Locator(".raj-header-brand"));
+        }
+        
+        candidates.AddRange(new[]
+        {
+            Page.Locator($"a:has-text(\"{linkText}\")"),
+            Page.Locator($"button:has-text(\"{linkText}\")"),
+            Page.Locator($"[role='link']:has-text(\"{linkText}\")"),
+            Page.Locator($".nav-link:has-text(\"{linkText}\")"),
+            Page.Locator($"text={linkText}")
+        });
+
+        var foundVisible = false;
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                await Assertions.Expect(candidate.First).ToBeVisibleAsync(new() { Timeout = 7000 });
+                foundVisible = true;
+                break;
+            }
+            catch
+            {
+                // try next candidate
+            }
+        }
+
+        if (!foundVisible)
+        {
+            // Capture screenshot for debugging before failing
+            var screenshotPath = Path.Combine(Path.GetTempPath(), $"nav-link-{linkText}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+            Console.WriteLine($"Debug screenshot saved to {screenshotPath}");
+        }
+
+        Assert.True(foundVisible, $"Expected to see link with text '{linkText}'");
     }
 
     [Then(@"I should not see the ""(.*)"" section")]

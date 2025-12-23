@@ -29,13 +29,6 @@ public class HomePageSteps(ScenarioContext scenarioContext)
         await Page.WaitForTimeoutAsync(2000);
     }
 
-    [Given(@"I am not logged in")]
-    public void GivenIAmNotLoggedIn()
-    {
-        // Default state - no authentication cookies
-    }
-
-
     [Then(@"I should see the brand name ""(.*)""")]
     public async Task ThenIShouldSeeTheBrandName(string brandName)
     {

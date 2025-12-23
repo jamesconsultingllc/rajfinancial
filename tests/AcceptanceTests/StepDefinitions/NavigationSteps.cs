@@ -50,9 +50,15 @@ public class NavigationSteps(ScenarioContext scenarioContext)
             var storageValid = await PlaywrightHooks.ValidateOrRegenerateStorageStateAsync(role, email, storageStatePath);
             if (storageValid)
             {
-                // Dispose previous context/page created in hooks
+                // Preserve viewport size if already set (e.g., by mobile viewport step)
+                ViewportSize? currentViewport = null;
                 if (scenarioContext.TryGetValue<IPage>("Page", out var existingPage))
                 {
+                    var pageViewport = existingPage.ViewportSize;
+                    if (pageViewport != null)
+                    {
+                        currentViewport = new ViewportSize { Width = pageViewport.Width, Height = pageViewport.Height };
+                    }
                     await existingPage.CloseAsync();
                 }
 
@@ -61,10 +67,13 @@ public class NavigationSteps(ScenarioContext scenarioContext)
                     await existingContext.CloseAsync();
                 }
 
+                // Create new context with Playwright's native storage state
+                // MSAL is configured to use localStorage, so this works out of the box
+                // Preserve viewport size if it was set before login
                 var context = await PlaywrightHooks.Browser.NewContextAsync(new BrowserNewContextOptions
                 {
                     StorageStatePath = storageStatePath,
-                    ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+                    ViewportSize = currentViewport ?? new ViewportSize { Width = 1280, Height = 720 }
                 });
                 var page = await context.NewPageAsync();
 
@@ -72,8 +81,10 @@ public class NavigationSteps(ScenarioContext scenarioContext)
                 scenarioContext.Set(page, "Page");
 
                 await page.GotoAsync(PlaywrightHooks.BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-                await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
                 await page.WaitForTimeoutAsync(1000);
+                
+                // Wait for redirect to complete (authenticated users get redirected)
+                await WaitForAuthenticatedState(page);
                 return;
             }
         }
@@ -109,19 +120,51 @@ public class NavigationSteps(ScenarioContext scenarioContext)
 
             // Wait for popup to close and Blazor to process auth
             await Page.WaitForTimeoutAsync(3000);
+            
+            // Ensure we're on the main page (not still on popup)
+            await Page.BringToFrontAsync();
 
-            // Wait for authentication to complete by checking for authenticated UI elements
-            try
+            // Wait for authentication to complete and redirect
+            await WaitForAuthenticatedState(Page);
+        }
+    }
+
+    /// <summary>
+    /// Waits for the authenticated state to be resolved and any redirects to complete.
+    /// </summary>
+    private static async Task WaitForAuthenticatedState(IPage page)
+    {
+        // Wait for Blazor to process the auth callback and update state
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        
+        // Wait for either:
+        // 1. Redirect to a dashboard (admin, advisor, or client)
+        // 2. Log out button to appear (indicating auth is complete)
+        // 3. Navigation sidebar to appear (authenticated layout)
+        var maxAttempts = 30; // 15 seconds total
+        for (var i = 0; i < maxAttempts; i++)
+        {
+            await page.WaitForTimeoutAsync(500);
+            
+            var url = page.Url;
+            if (url.Contains("/dashboard") || url.Contains("/admin") || url.Contains("/advisor") || url.Contains("/client"))
             {
-                // Wait for either logout button or user profile indicator to appear
-                await Page.WaitForSelectorAsync("text=Log out, a[href*='logout'], .oi-account-logout", new() { Timeout = 10000 });
+                break;
             }
-            catch
+            
+            // Check for authenticated UI elements
+            var logoutVisible = await page.Locator("text=Log out").First.IsVisibleAsync();
+            var sidebarVisible = await page.Locator(".raj-sidebar, nav[aria-label*='navigation']").First.IsVisibleAsync();
+            
+            if (logoutVisible || sidebarVisible)
             {
-                // If specific elements not found, wait for network to settle
-                await Page.WaitForLoadStateAsync(LoadState.NetworkIdle, new() { Timeout = 10000 });
+                break;
             }
         }
+        
+        // Final wait for page to fully stabilize
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await page.WaitForTimeoutAsync(1000);
     }
 
     [Given(@"I am not logged in")]
@@ -199,16 +242,32 @@ public class NavigationSteps(ScenarioContext scenarioContext)
     [When(@"I view the navigation menu")]
     public async Task WhenIViewTheNavigationMenu()
     {
-        // Navigation is already visible in sidebar on desktop
+        // Wait for the page to be fully loaded after login
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(1000);
+        
+        // Wait for sidebar/navigation to be present
+        try
+        {
+            await Page.WaitForSelectorAsync(".raj-sidebar, .nav-menu, nav", new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+        }
+        catch
+        {
+            // Navigation might not be visible yet, take a screenshot for debugging
+            var screenshotPath = Path.Combine(Path.GetTempPath(), $"nav-debug-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+            Console.WriteLine($"Debug screenshot saved to: {screenshotPath}");
+        }
+        
         // On mobile, we might need to open the hamburger menu first
         var viewport = Page.ViewportSize;
         if (viewport != null && viewport.Width < 768)
         {
-            var hamburger = Page.Locator("[aria-label*='menu'], .hamburger, .menu-toggle").First;
+            var hamburger = Page.Locator(".raj-menu-toggle, [aria-label*='menu'], .hamburger, .menu-toggle").First;
             if (await hamburger.IsVisibleAsync())
             {
                 await hamburger.ClickAsync();
-                await Page.WaitForTimeoutAsync(300);
+                await Page.WaitForTimeoutAsync(500);
             }
         }
     }

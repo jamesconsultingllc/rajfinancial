@@ -151,6 +151,8 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             return await GenerateStorageStateAsync(role, email, storagePath);
         }
 
+        // With MSAL configured to use localStorage, Playwright's native storage state works.
+        // Create context with the saved storage state.
         var context = await browser!.NewContextAsync(new BrowserNewContextOptions
         {
             StorageStatePath = storagePath,
@@ -159,7 +161,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         var page = await context.NewPageAsync();
 
         await page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-        await page.WaitForTimeoutAsync(500);
+        await page.WaitForTimeoutAsync(2000);
 
         var url = page.Url;
         var isLogin = url.Contains("login", StringComparison.OrdinalIgnoreCase) ||
@@ -173,6 +175,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             return true;
         }
 
+        // Storage state was stale - regenerate
         return await GenerateStorageStateAsync(role, email, storagePath);
     }
 
@@ -218,10 +221,54 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         await HandleEntraLoginPage(loginPage, email, password);
 
-        await page.WaitForTimeoutAsync(3000);
+        // Wait for MSAL to process the auth response and store tokens in localStorage
+        // This is critical - we need to wait for the main page to be fully authenticated
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        
+        // Wait for authenticated UI to appear (logout button or sidebar)
+        var maxWaitMs = 30000;
+        var waitedMs = 0;
+        var authenticated = false;
+        while (waitedMs < maxWaitMs)
+        {
+            await page.WaitForTimeoutAsync(500);
+            waitedMs += 500;
+            
+            // Check for signs of successful auth
+            var logoutVisible = await page.Locator("text=Log out").First.IsVisibleAsync();
+            var sidebarVisible = await page.Locator(".raj-sidebar, nav[aria-label]").First.IsVisibleAsync();
+            var url = page.Url;
+            
+            if (logoutVisible || sidebarVisible || 
+                url.Contains("/dashboard") || url.Contains("/admin") || 
+                url.Contains("/advisor") || url.Contains("/client"))
+            {
+                authenticated = true;
+                break;
+            }
+        }
 
+        if (!authenticated)
+        {
+            // Take a debug screenshot
+            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await page.ScreenshotAsync(new() { Path = debugPath, FullPage = true });
+            Console.WriteLine($"Auth failed for {role}. Debug screenshot: {debugPath}");
+            await context.CloseAsync();
+            return false;
+        }
+
+        // With MSAL configured to use localStorage, Playwright's native storage state captures tokens.
+        // Debug: Check localStorage
+        var localStorageKeys = await page.EvaluateAsync<string[]>("() => Object.keys(localStorage)");
+        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys?.Length ?? 0}");
+        Console.WriteLine($"[{role}] Current URL: {page.Url}");
+        
+        // Save storage state using Playwright's native method
         await context.StorageStateAsync(new() { Path = storagePath });
+        
+        Console.WriteLine($"[{role}] Storage state saved");
+        
         await context.CloseAsync();
         return true;
     }
@@ -249,10 +296,12 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         var submitButton = loginPage.Locator("input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next')");
         await submitButton.ClickAsync();
 
+        // Handle "Stay signed in?" or "Keep me signed in" prompt
         try
         {
-            var noButton = loginPage.Locator("#idBtn_Back");
-            await noButton.WaitForAsync(new() { Timeout = 8000 });
+            // Try multiple selectors for the "No" / "Don't show again" buttons
+            var noButton = loginPage.Locator("#idBtn_Back, #declineButton, button:has-text('No'), button:has-text(\"Don't show\")").First;
+            await noButton.WaitForAsync(new() { Timeout = 8000, State = WaitForSelectorState.Visible });
             if (await noButton.IsVisibleAsync())
             {
                 await noButton.ClickAsync();
@@ -260,7 +309,35 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         }
         catch
         {
-            // Ignore if prompt not shown
+            // Prompt not shown - may auto-close or use different flow
+        }
+
+        // Wait for popup to close (indicates auth complete and tokens transferred)
+        // MSAL popup flow: After Entra auth, popup redirects to callback URL,
+        // MSAL processes tokens and posts message to parent, then popup closes.
+        // We must NOT force close - let MSAL complete its flow.
+        for (var i = 0; i < 60; i++) // Wait up to 30 seconds
+        {
+            if (loginPage.IsClosed)
+            {
+                break;
+            }
+            await Task.Delay(500);
+        }
+
+        // If popup is still open, MSAL flow may have failed - log but don't force close
+        // Force closing would break the token transfer
+        if (!loginPage.IsClosed)
+        {
+            Console.WriteLine("Warning: Login popup did not close after 30s. MSAL token transfer may have failed.");
+            // Take a screenshot for debugging
+            try
+            {
+                var debugPath = Path.Combine(Path.GetTempPath(), $"popup-not-closed-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                await loginPage.ScreenshotAsync(new() { Path = debugPath });
+                Console.WriteLine($"Popup screenshot saved to: {debugPath}");
+            }
+            catch { /* Ignore screenshot errors */ }
         }
     }
 }
