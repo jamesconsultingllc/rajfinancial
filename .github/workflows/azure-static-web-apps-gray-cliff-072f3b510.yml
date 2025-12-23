@@ -130,6 +130,7 @@ jobs:
       #     origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
     outputs:
       deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
+      target-environment: ${{ steps.resolve-env.outputs.target-environment }}
 
   e2e_tests_job:
     if: github.event_name != 'pull_request'
@@ -142,6 +143,47 @@ jobs:
         browser: [ chromium, firefox, webkit ]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch Test Passwords from SWA Settings
+        id: fetch-passwords
+        run: |
+          target_env="${{ needs.build_and_deploy_job.outputs.target-environment }}"
+          echo "Fetching app settings for environment: $target_env"
+          
+          # Get app settings from SWA
+          settings=$(az staticwebapp appsettings list \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$target_env" \
+            --query "properties" -o json 2>/dev/null || echo "{}")
+          
+          # Extract DEVELOPMENT_TEST_ADMINISTRATOR and DEVELOPMENT_TEST_VIEWER passwords
+          admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+          viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
+          
+          # Set as masked environment variables for subsequent steps
+          if [[ -n "$admin_password" ]]; then
+            echo "::add-mask::$admin_password"
+            echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_ADMINISTRATOR not found in SWA settings"
+          fi
+          
+          if [[ -n "$viewer_password" ]]; then
+            echo "::add-mask::$viewer_password"
+            echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_VIEWER password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_VIEWER not found in SWA settings"
+          fi
 
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
