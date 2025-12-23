@@ -22,9 +22,16 @@ builder.Services.AddMsalAuthentication<RemoteAuthenticationState, RemoteUserAcco
     // Token cache location: "sessionStorage" (default, more secure) or "localStorage" (for testing).
     // - sessionStorage: Tokens cleared when tab closes. More secure but requires re-login.
     // - localStorage: Tokens persist across sessions. Better UX but larger XSS attack surface.
-    // Production uses sessionStorage; Development uses localStorage for Playwright test compatibility.
+    // Production (main branch) uses sessionStorage; non-production uses localStorage for Playwright E2E test compatibility.
+    // See: .github/workflows/azure-static-web-apps-*.yml for the build-time config swap.
     var cacheLocation = builder.Configuration.GetValue<string>("Msal:CacheLocation") ?? "sessionStorage";
     options.ProviderOptions.Cache.CacheLocation = cacheLocation;
+    
+    // Use redirect flow instead of popup for better compatibility with:
+    // - Headless browsers (Playwright E2E tests)
+    // - Mobile browsers (popup blockers)
+    // - Strict browser security policies
+    options.ProviderOptions.LoginMode = "redirect";
     
     // Map the 'roles' claim from Entra ID to .NET's role claim
     // This enables AuthorizeView Policy="..." and [Authorize(Roles = "...")] to work

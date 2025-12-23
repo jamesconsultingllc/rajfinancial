@@ -105,24 +105,22 @@ public class NavigationSteps(ScenarioContext scenarioContext)
         await Page.GotoAsync(PlaywrightHooks.BaseUrl);
         await Page.WaitForTimeoutAsync(2000); // Wait for Blazor
 
-        // Click login button - Entra External ID uses popup flow
+        // Click login button - MSAL uses redirect flow
         var loginButton = Page.Locator("text=Log in").First;
         if (await loginButton.IsVisibleAsync())
         {
-            // Click login and wait for popup
-            var loginPage = await Page.RunAndWaitForPopupAsync(async () =>
-            {
-                await loginButton.ClickAsync();
-            });
-
-            // Handle the Entra ID login page in the popup
-            await PlaywrightHooks.HandleEntraLoginPage(loginPage, email, password);
-
-            // Wait for popup to close and Blazor to process auth
-            await Page.WaitForTimeoutAsync(3000);
+            // Click login - redirect flow navigates the page to Entra ID
+            await loginButton.ClickAsync();
             
-            // Ensure we're on the main page (not still on popup)
-            await Page.BringToFrontAsync();
+            // Wait for redirect to Entra login page
+            await Page.WaitForURLAsync(url => 
+                url.Contains("ciamlogin.com") || 
+                url.Contains("login.microsoftonline.com") || 
+                url.Contains("b2clogin.com"), 
+                new() { Timeout = 15000 });
+
+            // Handle the Entra ID login on the same page (redirect flow)
+            await PlaywrightHooks.HandleEntraLoginPage(Page, email, password);
 
             // Wait for authentication to complete and redirect
             await WaitForAuthenticatedState(Page);

@@ -214,12 +214,18 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             return false;
         }
 
-        var loginPage = await page.RunAndWaitForPopupAsync(async () =>
-        {
-            await loginButton.ClickAsync();
-        });
+        // Click login - redirect flow navigates the page to Entra ID
+        await loginButton.ClickAsync();
+        
+        // Wait for redirect to Entra login page
+        await page.WaitForURLAsync(url => 
+            url.Contains("ciamlogin.com") || 
+            url.Contains("login.microsoftonline.com") || 
+            url.Contains("b2clogin.com"), 
+            new() { Timeout = 15000 });
 
-        await HandleEntraLoginPage(loginPage, email, password);
+        // Handle the Entra ID login on the same page (redirect flow)
+        await HandleEntraLoginPage(page, email, password);
 
         // Wait for MSAL to process the auth response and store tokens in localStorage
         // This is critical - we need to wait for the main page to be fully authenticated
@@ -274,9 +280,9 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    /// Handles the Microsoft Entra login flow for creating storage state during hooks.
+    /// Handles the Microsoft Entra login flow (works for both redirect and popup flows).
     /// </summary>
-    /// <param name="loginPage">Popup page hosting the login UI.</param>
+    /// <param name="loginPage">Page hosting the login UI.</param>
     /// <param name="email">Email address.</param>
     /// <param name="password">Password.</param>
     public static async Task HandleEntraLoginPage(IPage loginPage, string email, string password)
@@ -309,33 +315,28 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         }
         catch
         {
-            // Prompt not shown - may auto-close or use different flow
+            // Prompt not shown - may auto-redirect or use different flow
         }
 
-        // Wait for popup to close (indicates auth complete and tokens transferred)
-        // MSAL popup flow: After Entra auth, popup redirects to callback URL,
-        // MSAL processes tokens and posts message to parent, then popup closes.
-        // We must NOT force close - let MSAL complete its flow.
-        for (var i = 0; i < 60; i++) // Wait up to 30 seconds
+        // For redirect flow: wait for redirect back to the app
+        // For popup flow: the popup will close automatically
+        try
         {
-            if (loginPage.IsClosed)
-            {
-                break;
-            }
-            await Task.Delay(500);
+            await loginPage.WaitForURLAsync(url => 
+                !url.Contains("ciamlogin.com") && 
+                !url.Contains("login.microsoftonline.com") && 
+                !url.Contains("b2clogin.com"),
+                new() { Timeout = 30000 });
         }
-
-        // If popup is still open, MSAL flow may have failed - log but don't force close
-        // Force closing would break the token transfer
-        if (!loginPage.IsClosed)
+        catch
         {
-            Console.WriteLine("Warning: Login popup did not close after 30s. MSAL token transfer may have failed.");
-            // Take a screenshot for debugging
+            // URL check failed - take debug screenshot
+            Console.WriteLine("Warning: Login redirect did not complete within 30s.");
             try
             {
-                var debugPath = Path.Combine(Path.GetTempPath(), $"popup-not-closed-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                var debugPath = Path.Combine(Path.GetTempPath(), $"login-redirect-timeout-{DateTime.Now:yyyyMMdd-HHmmss}.png");
                 await loginPage.ScreenshotAsync(new() { Path = debugPath });
-                Console.WriteLine($"Popup screenshot saved to: {debugPath}");
+                Console.WriteLine($"Debug screenshot saved to: {debugPath}");
             }
             catch { /* Ignore screenshot errors */ }
         }
