@@ -137,6 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     name: E2E Tests
     needs: build_and_deploy_job
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     strategy:
       fail-fast: false
       matrix:
