@@ -165,8 +165,10 @@ jobs:
             --environment-name "$target_env" \
             --query "properties" -o json 2>/dev/null || echo "{}")
           
-          # Extract DEVELOPMENT_TEST_ADMINISTRATOR and DEVELOPMENT_TEST_VIEWER passwords
+          # Extract test passwords for all roles
           admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+          advisor_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADVISOR // empty')
+          client_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_CLIENT // empty')
           viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
           
           # Set as masked environment variables for subsequent steps
@@ -176,6 +178,22 @@ jobs:
             echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
           else
             echo "Warning: DEVELOPMENT_TEST_ADMINISTRATOR not found in SWA settings"
+          fi
+          
+          if [[ -n "$advisor_password" ]]; then
+            echo "::add-mask::$advisor_password"
+            echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_ADVISOR password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_ADVISOR not found in SWA settings"
+          fi
+          
+          if [[ -n "$client_password" ]]; then
+            echo "::add-mask::$client_password"
+            echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_CLIENT password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_CLIENT not found in SWA settings"
           fi
           
           if [[ -n "$viewer_password" ]]; then
