@@ -66,7 +66,6 @@ public class AuthorizationSteps
 
         var dashboard = Page.Locator("[data-testid='admin-dashboard']");
         var title = Page.Locator("[data-testid='admin-dashboard-title'], h1:has-text('Administrator Dashboard')");
-        var content = await Page.ContentAsync();
         // Wait for either the dashboard container or the title to be visible
         var tasks = new List<Task>
         {
@@ -82,7 +81,7 @@ public class AuthorizationSteps
         catch
         {
             // Capture diagnostics to help understand failures
-            content = await Page.ContentAsync();
+            var content = await Page.ContentAsync();
             var url = Page.Url;
             Console.WriteLine($"Admin dashboard not visible. URL: {url}");
             Console.WriteLine($"Page contains 'Administrator Dashboard': {content.Contains("Administrator Dashboard")}");

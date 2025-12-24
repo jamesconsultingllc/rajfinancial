@@ -30,23 +30,19 @@ public class CustomAccountFactory : AccountClaimsPrincipalFactory<RemoteUserAcco
     {
         var user = await base.CreateUserAsync(account, options);
 
-        if (user.Identity is ClaimsIdentity identity && account != null)
+        if (user.Identity is ClaimsIdentity identity && account?.AdditionalProperties.TryGetValue("roles", out var rolesObj) == true)
         {
-            // Handle 'roles' claim which comes as a JSON array from Entra ID
-            if (account.AdditionalProperties.TryGetValue("roles", out var rolesObj))
+            // Remove any existing role claims to avoid duplicates
+            var existingRolesClaims = identity.FindAll(ClaimTypes.Role).ToList();
+            foreach (var claim in existingRolesClaims)
             {
-                // Remove any existing role claims to avoid duplicates
-                var existingRolesClaims = identity.FindAll(ClaimTypes.Role).ToList();
-                foreach (var claim in existingRolesClaims)
-                {
-                    identity.RemoveClaim(claim);
-                }
+                identity.RemoveClaim(claim);
+            }
 
-                // Parse roles from the JSON element
-                if (rolesObj is JsonElement rolesElement)
-                {
-                    AddRolesFromJsonElement(identity, rolesElement);
-                }
+            // Parse roles from the JSON element
+            if (rolesObj is JsonElement rolesElement)
+            {
+                AddRolesFromJsonElement(identity, rolesElement);
             }
         }
 

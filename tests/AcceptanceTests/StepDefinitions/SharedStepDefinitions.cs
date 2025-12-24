@@ -240,7 +240,6 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         // Wait for nav container if present
         try
         {
-            var content = await Page.ContentAsync(); 
             await Page.WaitForSelectorAsync("nav, .nav-menu, .raj-sidebar", new() { Timeout = 5000, State = WaitForSelectorState.Attached });
         }
         catch { /* best-effort */ }

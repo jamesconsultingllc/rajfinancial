@@ -164,22 +164,22 @@ public enum GrantStatus
 /// </summary>
 public static class DataCategories
 {
-    public const string ACCOUNTS = "accounts";
-    public const string ASSETS = "assets";
-    public const string LIABILITIES = "liabilities";
-    public const string BENEFICIARIES = "beneficiaries";
-    public const string DOCUMENTS = "documents";
-    public const string ANALYSIS = "analysis";
-    public const string ALL = "all";
+    public const string Accounts = "accounts";
+    public const string Assets = "assets";
+    public const string Liabilities = "liabilities";
+    public const string Beneficiaries = "beneficiaries";
+    public const string Documents = "documents";
+    public const string Analysis = "analysis";
+    public const string All = "all";
 
-    public static readonly string[] AllCategories = new[]
-    {
-        ACCOUNTS,
-        ASSETS,
-        LIABILITIES,
-        BENEFICIARIES,
-        DOCUMENTS,
-        ANALYSIS
-    };
+    public static readonly string[] AllCategories =
+    [
+        Accounts,
+        Assets,
+        Liabilities,
+        Beneficiaries,
+        Documents,
+        Analysis
+    ];
 }
 

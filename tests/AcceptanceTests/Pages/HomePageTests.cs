@@ -15,7 +15,7 @@ public class HomePageTests : IAsyncLifetime
 {
     private IPlaywright? playwright;
     private IBrowser? browser;
-    private string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+    private readonly string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
 
     public async Task InitializeAsync()
     {

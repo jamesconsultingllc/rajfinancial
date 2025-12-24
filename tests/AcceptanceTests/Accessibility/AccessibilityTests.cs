@@ -17,7 +17,7 @@ public class AccessibilityTests : IAsyncLifetime
 {
     private IPlaywright? playwright;
     private IBrowser? browser;
-    private string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+    private readonly string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
 
     public async Task InitializeAsync()
     {
@@ -212,7 +212,7 @@ public class AccessibilityTests : IAsyncLifetime
             {
                 var nodes = violations.SelectMany(v => v.Nodes).Take(5); // First 5 issues
                 var issues = string.Join("\n", nodes.Select(n => 
-                    $"Element: {n.Html}\nMessage: {n.Any}"));
+                    $"Element: {n.Html}\nMessage: {string.Join(", ", n.Any?.Select(c => c.Message) ?? [])}"));
                 
                 Assert.Fail($"Color contrast violations found:\n\n{issues}");
             }

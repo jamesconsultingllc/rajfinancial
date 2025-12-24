@@ -362,7 +362,7 @@ else if (!_isAuthenticated)
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         
-        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+        _isAuthenticated = user.Identity?.IsAuthenticated is true;
         
         if (_isAuthenticated)
         {
