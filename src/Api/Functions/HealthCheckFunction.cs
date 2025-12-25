@@ -8,14 +8,9 @@ namespace RajFinancial.Api.Functions;
 /// <summary>
 /// Sample HTTP function for testing Azure Functions integration.
 /// </summary>
-public class HealthCheckFunction
+public class HealthCheckFunction(ILoggerFactory loggerFactory)
 {
-    private readonly ILogger _logger;
-
-    public HealthCheckFunction(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<HealthCheckFunction>();
-    }
+    private readonly ILogger logger = loggerFactory.CreateLogger<HealthCheckFunction>();
 
     /// <summary>
     /// Health check endpoint for the API.
@@ -26,7 +21,7 @@ public class HealthCheckFunction
     public HttpResponseData Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")] HttpRequestData req)
     {
-        _logger.LogInformation("Health check requested");
+        logger.LogInformation("Health check requested");
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");

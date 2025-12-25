@@ -1,44 +1,118 @@
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RajFinancial.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// Configure localization
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+
 // Configure MSAL authentication with Entra External ID
-builder.Services.AddMsalAuthentication(options =>
+builder.Services.AddMsalAuthentication<RemoteAuthenticationState, RemoteUserAccount>(options =>
 {
     builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
     options.ProviderOptions.DefaultAccessTokenScopes.Add("openid");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("profile");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("email");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("offline_access");
-});
+    
+    // Token cache location: "sessionStorage" (default, more secure) or "localStorage" (for testing).
+    // - sessionStorage: Tokens cleared when tab closes. More secure but requires re-login.
+    // - localStorage: Tokens persist across sessions. Better UX but larger XSS attack surface.
+    // Production (main branch) uses sessionStorage; non-production uses localStorage for Playwright E2E test compatibility.
+    // See: .github/workflows/azure-static-web-apps-*.yml for the build-time config swap.
+    var cacheLocation = builder.Configuration.GetValue<string>("Msal:CacheLocation") ?? "sessionStorage";
+    options.ProviderOptions.Cache.CacheLocation = cacheLocation;
+    
+    // Use redirect flow instead of popup for better compatibility with:
+    // - Headless browsers (Playwright E2E tests)
+    // - Mobile browsers (popup blockers)
+    // - Strict browser security policies
+    options.ProviderOptions.LoginMode = "redirect";
+    
+    // Map the 'roles' claim from Entra ID to .NET's role claim
+    // This enables AuthorizeView Policy="..." and [Authorize(Roles = "...")] to work
+    options.UserOptions.RoleClaim = "roles";
+}).AddAccountClaimsPrincipalFactory<RemoteAuthenticationState, RemoteUserAccount, CustomAccountFactory>();
 
 // Configure authorization policies
+// 
+// ???????????????????????????????????????????????????????????????????????????
+// AUTHORIZATION MODEL: Role-Based Access + User-Granted Data Sharing
+// ???????????????????????????????????????????????????????????????????????????
+//
+// PRINCIPLE: Data access is controlled by the DATA OWNER, not by roles.
+// Roles only determine WHAT FEATURES a user can access, not WHOSE DATA.
+//
+// SYSTEM ROLES (feature access, no data access implied):
+//   - Administrator: System configuration, user management (NO user financial data)
+//   - Advisor: Advisor tools/features (data access granted BY clients)
+//   - Client: Client tools/features (owns their own data)
+//   - Viewer: Read-only access to data shared WITH them (beneficiaries, family, etc.)
+//
+// COMBINED ROLES:
+//   - AdminAdvisor: System admin + advisor features
+//   - AdminClient: System admin + client features
+//
+// DATA ACCESS MODEL (enforced at API level):
+//   - Users OWN their data and control who can see it
+//   - Clients GRANT access to Advisors (can revoke anytime)
+//   - Clients GRANT access to Viewers (beneficiaries, family, accountants, etc.)
+//   - Access grants specify: read-only vs read-write, which accounts, expiration
+//   - All data access is audited
+//
+// Example: An Advisor can only see a Client's portfolio IF:
+//   1. The Advisor has the "Advisor" role (feature access)
+//   2. The Client has explicitly granted the Advisor access to their data
+//
+// ???????????????????????????????????????????????????????????????????????????
+
 builder.Services.AddAuthorizationCore(options =>
 {
-    // Admin-only features (user management, system configuration)
+    // ???????????????????????????????????????????????????????????
+    // SYSTEM ADMINISTRATION (no user data access)
+    // ???????????????????????????????????????????????????????????
+    
+    // System configuration, user management, audit logs
+    // Does NOT grant access to any user financial data
     options.AddPolicy("RequireAdministrator", policy =>
-        policy.RequireRole("Administrator"));
+        policy.RequireRole("Administrator", "AdminAdvisor", "AdminClient"));
 
-    // Advisor features (client management, portfolio operations)
-    // Administrators can also perform advisor tasks
+    // ???????????????????????????????????????????????????????????
+    // FEATURE ACCESS POLICIES (role determines available features)
+    // ???????????????????????????????????????????????????????????
+    
+    // Advisor features: tools for managing client relationships
+    // Actual client data access is granted BY each client individually
     options.AddPolicy("RequireAdvisor", policy =>
-        policy.RequireRole("Advisor", "Administrator"));
+        policy.RequireRole("Advisor", "AdminAdvisor"));
 
-    // Client features (view own portfolio, make transactions)
-    // All authenticated users with any role can access client features
+    // Client features: portfolio management, transactions, account settings
+    // Clients own their data and control all sharing
     options.AddPolicy("RequireClient", policy =>
-        policy.RequireRole("Client", "Advisor", "Administrator"));
+        policy.RequireRole("Client", "Advisor", "AdminAdvisor", "AdminClient"));
 
-    // Any authenticated user
+    // Viewer features: read-only views of shared data
+    // Used by beneficiaries, family members, accountants, etc.
+    // Can only see data explicitly shared WITH them by data owner
+    options.AddPolicy("RequireViewer", policy =>
+        policy.RequireRole("Viewer", "Client", "Advisor", "AdminAdvisor", "AdminClient"));
+
+    // ???????????????????????????????????????????????????????????
+    // GENERAL POLICIES
+    // ???????????????????????????????????????????????????????????
+    
+    // Any authenticated user (for profile, settings, help, etc.)
     options.AddPolicy("RequireAuthenticated", policy =>
         policy.RequireAuthenticatedUser());
 });
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-await builder.Build().RunAsync();
+// Set default culture
+var host = builder.Build();
+
+await host.RunAsync();

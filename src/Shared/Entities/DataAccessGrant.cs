@@ -172,14 +172,14 @@ public static class DataCategories
     public const string Analysis = "analysis";
     public const string All = "all";
 
-    public static readonly string[] AllCategories = new[]
-    {
+    public static readonly string[] AllCategories =
+    [
         Accounts,
         Assets,
         Liabilities,
         Beneficiaries,
         Documents,
         Analysis
-    };
+    ];
 }
 
