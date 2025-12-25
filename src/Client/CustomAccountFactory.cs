@@ -30,7 +30,7 @@ public class CustomAccountFactory : AccountClaimsPrincipalFactory<RemoteUserAcco
     {
         var user = await base.CreateUserAsync(account, options);
 
-        if (user.Identity is ClaimsIdentity identity && account?.AdditionalProperties.TryGetValue("roles", out var rolesObj) == true)
+        if (user.Identity is ClaimsIdentity identity && account?.AdditionalProperties.TryGetValue("roles", out var rolesObj) is true)
         {
             // Remove any existing role claims to avoid duplicates
             var existingRolesClaims = identity.FindAll(ClaimTypes.Role).ToList();
