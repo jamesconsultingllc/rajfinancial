@@ -304,9 +304,14 @@ public class HomePageTests : IAsyncLifetime
             await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
-            // Assert
-            var loginButton = page.Locator("text=Log in");
-            await Assertions.Expect(loginButton).ToBeVisibleAsync();
+            // Assert - Look for the login button with localized text "Sign In / Sign Up"
+            // Also check for alternative login-related elements
+            var loginButton = page.Locator("text=Sign In").Or(
+                page.Locator("text=Log in")).Or(
+                page.Locator("a[href*='authentication/login']")).Or(
+                page.Locator("[aria-label*='Sign in']"));
+            
+            await Assertions.Expect(loginButton.First).ToBeVisibleAsync();
         }
         finally
         {

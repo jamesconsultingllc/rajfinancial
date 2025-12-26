@@ -62,5 +62,5 @@ Scenario: Home page meets accessibility standards
 @unauthenticated
 Scenario: Unauthenticated user sees login button
     Given I am not logged in
-    Then I should see a "Log in" button
+    Then I should see a "Sign In / Sign Up" button
     And I should not see a "Log out" button

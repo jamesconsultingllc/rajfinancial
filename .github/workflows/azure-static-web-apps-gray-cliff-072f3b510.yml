@@ -241,7 +241,7 @@ jobs:
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests&Category!=signup"
         env:
           BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
           BROWSER: ${{ matrix.browser }}
@@ -251,6 +251,57 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: e2e-test-results-${{ matrix.browser }}
+          path: tests/AcceptanceTests/TestResults/
+          if-no-files-found: warn
+          retention-days: 7
+
+  integration_tests_job:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    name: Integration Tests (Signup Flow)
+    needs: build_and_deploy_job
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build test project
+        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
+
+      - name: Install Playwright browsers
+        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install chromium --with-deps
+
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Run signup integration tests
+        run: dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug --verbosity normal --logger trx --filter "Category=signup"
+        env:
+          BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
+          BROWSER: chromium
+          MAILINATOR_API_TOKEN: ${{ secrets.MAILINATOR_API_TOKEN }}
+
+      - name: Cleanup test users
+        if: always()
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          cd tests/AcceptanceTests
+          dotnet run -- cleanup-users --older-than 0
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: integration-test-results
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7

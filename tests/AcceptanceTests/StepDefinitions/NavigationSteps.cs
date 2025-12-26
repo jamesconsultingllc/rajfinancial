@@ -34,95 +34,119 @@ public class NavigationSteps(ScenarioContext scenarioContext)
     [Given(@"I am logged in as an ""(.*)""")]
     public async Task GivenIAmLoggedInAs(string role)
     {
-        // Store the role for later use
         scenarioContext.Set(role, "UserRole");
-        
-        // Get email from hardcoded map
-        if (!testUserEmails.TryGetValue(role, out var email))
+
+        var email = GetEmailForRole(role);
+
+        if (await TryLoginWithStorageStateAsync(role, email))
         {
-            throw new ArgumentException($"Unknown test role: '{role}'. Valid roles: {string.Join(", ", testUserEmails.Keys)}");
+            return;
         }
-        
-        // Attempt storage state login first
-        var storageStatePath = TestConfiguration.Instance.GetStorageStatePath(role);
-        if (!string.IsNullOrWhiteSpace(storageStatePath))
-        {
-            var storageValid = await PlaywrightHooks.ValidateOrRegenerateStorageStateAsync(role, email, storageStatePath);
-            if (storageValid)
-            {
-                // Preserve viewport size if already set (e.g., by mobile viewport step)
-                ViewportSize? currentViewport = null;
-                if (scenarioContext.TryGetValue<IPage>("Page", out var existingPage))
-                {
-                    var pageViewport = existingPage.ViewportSize;
-                    if (pageViewport != null)
-                    {
-                        currentViewport = new ViewportSize { Width = pageViewport.Width, Height = pageViewport.Height };
-                    }
-                    await existingPage.CloseAsync();
-                }
 
-                if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var existingContext))
-                {
-                    await existingContext.CloseAsync();
-                }
+        var password = GetPasswordForRole(role);
 
-                // Create new context with Playwright's native storage state
-                // MSAL is configured to use localStorage, so this works out of the box
-                // Preserve viewport size if it was set before login
-                var context = await PlaywrightHooks.Browser.NewContextAsync(new BrowserNewContextOptions
-                {
-                    StorageStatePath = storageStatePath,
-                    ViewportSize = currentViewport ?? new ViewportSize { Width = 1280, Height = 720 }
-                });
-                var page = await context.NewPageAsync();
-
-                scenarioContext.Set(context, "BrowserContext");
-                scenarioContext.Set(page, "Page");
-
-                await page.GotoAsync(PlaywrightHooks.BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-                await page.WaitForTimeoutAsync(1000);
-                
-                // Wait for redirect to complete (authenticated users get redirected)
-                await WaitForAuthenticatedState(page);
-                return;
-            }
-        }
-        
-        // Get password from configuration (appsettings.local.json or environment)
-        var password = TestConfiguration.Instance.GetPassword(role) 
-            ?? Environment.GetEnvironmentVariable($"TEST_{role.ToUpper()}_PASSWORD");
-        
         if (string.IsNullOrEmpty(password))
         {
-            // Skip authentication tests if password not configured
             throw new InconclusiveException(
                 $"Test password not configured for role '{role}'. " +
                 $"Set password in appsettings.local.json or TEST_{role.ToUpper()}_PASSWORD environment variable.");
         }
-        
-        // Navigate to app and trigger login
-        await Page.GotoAsync(PlaywrightHooks.BaseUrl);
-        await Page.WaitForTimeoutAsync(2000); // Wait for Blazor
 
-        // Click login button - MSAL uses redirect flow
-        var loginButton = Page.Locator("text=Log in").First;
+        await PerformInteractiveLoginAsync(email, password);
+    }
+
+    private static string GetEmailForRole(string role)
+    {
+        if (!testUserEmails.TryGetValue(role, out var email))
+        {
+            throw new ArgumentException($"Unknown test role: '{role}'. Valid roles: {string.Join(", ", testUserEmails.Keys)}");
+        }
+        return email;
+    }
+
+    private static string? GetPasswordForRole(string role)
+    {
+        return TestConfiguration.Instance.GetPassword(role)
+            ?? Environment.GetEnvironmentVariable($"TEST_{role.ToUpper()}_PASSWORD");
+    }
+
+    private async Task<bool> TryLoginWithStorageStateAsync(string role, string email)
+    {
+        var storageStatePath = TestConfiguration.Instance.GetStorageStatePath(role);
+        if (string.IsNullOrWhiteSpace(storageStatePath))
+        {
+            return false;
+        }
+
+        var storageValid = await PlaywrightHooks.ValidateOrRegenerateStorageStateAsync(role, email, storageStatePath);
+        if (!storageValid)
+        {
+            return false;
+        }
+
+        var currentViewport = await CloseExistingPageAndGetViewportAsync();
+        await CloseExistingContextAsync();
+
+        var context = await PlaywrightHooks.Browser.NewContextAsync(new BrowserNewContextOptions
+        {
+            StorageStatePath = storageStatePath,
+            ViewportSize = currentViewport ?? new ViewportSize { Width = 1280, Height = 720 }
+        });
+        var page = await context.NewPageAsync();
+
+        scenarioContext.Set(context, "BrowserContext");
+        scenarioContext.Set(page, "Page");
+
+        await page.GotoAsync(PlaywrightHooks.BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.WaitForTimeoutAsync(1000);
+
+        await WaitForAuthenticatedState(page);
+        return true;
+    }
+
+    private async Task<ViewportSize?> CloseExistingPageAndGetViewportAsync()
+    {
+        if (!scenarioContext.TryGetValue<IPage>("Page", out var existingPage))
+        {
+            return null;
+        }
+
+        ViewportSize? currentViewport = null;
+        var pageViewport = existingPage.ViewportSize;
+        if (pageViewport != null)
+        {
+            currentViewport = new ViewportSize { Width = pageViewport.Width, Height = pageViewport.Height };
+        }
+        await existingPage.CloseAsync();
+        return currentViewport;
+    }
+
+    private async Task CloseExistingContextAsync()
+    {
+        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var existingContext))
+        {
+            await existingContext.CloseAsync();
+        }
+    }
+
+    private async Task PerformInteractiveLoginAsync(string email, string password)
+    {
+        await Page.GotoAsync(PlaywrightHooks.BaseUrl);
+        await Page.WaitForTimeoutAsync(2000);
+
+        var loginButton = Page.Locator("text=Sign In / Sign Up").First;
         if (await loginButton.IsVisibleAsync())
         {
-            // Click login - redirect flow navigates the page to Entra ID
             await loginButton.ClickAsync();
-            
-            // Wait for redirect to Entra login page
-            await Page.WaitForURLAsync(url => 
-                url.Contains("ciamlogin.com") || 
-                url.Contains("login.microsoftonline.com") || 
-                url.Contains("b2clogin.com"), 
+
+            await Page.WaitForURLAsync(url =>
+                url.Contains("ciamlogin.com") ||
+                url.Contains("login.microsoftonline.com") ||
+                url.Contains("b2clogin.com"),
                 new() { Timeout = 15000 });
 
-            // Handle the Entra ID login on the same page (redirect flow)
             await PlaywrightHooks.HandleEntraLoginPage(Page, email, password);
 
-            // Wait for authentication to complete and redirect
             await WaitForAuthenticatedState(Page);
         }
     }
@@ -151,7 +175,7 @@ public class NavigationSteps(ScenarioContext scenarioContext)
             }
             
             // Check for authenticated UI elements
-            var logoutVisible = await page.Locator("text=Log out").First.IsVisibleAsync();
+            var logoutVisible = await page.Locator("text=/Log out/i").First.IsVisibleAsync();
             var sidebarVisible = await page.Locator(".raj-sidebar, nav[aria-label*='navigation']").First.IsVisibleAsync();
             
             if (logoutVisible || sidebarVisible)
@@ -176,25 +200,6 @@ public class NavigationSteps(ScenarioContext scenarioContext)
         // Navigate to home
         await Page.GotoAsync(PlaywrightHooks.BaseUrl);
         await Page.WaitForTimeoutAsync(1000);
-    }
-
-    [Then(@"I should be redirected to the login page")]
-    public async Task ThenIShouldBeRedirectedToTheLoginPage()
-    {
-        // Wait for potential redirect
-        await Page.WaitForTimeoutAsync(2000);
-        
-        var url = Page.Url;
-        var content = await Page.ContentAsync();
-        
-        // Check if redirected to login or if login prompt is shown
-        var isOnLoginPage = url.Contains("authentication/login") ||
-                           url.Contains("login.microsoftonline.com") ||
-                           url.Contains("ciamlogin") ||
-                           content.Contains("Log in") ||
-                           content.Contains("Sign in");
-        
-        Assert.True(isOnLoginPage, $"Should be redirected to login page. Current URL: {url}");
     }
 
     [When(@"I navigate to ""(.*)""")]

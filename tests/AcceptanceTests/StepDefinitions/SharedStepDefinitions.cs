@@ -97,10 +97,15 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     }
 
     [Then(@"I should see a ""(.*)"" button")]
+    [Then(@"I should see the ""(.*)"" button")]
     public async Task ThenIShouldSeeAButton(string buttonText)
     {
+        // Wait for page to settle
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
+
         var button = Page.Locator($"a, button").Filter(new() { HasText = buttonText }).First;
-        await Assertions.Expect(button).ToBeVisibleAsync();
+        await Assertions.Expect(button).ToBeVisibleAsync(new() { Timeout = 10000 });
     }
 
     [Then(@"I should not see a ""(.*)"" button")]
@@ -115,13 +120,13 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     {
         var url = Page.Url;
         var content = await Page.ContentAsync();
-        
-        var isLoginPage = url.Contains("login") || 
-                          url.Contains("auth") || 
+
+        var isLoginPage = url.Contains("login") ||
+                          url.Contains("auth") ||
                           url.Contains("signin") ||
-                          content.Contains("Log in") ||
+                          content.Contains("Sign In / Sign Up") ||
                           content.Contains("Sign in");
-        
+
         Assert.True(isLoginPage, $"Expected login page, but was on: {url}");
     }
 

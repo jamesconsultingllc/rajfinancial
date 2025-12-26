@@ -4,6 +4,8 @@
 // Configuration settings for acceptance tests loaded from appsettings.json
 // ============================================================================
 
+using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 
 namespace RajFinancial.AcceptanceTests;
@@ -13,7 +15,7 @@ namespace RajFinancial.AcceptanceTests;
 /// </summary>
 public class TestConfiguration
 {
-    private static readonly Lazy<TestConfiguration> instance = new(() => Load());
+    private static readonly Lazy<TestConfiguration> instance = new(Load);
     
     /// <summary>
     /// Gets the singleton instance of the test configuration.
@@ -29,6 +31,27 @@ public class TestConfiguration
     /// Test user configurations by role.
     /// </summary>
     public Dictionary<string, TestUserConfig> TestUsers { get; set; } = new();
+
+    /// <summary>
+    /// IMAP server hostname for email verification (e.g., "imap.yandex.com").
+    /// Required for E2E tests that verify email signup flows.
+    /// </summary>
+    public string? ImapHost { get; set; }
+
+    /// <summary>
+    /// IMAP server port (typically 993 for SSL/TLS).
+    /// </summary>
+    public int ImapPort { get; set; } = 993;
+
+    /// <summary>
+    /// IMAP username/email for authentication (e.g., "test@rajlegacy.org").
+    /// </summary>
+    public string? ImapUsername { get; set; }
+
+    /// <summary>
+    /// IMAP password or app-specific password for authentication.
+    /// </summary>
+    public string? ImapPassword { get; set; }
 
     /// <summary>
     /// Gets the password for a test user by role.

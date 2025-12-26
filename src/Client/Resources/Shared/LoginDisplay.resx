@@ -1,1 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?><root><resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>2.0</value></resheader><data name="Login" xml:space="preserve"><value>Log in</value></data><data name="Logout" xml:space="preserve"><value>Log out</value></data><data name="Login.AriaLabel" xml:space="preserve"><value>Log in to your account</value></data><data name="Logout.AriaLabel" xml:space="preserve"><value>Log out of your account</value></data></root>
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="Login" xml:space="preserve">
+    <value>Sign In / Sign Up</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>Log out</value>
+  </data>
+  <data name="Login.AriaLabel" xml:space="preserve">
+    <value>Sign in to your account or create a new account</value>
+  </data>
+  <data name="Logout.AriaLabel" xml:space="preserve">
+    <value>Log out of your account</value>
+  </data>
+</root>
