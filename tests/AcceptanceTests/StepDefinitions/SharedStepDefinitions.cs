@@ -26,26 +26,47 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     {
         // Wait for page to render (Blazor client-side rendering)
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(500);
-
+        
         // Build optional data-testid key (kebab-case)
         var dataTestId = sectionName.ToLowerInvariant().Replace(" ", "-");
         Console.WriteLine($"Looking for [data-testid='{dataTestId}'], text={sectionName}");
-        var locator = Page.Locator($"[data-testid='{dataTestId}'], text={sectionName}");
+        
+        // First try to find by data-testid (more reliable for authenticated sections)
+        var testIdLocator = Page.Locator($"[data-testid='{dataTestId}']");
+        var textLocator = Page.Locator($"text={sectionName}");
 
-        try
+        // Wait longer for auth state to propagate in Blazor WASM
+        var maxRetries = 10;
+        var found = false;
+        for (var i = 0; i < maxRetries && !found; i++)
         {
-            await locator.First.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
-        }
-        catch
-        {
-            // Section might not be visible as text, check content anyway
+            await Page.WaitForTimeoutAsync(500);
+            
+            // Check if either locator is visible
+            if (await testIdLocator.CountAsync() > 0 && await testIdLocator.First.IsVisibleAsync())
+            {
+                found = true;
+                Console.WriteLine($"Found section by data-testid: {dataTestId}");
+            }
+            else if (await textLocator.CountAsync() > 0 && await textLocator.First.IsVisibleAsync())
+            {
+                found = true;
+                Console.WriteLine($"Found section by text: {sectionName}");
+            }
+            else
+            {
+                Console.WriteLine($"Retry {i + 1}/{maxRetries}: Section not found yet...");
+            }
         }
 
-        var content = await Page.ContentAsync();
-        Console.WriteLine("Content is:");
-        Console.WriteLine(content);
-        Assert.Contains(sectionName, content);
+        if (!found)
+        {
+            var content = await Page.ContentAsync();
+            Console.WriteLine("Content is:");
+            Console.WriteLine(content);
+        }
+
+        Assert.True(found, $"Expected to find section '{sectionName}' (data-testid='{dataTestId}')");
     }
 
     [Given(@"the viewport is set to mobile size")]
