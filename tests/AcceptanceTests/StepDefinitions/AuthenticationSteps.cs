@@ -1004,13 +1004,17 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         await Page.WaitForTimeoutAsync(2000);
 
         // Should see login button again - try multiple selectors for robustness
+        // Updated to match new separate Sign In / Get Started buttons
         var loginButtonSelectors = new[]
         {
             "text=Sign In",
-            "text=Sign In / Sign Up",
+            "text=Get Started",
             "a[href*='authentication/login']",
+            "a[href*='authentication/register']",
             "[aria-label*='Sign in']",
-            ".btn:has-text('Sign')"
+            ".btn:has-text('Sign In')",
+            ".btn-gold-solid:has-text('Sign In')",
+            ".btn-dark-gold:has-text('Get Started')"
         };
 
         var foundLoginButton = false;
@@ -1040,6 +1044,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             var content = await Page.ContentAsync();
             Console.WriteLine($"Page URL after logout: {Page.Url}");
             Console.WriteLine($"Page contains 'Sign In': {content.Contains("Sign In")}");
+            Console.WriteLine($"Page contains 'Get Started': {content.Contains("Get Started")}");
             Console.WriteLine($"Page contains 'Log out': {content.Contains("Log out")}");
         }
 

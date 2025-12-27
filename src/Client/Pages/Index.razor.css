@@ -256,7 +256,7 @@
     margin-top: var(--space-6);
 }
 
-/* Hero outline button for dark background */
+/* Hero outline button for dark background - swaps colors on hover */
 .btn-hero-outline {
     background: transparent;
     color: rgba(255, 255, 255, 0.9);
@@ -264,9 +264,9 @@
 }
 
 .btn-hero-outline:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.5);
-    color: white;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--neutral-900);
+    border-color: rgba(255, 255, 255, 0.9);
 }
 
 .hero-trust-badges {
@@ -516,6 +516,8 @@
     gap: var(--space-6);
     max-width: 1024px;
     margin: 0 auto;
+    padding: 0;
+    list-style: none;
 }
 
 .step-card {

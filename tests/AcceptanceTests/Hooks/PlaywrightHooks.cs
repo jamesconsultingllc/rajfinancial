@@ -164,9 +164,11 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         await page.WaitForTimeoutAsync(2000);
 
         var url = page.Url;
+        // Check if we're on a login page or if Sign In button is visible (meaning not authenticated)
         var isLogin = url.Contains("login", StringComparison.OrdinalIgnoreCase) ||
                       url.Contains("signin", StringComparison.OrdinalIgnoreCase) ||
-                      await page.Locator("text=Log in").First.IsVisibleAsync();
+                      await page.Locator("text=Sign In").First.IsVisibleAsync() ||
+                      await page.Locator("a[href*='authentication/login']").First.IsVisibleAsync();
 
         await context.CloseAsync();
 
@@ -207,7 +209,14 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await page.WaitForTimeoutAsync(1000);
 
-        var loginButton = page.Locator("text=Log in").First;
+        // Look for Sign In button (updated from "Log in")
+        var loginButton = page.Locator("text=Sign In").First;
+        if (!await loginButton.IsVisibleAsync())
+        {
+            // Fallback to href-based selector
+            loginButton = page.Locator("a[href*='authentication/login']").First;
+        }
+        
         if (!await loginButton.IsVisibleAsync())
         {
             await context.CloseAsync();

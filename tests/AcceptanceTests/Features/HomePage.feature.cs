@@ -520,9 +520,12 @@ await this.FeatureBackgroundAsync();
     await testRunner.GivenAsync("I am not logged in", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 65
-    await testRunner.ThenAsync("I should see a \"Sign In / Sign Up\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+    await testRunner.ThenAsync("I should see a \"Sign In\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 66
+    await testRunner.AndAsync("I should see a \"Get Started\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 67
     await testRunner.AndAsync("I should not see a \"Log out\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }

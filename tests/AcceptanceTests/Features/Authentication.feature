@@ -10,7 +10,7 @@ Background:
 @signup @cleanup
 Scenario: New user can create an account through Entra External ID
     Given I am on the home page
-    When I click the "Sign In / Sign Up" button
+    When I click the "Get Started" button
     Then I should be redirected to the Entra External ID login page
     
     # Step 1: Initiate account creation
@@ -46,7 +46,7 @@ Scenario: New user can create an account through Entra External ID
 @login @smoke
 Scenario: Existing user can sign in
     Given I am on the home page
-    When I click the "Sign In / Sign Up" button
+    When I click the "Sign In" button
     Then I should be redirected to the Entra External ID login page
     When I sign in with test "Client" credentials
     Then I should be redirected back to the RAJ Financial app
@@ -57,7 +57,7 @@ Scenario: Authenticated user can log out
     Given I am logged in as a "Client"
     When I click the "Log out" button
     Then I should be logged out
-    And I should see the "Sign In / Sign Up" button
+    And I should see the "Sign In" button
 
 @security
 Scenario: Unauthenticated user cannot access protected pages

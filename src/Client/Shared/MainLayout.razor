@@ -34,7 +34,7 @@
                    aria-hidden="@(!SidebarOpen ? "true" : "false")"
                    @onkeydown="HandleKeyDown">
                 <NavMenu OnNavigate="CloseSidebar" />
-            </aside>
+            </aside>    
 
             @* Mobile Overlay *@
             @if (SidebarOpen)
@@ -89,8 +89,7 @@
                     <nav class="raj-header-nav" aria-label="@L["Nav.Primary"]">
                         @* Brand Logo *@
                         <a href="" class="raj-header-brand" aria-label="@L["Brand.Name"] - Home">
-                            <img src="/images/brand/logo-icon.png" alt="" class="raj-header-logo" width="36" height="36" role="presentation" />
-                            <span class="raj-header-brand-text">@L["Brand.Name"]</span>
+                            <img src="/images/brand/logo-horizontal.svg" alt="RAJ Financial" class="raj-header-logo" height="32" />
                         </a>
 
                         <div class="raj-header-spacer"></div>

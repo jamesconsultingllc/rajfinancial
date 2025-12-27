@@ -1,7 +1,7 @@
 @*
     LoginDisplay.razor
 
-    Displays login/logout button based on authentication state.
+    Displays login/logout buttons based on authentication state.
     Uses MSAL authentication with Entra External ID.
     
     Accessibility:
@@ -23,25 +23,38 @@
 <AuthorizeView>
     <Authorized>
         <div class="auth-buttons d-flex align-items-center gap-2">
-            <span class="user-name text-muted" title="@context.User.Identity?.Name">
-                <span class="oi oi-person me-1" aria-hidden="true"></span>
+            <span class="user-name" title="@context.User.Identity?.Name">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
                 <span class="visually-hidden">Logged in as </span>@context.User.Identity?.Name
             </span>
-            <button class="btn btn-outline-secondary btn-sm" 
+            <button class="btn btn-gold-outline btn-sm" 
                     @onclick="BeginLogout" 
                     aria-label="@L["Logout.AriaLabel"]">
-                <span class="oi oi-account-logout me-1" aria-hidden="true"></span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
                 @L["Logout"]
             </button>
         </div>
     </Authorized>
     <NotAuthorized>
-        <a href="authentication/login" 
-           class="btn btn-primary btn-sm" 
-           aria-label="@L["Login.AriaLabel"]">
-            <span class="oi oi-account-login me-1" aria-hidden="true"></span>
-            @L["Login"]
-        </a>
+        <div class="auth-buttons d-flex align-items-center gap-2">
+            <a href="authentication/login" 
+               class="btn btn-gold-solid btn-sm"
+               aria-label="@L["Login.AriaLabel"]">
+                @L["Login"]
+            </a>
+            <a href="authentication/register" 
+               class="btn btn-dark-gold btn-sm"
+               aria-label="@L["GetStarted.AriaLabel"]">
+                @L["GetStarted"]
+            </a>
+        </div>
     </NotAuthorized>
 </AuthorizeView>
 

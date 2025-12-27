@@ -36,3 +36,4 @@ appsettings.local.json
 /src/nul
 /tests/AcceptanceTests/appsettings.local.json
 /src/Api/local.settings.json
+/themes

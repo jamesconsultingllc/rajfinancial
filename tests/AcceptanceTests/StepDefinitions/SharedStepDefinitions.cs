@@ -121,11 +121,12 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         var url = Page.Url;
         var content = await Page.ContentAsync();
 
+        // Updated to check for new separate Sign In / Get Started buttons
         var isLoginPage = url.Contains("login") ||
                           url.Contains("auth") ||
                           url.Contains("signin") ||
-                          content.Contains("Sign In / Sign Up") ||
-                          content.Contains("Sign in");
+                          content.Contains("Sign In") ||
+                          content.Contains("Get Started");
 
         Assert.True(isLoginPage, $"Expected login page, but was on: {url}");
     }

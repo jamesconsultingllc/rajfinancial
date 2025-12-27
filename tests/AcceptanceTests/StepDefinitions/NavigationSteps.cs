@@ -134,7 +134,14 @@ public class NavigationSteps(ScenarioContext scenarioContext)
         await Page.GotoAsync(PlaywrightHooks.BaseUrl);
         await Page.WaitForTimeoutAsync(2000);
 
-        var loginButton = Page.Locator("text=Sign In / Sign Up").First;
+        // Look for Sign In button (updated from old "Sign In / Sign Up" text)
+        var loginButton = Page.Locator("text=Sign In").First;
+        if (!await loginButton.IsVisibleAsync())
+        {
+            // Fallback to Get Started button or href-based selector
+            loginButton = Page.Locator("a[href*='authentication/login'], a[href*='authentication/register']").First;
+        }
+        
         if (await loginButton.IsVisibleAsync())
         {
             await loginButton.ClickAsync();

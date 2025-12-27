@@ -177,7 +177,7 @@ await this.FeatureBackgroundAsync();
     await testRunner.GivenAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 13
-    await testRunner.WhenAsync("I click the \"Sign In / Sign Up\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("I click the \"Get Started\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 14
     await testRunner.ThenAsync("I should be redirected to the Entra External ID login page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -272,7 +272,7 @@ await this.FeatureBackgroundAsync();
     await testRunner.GivenAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 49
-    await testRunner.WhenAsync("I click the \"Sign In / Sign Up\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("I click the \"Sign In\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 50
     await testRunner.ThenAsync("I should be redirected to the Entra External ID login page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -326,7 +326,7 @@ await this.FeatureBackgroundAsync();
     await testRunner.ThenAsync("I should be logged out", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 60
-    await testRunner.AndAsync("I should see the \"Sign In / Sign Up\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see the \"Sign In\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

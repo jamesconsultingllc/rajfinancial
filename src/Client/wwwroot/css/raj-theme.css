@@ -403,7 +403,7 @@ body {
     cursor: not-allowed;
 }
 
-/* Primary Gold Button */
+/* Primary Gold Button - Gold background with black text, inverts on hover */
 .btn-gold {
     background: var(--gold-500);
     color: var(--neutral-900);
@@ -411,8 +411,9 @@ body {
 }
 
 .btn-gold:hover:not(:disabled) {
-    background: var(--gold-600);
-    box-shadow: var(--shadow-gold-lg);
+    background: var(--neutral-900);
+    color: var(--gold-500);
+    box-shadow: var(--shadow-lg);
     transform: translateY(-1px);
 }
 
@@ -421,21 +422,23 @@ body {
 }
 
 /* Solid Gold Button - Maximum visibility on dark backgrounds */
+/* Gold background with black text → Black background with gold text on hover */
 .btn-gold-solid {
     background-color: #ebbb10 !important;
     color: #1c1917 !important;
-    border: none !important;
+    border: 2px solid #ebbb10 !important;
     box-shadow: 0 4px 14px 0 rgba(235, 187, 16, 0.4);
 }
 
 .btn-gold-solid:hover:not(:disabled) {
-    background-color: #d4a80e !important;
-    color: #1c1917 !important;
+    background-color: #1c1917 !important;
+    color: #ebbb10 !important;
+    border-color: #ebbb10 !important;
     box-shadow: 0 6px 20px 0 rgba(235, 187, 16, 0.5);
     transform: translateY(-1px);
 }
 
-/* Gold Outline Button */
+/* Gold Outline Button - Transparent with gold border → Filled gold on hover */
 .btn-gold-outline {
     background: transparent;
     color: var(--gold-700);
@@ -443,11 +446,12 @@ body {
 }
 
 .btn-gold-outline:hover:not(:disabled) {
-    background: var(--gold-50);
-    border-color: var(--gold-600);
+    background: var(--gold-500);
+    color: var(--neutral-900);
+    border-color: var(--gold-500);
 }
 
-/* Gold Outline Button on Dark Backgrounds */
+/* Gold Outline Button on Dark Backgrounds - Light variant */
 .btn-gold-outline-light {
     background: transparent;
     color: var(--gold-400);
@@ -455,12 +459,13 @@ body {
 }
 
 .btn-gold-outline-light:hover:not(:disabled) {
-    background: rgba(235, 187, 16, 0.15);
-    border-color: var(--gold-500);
-    color: var(--gold-300);
+    background: var(--gold-400);
+    color: var(--neutral-900);
+    border-color: var(--gold-400);
 }
 
 /* Gold Outline Button on Dark Backgrounds - High visibility */
+/* Transparent with gold text/border → Gold background with black text on hover */
 .btn-gold-outline-dark {
     background: transparent !important;
     color: #ebbb10 !important;
@@ -471,22 +476,26 @@ body {
     background: #ebbb10 !important;
     color: #1c1917 !important;
     border-color: #ebbb10 !important;
+    transform: translateY(-1px);
 }
 
 /* Gold Button for Dark Backgrounds - High contrast */
 .btn-gold-light {
     background: var(--gold-500);
     color: var(--neutral-900);
+    border: 2px solid var(--gold-500);
     box-shadow: 0 4px 14px 0 rgba(235, 187, 16, 0.4);
 }
 
 .btn-gold-light:hover:not(:disabled) {
-    background: var(--gold-400);
+    background: var(--neutral-900);
+    color: var(--gold-500);
+    border-color: var(--gold-500);
     box-shadow: 0 6px 20px 0 rgba(235, 187, 16, 0.5);
     transform: translateY(-1px);
 }
 
-/* Hero/Dark Section Outline Button */
+/* Hero/Dark Section Outline Button - White outline */
 .btn-hero-outline {
     background: transparent;
     color: rgba(255, 255, 255, 0.9);
@@ -494,15 +503,16 @@ body {
 }
 
 .btn-hero-outline:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.5);
-    color: white;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--neutral-900);
+    border-color: rgba(255, 255, 255, 0.9);
 }
 
 /* Ghost Button */
 .btn-ghost {
     background: transparent;
     color: var(--neutral-600);
+    border: 2px solid transparent;
 }
 
 .btn-ghost:hover:not(:disabled) {
@@ -510,14 +520,31 @@ body {
     color: var(--neutral-900);
 }
 
-/* Dark Button */
+/* Dark Button with Gold Text - Black background with gold text → adds gold border and white text on hover */
+.btn-dark-gold {
+    background: var(--neutral-900);
+    color: var(--gold-500);
+    border: 2px solid var(--neutral-900);
+}
+
+.btn-dark-gold:hover:not(:disabled) {
+    background: var(--neutral-900);
+    color: white;
+    border-color: var(--gold-500);
+    transform: translateY(-1px);
+}
+
+/* Dark Button - Black background with white text → White background with black text on hover */
 .btn-dark {
     background: var(--neutral-900);
     color: white;
+    border: 2px solid var(--neutral-900);
 }
 
 .btn-dark:hover:not(:disabled) {
-    background: var(--neutral-800);
+    background: white;
+    color: var(--neutral-900);
+    border-color: var(--neutral-900);
 }
 
 /* Button Sizes */

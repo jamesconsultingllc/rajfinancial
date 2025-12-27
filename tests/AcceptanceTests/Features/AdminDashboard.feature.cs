@@ -119,7 +119,7 @@ namespace RajFinancial.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/AdminDashboard.feature.ndjson", 11);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/AdminDashboard.feature.ndjson", 9);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -191,17 +191,19 @@ await this.FeatureBackgroundAsync();
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays key statistics")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays quick actions")]
         [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard displays key statistics")]
+        [global::Xunit.TraitAttribute("Description", "Dashboard displays quick actions")]
         [global::Xunit.TraitAttribute("Category", "ui")]
-        public async global::System.Threading.Tasks.Task DashboardDisplaysKeyStatistics()
+        [global::Xunit.TraitAttribute("Category", "functionality")]
+        public async global::System.Threading.Tasks.Task DashboardDisplaysQuickActions()
         {
             string[] tagsOfScenario = new string[] {
-                    "ui"};
+                    "ui",
+                    "functionality"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "1";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays key statistics", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays quick actions", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 18
@@ -221,35 +223,38 @@ await this.FeatureBackgroundAsync();
     await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 20
-    await testRunner.ThenAsync("I should see \"Total Users\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+    await testRunner.ThenAsync("I should see the \"Quick Actions\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 21
-    await testRunner.AndAsync("I should see \"Active Advisors\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see a \"Manage Users\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 22
-    await testRunner.AndAsync("I should see \"Total Clients\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see a \"System Settings\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 23
-    await testRunner.AndAsync("I should see \"Assets Under Mgmt\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see a \"Audit Logs\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 24
+    await testRunner.AndAsync("I should see a \"System Reports\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays statistics with values")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays recent activity")]
         [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard displays statistics with values")]
+        [global::Xunit.TraitAttribute("Description", "Dashboard displays recent activity")]
         [global::Xunit.TraitAttribute("Category", "ui")]
-        public async global::System.Threading.Tasks.Task DashboardDisplaysStatisticsWithValues()
+        public async global::System.Threading.Tasks.Task DashboardDisplaysRecentActivity()
         {
             string[] tagsOfScenario = new string[] {
                     "ui"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "2";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays statistics with values", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays recent activity", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 26
+#line 27
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -262,35 +267,30 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 7
 await this.FeatureBackgroundAsync();
 #line hidden
-#line 27
+#line 28
     await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 28
-    await testRunner.ThenAsync("I should see statistics cards with numeric values", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
 #line 29
-    await testRunner.AndAsync("all statistics should have labels", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.ThenAsync("I should see the \"Recent Activity\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 30
-    await testRunner.AndAsync("all statistics should have icons", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("I should see activity items in the recent activity section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays quick actions")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="Quick action buttons navigate correctly")]
         [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard displays quick actions")]
-        [global::Xunit.TraitAttribute("Category", "ui")]
-        [global::Xunit.TraitAttribute("Category", "functionality")]
-        public async global::System.Threading.Tasks.Task DashboardDisplaysQuickActions()
+        [global::Xunit.TraitAttribute("Description", "Quick action buttons navigate correctly")]
+        [global::Xunit.TraitAttribute("Category", "navigation")]
+        public async global::System.Threading.Tasks.Task QuickActionButtonsNavigateCorrectly()
         {
             string[] tagsOfScenario = new string[] {
-                    "ui",
-                    "functionality"};
+                    "navigation"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "3";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays quick actions", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Quick action buttons navigate correctly", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 33
@@ -310,96 +310,9 @@ await this.FeatureBackgroundAsync();
     await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 35
-    await testRunner.ThenAsync("I should see the \"Quick Actions\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 36
-    await testRunner.AndAsync("I should see a \"Manage Users\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 37
-    await testRunner.AndAsync("I should see a \"System Settings\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 38
-    await testRunner.AndAsync("I should see a \"Audit Logs\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 39
-    await testRunner.AndAsync("I should see a \"System Reports\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-            }
-            await this.ScenarioCleanupAsync();
-        }
-        
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard displays recent activity")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard displays recent activity")]
-        [global::Xunit.TraitAttribute("Category", "ui")]
-        public async global::System.Threading.Tasks.Task DashboardDisplaysRecentActivity()
-        {
-            string[] tagsOfScenario = new string[] {
-                    "ui"};
-            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "4";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard displays recent activity", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
-            string[] tagsOfRule = ((string[])(null));
-            global::Reqnroll.RuleInfo ruleInfo = null;
-#line 42
-this.ScenarioInitialize(scenarioInfo, ruleInfo);
-#line hidden
-            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
-            {
-                await testRunner.SkipScenarioAsync();
-            }
-            else
-            {
-                await this.ScenarioStartAsync();
-#line 7
-await this.FeatureBackgroundAsync();
-#line hidden
-#line 43
-    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 44
-    await testRunner.ThenAsync("I should see the \"Recent Activity\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 45
-    await testRunner.AndAsync("I should see activity items in the recent activity section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-            }
-            await this.ScenarioCleanupAsync();
-        }
-        
-        [global::Xunit.SkippableFactAttribute(DisplayName="Quick action buttons navigate correctly")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Quick action buttons navigate correctly")]
-        [global::Xunit.TraitAttribute("Category", "navigation")]
-        public async global::System.Threading.Tasks.Task QuickActionButtonsNavigateCorrectly()
-        {
-            string[] tagsOfScenario = new string[] {
-                    "navigation"};
-            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "5";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Quick action buttons navigate correctly", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
-            string[] tagsOfRule = ((string[])(null));
-            global::Reqnroll.RuleInfo ruleInfo = null;
-#line 48
-this.ScenarioInitialize(scenarioInfo, ruleInfo);
-#line hidden
-            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
-            {
-                await testRunner.SkipScenarioAsync();
-            }
-            else
-            {
-                await this.ScenarioStartAsync();
-#line 7
-await this.FeatureBackgroundAsync();
-#line hidden
-#line 49
-    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 50
     await testRunner.AndAsync("I click the \"Manage Users\" button", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 51
+#line 36
     await testRunner.ThenAsync("I should be on the \"/admin/users\" page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
@@ -415,8 +328,95 @@ await this.FeatureBackgroundAsync();
             string[] tagsOfScenario = new string[] {
                     "responsive"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "6";
+            string pickleIndex = "4";
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard is responsive on mobile", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 39
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 7
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 40
+    await testRunner.GivenAsync("the viewport is set to mobile size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 41
+    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 42
+    await testRunner.ThenAsync("the page should not have horizontal scroll", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 43
+    await testRunner.AndAsync("the statistics cards should be stacked vertically", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 44
+    await testRunner.AndAsync("the quick actions should be visible", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard is responsive on tablet")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
+        [global::Xunit.TraitAttribute("Description", "Dashboard is responsive on tablet")]
+        [global::Xunit.TraitAttribute("Category", "responsive")]
+        public async global::System.Threading.Tasks.Task DashboardIsResponsiveOnTablet()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "responsive"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "5";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard is responsive on tablet", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 47
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 7
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 48
+    await testRunner.GivenAsync("the viewport is set to tablet size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 49
+    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 50
+    await testRunner.ThenAsync("the page should not have horizontal scroll", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 51
+    await testRunner.AndAsync("the statistics cards should adapt to tablet layout", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard meets accessibility standards")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
+        [global::Xunit.TraitAttribute("Description", "Dashboard meets accessibility standards")]
+        [global::Xunit.TraitAttribute("Category", "accessibility")]
+        public async global::System.Threading.Tasks.Task DashboardMeetsAccessibilityStandards()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "accessibility"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "6";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard meets accessibility standards", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 54
@@ -433,105 +433,18 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 await this.FeatureBackgroundAsync();
 #line hidden
 #line 55
-    await testRunner.GivenAsync("the viewport is set to mobile size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 56
-    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 57
-    await testRunner.ThenAsync("the page should not have horizontal scroll", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 58
-    await testRunner.AndAsync("the statistics cards should be stacked vertically", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 59
-    await testRunner.AndAsync("the quick actions should be visible", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-            }
-            await this.ScenarioCleanupAsync();
-        }
-        
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard is responsive on tablet")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard is responsive on tablet")]
-        [global::Xunit.TraitAttribute("Category", "responsive")]
-        public async global::System.Threading.Tasks.Task DashboardIsResponsiveOnTablet()
-        {
-            string[] tagsOfScenario = new string[] {
-                    "responsive"};
-            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "7";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard is responsive on tablet", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
-            string[] tagsOfRule = ((string[])(null));
-            global::Reqnroll.RuleInfo ruleInfo = null;
-#line 62
-this.ScenarioInitialize(scenarioInfo, ruleInfo);
-#line hidden
-            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
-            {
-                await testRunner.SkipScenarioAsync();
-            }
-            else
-            {
-                await this.ScenarioStartAsync();
-#line 7
-await this.FeatureBackgroundAsync();
-#line hidden
-#line 63
-    await testRunner.GivenAsync("the viewport is set to tablet size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
-#line hidden
-#line 64
-    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 65
-    await testRunner.ThenAsync("the page should not have horizontal scroll", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 66
-    await testRunner.AndAsync("the statistics cards should adapt to tablet layout", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-            }
-            await this.ScenarioCleanupAsync();
-        }
-        
-        [global::Xunit.SkippableFactAttribute(DisplayName="Dashboard meets accessibility standards")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "Admin Dashboard")]
-        [global::Xunit.TraitAttribute("Description", "Dashboard meets accessibility standards")]
-        [global::Xunit.TraitAttribute("Category", "accessibility")]
-        public async global::System.Threading.Tasks.Task DashboardMeetsAccessibilityStandards()
-        {
-            string[] tagsOfScenario = new string[] {
-                    "accessibility"};
-            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "8";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Dashboard meets accessibility standards", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
-            string[] tagsOfRule = ((string[])(null));
-            global::Reqnroll.RuleInfo ruleInfo = null;
-#line 69
-this.ScenarioInitialize(scenarioInfo, ruleInfo);
-#line hidden
-            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
-            {
-                await testRunner.SkipScenarioAsync();
-            }
-            else
-            {
-                await this.ScenarioStartAsync();
-#line 7
-await this.FeatureBackgroundAsync();
-#line hidden
-#line 70
-    await testRunner.WhenAsync("I navigate to \"/admin/dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 71
     await testRunner.ThenAsync("the page should have proper heading hierarchy", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 72
+#line 57
     await testRunner.AndAsync("all statistics should have accessible labels", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 73
+#line 58
     await testRunner.AndAsync("all buttons should have accessible labels", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 74
+#line 59
     await testRunner.AndAsync("all icons should be hidden from screen readers or have labels", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
