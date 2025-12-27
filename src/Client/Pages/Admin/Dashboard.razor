@@ -4,26 +4,34 @@
     Administrative dashboard demonstrating policy-based authorization.
     This page requires the "RequireAdministrator" policy.
     
-    Usage:
-    Navigate to /admin/dashboard when logged in with Administrator role.
+    Features:
+    - System statistics overview
+    - Quick action links
+    - Recent activity feed
+    - Responsive design (mobile-first)
+    - WCAG 2.1 AA accessible
+    - Fully localized
 *@
 
 @page "/admin/dashboard"
 @attribute [Authorize(Policy = "RequireAdministrator")]
 
-<PageTitle>Admin Dashboard - RAJ Financial</PageTitle>
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Dashboard> L
+
+<PageTitle>@L["PageTitle"]</PageTitle>
 
 <div class="container-fluid py-4" data-testid="admin-dashboard">
     @* Page Header *@
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h3 mb-0" data-testid="admin-dashboard-title">Administrator Dashboard</h1>
-            <p class="text-muted">System overview and management tools</p>
+            <h1 class="h3 mb-0" data-testid="admin-dashboard-title">@L["Heading"]</h1>
+            <p class="text-muted">@L["Subtitle"]</p>
         </div>
     </div>
 
     @* Stats Cards Row - Responsive grid *@
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4" role="region" aria-label="@L["Heading"]">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
@@ -31,8 +39,8 @@
                         <span class="oi oi-people fs-2 text-primary" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-0">Total Users</h6>
-                        <h3 class="mb-0">@TotalUsers</h3>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.TotalUsers"]</h2>
+                        <p class="h3 mb-0">@TotalUsers</p>
                     </div>
                 </div>
             </div>
@@ -45,8 +53,8 @@
                         <span class="oi oi-briefcase fs-2 text-success" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-0">Active Advisors</h6>
-                        <h3 class="mb-0">@ActiveAdvisors</h3>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.ActiveAdvisors"]</h2>
+                        <p class="h3 mb-0">@ActiveAdvisors</p>
                     </div>
                 </div>
             </div>
@@ -59,8 +67,8 @@
                         <span class="oi oi-wallet fs-2 text-warning" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-0">Total Clients</h6>
-                        <h3 class="mb-0">@TotalClients</h3>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.TotalClients"]</h2>
+                        <p class="h3 mb-0">@TotalClients</p>
                     </div>
                 </div>
             </div>
@@ -73,8 +81,8 @@
                         <span class="oi oi-dollar fs-2 text-info" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-0">Assets Under Mgmt</h6>
-                        <h3 class="mb-0">@AssetsUnderManagement.ToString("C0")</h3>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.AssetsUnderMgmt"]</h2>
+                        <p class="h3 mb-0">@AssetsUnderManagement.ToString("C0")</p>
                     </div>
                 </div>
             </div>
@@ -86,7 +94,7 @@
         <div class="col-lg-8 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0" data-testid="quick-actions">Quick Actions</h5>
+                    <h2 class="h5 mb-0" data-testid="quick-actions">@L["QuickActions"]</h2>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -96,25 +104,25 @@
                                 <div class="col-md-6">
                                     <a href="/admin/users" class="btn btn-outline-primary w-100 py-3" data-testid="qa-manage-users">
                                         <span class="oi oi-people me-2" aria-hidden="true"></span>
-                                        Manage Users
+                                        @L["Action.ManageUsers"]
                                     </a>
                                 </div>
                                 <div class="col-md-6">
                                     <a href="/admin/settings" class="btn btn-outline-secondary w-100 py-3" data-testid="qa-system-settings">
                                         <span class="oi oi-cog me-2" aria-hidden="true"></span>
-                                        System Settings
+                                        @L["Action.SystemSettings"]
                                     </a>
                                 </div>
                                 <div class="col-md-6">
                                     <a href="/admin/audit-logs" class="btn btn-outline-info w-100 py-3" data-testid="qa-audit-logs">
                                         <span class="oi oi-list me-2" aria-hidden="true"></span>
-                                        Audit Logs
+                                        @L["Action.AuditLogs"]
                                     </a>
                                 </div>
                                 <div class="col-md-6">
                                     <a href="/admin/reports" class="btn btn-outline-success w-100 py-3" data-testid="qa-system-reports">
                                         <span class="oi oi-graph me-2" aria-hidden="true"></span>
-                                        System Reports
+                                        @L["Action.SystemReports"]
                                     </a>
                                 </div>
                             </Authorized>
@@ -128,21 +136,21 @@
         <div class="col-lg-4 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0" data-testid="recent-activity">Recent Activity</h5>
+                    <h2 class="h5 mb-0" data-testid="recent-activity">@L["RecentActivity"]</h2>
                 </div>
                 <div class="card-body">
-                    <ul class="list-unstyled mb-0">
+                    <ul class="list-unstyled mb-0" role="list">
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-success me-2">New</span>
-                            <span class="text-muted small">User registration pending approval</span>
+                            <span class="badge bg-success me-2">@L["Activity.New"]</span>
+                            <span class="text-muted small">@L["Activity.UserRegistration"]</span>
                         </li>
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-info me-2">Info</span>
-                            <span class="text-muted small">System backup completed</span>
+                            <span class="badge bg-info me-2">@L["Activity.Info"]</span>
+                            <span class="text-muted small">@L["Activity.SystemBackup"]</span>
                         </li>
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-warning me-2">Alert</span>
-                            <span class="text-muted small">High-value transaction flagged</span>
+                            <span class="badge bg-warning me-2">@L["Activity.Alert"]</span>
+                            <span class="text-muted small">@L["Activity.TransactionFlagged"]</span>
                         </li>
                     </ul>
                 </div>

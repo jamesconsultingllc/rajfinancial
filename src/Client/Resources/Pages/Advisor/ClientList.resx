@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="PageTitle" xml:space="preserve">
+    <value>My Clients - RAJ Financial</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>Client Portfolio Management</value>
+  </data>
+  <data name="Subtitle" xml:space="preserve">
+    <value>View and manage client accounts and portfolios</value>
+  </data>
+  <data name="AddNewClient" xml:space="preserve">
+    <value>Add New Client</value>
+  </data>
+  <data name="SearchClients" xml:space="preserve">
+    <value>Search clients...</value>
+  </data>
+  <data name="SearchClients.AriaLabel" xml:space="preserve">
+    <value>Search clients by name or email</value>
+  </data>
+  <data name="FilterByStatus" xml:space="preserve">
+    <value>Filter by status</value>
+  </data>
+  <data name="Status.All" xml:space="preserve">
+    <value>All Statuses</value>
+  </data>
+  <data name="Status.Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Status.Inactive" xml:space="preserve">
+    <value>Inactive</value>
+  </data>
+  <data name="Status.PendingReview" xml:space="preserve">
+    <value>Pending Review</value>
+  </data>
+  <data name="PortfolioValue" xml:space="preserve">
+    <value>Portfolio Value</value>
+  </data>
+  <data name="YtdReturn" xml:space="preserve">
+    <value>YTD Return</value>
+  </data>
+  <data name="ViewDetails" xml:space="preserve">
+    <value>View Details</value>
+  </data>
+  <data name="EditClient.AriaLabel" xml:space="preserve">
+    <value>Edit {0}</value>
+  </data>
+  <data name="NoClientsFound" xml:space="preserve">
+    <value>No clients found matching your search criteria.</value>
+  </data>
+</root>

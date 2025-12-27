@@ -18,14 +18,14 @@
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<Dashboard> L
 
-<PageTitle>Dashboard - RAJ Financial</PageTitle>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
 <div class="dashboard-container">
     @* Welcome Section *@
     <section class="welcome-section animate-fade-in" aria-labelledby="welcome-heading">
         <div class="welcome-content">
             <h1 id="welcome-heading" class="welcome-title" data-testid="dashboard-title">
-                Welcome back<span class="text-gold">,</span>
+                @L["Welcome.Title.Prefix"]<span class="text-gold">,</span>
                 <AuthorizeView>
                     <Authorized>
                         <span class="welcome-name">@context.User.Identity?.Name</span>
@@ -33,13 +33,13 @@
                 </AuthorizeView>
             </h1>
             <p class="welcome-subtitle">
-                Your financial journey continues. Here is a quick overview of your accounts.
+                @L["Welcome.Subtitle"]
             </p>
         </div>
     </section>
 
     @* Quick Action Cards *@
-    <section class="quick-actions-grid" aria-label="Quick actions">
+    <section class="quick-actions-grid" aria-label="@L["QuickActions.AriaLabel"]">
         <a href="portfolio" class="action-card card-premium animate-slide-up stagger-1" data-testid="portfolio-action">
             <div class="action-icon bg-gold-50" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gold-dark" aria-hidden="true" focusable="false">
@@ -48,8 +48,8 @@
                 </svg>
             </div>
             <div class="action-content">
-                <h2 class="action-title">View Portfolio</h2>
-                <p class="action-description">See your complete asset allocation and performance.</p>
+                <h2 class="action-title">@L["Action.Portfolio.Title"]</h2>
+                <p class="action-description">@L["Action.Portfolio.Description"]</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow" aria-hidden="true" focusable="false">
                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -64,8 +64,8 @@
                 </svg>
             </div>
             <div class="action-content">
-                <h2 class="action-title">Transactions</h2>
-                <p class="action-description">Review your recent account activity and history.</p>
+                <h2 class="action-title">@L["Action.Transactions.Title"]</h2>
+                <p class="action-description">@L["Action.Transactions.Description"]</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow" aria-hidden="true" focusable="false">
                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -82,8 +82,8 @@
                 </svg>
             </div>
             <div class="action-content">
-                <h2 class="action-title">Statements</h2>
-                <p class="action-description">Download and review your account statements.</p>
+                <h2 class="action-title">@L["Action.Statements.Title"]</h2>
+                <p class="action-description">@L["Action.Statements.Description"]</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow" aria-hidden="true" focusable="false">
                 <polyline points="9 18 15 12 9 6"></polyline>

@@ -23,4 +23,7 @@
   <data name="Logout.AriaLabel" xml:space="preserve">
     <value>Log out of your account</value>
   </data>
+  <data name="LoggedInAs" xml:space="preserve">
+    <value>Logged in as</value>
+  </data>
 </root>

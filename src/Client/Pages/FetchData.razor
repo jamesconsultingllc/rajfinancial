@@ -1,13 +1,26 @@
-﻿@page "/fetchdata"
+﻿@*
+    FetchData.razor
+    
+    Placeholder page for API data fetching functionality.
+    
+    Features:
+    - WCAG 2.1 AA accessible
+    - Fully localized
+*@
 
-<PageTitle>Data</PageTitle>
+@page "/fetchdata"
 
-<h1>Data</h1>
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<FetchData> L
 
-<p>This page will fetch data from the API.</p>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
-<div class="alert alert-info">
-    <strong>Coming Soon:</strong> This feature is under development.
+<h1>@L["Heading"]</h1>
+
+<p>@L["Description"]</p>
+
+<div class="alert alert-info" role="status">
+    <strong>@L["ComingSoon"]</strong> @L["ComingSoonMessage"]
 </div>
 
 @code {

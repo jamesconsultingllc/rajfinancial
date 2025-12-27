@@ -43,8 +43,8 @@ public class AdminDashboardSteps
             // Normalize currency symbols and commas
             var normalized = text.Replace(",", string.Empty)
                                   .Replace("$", string.Empty)
-                                  .Replace("€", string.Empty)
-                                  .Replace("£", string.Empty)
+                                  .Replace("ï¿½", string.Empty)
+                                  .Replace("ï¿½", string.Empty)
                                   .Trim();
 
             Assert.True(decimal.TryParse(normalized, out _), $"Card {i + 1} should display a numeric value but was '{text}'");
@@ -132,7 +132,8 @@ public class AdminDashboardSteps
         await Page.WaitForTimeoutAsync(500);
 
         var cards = Page.Locator(".grid .card");
-        await Assertions.Expect(cards).ToBeVisibleAsync();
+        await Assertions.Expect(cards.First).ToBeVisibleAsync();
+        Assert.True(await cards.CountAsync() >= 1, "At least one statistics card should be visible");
     }
 
     [Then(@"all statistics should have accessible labels")]
