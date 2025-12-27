@@ -276,8 +276,8 @@ jobs:
       - name: Build test project
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
-      - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
+      - name: Install Playwright browser (${{ matrix.browser }})
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }} --with-deps
 
       - name: Wait for deployment to stabilize
         if: needs.build_and_deploy_job.result == 'success'
