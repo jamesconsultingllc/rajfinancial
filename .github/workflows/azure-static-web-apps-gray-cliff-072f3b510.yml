@@ -235,7 +235,7 @@ jobs:
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
       - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install --with-deps
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
@@ -275,7 +275,7 @@ jobs:
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
       - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install chromium --with-deps
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium --with-deps
 
       - name: Wait for deployment to stabilize
         run: sleep 30
