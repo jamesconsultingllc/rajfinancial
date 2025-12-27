@@ -43,7 +43,32 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task BeforeTestRun()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await Helpers.BrowserHelper.LaunchBrowserAsync(playwright);
+        
+        // Get browser type from environment variable (default: chromium)
+        // Options: chromium, firefox, webkit, msedge, chrome
+        var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
+        var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
+        
+        // For Edge and Chrome, we use Chromium with a channel
+        var launchOptions = new BrowserTypeLaunchOptions 
+        { 
+            Headless = headless,
+            Channel = browserType switch
+            {
+                "msedge" => "msedge",
+                "chrome" => "chrome",
+                _ => null // Use default Chromium
+            }
+        };
+        
+        browser = browserType switch
+        {
+            "firefox" => await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
+            "webkit" => await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
+            _ => await playwright.Chromium.LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
+        };
+        
+        Console.WriteLine($"?? Browser: {browserType}, Headless: {headless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
