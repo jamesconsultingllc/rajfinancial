@@ -182,7 +182,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [ chromium, firefox, webkit ]
+        browser: [ chromium, firefox, webkit, msedge ]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -294,77 +294,6 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: e2e-test-results-${{ matrix.browser }}
-          path: tests/AcceptanceTests/TestResults/
-          if-no-files-found: warn
-          retention-days: 7
-
-  integration_tests_job:
-    if: |
-      github.event_name == 'push' && 
-      github.ref == 'refs/heads/develop' && 
-      always() &&
-      needs.unit_tests_job.result == 'success' &&
-      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
-    runs-on: ubuntu-latest
-    name: Integration Tests (Signup Flow)
-    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Resolve Environment
-        id: resolve-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
-
-      - name: Determine SWA URL
-        id: swa-url
-        run: |
-          if [[ "${{ needs.build_and_deploy_job.result }}" == "success" ]]; then
-            echo "url=${{ needs.build_and_deploy_job.outputs.deployed-url }}" >> $GITHUB_OUTPUT
-          else
-            # For develop branch, use the develop environment URL
-            echo "url=https://gray-cliff-072f3b510.azurestaticapps.net" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Restore dependencies
-        run: dotnet restore src/RajFinancial.sln
-
-      - name: Build test project
-        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
-
-      - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium --with-deps
-
-      - name: Wait for deployment to stabilize
-        if: needs.build_and_deploy_job.result == 'success'
-        run: sleep 30
-
-      - name: Run signup integration tests
-        run: dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug --verbosity normal --logger trx --filter "Category=signup"
-        env:
-          BASE_URL: ${{ steps.swa-url.outputs.url }}
-          BROWSER: chromium
-          MAILINATOR_API_TOKEN: ${{ secrets.MAILINATOR_API_TOKEN }}
-
-      - name: Cleanup test users
-        if: always()
-        env:
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: |
-          cd tests/AcceptanceTests
-          dotnet run -- cleanup-users --older-than 0
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: integration-test-results
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7

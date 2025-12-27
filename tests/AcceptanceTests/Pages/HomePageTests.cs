@@ -5,6 +5,7 @@
 // ============================================================================
 
 using Microsoft.Playwright;
+using RajFinancial.AcceptanceTests.Helpers;
 
 namespace RajFinancial.AcceptanceTests.Pages;
 
@@ -20,7 +21,7 @@ public class HomePageTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+        browser = await BrowserHelper.LaunchBrowserAsync(playwright, headless: true);
     }
 
     public async Task DisposeAsync()

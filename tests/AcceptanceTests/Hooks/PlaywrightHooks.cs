@@ -43,10 +43,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task BeforeTestRun()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = Environment.GetEnvironmentVariable("HEADED") != "true"
-        });
+        browser = await Helpers.BrowserHelper.LaunchBrowserAsync(playwright);
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
