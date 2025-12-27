@@ -30,6 +30,7 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
 
         // Build optional data-testid key (kebab-case)
         var dataTestId = sectionName.ToLowerInvariant().Replace(" ", "-");
+        Console.WriteLine($"Looking for [data-testid='{dataTestId}'], text={sectionName}");
         var locator = Page.Locator($"[data-testid='{dataTestId}'], text={sectionName}");
 
         try
@@ -42,6 +43,8 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         }
 
         var content = await Page.ContentAsync();
+        Console.WriteLine("Content is:");
+        Console.WriteLine(content);
         Assert.Contains(sectionName, content);
     }
 
