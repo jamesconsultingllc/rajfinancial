@@ -48,7 +48,6 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     name: Unit Tests
-    needs: detect_changes
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -171,10 +170,14 @@ jobs:
       target-environment: ${{ steps.resolve-env.outputs.target-environment }}
 
   e2e_tests_job:
-    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
+    if: |
+      github.event_name != 'pull_request' && 
+      always() &&
+      needs.unit_tests_job.result == 'success' &&
+      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
     runs-on: ubuntu-latest
     name: E2E Tests
-    needs: [detect_changes, build_and_deploy_job]
+    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     strategy:
       fail-fast: false
@@ -275,10 +278,15 @@ jobs:
           retention-days: 7
 
   integration_tests_job:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.detect_changes.outputs.src_changed == 'true'
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/develop' && 
+      always() &&
+      needs.unit_tests_job.result == 'success' &&
+      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
     runs-on: ubuntu-latest
     name: Integration Tests (Signup Flow)
-    needs: [detect_changes, build_and_deploy_job]
+    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
