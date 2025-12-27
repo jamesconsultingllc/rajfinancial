@@ -25,19 +25,22 @@ No existing platform combines: linked accounts + manual assets + beneficiary man
 | **Frontend** | Blazor WebAssembly (.NET 9) |
 | **UI Components** | Syncfusion Blazor v24+ |
 | **State Management** | Fluxor (Redux pattern) |
-| **Backend** | Azure Functions (.NET 9 Isolated Worker) |
+| **Backend** | Azure Functions (.NET 9 Isolated Worker) - **Standalone** |
 | **Database** | Azure SQL + EF Core 9 |
 | **Caching** | Azure Redis Cache |
-| **Secrets** | Azure Key Vault |
-| **Hosting** | Azure Static Web Apps |
+| **Secrets** | Azure Key Vault (via Managed Identity) |
+| **Frontend Hosting** | Azure Static Web Apps (Free tier) |
+| **API Hosting** | Azure Functions Consumption Plan (Standalone) |
 | **Serialization** | MemoryPack (prod) / JSON (dev) |
 | **Account Aggregation** | Plaid |
 | **AI** | Claude API (Anthropic) |
 | **Identity** | Microsoft Entra External ID |
 | **Authentication** | Microsoft.Authentication.WebAssembly.Msal + Azure Functions Token Validation |
-| **Authorization** | Role-Based Access Control (RBAC) |
+| **Authorization** | Role-Based Access Control (RBAC) + API Connectors |
 | **Documents** | Azure Blob Storage (user strategy sources) |
 | **Vector Search** | Azure AI Search (vector index for retrieval) |
+
+> **Architecture Note**: Using **standalone Azure Functions** instead of SWA linked API for Managed Identity support. See [`STANDALONE_API_ARCHITECTURE.md`](STANDALONE_API_ARCHITECTURE.md) for details.
 
 ---
 
@@ -72,8 +75,9 @@ Safety & copyright notes:
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
 | Create Dev Entra External ID Tenant | ✅ Complete | P0 | `rajfinancialdev.onmicrosoft.com` |
-| Configure Dev User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
-| Register Dev SPA Application | ✅ Complete | P0 | `RajFinancial.Client.Dev` - Uses SWA auth |
+| Configure Dev User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset + API Connector |
+| Add API Connector for Role Assignment | ⬜ Not Started | P0 | See `ENTRA_AUTOMATIC_ROLE_ASSIGNMENT.md` |
+| Register Dev SPA Application | ✅ Complete | P0 | `RajFinancial.Client.Dev` |
 | Register Dev API Application | ✅ Complete | P0 | `RajFinancial.Api.Dev` - Exposes scopes |
 | Create Test Users (all roles) | ⬜ Not Started | P1 | user, advisor, attorney, accountant, admin |
 | Store Dev Tenant IDs in Key Vault | ⬜ Not Started | P0 | Dev Key Vault only |
@@ -83,7 +87,8 @@ Safety & copyright notes:
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
 | Create Prod Entra External ID Tenant | ✅ Complete | P0 | `rajfinancialprod.onmicrosoft.com` |
-| Configure Prod User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset |
+| Configure Prod User Flows | ⬜ Not Started | P0 | Sign-up, Sign-in, Password Reset + API Connector |
+| Add API Connector for Role Assignment | ⬜ Not Started | P0 | See `ENTRA_AUTOMATIC_ROLE_ASSIGNMENT.md` |
 | Register Prod SPA Application | ✅ Complete | P0 | `RajFinancial.Client.Prod` |
 | Register Prod API Application | ✅ Complete | P0 | `RajFinancial.Api.Prod` |
 | Configure Custom Branding | ⬜ Not Started | P1 | Gold theme, RAJ logo |
@@ -110,7 +115,10 @@ Safety & copyright notes:
 |------|--------|----------|-------|
 | Define custom claims in Entra | ⬜ Not Started | P0 | `role`, `permissions` claims |
 | Create App Roles in manifest | ✅ Complete | P0 | In register-entra-apps.ps1 script |
-| Implement role assignment API | ⬜ Not Started | P1 | Assign professionals to clients |
+| Create AssignRoleDuringSignup function | ⬜ Not Started | P0 | Azure Function for API Connector |
+| Grant Graph API permissions to MI | ⬜ Not Started | P0 | AppRoleAssignment.ReadWrite.All |
+| Configure API Connector in user flow | ⬜ Not Started | P0 | Dev and Prod tenants |
+| Implement CompleteProfile page | ⬜ Not Started | P0 | Fallback for role assignment |
 | Create Authorization Policies | ✅ Complete | P0 | In Client Program.cs |
 | Build DataAccessGrant entity | ✅ Complete | P0 | In Shared/Entities |
 | Build UserProfile entity | ✅ Complete | P0 | In Shared/Entities |

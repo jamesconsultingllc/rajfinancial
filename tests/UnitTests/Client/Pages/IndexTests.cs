@@ -85,7 +85,7 @@ public class IndexTests : TestContext
         // Act
         var cut = RenderComponent<RajFinancial.Client.Pages.Index>();
 
-        // Assert
+        // Assert - Look for Get Started Free button in hero section (btn-gold-solid)
         var button = cut.Find(".hero-actions a.btn-gold-solid, .hero-actions button.btn-gold-solid");
         Assert.NotNull(button);
     }
@@ -140,7 +140,8 @@ public class IndexTests : TestContext
         var cut = RenderComponent<RajFinancial.Client.Pages.Index>();
 
         // Assert - All buttons/links should have text or aria-label
-        var buttons = cut.FindAll("button, a.btn, a.btn-gold-solid, a.btn-gold-outline-dark");
+        // Updated to match new button classes
+        var buttons = cut.FindAll("button, a.btn, a.btn-gold-solid, a.btn-gold-outline-dark, a.btn-dark-gold");
         foreach (var button in buttons)
         {
             var hasText = !string.IsNullOrWhiteSpace(button.TextContent);

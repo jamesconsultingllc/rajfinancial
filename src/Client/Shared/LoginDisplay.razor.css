@@ -11,14 +11,19 @@
 }
 
 .user-name {
-    color: #555;
-    font-size: 0.9rem;
+    color: var(--neutral-600, #57534e);
+    font-size: var(--text-sm, 0.875rem);
     display: inline-flex;
     align-items: center;
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.user-name svg {
+    color: var(--gold-600, #d4a80e);
+    flex-shrink: 0;
 }
 
 /* Mobile responsiveness */
@@ -29,6 +34,7 @@
 
     .user-name {
         max-width: 120px;
+        font-size: var(--text-xs, 0.75rem);
     }
 }
 

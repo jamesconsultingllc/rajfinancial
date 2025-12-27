@@ -26,23 +26,47 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     {
         // Wait for page to render (Blazor client-side rendering)
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(500);
-
+        
         // Build optional data-testid key (kebab-case)
         var dataTestId = sectionName.ToLowerInvariant().Replace(" ", "-");
-        var locator = Page.Locator($"[data-testid='{dataTestId}'], text={sectionName}");
+        Console.WriteLine($"Looking for [data-testid='{dataTestId}'], text={sectionName}");
+        
+        // First try to find by data-testid (more reliable for authenticated sections)
+        var testIdLocator = Page.Locator($"[data-testid='{dataTestId}']");
+        var textLocator = Page.Locator($"text={sectionName}");
 
-        try
+        // Wait longer for auth state to propagate in Blazor WASM
+        var maxRetries = 10;
+        var found = false;
+        for (var i = 0; i < maxRetries && !found; i++)
         {
-            await locator.First.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
-        }
-        catch
-        {
-            // Section might not be visible as text, check content anyway
+            await Page.WaitForTimeoutAsync(500);
+            
+            // Check if either locator is visible
+            if (await testIdLocator.CountAsync() > 0 && await testIdLocator.First.IsVisibleAsync())
+            {
+                found = true;
+                Console.WriteLine($"Found section by data-testid: {dataTestId}");
+            }
+            else if (await textLocator.CountAsync() > 0 && await textLocator.First.IsVisibleAsync())
+            {
+                found = true;
+                Console.WriteLine($"Found section by text: {sectionName}");
+            }
+            else
+            {
+                Console.WriteLine($"Retry {i + 1}/{maxRetries}: Section not found yet...");
+            }
         }
 
-        var content = await Page.ContentAsync();
-        Assert.Contains(sectionName, content);
+        if (!found)
+        {
+            var content = await Page.ContentAsync();
+            Console.WriteLine("Content is:");
+            Console.WriteLine(content);
+        }
+
+        Assert.True(found, $"Expected to find section '{sectionName}' (data-testid='{dataTestId}')");
     }
 
     [Given(@"the viewport is set to mobile size")]
@@ -97,10 +121,15 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     }
 
     [Then(@"I should see a ""(.*)"" button")]
+    [Then(@"I should see the ""(.*)"" button")]
     public async Task ThenIShouldSeeAButton(string buttonText)
     {
+        // Wait for page to settle
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.WaitForTimeoutAsync(500);
+
         var button = Page.Locator($"a, button").Filter(new() { HasText = buttonText }).First;
-        await Assertions.Expect(button).ToBeVisibleAsync();
+        await Assertions.Expect(button).ToBeVisibleAsync(new() { Timeout = 10000 });
     }
 
     [Then(@"I should not see a ""(.*)"" button")]
@@ -115,13 +144,14 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     {
         var url = Page.Url;
         var content = await Page.ContentAsync();
-        
-        var isLoginPage = url.Contains("login") || 
-                          url.Contains("auth") || 
+
+        // Updated to check for new separate Sign In / Get Started buttons
+        var isLoginPage = url.Contains("login") ||
+                          url.Contains("auth") ||
                           url.Contains("signin") ||
-                          content.Contains("Log in") ||
-                          content.Contains("Sign in");
-        
+                          content.Contains("Sign In") ||
+                          content.Contains("Get Started");
+
         Assert.True(isLoginPage, $"Expected login page, but was on: {url}");
     }
 

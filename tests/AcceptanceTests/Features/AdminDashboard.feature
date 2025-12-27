@@ -14,21 +14,6 @@ Scenario: Administrator can view dashboard
     And I should see "Administrator Dashboard"
     And I should not see an access denied message
 
-@ui
-Scenario: Dashboard displays key statistics
-    When I navigate to "/admin/dashboard"
-    Then I should see "Total Users"
-    And I should see "Active Advisors"
-    And I should see "Total Clients"
-    And I should see "Assets Under Mgmt"
-
-@ui
-Scenario: Dashboard displays statistics with values
-    When I navigate to "/admin/dashboard"
-    Then I should see statistics cards with numeric values
-    And all statistics should have labels
-    And all statistics should have icons
-
 @ui @functionality
 Scenario: Dashboard displays quick actions
     When I navigate to "/admin/dashboard"

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RAJ Financial - Acceptance Tests Run Settings
+  
+  This file configures environment variables and test settings for running 
+  acceptance tests with Playwright and Reqnroll.
+  
+  Usage:
+    - Visual Studio: Test > Configure Run Settings > Select Solution Wide runsettings File
+    - CLI: dotnet test -\-settings AcceptanceTests.runsettings
+    - CI/CD: dotnet test -\-settings tests/AcceptanceTests/AcceptanceTests.runsettings
+-->
+<RunSettings>
+  <!-- General run configuration -->
+  <RunConfiguration>
+    <!-- Target framework for test execution -->
+    <TargetFrameworkVersion>net9.0</TargetFrameworkVersion>
+    
+    <!-- Test result settings -->
+    <ResultsDirectory>.\TestResults</ResultsDirectory>
+    
+    <!-- Timeout for individual tests (in milliseconds) - 5 minutes for E2E tests -->
+    <TestSessionTimeout>300000</TestSessionTimeout>
+    <EnvironmentVariables>
+      <!-- Azure Entra External ID Configuration -->
+      <AZURE_CLIENT_ID>2d6a08c7-b142-4d53-a307-9ac75bae75eb</AZURE_CLIENT_ID>
+      <AZURE_TENANT_ID>496527a2-41f8-4297-a979-c916e7255a22</AZURE_TENANT_ID>
+
+      <!-- Test Environment (can be overridden in CI/CD) -->
+      <TEST_ENVIRONMENT>Development</TEST_ENVIRONMENT>
+    </EnvironmentVariables>
+
+  </RunConfiguration>
+
+  <!-- Environment variables for test execution -->
+  
+  <!-- Playwright-specific settings -->
+  <Playwright>
+    <!-- Browser settings -->
+    <BrowserName>chromium</BrowserName>
+    <Headless>true</Headless>
+    <SlowMo>0</SlowMo>
+    
+    <!-- Timeouts (in milliseconds) -->
+    <DefaultTimeout>30000</DefaultTimeout>
+    <NavigationTimeout>60000</NavigationTimeout>
+    
+    <!-- Screenshots and traces on failure -->
+    <Screenshot>only-on-failure</Screenshot>
+    <Trace>retain-on-failure</Trace>
+  </Playwright>
+
+  <!-- Test adapter settings -->
+  <MSTest>
+    <Parallelize>
+      <Workers>1</Workers>
+      <Scope>ClassLevel</Scope>
+    </Parallelize>
+    <MapInconclusiveToFailed>false</MapInconclusiveToFailed>
+  </MSTest>
+
+  <!-- Data collectors for test reporting -->
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <!-- Enable blame data collector for hang detection -->
+      <DataCollector friendlyName="blame" enabled="true">
+        <Configuration>
+          <CollectDump DumpType="Full" />
+          <CollectDumpOnTestSessionHang TestTimeout="300000" HangDumpType="Full" />
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+  <!-- Logger settings -->
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="console" enabled="true">
+        <Configuration>
+          <Verbosity>detailed</Verbosity>
+        </Configuration>
+      </Logger>
+      <Logger friendlyName="trx" enabled="true">
+        <Configuration>
+          <LogFileName>AcceptanceTestResults.trx</LogFileName>
+        </Configuration>
+      </Logger>
+      <Logger friendlyName="html" enabled="true">
+        <Configuration>
+          <LogFileName>AcceptanceTestResults.html</LogFileName>
+        </Configuration>
+      </Logger>
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>

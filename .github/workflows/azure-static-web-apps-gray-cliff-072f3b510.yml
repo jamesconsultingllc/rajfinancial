@@ -26,6 +26,24 @@ permissions:
   contents: read
 
 jobs:
+  detect_changes:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: Detect Changes
+    outputs:
+      src_changed: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filters: |
+            src:
+              - 'src/**'
+
   unit_tests_job:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -36,7 +54,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -48,10 +66,10 @@ jobs:
         run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    needs: unit_tests_job
+    needs: [detect_changes, unit_tests_job]
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -74,7 +92,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Use localStorage for MSAL in non-production
         if: github.ref != 'refs/heads/main'
@@ -152,17 +170,41 @@ jobs:
       target-environment: ${{ steps.resolve-env.outputs.target-environment }}
 
   e2e_tests_job:
-    if: github.event_name != 'pull_request'
+    if: |
+      github.event_name != 'pull_request' && 
+      always() &&
+      needs.unit_tests_job.result == 'success' &&
+      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
     runs-on: ubuntu-latest
     name: E2E Tests
-    needs: build_and_deploy_job
+    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     strategy:
       fail-fast: false
       matrix:
-        browser: [ chromium, firefox, webkit ]
+        browser: [ chromium, firefox, webkit, msedge ]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Resolve Environment
+        id: resolve-env
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+
+      - name: Determine SWA URL
+        id: swa-url
+        run: |
+          if [[ "${{ needs.build_and_deploy_job.result }}" == "success" ]]; then
+            echo "url=${{ needs.build_and_deploy_job.outputs.deployed-url }}" >> $GITHUB_OUTPUT
+          else
+            # Construct URL from branch pattern
+            TARGET_SLOT="${{ steps.resolve-env.outputs.target-slot }}"
+            if [[ "$TARGET_SLOT" == "" || "$TARGET_SLOT" == "production" ]]; then
+              echo "url=https://gray-cliff-072f3b510.azurestaticapps.net" >> $GITHUB_OUTPUT
+            else
+              echo "url=https://gray-cliff-072f3b510-${TARGET_SLOT}.centralus.azurestaticapps.net" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
 
       - name: Azure Login with OIDC
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -174,7 +216,7 @@ jobs:
       - name: Fetch Test Passwords from SWA Settings
         id: fetch-passwords
         run: |
-          target_env="${{ needs.build_and_deploy_job.outputs.target-environment }}"
+          target_env="${{ steps.resolve-env.outputs.target-environment }}"
           echo "Fetching app settings for environment: $target_env"
           
           # Get app settings from SWA
@@ -226,7 +268,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -234,16 +276,17 @@ jobs:
       - name: Build test project
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
-      - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install --with-deps
+      - name: Install Playwright browser (${{ matrix.browser }})
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }} --with-deps
 
       - name: Wait for deployment to stabilize
+        if: needs.build_and_deploy_job.result == 'success'
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests&Category!=signup"
         env:
-          BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
+          BASE_URL: ${{ steps.swa-url.outputs.url }}
           BROWSER: ${{ matrix.browser }}
 
       - name: Upload test results

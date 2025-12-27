@@ -43,10 +43,32 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task BeforeTestRun()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        
+        // Get browser type from environment variable (default: chromium)
+        // Options: chromium, firefox, webkit, msedge, chrome
+        var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
+        var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
+        
+        // For Edge and Chrome, we use Chromium with a channel
+        var launchOptions = new BrowserTypeLaunchOptions 
+        { 
+            Headless = headless,
+            Channel = browserType switch
+            {
+                "msedge" => "msedge",
+                "chrome" => "chrome",
+                _ => null // Use default Chromium
+            }
+        };
+        
+        browser = browserType switch
         {
-            Headless = Environment.GetEnvironmentVariable("HEADED") != "true"
-        });
+            "firefox" => await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
+            "webkit" => await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
+            _ => await playwright.Chromium.LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
+        };
+        
+        Console.WriteLine($"?? Browser: {browserType}, Headless: {headless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
@@ -164,9 +186,11 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         await page.WaitForTimeoutAsync(2000);
 
         var url = page.Url;
+        // Check if we're on a login page or if Sign In button is visible (meaning not authenticated)
         var isLogin = url.Contains("login", StringComparison.OrdinalIgnoreCase) ||
                       url.Contains("signin", StringComparison.OrdinalIgnoreCase) ||
-                      await page.Locator("text=Log in").First.IsVisibleAsync();
+                      await page.Locator("text=Sign In").First.IsVisibleAsync() ||
+                      await page.Locator("a[href*='authentication/login']").First.IsVisibleAsync();
 
         await context.CloseAsync();
 
@@ -207,7 +231,14 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await page.WaitForTimeoutAsync(1000);
 
-        var loginButton = page.Locator("text=Log in").First;
+        // Look for Sign In button (updated from "Log in")
+        var loginButton = page.Locator("text=Sign In").First;
+        if (!await loginButton.IsVisibleAsync())
+        {
+            // Fallback to href-based selector
+            loginButton = page.Locator("a[href*='authentication/login']").First;
+        }
+        
         if (!await loginButton.IsVisibleAsync())
         {
             await context.CloseAsync();

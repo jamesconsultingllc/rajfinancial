@@ -6,6 +6,9 @@
 
 using Bunit;
 using Bunit.TestDoubles;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
+using Moq;
 using RajFinancial.Client.Shared;
 
 namespace RajFinancial.UnitTests.Client.Shared;
@@ -15,6 +18,38 @@ namespace RajFinancial.UnitTests.Client.Shared;
 /// </summary>
 public class NavMenuTests : TestContext
 {
+    public NavMenuTests()
+    {
+        // Register the mock localizer
+        var localizer = new Mock<IStringLocalizer<NavMenu>>();
+        localizer.Setup(l => l[It.IsAny<string>()])
+            .Returns<string>(key => new LocalizedString(key, GetLocalizedValue(key)));
+        Services.AddSingleton(localizer.Object);
+    }
+
+    /// <summary>
+    /// Returns localized values matching the resource file.
+    /// </summary>
+    private static string GetLocalizedValue(string key) => key switch
+    {
+        "Brand.Name" => "RAJ Financial",
+        "Brand.Home.AriaLabel" => "RAJ Financial - Home",
+        "Nav.AriaLabel" => "Main navigation",
+        "Nav.Home" => "Home",
+        "Section.MyAccount" => "My Account",
+        "Nav.Portfolio" => "My Portfolio",
+        "Nav.Transactions" => "Transactions",
+        "Nav.Statements" => "Statements",
+        "Section.AdvisorTools" => "Advisor Tools",
+        "Nav.MyClients" => "My Clients",
+        "Nav.Reports" => "Reports",
+        "Section.Administration" => "Administration",
+        "Nav.Dashboard" => "Dashboard",
+        "Nav.UserManagement" => "User Management",
+        "Nav.Settings" => "Settings",
+        _ => key
+    };
+
     [Fact]
     public void NavMenu_Renders_BrandLogo()
     {

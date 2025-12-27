@@ -24,30 +24,6 @@ public class AuthorizationSteps
         this.scenarioContext = scenarioContext;
     }
 
-    [Given(@"the application is running")]
-    public async Task GivenTheApplicationIsRunning()
-    {
-        var response = await Page.GotoAsync(PlaywrightHooks.BaseUrl);
-        Assert.NotNull(response);
-        Assert.True(response.Ok, $"Application not running: {response.Status}");
-    }
-
-    [Then(@"I should be redirected to the login page")]
-    public async Task ThenIShouldBeRedirectedToTheLoginPage()
-    {
-        // Check if we're on a login/authentication page
-        var url = Page.Url;
-        var content = await Page.ContentAsync();
-        
-        var isLoginPage = url.Contains("login") || 
-                          url.Contains("auth") || 
-                          url.Contains("signin") ||
-                          content.Contains("Log in") ||
-                          content.Contains("Sign in");
-        
-        Assert.True(isLoginPage, $"Expected login page, but was on: {url}");
-    }
-
     [Then(@"I should see the portfolio page")]
     public async Task ThenIShouldSeeThePortfolioPage()
     {

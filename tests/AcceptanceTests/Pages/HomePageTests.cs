@@ -5,6 +5,7 @@
 // ============================================================================
 
 using Microsoft.Playwright;
+using RajFinancial.AcceptanceTests.Helpers;
 
 namespace RajFinancial.AcceptanceTests.Pages;
 
@@ -20,7 +21,7 @@ public class HomePageTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+        browser = await BrowserHelper.LaunchBrowserAsync(playwright, headless: true);
     }
 
     public async Task DisposeAsync()
@@ -304,9 +305,15 @@ public class HomePageTests : IAsyncLifetime
             await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
             
-            // Assert
-            var loginButton = page.Locator("text=Log in");
-            await Assertions.Expect(loginButton).ToBeVisibleAsync();
+            // Assert - Look for the Sign In button (solid gold) or Get Started button (dark gold)
+            // Updated to match new separate button layout
+            var loginButton = page.Locator("text=Sign In").Or(
+                page.Locator("text=Get Started")).Or(
+                page.Locator("a[href*='authentication/login']")).Or(
+                page.Locator("a[href*='authentication/register']")).Or(
+                page.Locator("[aria-label*='Sign in']"));
+            
+            await Assertions.Expect(loginButton.First).ToBeVisibleAsync();
         }
         finally
         {

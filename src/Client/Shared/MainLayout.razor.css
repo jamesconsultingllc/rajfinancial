@@ -110,10 +110,12 @@
 }
 
 .raj-header-brand:hover {
-    opacity: 0.9;
+    opacity: 0.85;
 }
 
 .raj-header-logo {
+    height: 32px;
+    width: auto;
     flex-shrink: 0;
 }
 
