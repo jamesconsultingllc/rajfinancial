@@ -300,13 +300,17 @@ All coding standards are documented in [`.github/copilot-instructions.md`](.gith
 
 **All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
 
+**Syncfusion Essential UI Kit**: https://blazor.syncfusion.com/essential-ui-kit/
+
 Before creating any UI component:
-1. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
-2. Follow the exact component structure and props defined
-3. Use the CSS classes and design tokens specified
-4. Use Syncfusion Blazor v24+ for complex UI elements
-5. Apply glass morphism effects using the GlassCard component
-6. Implement mobile-first responsive design
+1. **Check Syncfusion Essential UI Kit** at https://blazor.syncfusion.com/essential-ui-kit/ for design inspiration and page templates
+2. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+3. Follow the exact component structure and props defined
+4. Use the CSS classes and design tokens specified
+5. Use Syncfusion Blazor v24+ for complex UI elements
+6. Apply glass morphism effects using the GlassCard component
+7. Implement mobile-first responsive design
+8. Adapt Syncfusion UI Kit designs to match RAJ Financial's gold brand palette
 
 ### Code Documentation
 

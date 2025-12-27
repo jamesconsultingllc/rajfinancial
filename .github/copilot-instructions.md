@@ -601,21 +601,33 @@ This document contains:
 - Responsive design patterns (mobile-first)
 - Glass morphism and premium visual effects
 
+### Syncfusion Essential UI Kit
+
+**Reference**: https://blazor.syncfusion.com/essential-ui-kit/
+
+When creating new pages or components, use the Syncfusion Blazor Essential UI Kit as a design reference:
+- Browse the kit for pre-built page templates and component patterns
+- Use similar layouts and component compositions for consistency
+- Adapt the designs to match RAJ Financial's gold brand palette
+- Ensure all components follow our accessibility and localization requirements
+
 ### Key UI Principles
 
 1. **Use Syncfusion Components** - Leverage Syncfusion Blazor v24+ for complex UI elements (charts, grids, dialogs)
-2. **Follow Component Hierarchy** - Use the component structure defined in the UI doc
-3. **Apply Glass Morphism** - Use the GlassCard component for elevated surfaces
-4. **Animate Meaningfully** - Use defined animations (fadeIn, slideUp, celebrate, shimmer)
-5. **Mobile-First Always** - Design for mobile viewport first, then enhance for desktop
+2. **Reference Essential UI Kit** - Use https://blazor.syncfusion.com/essential-ui-kit/ for design inspiration and patterns
+3. **Follow Component Hierarchy** - Use the component structure defined in the UI doc
+4. **Apply Glass Morphism** - Use the GlassCard component for elevated surfaces
+5. **Animate Meaningfully** - Use defined animations (fadeIn, slideUp, celebrate, shimmer)
+6. **Mobile-First Always** - Design for mobile viewport first, then enhance for desktop
 
 ### Before Creating Any UI Component
 
-1. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
-2. Follow the exact component structure and props defined
-3. Use the CSS classes and design tokens specified
-4. Implement all responsive breakpoints as documented
-5. Include accessibility attributes (ARIA labels, roles, keyboard navigation)
+1. **Check Syncfusion Essential UI Kit** at https://blazor.syncfusion.com/essential-ui-kit/ for similar templates
+2. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+3. Follow the exact component structure and props defined
+4. Use the CSS classes and design tokens specified
+5. Implement all responsive breakpoints as documented
+6. Include accessibility attributes (ARIA labels, roles, keyboard navigation)
 
 ---
 
