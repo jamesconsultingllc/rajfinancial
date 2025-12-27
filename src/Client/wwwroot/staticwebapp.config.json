@@ -6,7 +6,7 @@
     "exclude": ["/api/*", "/_framework/*", "/css/*", "/js/*", "/*.ico", "/*.png", "/*.svg"]
   },
   "platform": {
-    "apiRuntime": "dotnet-isolated:8.0"
+    "apiRuntime": "dotnet-isolated:9.0"
   }
 }
 
