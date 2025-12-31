@@ -63,4 +63,16 @@
   <data name="Activity.TransactionFlagged" xml:space="preserve">
     <value>High-value transaction flagged</value>
   </data>
+  <data name="Stats.ActiveClients" xml:space="preserve">
+    <value>Active Clients</value>
+  </data>
+  <data name="Stats.ActiveShares" xml:space="preserve">
+    <value>Active Shares</value>
+  </data>
+  <data name="Activity.DataAccessGranted" xml:space="preserve">
+    <value>Data access granted</value>
+  </data>
+  <data name="Activity.DataAccessRevoked" xml:space="preserve">
+    <value>Data access revoked</value>
+  </data>
 </root>

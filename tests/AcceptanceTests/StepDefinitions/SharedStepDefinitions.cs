@@ -1,12 +1,11 @@
 ﻿using Microsoft.Playwright;
 using RajFinancial.AcceptanceTests.Hooks;
 using Reqnroll;
-using Xunit;
 
 namespace RajFinancial.AcceptanceTests.StepDefinitions;
 
 /// <summary>
-/// Base class for step definitions containing common/generic steps.
+///     Base class for step definitions containing common/generic steps.
 /// </summary>
 [Binding]
 public class SharedStepDefinitions(ScenarioContext scenarioContext)
@@ -26,11 +25,11 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     {
         // Wait for page to render (Blazor client-side rendering)
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        
+
         // Build optional data-testid key (kebab-case)
         var dataTestId = sectionName.ToLowerInvariant().Replace(" ", "-");
         Console.WriteLine($"Looking for [data-testid='{dataTestId}'], text={sectionName}");
-        
+
         // First try to find by data-testid (more reliable for authenticated sections)
         var testIdLocator = Page.Locator($"[data-testid='{dataTestId}']");
         var textLocator = Page.Locator($"text={sectionName}");
@@ -41,7 +40,7 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         for (var i = 0; i < maxRetries && !found; i++)
         {
             await Page.WaitForTimeoutAsync(500);
-            
+
             // Check if either locator is visible
             if (await testIdLocator.CountAsync() > 0 && await testIdLocator.First.IsVisibleAsync())
             {
@@ -109,7 +108,8 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         try
         {
-            await Page.WaitForSelectorAsync($"text={text}", new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+            await Page.WaitForSelectorAsync($"text={text}",
+                new PageWaitForSelectorOptions { Timeout = 10000, State = WaitForSelectorState.Visible });
         }
         catch
         {
@@ -128,14 +128,14 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await Page.WaitForTimeoutAsync(500);
 
-        var button = Page.Locator($"a, button").Filter(new() { HasText = buttonText }).First;
-        await Assertions.Expect(button).ToBeVisibleAsync(new() { Timeout = 10000 });
+        var button = Page.Locator("a, button").Filter(new LocatorFilterOptions { HasText = buttonText }).First;
+        await Assertions.Expect(button).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 10000 });
     }
 
     [Then(@"I should not see a ""(.*)"" button")]
     public async Task ThenIShouldNotSeeAButton(string buttonText)
     {
-        var button = Page.Locator($"a, button").Filter(new() { HasText = buttonText }).First;
+        var button = Page.Locator("a, button").Filter(new LocatorFilterOptions { HasText = buttonText }).First;
         await Assertions.Expect(button).Not.ToBeVisibleAsync();
     }
 
@@ -167,18 +167,19 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     public async Task ThenAllButtonsShouldHaveAccessibleLabels()
     {
         var buttons = await Page.Locator("button, a.btn, a[class*='btn']").AllAsync();
-        
+
         foreach (var button in buttons)
         {
             var text = await button.TextContentAsync();
             var ariaLabel = await button.GetAttributeAsync("aria-label");
             var title = await button.GetAttributeAsync("title");
-            
+
             var hasLabel = !string.IsNullOrWhiteSpace(text) ||
-                          !string.IsNullOrWhiteSpace(ariaLabel) ||
-                          !string.IsNullOrWhiteSpace(title);
-            
-            Assert.True(hasLabel, $"Button with outer HTML '{await button.InnerHTMLAsync()}' should have an accessible label");
+                           !string.IsNullOrWhiteSpace(ariaLabel) ||
+                           !string.IsNullOrWhiteSpace(title);
+
+            Assert.True(hasLabel,
+                $"Button with outer HTML '{await button.InnerHTMLAsync()}' should have an accessible label");
         }
     }
 
@@ -193,7 +194,8 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         try
         {
             var headingLocator = Page.Locator("h1, [data-testid='admin-dashboard-title']");
-            await headingLocator.First.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
+            await headingLocator.First.WaitForAsync(new LocatorWaitForOptions
+                { Timeout = 15000, State = WaitForSelectorState.Visible });
         }
         catch
         {
@@ -205,7 +207,7 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         // Debug: If no h1 found, capture screenshot and log page content
         if (h1Count < 1)
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/no-h1-debug-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -214,7 +216,8 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
             var pageContent = await Page.ContentAsync();
             Console.WriteLine($"Page URL: {Page.Url}");
             Console.WriteLine($"Page title: {await Page.TitleAsync()}");
-            Console.WriteLine($"Page contains 'Administrator Dashboard': {pageContent.Contains("Administrator Dashboard")}");
+            Console.WriteLine(
+                $"Page contains 'Administrator Dashboard': {pageContent.Contains("Administrator Dashboard")}");
             Console.WriteLine($"Page contains 'Access Denied': {pageContent.Contains("Access Denied")}");
         }
 
@@ -247,8 +250,11 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     public async Task WhenIClickTheButton(string buttonText)
     {
         // Look for button or link with the text (handles whitespace) and data-testid fallback
-        var button = Page.Locator($"[data-testid*='{buttonText.Replace(" ", "-").ToLowerInvariant()}'], button:has-text('{buttonText}'), a:has-text('{buttonText}'), .btn:has-text('{buttonText}')").First;
-        await button.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
+        var button = Page
+            .Locator(
+                $"[data-testid*='{buttonText.Replace(" ", "-").ToLowerInvariant()}'], button:has-text('{buttonText}'), a:has-text('{buttonText}'), .btn:has-text('{buttonText}')")
+            .First;
+        await button.WaitForAsync(new LocatorWaitForOptions { Timeout = 15000, State = WaitForSelectorState.Visible });
         await button.ClickAsync();
         await Page.WaitForTimeoutAsync(1000);
     }
@@ -270,9 +276,13 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         // Wait for nav container if present
         try
         {
-            await Page.WaitForSelectorAsync("nav, .nav-menu, .raj-sidebar", new() { Timeout = 5000, State = WaitForSelectorState.Attached });
+            await Page.WaitForSelectorAsync("nav, .nav-menu, .raj-sidebar",
+                new PageWaitForSelectorOptions { Timeout = 5000, State = WaitForSelectorState.Attached });
         }
-        catch { /* best-effort */ }
+        catch
+        {
+            /* best-effort */
+        }
 
         // Prefer data-testid if known
         var candidateTestIds = new List<string>();
@@ -304,13 +314,11 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
 
         var candidates = new List<ILocator>();
         candidates.AddRange(candidateTestIds.Select(id => Page.Locator($"[data-testid='{id}']")));
-        
+
         // For "Home", also check the brand logo link (public layout)
         if (string.Equals(linkText, "Home", StringComparison.OrdinalIgnoreCase))
-        {
             candidates.Add(Page.Locator(".raj-header-brand"));
-        }
-        
+
         candidates.AddRange(new[]
         {
             Page.Locator($"a:has-text(\"{linkText}\")"),
@@ -322,10 +330,10 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
 
         var foundVisible = false;
         foreach (var candidate in candidates)
-        {
             try
             {
-                await Assertions.Expect(candidate.First).ToBeVisibleAsync(new() { Timeout = 7000 });
+                await Assertions.Expect(candidate.First).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions
+                    { Timeout = 7000 });
                 foundVisible = true;
                 break;
             }
@@ -333,13 +341,13 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
             {
                 // try next candidate
             }
-        }
 
         if (!foundVisible)
         {
             // Capture screenshot for debugging before failing
-            var screenshotPath = Path.Combine(Path.GetTempPath(), $"nav-link-{linkText}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-            await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+            var screenshotPath =
+                Path.Combine(Path.GetTempPath(), $"nav-link-{linkText}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await Page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
             Console.WriteLine($"Debug screenshot saved to {screenshotPath}");
         }
 

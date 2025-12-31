@@ -9,13 +9,13 @@ using Microsoft.Playwright;
 namespace RajFinancial.AcceptanceTests.Helpers;
 
 /// <summary>
-/// Helper class for launching Playwright browsers based on environment configuration.
+///     Helper class for launching Playwright browsers based on environment configuration.
 /// </summary>
 public static class BrowserHelper
 {
     /// <summary>
-    /// Launches a browser based on the BROWSER environment variable.
-    /// Defaults to Chromium if not specified.
+    ///     Launches a browser based on the BROWSER environment variable.
+    ///     Defaults to Chromium if not specified.
     /// </summary>
     /// <param name="playwright">The Playwright instance.</param>
     /// <param name="headless">Whether to run in headless mode. Defaults to true.</param>
@@ -24,12 +24,12 @@ public static class BrowserHelper
     {
         var browserName = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
         var isHeadless = headless ?? Environment.GetEnvironmentVariable("HEADED") != "true";
-        
+
         var launchOptions = new BrowserTypeLaunchOptions
         {
             Headless = isHeadless
         };
-        
+
         var browser = browserName switch
         {
             "firefox" => await playwright.Firefox.LaunchAsync(launchOptions),
@@ -41,7 +41,7 @@ public static class BrowserHelper
             }),
             _ => await playwright.Chromium.LaunchAsync(launchOptions) // chromium is default
         };
-        
+
         Console.WriteLine($"Playwright launched browser: {browserName}");
         return browser;
     }

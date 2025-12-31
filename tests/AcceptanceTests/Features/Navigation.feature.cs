@@ -110,7 +110,7 @@ namespace RajFinancial.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Navigation.feature.ndjson", 8);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Navigation.feature.ndjson", 7);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -233,19 +233,19 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Advisor user sees advisor and client navigation")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="Administrator sees admin navigation only")]
         [global::Xunit.TraitAttribute("FeatureTitle", "Navigation Menu")]
-        [global::Xunit.TraitAttribute("Description", "Advisor user sees advisor and client navigation")]
+        [global::Xunit.TraitAttribute("Description", "Administrator sees admin navigation only")]
         [global::Xunit.TraitAttribute("Category", "authenticated")]
-        [global::Xunit.TraitAttribute("Category", "advisor")]
-        public async global::System.Threading.Tasks.Task AdvisorUserSeesAdvisorAndClientNavigation()
+        [global::Xunit.TraitAttribute("Category", "administrator")]
+        public async global::System.Threading.Tasks.Task AdministratorSeesAdminNavigationOnly()
         {
             string[] tagsOfScenario = new string[] {
                     "authenticated",
-                    "advisor"};
+                    "administrator"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "2";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Advisor user sees advisor and client navigation", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Administrator sees admin navigation only", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 27
@@ -259,7 +259,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             {
                 await this.ScenarioStartAsync();
 #line 28
-    await testRunner.GivenAsync("I am logged in as an \"Advisor\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+    await testRunner.GivenAsync("I am logged in as an \"Administrator\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 29
     await testRunner.WhenAsync("I view the navigation menu", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -268,69 +268,16 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
     await testRunner.ThenAsync("I should see the \"Home\" link", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 31
-    await testRunner.AndAsync("I should see the \"My Account\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 32
-    await testRunner.AndAsync("I should see the \"Advisor Tools\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 33
-    await testRunner.AndAsync("I should see the \"My Clients\" link", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 34
-    await testRunner.AndAsync("I should not see the \"Administration\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-            }
-            await this.ScenarioCleanupAsync();
-        }
-        
-        [global::Xunit.SkippableFactAttribute(DisplayName="Administrator sees admin navigation only")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "Navigation Menu")]
-        [global::Xunit.TraitAttribute("Description", "Administrator sees admin navigation only")]
-        [global::Xunit.TraitAttribute("Category", "authenticated")]
-        [global::Xunit.TraitAttribute("Category", "administrator")]
-        public async global::System.Threading.Tasks.Task AdministratorSeesAdminNavigationOnly()
-        {
-            string[] tagsOfScenario = new string[] {
-                    "authenticated",
-                    "administrator"};
-            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "3";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Administrator sees admin navigation only", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
-            string[] tagsOfRule = ((string[])(null));
-            global::Reqnroll.RuleInfo ruleInfo = null;
-#line 37
-this.ScenarioInitialize(scenarioInfo, ruleInfo);
-#line hidden
-            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
-            {
-                await testRunner.SkipScenarioAsync();
-            }
-            else
-            {
-                await this.ScenarioStartAsync();
-#line 38
-    await testRunner.GivenAsync("I am logged in as an \"Administrator\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
-#line hidden
-#line 39
-    await testRunner.WhenAsync("I view the navigation menu", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
-#line hidden
-#line 40
-    await testRunner.ThenAsync("I should see the \"Home\" link", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 41
     await testRunner.AndAsync("I should see the \"Administration\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 42
+#line 32
     await testRunner.AndAsync("I should see the \"Dashboard\" link in admin section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 43
+#line 33
     await testRunner.AndAsync("I should see the \"User Management\" link", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 44
-    await testRunner.AndAsync("I should not see the \"My Account\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 45
-    await testRunner.AndAsync("I should not see the \"Advisor Tools\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line 34
+    await testRunner.AndAsync("I should see the \"My Account\" section", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -345,11 +292,11 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             string[] tagsOfScenario = new string[] {
                     "accessibility"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "4";
+            string pickleIndex = "3";
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Navigation is keyboard accessible", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 48
+#line 37
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -359,16 +306,16 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             else
             {
                 await this.ScenarioStartAsync();
-#line 49
+#line 38
     await testRunner.GivenAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-#line 50
+#line 39
     await testRunner.WhenAsync("I press Tab multiple times", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 51
+#line 40
     await testRunner.ThenAsync("I should be able to navigate through menu items", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 52
+#line 41
     await testRunner.AndAsync("each focused item should have a visible focus indicator", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
@@ -388,11 +335,11 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
                     "authenticated",
                     "client"};
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "5";
+            string pickleIndex = "4";
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Mobile navigation uses hamburger menu", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 55
+#line 44
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -402,22 +349,22 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             else
             {
                 await this.ScenarioStartAsync();
-#line 56
+#line 45
     await testRunner.GivenAsync("the viewport is set to mobile size", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-#line 57
+#line 46
     await testRunner.AndAsync("I am logged in as a \"Client\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 58
+#line 47
     await testRunner.AndAsync("I am on the home page", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 59
+#line 48
     await testRunner.ThenAsync("I should see a hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 60
+#line 49
     await testRunner.WhenAsync("I click the hamburger menu button", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 61
+#line 50
     await testRunner.ThenAsync("the navigation menu should be visible", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

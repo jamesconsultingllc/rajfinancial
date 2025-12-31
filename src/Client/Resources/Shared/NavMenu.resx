@@ -29,6 +29,10 @@
   <data name="Nav.Statements" xml:space="preserve">
     <value>Statements</value>
   </data>
+  <data name="Nav.Sharing" xml:space="preserve">
+    <value>Sharing</value>
+    <comment>Link to manage data sharing with others (spouse, CPA, attorney)</comment>
+  </data>
   <data name="Section.AdvisorTools" xml:space="preserve">
     <value>Advisor Tools</value>
   </data>

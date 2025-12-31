@@ -12,18 +12,20 @@ using RajFinancial.AcceptanceTests.Helpers;
 namespace RajFinancial.AcceptanceTests.Accessibility;
 
 /// <summary>
-/// Accessibility tests using axe-core to verify WCAG 2.1 AA compliance.
+///     Accessibility tests using axe-core to verify WCAG 2.1 AA compliance.
 /// </summary>
 public class AccessibilityTests : IAsyncLifetime
 {
-    private IPlaywright? playwright;
+    private readonly string baseUrl =
+        Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+
     private IBrowser? browser;
-    private readonly string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+    private IPlaywright? playwright;
 
     public async Task InitializeAsync()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await BrowserHelper.LaunchBrowserAsync(playwright, headless: true);
+        browser = await BrowserHelper.LaunchBrowserAsync(playwright, true);
     }
 
     public async Task DisposeAsync()
@@ -33,6 +35,7 @@ public class AccessibilityTests : IAsyncLifetime
             await browser.CloseAsync();
             await browser.DisposeAsync();
         }
+
         playwright?.Dispose();
     }
 
@@ -41,16 +44,16 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-            
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+
             // Wait for Blazor to fully load
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
             await page.WaitForTimeoutAsync(2000); // Wait for Blazor hydration
-            
+
             // Run axe accessibility scan
             var results = await page.RunAxe(new AxeRunOptions
             {
@@ -63,17 +66,17 @@ public class AccessibilityTests : IAsyncLifetime
 
             // Assert
             var violations = results.Violations;
-            
+
             if (violations.Any())
             {
-                var violationMessages = string.Join("\n\n", violations.Select(v => 
+                var violationMessages = string.Join("\n\n", violations.Select(v =>
                     $"Rule: {v.Id}\n" +
                     $"Impact: {v.Impact}\n" +
                     $"Description: {v.Description}\n" +
                     $"Help: {v.Help}\n" +
                     $"Help URL: {v.HelpUrl}\n" +
                     $"Nodes: {string.Join(", ", v.Nodes.Select(n => n.Html))}"));
-                
+
                 Assert.Fail($"Accessibility violations found:\n\n{violationMessages}");
             }
         }
@@ -88,17 +91,17 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Check for h1
             var h1Count = await page.Locator("h1").CountAsync();
             Assert.True(h1Count >= 1, "Page should have at least one h1 heading");
-            
+
             // Check that h1 comes before h2
             var headings = await page.Locator("h1, h2, h3, h4, h5, h6").AllAsync();
             if (headings.Count > 0)
@@ -118,27 +121,27 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Get all buttons and links styled as buttons
             var buttons = await page.Locator("button, a[class*='btn']").AllAsync();
-            
+
             foreach (var button in buttons)
             {
                 var text = await button.TextContentAsync();
                 var ariaLabel = await button.GetAttributeAsync("aria-label");
                 var title = await button.GetAttributeAsync("title");
-                
-                var hasAccessibleName = !string.IsNullOrWhiteSpace(text) || 
+
+                var hasAccessibleName = !string.IsNullOrWhiteSpace(text) ||
                                         !string.IsNullOrWhiteSpace(ariaLabel) ||
                                         !string.IsNullOrWhiteSpace(title);
-                
-                Assert.True(hasAccessibleName, 
+
+                Assert.True(hasAccessibleName,
                     $"Button should have accessible name: {await button.EvaluateAsync<string>("el => el.outerHTML")}");
             }
         }
@@ -153,27 +156,27 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Get all images
             var images = await page.Locator("img").AllAsync();
-            
+
             foreach (var img in images)
             {
                 var alt = await img.GetAttributeAsync("alt");
                 var role = await img.GetAttributeAsync("role");
                 var ariaHidden = await img.GetAttributeAsync("aria-hidden");
-                
+
                 // Image should have alt text OR be marked as decorative
                 var hasAlt = alt != null; // Empty alt is valid for decorative images
                 var isDecorativeByRole = role == "presentation" || role == "none";
                 var isHiddenFromA11Y = ariaHidden == "true";
-                
+
                 Assert.True(hasAlt || isDecorativeByRole || isHiddenFromA11Y,
                     $"Image should have alt attribute or be marked as decorative: {await img.GetAttributeAsync("src")}");
             }
@@ -189,13 +192,13 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Run axe with only color contrast rule
             var results = await page.RunAxe(new AxeRunOptions
             {
@@ -208,13 +211,13 @@ public class AccessibilityTests : IAsyncLifetime
 
             // Assert
             var violations = results.Violations.Where(v => v.Id == "color-contrast").ToList();
-            
+
             if (violations.Any())
             {
                 var nodes = violations.SelectMany(v => v.Nodes).Take(5); // First 5 issues
-                var issues = string.Join("\n", nodes.Select(n => 
+                var issues = string.Join("\n", nodes.Select(n =>
                     $"Element: {n.Html}\nMessage: {string.Join(", ", n.Any?.Select(c => c.Message) ?? [])}"));
-                
+
                 Assert.Fail($"Color contrast violations found:\n\n{issues}");
             }
         }
@@ -229,31 +232,29 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Press Tab to move through focusable elements
             var focusableElements = new List<string>();
-            
-            for (int i = 0; i < 10; i++)
+
+            for (var i = 0; i < 10; i++)
             {
                 await page.Keyboard.PressAsync("Tab");
-                
+
                 var activeElement = await page.EvaluateAsync<string>(
                     "document.activeElement?.tagName + (document.activeElement?.className ? '.' + document.activeElement.className : '')");
-                
+
                 if (!string.IsNullOrEmpty(activeElement) && activeElement != "BODY")
-                {
                     focusableElements.Add(activeElement);
-                }
             }
-            
+
             // Assert - should be able to tab through at least a few elements
-            Assert.True(focusableElements.Count >= 3, 
+            Assert.True(focusableElements.Count >= 3,
                 $"Should have at least 3 focusable elements, found: {focusableElements.Count}");
         }
         finally
@@ -267,17 +268,17 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Tab to first focusable element
             await page.Keyboard.PressAsync("Tab");
             await page.Keyboard.PressAsync("Tab");
-            
+
             // Check if the focused element has visible focus indicator
             var hasFocusIndicator = await page.EvaluateAsync<bool>(@"
                 () => {
@@ -295,8 +296,8 @@ public class AccessibilityTests : IAsyncLifetime
                     return hasOutline || hasBoxShadow;
                 }
             ");
-            
-            Assert.True(hasFocusIndicator, 
+
+            Assert.True(hasFocusIndicator,
                 "Focused elements should have visible focus indicators");
         }
         finally
@@ -310,17 +311,17 @@ public class AccessibilityTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Check for main landmark
             var mainCount = await page.Locator("main, [role='main']").CountAsync();
             Assert.True(mainCount >= 1, "Page should have a main landmark");
-            
+
             // Check for navigation landmark
             var navCount = await page.Locator("nav, [role='navigation']").CountAsync();
             Assert.True(navCount >= 1, "Page should have a navigation landmark");

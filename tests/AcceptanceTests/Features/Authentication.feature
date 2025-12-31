@@ -57,6 +57,7 @@ Scenario: Authenticated user can log out
     Given I am logged in as a "Client"
     When I click the "Log out" button
     Then I should be logged out
+    And I should be on the home page
     And I should see the "Sign In" button
 
 @security

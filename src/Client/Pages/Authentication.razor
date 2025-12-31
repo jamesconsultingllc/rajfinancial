@@ -9,14 +9,13 @@
 *@
 
 @page "/authentication/{action}"
-@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using Microsoft.Extensions.Localization
 @inject NavigationManager Navigation
 @inject IStringLocalizer<Authentication> L
 
 <PageTitle>@L["PageTitle"]</PageTitle>
 
-<RemoteAuthenticatorView Action="@Action" @ref="_authenticator">
+<RemoteAuthenticatorView Action="@Action" @ref="authenticator">
     <LoggingIn>
         <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
             <div class="text-center">
@@ -120,13 +119,14 @@
 </RemoteAuthenticatorView>
 
 @code {
+
     /// <summary>
-    /// The authentication action to perform (login, logout, register, login-callback, logout-callback, etc.).
+    ///     The authentication action to perform (login, logout, register, login-callback, logout-callback, etc.).
     /// </summary>
     [Parameter]
     public string? Action { get; set; }
 
-    private RemoteAuthenticatorView? _authenticator;
+    private RemoteAuthenticatorView? authenticator;
 
     protected override void OnParametersSet()
     {
@@ -140,11 +140,12 @@
                 Interaction = InteractionType.SignIn,
                 ReturnUrl = Navigation.ToAbsoluteUri("/").ToString()
             };
-            
+
             // Add prompt=create to show sign-up screen instead of sign-in
             options.TryAddAdditionalParameter("prompt", "create");
-            
+
             Navigation.NavigateToLogin("authentication/login", options);
         }
     }
+
 }

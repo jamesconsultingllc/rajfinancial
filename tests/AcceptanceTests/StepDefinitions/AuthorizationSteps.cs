@@ -11,18 +11,19 @@ using Reqnroll;
 namespace RajFinancial.AcceptanceTests.StepDefinitions;
 
 /// <summary>
-/// Step definitions for authorization scenarios.
+///     Step definitions for authorization scenarios.
 /// </summary>
 [Binding]
 public class AuthorizationSteps
 {
     private readonly ScenarioContext scenarioContext;
-    private IPage Page => scenarioContext.GetPage();
 
     protected AuthorizationSteps(ScenarioContext scenarioContext)
     {
         this.scenarioContext = scenarioContext;
     }
+
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should see the portfolio page")]
     public async Task ThenIShouldSeeThePortfolioPage()
@@ -45,8 +46,8 @@ public class AuthorizationSteps
         // Wait for either the dashboard container or the title to be visible
         var tasks = new List<Task>
         {
-            Assertions.Expect(dashboard).ToBeVisibleAsync(new() { Timeout = 15000 }),
-            Assertions.Expect(title).ToBeVisibleAsync(new() { Timeout = 15000 })
+            Assertions.Expect(dashboard).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 15000 }),
+            Assertions.Expect(title).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 15000 })
         };
 
         var completed = await Task.WhenAny(tasks);
@@ -60,7 +61,8 @@ public class AuthorizationSteps
             var content = await Page.ContentAsync();
             var url = Page.Url;
             Console.WriteLine($"Admin dashboard not visible. URL: {url}");
-            Console.WriteLine($"Page contains 'Administrator Dashboard': {content.Contains("Administrator Dashboard")}");
+            Console.WriteLine(
+                $"Page contains 'Administrator Dashboard': {content.Contains("Administrator Dashboard")}");
             throw;
         }
     }
@@ -87,12 +89,13 @@ public class AuthorizationSteps
     public async Task ThenIShouldNotBeAbleToEditAnyData()
     {
         // Check that edit buttons are not visible or are disabled
-        var editButtons = await Page.Locator("button:has-text('Edit'), button:has-text('Save'), [data-testid*='edit']").AllAsync();
-        
+        var editButtons = await Page.Locator("button:has-text('Edit'), button:has-text('Save'), [data-testid*='edit']")
+            .AllAsync();
+
         foreach (var button in editButtons)
         {
             var isDisabled = await button.IsDisabledAsync();
-            var isHidden = !(await button.IsVisibleAsync());
+            var isHidden = !await button.IsVisibleAsync();
             Assert.True(isDisabled || isHidden, "Edit controls should be disabled or hidden for viewers");
         }
     }

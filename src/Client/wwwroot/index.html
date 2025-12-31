@@ -2,24 +2,24 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <title>RAJ Financial - Your Financial Future</title>
     <meta name="description" content="RAJ Financial Software - Premium financial planning and wealth management solutions.">
-    <base href="/" />
-    
+    <base href="/"/>
+
     <!-- RAJ Financial Theme (load first for design tokens) -->
-    <link rel="stylesheet" href="css/raj-theme.css" />
-    
+    <link rel="stylesheet" href="css/raj-theme.css"/>
+
     <!-- Bootstrap (utility classes) -->
-    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
-    
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css"/>
+
     <!-- App-specific overrides -->
-    <link rel="stylesheet" href="css/app.css" />
-    
+    <link rel="stylesheet" href="css/app.css"/>
+
     <!-- Component scoped styles -->
-    <link href="RajFinancial.Client.styles.css" rel="stylesheet" />
-    
+    <link href="RajFinancial.Client.styles.css" rel="stylesheet"/>
+
     <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -31,13 +31,13 @@
     <meta name="msapplication-TileColor" content="#1c1917">
     <meta name="msapplication-TileImage" content="/mstile-144x144.png">
     <meta name="theme-color" content="#0a0a0a">
-    
+
     <!-- Open Graph / Social -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="RAJ Financial - Your Financial Future">
     <meta property="og:description" content="Premium financial planning and wealth management solutions.">
     <meta property="og:image" content="/images/brand/logo-color.svg">
-    
+
     <style>
         /* Loading screen styles */
         .loading-screen {
@@ -135,29 +135,28 @@
 </head>
 
 <body>
-    <div id="app">
-        <!-- Loading state with brand styling -->
-        <div class="loading-screen">
-            <div class="loading-logo-container">
-                <!-- Outer ring (background) -->
-                <div class="loading-ring"></div>
-                <!-- Spinning progress ring -->
-                <div class="loading-ring-progress"></div>
-                <!-- Logo in center -->
-                <img src="/images/brand/logo-icon.svg" alt="RAJ Financial" class="loading-logo" />
-            </div>
-            <div class="loading-text">Loading...</div>
+<div id="app">
+    <!-- Loading state with brand styling -->
+    <div class="loading-screen">
+        <div class="loading-logo-container">
+            <!-- Outer ring (background) -->
+            <div class="loading-ring"></div>
+            <!-- Spinning progress ring -->
+            <div class="loading-ring-progress"></div>
+            <!-- Logo in center -->
+            <img src="/images/brand/logo-icon.svg" alt="RAJ Financial" class="loading-logo"/>
         </div>
+        <div class="loading-text">Loading...</div>
     </div>
+</div>
 
-    <div id="blazor-error-ui" style="background: #fef2f2; border-top: 2px solid #ef4444; color: #dc2626;">
-        An unhandled error has occurred.
-        <a href="" class="reload" style="color: #dc2626; text-decoration: underline;">Reload</a>
-        <a class="dismiss" style="cursor: pointer; margin-left: 1rem;">✕</a>
-    </div>
-    <script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
-    <script src="_framework/blazor.webassembly.js"></script>
+<div id="blazor-error-ui" style="background: #fef2f2; border-top: 2px solid #ef4444; color: #dc2626;">
+    An unhandled error has occurred.
+    <a href="" class="reload" style="color: #dc2626; text-decoration: underline;">Reload</a>
+    <a class="dismiss" style="cursor: pointer; margin-left: 1rem;">✕</a>
+</div>
+<script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
+<script src="_framework/blazor.webassembly.js"></script>
 </body>
 
 </html>
-

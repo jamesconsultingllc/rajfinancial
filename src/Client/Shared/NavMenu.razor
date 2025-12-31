@@ -1,4 +1,5 @@
-﻿@*
+﻿@using Microsoft.Extensions.Localization
+@*
     NavMenu.razor
     
     Main navigation menu demonstrating policy-based authorization.
@@ -12,19 +13,18 @@
     - Fully localized
     
     Authorization Policies Used:
-    - RequireClient: Visible to Clients, Advisors, and Administrators
-    - RequireAdvisor: Visible to Advisors and Administrators
+    - RequireClient: Visible to Clients and Administrators
     - RequireAdministrator: Visible to Administrators only
+    
+    Note: Fine-grained access control (who can see whose data) is handled via
+    DataAccessGrant entities at the API level, not through additional roles.
 *@
-
-@using Microsoft.Extensions.Localization
 @inject IStringLocalizer<NavMenu> L
 
-@* Brand Header *@
+@* Brand Header - Logo only, no text *@
 <div class="nav-brand">
     <a href="" class="nav-brand-link" aria-label="@L["Brand.Home.AriaLabel"]">
-        <img src="/images/brand/logo-horizontal.svg" alt="" class="nav-brand-icon" width="40" height="40" role="presentation" />
-        <span class="nav-brand-text">@L["Brand.Name"]</span>
+        <img src="/images/brand/logo-horizontal.svg" alt="@L["Brand.Name"]" class="nav-brand-logo" role="img"/>
     </a>
 </div>
 
@@ -41,7 +41,7 @@
         </NavLink>
     </div>
 
-    @* Client Features - Visible to authenticated users with Client, Advisor, or Administrator role *@
+    @* Client Features - Visible to authenticated users with Client or Administrator role *@
     <AuthorizeView Policy="RequireClient">
         <Authorized>
             <div class="nav-section">
@@ -74,31 +74,15 @@
                     </svg>
                     <span>@L["Nav.Statements"]</span>
                 </NavLink>
-            </div>
-        </Authorized>
-    </AuthorizeView>
-
-    @* Advisor Features - Visible to Advisors and Administrators *@
-    <AuthorizeView Policy="RequireAdvisor">
-        <Authorized>
-            <div class="nav-section">
-                <div class="nav-section-title">@L["Section.AdvisorTools"]</div>
-                <NavLink class="nav-link" href="advisor/clients" data-testid="nav-my-clients-link">
+                <NavLink class="nav-link" href="sharing" data-testid="nav-sharing-link">
                     <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                     </svg>
-                    <span>@L["Nav.MyClients"]</span>
-                </NavLink>
-                <NavLink class="nav-link" href="advisor/reports" data-testid="nav-reports-link">
-                    <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
-                    <span>@L["Nav.Reports"]</span>
+                    <span>@L["Nav.Sharing"]</span>
                 </NavLink>
             </div>
         </Authorized>
@@ -138,14 +122,15 @@
 </nav>
 
 @code {
+
     /// <summary>
-    /// Event callback to notify parent when navigation occurs (for closing mobile sidebar).
+    ///     Event callback to notify parent when navigation occurs (for closing mobile sidebar).
     /// </summary>
     [Parameter]
     public EventCallback OnNavigate { get; set; }
 
     /// <summary>
-    /// Handles click events on the navigation to close mobile sidebar.
+    ///     Handles click events on the navigation to close mobile sidebar.
     /// </summary>
     private async Task HandleNavClick()
     {
@@ -154,4 +139,5 @@
             await OnNavigate.InvokeAsync();
         }
     }
-}
+
+}}

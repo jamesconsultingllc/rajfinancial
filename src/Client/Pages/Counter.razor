@@ -9,7 +9,6 @@
 *@
 
 @page "/counter"
-
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<Counter> L
 
@@ -19,17 +18,18 @@
 
 <p role="status" aria-live="polite">@string.Format(L["CurrentCount"], currentCount)</p>
 
-<button class="btn btn-primary" 
+<button class="btn btn-primary"
         @onclick="IncrementCount"
         aria-label="@L["IncrementCount.AriaLabel"]">
     @L["ClickMe"]
 </button>
 
 @code {
-    private int currentCount = 0;
+    private int currentCount;
 
     private void IncrementCount()
     {
         currentCount++;
     }
+
 }
