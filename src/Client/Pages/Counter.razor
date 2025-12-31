@@ -1,18 +1,35 @@
-﻿@page "/counter"
+﻿@*
+    Counter.razor
+    
+    Demo counter page showing interactive Blazor functionality.
+    
+    Features:
+    - WCAG 2.1 AA accessible
+    - Fully localized
+*@
 
-<PageTitle>Counter</PageTitle>
+@page "/counter"
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Counter> L
 
-<h1>Counter</h1>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
-<p role="status">Current count: @currentCount</p>
+<h1>@L["Heading"]</h1>
 
-<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+<p role="status" aria-live="polite">@string.Format(L["CurrentCount"], currentCount)</p>
+
+<button class="btn btn-primary"
+        @onclick="IncrementCount"
+        aria-label="@L["IncrementCount.AriaLabel"]">
+    @L["ClickMe"]
+</button>
 
 @code {
-    private int currentCount = 0;
+    private int currentCount;
 
     private void IncrementCount()
     {
         currentCount++;
     }
+
 }

@@ -1,48 +1,61 @@
+@*
+    Users.razor
+    
+    User management page for administrators.
+    
+    Features:
+    - List of active users with roles and status
+    - Responsive design (mobile-first)
+    - WCAG 2.1 AA accessible
+    - Fully localized
+*@
+
 @page "/admin/users"
+@using Microsoft.Extensions.Localization
 @attribute [Authorize(Policy = "RequireAdministrator")]
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
+@inject IStringLocalizer<Users> L
 
-<PageTitle>User Management - RAJ Financial</PageTitle>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" data-testid="admin-users">
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h3 mb-0">User Management</h1>
-            <p class="text-muted">Manage user accounts and role assignments</p>
+            <h1 class="h3 mb-0" data-testid="admin-users-title">@L["Heading"]</h1>
+            <p class="text-muted">@L["Subtitle"]</p>
         </div>
         <div class="col-auto">
-            <button class="btn btn-primary">
+            <button class="btn btn-primary" data-testid="add-user">
                 <span class="oi oi-plus me-2" aria-hidden="true"></span>
-                Add User
+                @L["AddUser"]
             </button>
         </div>
     </div>
 
     <AuthorizeView Policy="RequireAdministrator">
         <Authorized>
-            <div class="card">
+            <div class="card" data-testid="active-users">
                 <div class="card-header">
-                    <h5 class="mb-0">Active Users</h5>
+                    <h2 class="h5 mb-0">@L["ActiveUsers"]</h2>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover" data-testid="user-table" aria-describedby="user-table-caption">
+                            <caption id="user-table-caption" class="visually-hidden">@L["Table.Caption"]</caption>
                             <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
+                            <tr>
+                                <th scope="col">@L["Table.Name"]</th>
+                                <th scope="col">@L["Table.Email"]</th>
+                                <th scope="col">@L["Table.Role"]</th>
+                                <th scope="col">@L["Table.Status"]</th>
+                                <th scope="col">@L["Table.Actions"]</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
-                                        No users found. User data will be loaded from API.
-                                    </td>
-                                </tr>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    @L["NoUsersFound"]
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -51,8 +64,8 @@
         </Authorized>
         <NotAuthorized>
             <div class="alert alert-danger" role="alert">
-                <h4 class="alert-heading">Access Denied</h4>
-                <p>You do not have permission to access this page. Administrator role required.</p>
+                <h4 class="alert-heading">@L["AccessDenied"]</h4>
+                <p>@L["AccessDenied.Message"]</p>
             </div>
         </NotAuthorized>
     </AuthorizeView>

@@ -12,6 +12,13 @@
 # Usage:
 #   .\register-entra-apps.ps1 -Environment dev
 #   .\register-entra-apps.ps1 -Environment prod
+#
+# Role Model:
+#   - Client: Standard user who owns their data and can grant access to others
+#   - Administrator: Platform staff with system-wide access
+#
+# Fine-grained access control (spouses, attorneys, CPAs viewing client data)
+# is handled through DataAccessGrant entities, NOT through app roles.
 # ============================================================================
 
 [CmdletBinding()]
@@ -24,6 +31,21 @@ param(
 # ============================================================================
 # Configuration
 # ============================================================================
+
+# Role GUIDs - these MUST match the values in appsettings.json / local.settings.json
+# Dev and Prod use different GUIDs for complete environment isolation
+$roleGuids = @{
+    dev = @{
+        Client = "bc34bd6c-38b8-46a6-9d4c-d338afeea81f"
+        Administrator = "2202014c-e4b9-4ab9-9e6a-4cc53e13598f"
+    }
+    prod = @{
+        # Production GUIDs - generate new ones for production
+        # Run: [guid]::NewGuid().ToString() in PowerShell to generate
+        Client = "00000000-0000-0000-0000-000000000001"  # TODO: Generate for prod
+        Administrator = "00000000-0000-0000-0000-000000000002"  # TODO: Generate for prod
+    }
+}
 
 $config = @{
     dev = @{
@@ -38,6 +60,7 @@ $config = @{
         )
         SpaLogoutUri = "https://localhost:5001/authentication/logout-callback"
         ApiAppIdUri = "api://rajfinancial-api-dev"
+        RoleGuids = $roleGuids.dev
     }
     prod = @{
         TenantId = "cc4d96fb-ebb5-4aef-8ac3-1d4f947dd2b6"
@@ -46,10 +69,11 @@ $config = @{
         ApiName = "rajfinancial-api"
         SpaRedirectUris = @(
             "https://rajfinancial.com/authentication/login-callback",
-            "https://www.rajfinancial.com/authentication/login-callback"
+            "https://app.rajfinancial.net/authentication/login-callback"
         )
-        SpaLogoutUri = "https://rajfinancial.com/authentication/logout-callback"
+        SpaLogoutUri = "https://app.rajfinancial.net/authentication/logout-callback"
         ApiAppIdUri = "api://rajfinancial-api"
+        RoleGuids = $roleGuids.prod
     }
 }
 
@@ -126,46 +150,27 @@ $apiOAuth2PermissionScopes = @(
 ) | ConvertTo-Json -Depth 10 -Compress
 
 # Define App Roles
+# NOTE: These GUIDs MUST match the values in appsettings.json and local.settings.json
+# The simplified two-role model:
+#   - Client: Standard user who owns their data
+#   - Administrator: Platform staff with system-wide access
+# Fine-grained access (spouses, attorneys, CPAs) is handled via DataAccessGrant entities
 $apiAppRoles = @(
     @{
         allowedMemberTypes = @("User")
-        description = "Primary consumer account holder with full access to own data"
-        displayName = "User"
-        id = [guid]::NewGuid().ToString()
+        description = "Standard user who owns their financial data and can grant access to others (spouses, CPAs, attorneys, etc.)"
+        displayName = "Client"
+        id = $envConfig.RoleGuids.Client
         isEnabled = $true
-        value = "user"
+        value = "Client"
     },
     @{
         allowedMemberTypes = @("User")
-        description = "Financial advisor with read access to assigned clients"
-        displayName = "Advisor"
-        id = [guid]::NewGuid().ToString()
+        description = "Platform administrator with system-wide access for user management and support"
+        displayName = "Administrator"
+        id = $envConfig.RoleGuids.Administrator
         isEnabled = $true
-        value = "advisor"
-    },
-    @{
-        allowedMemberTypes = @("User")
-        description = "Estate planning attorney with access to beneficiary data"
-        displayName = "Attorney"
-        id = [guid]::NewGuid().ToString()
-        isEnabled = $true
-        value = "attorney"
-    },
-    @{
-        allowedMemberTypes = @("User")
-        description = "CPA/Tax professional with access to financial data"
-        displayName = "Accountant"
-        id = [guid]::NewGuid().ToString()
-        isEnabled = $true
-        value = "accountant"
-    },
-    @{
-        allowedMemberTypes = @("User")
-        description = "Platform administrator with full access"
-        displayName = "Admin"
-        id = [guid]::NewGuid().ToString()
-        isEnabled = $true
-        value = "admin"
+        value = "Administrator"
     }
 ) | ConvertTo-Json -Depth 10 -Compress
 
@@ -197,6 +202,15 @@ if (-not $apiApp) {
     if ($existingApps.value.Count -gt 0) {
         $apiApp = $existingApps.value[0]
         Write-Host "Found existing API app: $($apiApp.appId)" -ForegroundColor Green
+        
+        # Update the app roles to ensure they match
+        Write-Host "Updating app roles..." -ForegroundColor Yellow
+        az rest `
+            --method PATCH `
+            --uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" `
+            --headers "Content-Type=application/json" `
+            --body "{`"appRoles`": $apiAppRoles}" 2>$null
+        Write-Host "App roles updated" -ForegroundColor Green
     } else {
         Write-Error "Failed to create or find API application"
         exit 1
@@ -222,12 +236,15 @@ $apiSpExists = az rest `
     2>$null | ConvertFrom-Json
 
 if ($apiSpExists.value.Count -eq 0) {
-    az rest `
+    $apiSp = az rest `
         --method POST `
         --uri "https://graph.microsoft.com/v1.0/servicePrincipals" `
         --headers "Content-Type=application/json" `
-        --body "{`"appId`": `"$($apiApp.appId)`"}" 2>$null
+        --body "{`"appId`": `"$($apiApp.appId)`"}" 2>$null | ConvertFrom-Json
     Write-Host "Created Service Principal for API app" -ForegroundColor Green
+    Write-Host "  Service Principal ID: $($apiSp.id)" -ForegroundColor Gray
+} else {
+    Write-Host "Service Principal already exists: $($apiSpExists.value[0].id)" -ForegroundColor Green
 }
 
 Write-Host ""
@@ -329,6 +346,10 @@ Write-Host "  Application (Client) ID: $($apiApp.appId)"
 Write-Host "  Object ID: $($apiApp.id)"
 Write-Host "  Identifier URI: $apiIdentifierUri"
 Write-Host ""
+Write-Host "  App Roles:" -ForegroundColor Yellow
+Write-Host "    Client:        $($envConfig.RoleGuids.Client)"
+Write-Host "    Administrator: $($envConfig.RoleGuids.Administrator)"
+Write-Host ""
 Write-Host "SPA Application:" -ForegroundColor Cyan
 Write-Host "  Display Name: $($envConfig.SpaName)"
 Write-Host "  Application (Client) ID: $($spaApp.appId)"
@@ -343,9 +364,9 @@ Write-Host "Generating configuration snippets..." -ForegroundColor Yellow
 Write-Host ""
 
 $clientConfig = @"
-// src/Client/appsettings.$Environment.json
+// src/Client/wwwroot/appsettings.$Environment.json
 {
-  "AzureAdB2C": {
+  "AzureAd": {
     "Authority": "https://$($envConfig.TenantDomain.Replace('.onmicrosoft.com', '')).ciamlogin.com/",
     "ClientId": "$($spaApp.appId)",
     "ValidateAuthority": true
@@ -358,7 +379,7 @@ $clientConfig = @"
 "@
 
 $apiConfig = @"
-// src/Api/appsettings.$Environment.json (AzureAdB2C section)
+// src/Api/appsettings.$Environment.json
 {
   "AzureAdB2C": {
     "Instance": "https://$($envConfig.TenantDomain.Replace('.onmicrosoft.com', '')).ciamlogin.com/",
@@ -366,6 +387,13 @@ $apiConfig = @"
     "TenantId": "$($envConfig.TenantId)",
     "ClientId": "$($apiApp.appId)",
     "Scopes": "openid profile email offline_access"
+  },
+  "AppRoles": {
+    "Client": "$($envConfig.RoleGuids.Client)",
+    "Administrator": "$($envConfig.RoleGuids.Administrator)"
+  },
+  "EntraExternalId": {
+    "ServicePrincipalId": "<service-principal-id-from-above>"
   }
 }
 "@
@@ -388,6 +416,10 @@ $output = @{
         appId = $apiApp.appId
         objectId = $apiApp.id
         identifierUri = $apiIdentifierUri
+        roles = @{
+            Client = $envConfig.RoleGuids.Client
+            Administrator = $envConfig.RoleGuids.Administrator
+        }
     }
     spa = @{
         displayName = $envConfig.SpaName
@@ -405,14 +437,27 @@ Write-Host ""
 # ============================================================================
 
 Write-Host "============================================" -ForegroundColor Yellow
-Write-Host " IMPORTANT: Admin Consent Required" -ForegroundColor Yellow
+Write-Host " IMPORTANT: Next Steps" -ForegroundColor Yellow
 Write-Host "============================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "You may need to grant admin consent for the API permissions."
-Write-Host "Go to Azure Portal -> Entra External ID -> App registrations"
-Write-Host "-> $($envConfig.SpaName) -> API permissions -> Grant admin consent"
+Write-Host "1. Update your configuration files with the generated values above"
 Write-Host ""
-Write-Host "Or run this command:" -ForegroundColor Cyan
-Write-Host "az ad app permission admin-consent --id $($spaApp.appId)"
+Write-Host "2. Grant admin consent for API permissions:"
+Write-Host "   Go to Azure Portal -> Entra External ID -> App registrations"
+Write-Host "   -> $($envConfig.SpaName) -> API permissions -> Grant admin consent"
+Write-Host ""
+Write-Host "   Or run this command:" -ForegroundColor Cyan
+Write-Host "   az ad app permission admin-consent --id $($spaApp.appId)"
+Write-Host ""
+Write-Host "3. Update the ServicePrincipalId in your API configuration:"
+Write-Host "   Get it from the API app's Enterprise Application (Service Principal)"
+Write-Host ""
+Write-Host "4. The app roles are:" -ForegroundColor Cyan
+Write-Host "   - Client: For standard users who own their financial data"
+Write-Host "   - Administrator: For platform staff"
+Write-Host ""
+Write-Host "   Note: Fine-grained access (spouses, CPAs, attorneys viewing client data)"
+Write-Host "   is handled through DataAccessGrant entities in the database,"
+Write-Host "   NOT through additional app roles."
 Write-Host ""
 

@@ -4,53 +4,58 @@
     Client portfolio overview page demonstrating the "RequireClient" policy.
     Accessible by Clients, Advisors, and Administrators.
     
-    Usage:
-    Navigate to /portfolio when logged in with any authenticated role.
+    Features:
+    - Portfolio summary cards
+    - Holdings table with responsive mobile view
+    - Recent transactions
+    - Responsive design (mobile-first)
+    - WCAG 2.1 AA accessible
+    - Fully localized
 *@
 
 @page "/portfolio"
+@using Microsoft.Extensions.Localization
 @attribute [Authorize(Policy = "RequireClient")]
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
+@inject IStringLocalizer<Portfolio> L
 
-<PageTitle>My Portfolio - RAJ Financial</PageTitle>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
 <div class="container-fluid py-4">
     @* Page Header *@
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h3 mb-0">My Portfolio</h1>
-            <p class="text-muted">View your investment portfolio and performance</p>
+            <h1 class="h3 mb-0">@L["Heading"]</h1>
+            <p class="text-muted">@L["Subtitle"]</p>
         </div>
     </div>
 
     @* Portfolio Summary Cards - Mobile-first responsive grid *@
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" role="region" aria-label="@L["Heading"]">
         <div class="card bg-primary text-white">
             <div class="card-body">
-                <h6 class="text-white-50 mb-1">Total Portfolio Value</h6>
-                <h2 class="mb-0">@TotalValue.ToString("C")</h2>
+                <h2 class="h6 text-white-50 mb-1">@L["TotalPortfolioValue"]</h2>
+                <p class="h2 mb-0">@TotalValue.ToString("C")</p>
                 <small class="@(DailyChange >= 0 ? "text-success-light" : "text-danger-light")">
-                    @(DailyChange >= 0 ? "▲" : "▼") @Math.Abs(DailyChange).ToString("C") (@DailyChangePercent.ToString("P2")) today
+                    @(DailyChange >= 0 ? "▲" : "▼") @Math.Abs(DailyChange).ToString("C") (@DailyChangePercent.ToString("P2")) @L["Today"]
                 </small>
             </div>
         </div>
 
         <div class="card">
             <div class="card-body">
-                <h6 class="text-muted mb-1">Total Gain/Loss</h6>
-                <h2 class="@(TotalGain >= 0 ? "text-success" : "text-danger") mb-0">
+                <h2 class="h6 text-muted mb-1">@L["TotalGainLoss"]</h2>
+                <p class="h2 @(TotalGain >= 0 ? "text-success" : "text-danger") mb-0">
                     @(TotalGain >= 0 ? "+" : "")@TotalGain.ToString("C")
-                </h2>
-                <small class="text-muted">@TotalGainPercent.ToString("P2") all time</small>
+                </p>
+                <small class="text-muted">@TotalGainPercent.ToString("P2") @L["AllTime"]</small>
             </div>
         </div>
 
         <div class="card">
             <div class="card-body">
-                <h6 class="text-muted mb-1">Available Cash</h6>
-                <h2 class="mb-0">@AvailableCash.ToString("C")</h2>
-                <small class="text-muted">Ready to invest</small>
+                <h2 class="h6 text-muted mb-1">@L["AvailableCash"]</h2>
+                <p class="h2 mb-0">@AvailableCash.ToString("C")</p>
+                <small class="text-muted">@L["ReadyToInvest"]</small>
             </div>
         </div>
     </div>
@@ -58,12 +63,12 @@
     @* Holdings Table - Desktop table / Mobile cards *@
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Holdings</h5>
+            <h2 class="h5 mb-0">@L["Holdings"]</h2>
             <AuthorizeView Policy="RequireClient">
                 <Authorized>
                     <button class="btn btn-sm btn-outline-primary" @onclick="ShowTradeModal">
                         <span class="oi oi-plus me-1" aria-hidden="true"></span>
-                        New Trade
+                        @L["NewTrade"]
                     </button>
                 </Authorized>
             </AuthorizeView>
@@ -71,53 +76,56 @@
         <div class="card-body p-0">
             @* Desktop Table View *@
             <div class="d-none d-md-block table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0" aria-describedby="holdings-caption">
+                    <caption id="holdings-caption" class="visually-hidden">@L["Holdings.TableCaption"]</caption>
                     <thead class="table-light">
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Name</th>
-                            <th class="text-end">Shares</th>
-                            <th class="text-end">Price</th>
-                            <th class="text-end">Value</th>
-                            <th class="text-end">Gain/Loss</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
+                    <tr>
+                        <th scope="col">@L["Table.Symbol"]</th>
+                        <th scope="col">@L["Table.Name"]</th>
+                        <th scope="col" class="text-end">@L["Table.Shares"]</th>
+                        <th scope="col" class="text-end">@L["Table.Price"]</th>
+                        <th scope="col" class="text-end">@L["Table.Value"]</th>
+                        <th scope="col" class="text-end">@L["Table.GainLoss"]</th>
+                        <th scope="col" class="text-end">@L["Table.Actions"]</th>
+                    </tr>
                     </thead>
                     <tbody>
-                        @foreach (var holding in Holdings)
-                        {
-                            <tr>
-                                <td><strong>@holding.Symbol</strong></td>
-                                <td>@holding.Name</td>
-                                <td class="text-end">@holding.Shares.ToString("N2")</td>
-                                <td class="text-end">@holding.CurrentPrice.ToString("C")</td>
-                                <td class="text-end">@holding.Value.ToString("C")</td>
-                                <td class="text-end @(holding.GainLoss >= 0 ? "text-success" : "text-danger")">
-                                    @(holding.GainLoss >= 0 ? "+" : "")@holding.GainLoss.ToString("C")
-                                    <br />
-                                    <small>(@holding.GainLossPercent.ToString("P2"))</small>
-                                </td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-primary me-1" 
-                                            aria-label="Buy more @holding.Symbol">
-                                        Buy
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary"
-                                            aria-label="Sell @holding.Symbol">
-                                        Sell
-                                    </button>
-                                </td>
-                            </tr>
-                        }
+                    @foreach (var holding in Holdings)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@holding.Symbol</strong>
+                            </td>
+                            <td>@holding.Name</td>
+                            <td class="text-end">@holding.Shares.ToString("N2")</td>
+                            <td class="text-end">@holding.CurrentPrice.ToString("C")</td>
+                            <td class="text-end">@holding.Value.ToString("C")</td>
+                            <td class="text-end @(holding.GainLoss >= 0 ? "text-success" : "text-danger")">
+                                @(holding.GainLoss >= 0 ? "+" : "")@holding.GainLoss.ToString("C")
+                                <br/>
+                                <small>(@holding.GainLossPercent.ToString("P2"))</small>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary me-1"
+                                        aria-label="@string.Format(L["BuyMore.AriaLabel"], holding.Symbol)">
+                                    @L["Buy"]
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        aria-label="@string.Format(L["Sell.AriaLabel"], holding.Symbol)">
+                                    @L["Sell"]
+                                </button>
+                            </td>
+                        </tr>
+                    }
                     </tbody>
                 </table>
             </div>
 
             @* Mobile Card View *@
-            <div class="d-md-none">
+            <div class="d-md-none" role="list" aria-label="@L["Holdings"]">
                 @foreach (var holding in Holdings)
                 {
-                    <div class="border-bottom p-3">
+                    <div class="border-bottom p-3" role="listitem">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <strong class="d-block">@holding.Symbol</strong>
@@ -131,17 +139,17 @@
                             </div>
                         </div>
                         <div class="d-flex justify-content-between text-muted small mb-2">
-                            <span>@holding.Shares.ToString("N2") shares</span>
-                            <span>@holding.CurrentPrice.ToString("C")/share</span>
+                            <span>@string.Format(L["SharesCount"], holding.Shares.ToString("N2"))</span>
+                            <span>@string.Format(L["PricePerShare"], holding.CurrentPrice.ToString("C"))</span>
                         </div>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-primary flex-grow-1"
-                                    aria-label="Buy more @holding.Symbol">
-                                Buy
+                                    aria-label="@string.Format(L["BuyMore.AriaLabel"], holding.Symbol)">
+                                @L["Buy"]
                             </button>
                             <button class="btn btn-sm btn-outline-secondary flex-grow-1"
-                                    aria-label="Sell @holding.Symbol">
-                                Sell
+                                    aria-label="@string.Format(L["Sell.AriaLabel"], holding.Symbol)">
+                                @L["Sell"]
                             </button>
                         </div>
                     </div>
@@ -153,19 +161,19 @@
     @* Recent Transactions *@
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">Recent Transactions</h5>
+            <h2 class="h5 mb-0">@L["RecentTransactions"]</h2>
         </div>
         <div class="card-body">
-            <ul class="list-unstyled mb-0">
+            <ul class="list-unstyled mb-0" role="list">
                 @foreach (var transaction in RecentTransactions)
                 {
-                    <li class="d-flex align-items-center py-2 border-bottom">
+                    <li class="d-flex align-items-center py-2 border-bottom" role="listitem">
                         <span class="badge @(transaction.Type == "Buy" ? "bg-success" : "bg-danger") me-3">
                             @transaction.Type
                         </span>
                         <div class="flex-grow-1">
                             <strong>@transaction.Symbol</strong>
-                            <span class="text-muted">- @transaction.Shares shares at @transaction.Price.ToString("C")</span>
+                            <span class="text-muted">- @string.Format(L["Transaction.SharesAt"], transaction.Shares, transaction.Price.ToString("C"))</span>
                         </div>
                         <small class="text-muted">@transaction.Date.ToString("MMM dd, yyyy")</small>
                     </li>
@@ -176,60 +184,61 @@
 </div>
 
 @code {
-    /// <summary>
-    /// Total portfolio value.
-    /// </summary>
-    private decimal TotalValue { get; set; } = 125_432.87m;
 
     /// <summary>
-    /// Daily change in portfolio value.
+    ///     Total portfolio value.
     /// </summary>
-    private decimal DailyChange { get; set; } = 1_234.56m;
+    private decimal TotalValue { get; } = 125_432.87m;
 
     /// <summary>
-    /// Daily change percentage.
+    ///     Daily change in portfolio value.
     /// </summary>
-    private decimal DailyChangePercent { get; set; } = 0.0099m;
+    private decimal DailyChange { get; } = 1_234.56m;
 
     /// <summary>
-    /// Total gain/loss since inception.
+    ///     Daily change percentage.
     /// </summary>
-    private decimal TotalGain { get; set; } = 25_432.87m;
+    private decimal DailyChangePercent { get; } = 0.0099m;
 
     /// <summary>
-    /// Total gain/loss percentage.
+    ///     Total gain/loss since inception.
     /// </summary>
-    private decimal TotalGainPercent { get; set; } = 0.2543m;
+    private decimal TotalGain { get; } = 25_432.87m;
 
     /// <summary>
-    /// Available cash balance.
+    ///     Total gain/loss percentage.
     /// </summary>
-    private decimal AvailableCash { get; set; } = 5_678.90m;
+    private decimal TotalGainPercent { get; } = 0.2543m;
 
     /// <summary>
-    /// Portfolio holdings.
+    ///     Available cash balance.
     /// </summary>
-    private List<HoldingViewModel> Holdings { get; set; } = new()
+    private decimal AvailableCash { get; } = 5_678.90m;
+
+    /// <summary>
+    ///     Portfolio holdings.
+    /// </summary>
+    private List<HoldingViewModel> Holdings { get; } = new()
     {
-        new() { Symbol = "AAPL", Name = "Apple Inc.", Shares = 50, CurrentPrice = 178.50m, CostBasis = 150.00m },
-        new() { Symbol = "MSFT", Name = "Microsoft Corp.", Shares = 30, CurrentPrice = 378.25m, CostBasis = 320.00m },
-        new() { Symbol = "GOOGL", Name = "Alphabet Inc.", Shares = 15, CurrentPrice = 141.80m, CostBasis = 125.00m },
-        new() { Symbol = "AMZN", Name = "Amazon.com Inc.", Shares = 25, CurrentPrice = 178.50m, CostBasis = 165.00m },
-        new() { Symbol = "VOO", Name = "Vanguard S&P 500 ETF", Shares = 100, CurrentPrice = 436.25m, CostBasis = 380.00m }
+        new HoldingViewModel { Symbol = "AAPL", Name = "Apple Inc.", Shares = 50, CurrentPrice = 178.50m, CostBasis = 150.00m },
+        new HoldingViewModel { Symbol = "MSFT", Name = "Microsoft Corp.", Shares = 30, CurrentPrice = 378.25m, CostBasis = 320.00m },
+        new HoldingViewModel { Symbol = "GOOGL", Name = "Alphabet Inc.", Shares = 15, CurrentPrice = 141.80m, CostBasis = 125.00m },
+        new HoldingViewModel { Symbol = "AMZN", Name = "Amazon.com Inc.", Shares = 25, CurrentPrice = 178.50m, CostBasis = 165.00m },
+        new HoldingViewModel { Symbol = "VOO", Name = "Vanguard S&P 500 ETF", Shares = 100, CurrentPrice = 436.25m, CostBasis = 380.00m }
     };
 
     /// <summary>
-    /// Recent transactions.
+    ///     Recent transactions.
     /// </summary>
-    private List<TransactionViewModel> RecentTransactions { get; set; } = new()
+    private List<TransactionViewModel> RecentTransactions { get; } = new()
     {
-        new() { Type = "Buy", Symbol = "AAPL", Shares = 10, Price = 175.00m, Date = DateTime.Now.AddDays(-2) },
-        new() { Type = "Sell", Symbol = "TSLA", Shares = 5, Price = 245.00m, Date = DateTime.Now.AddDays(-5) },
-        new() { Type = "Buy", Symbol = "VOO", Shares = 20, Price = 432.50m, Date = DateTime.Now.AddDays(-10) }
+        new TransactionViewModel { Type = "Buy", Symbol = "AAPL", Shares = 10, Price = 175.00m, Date = DateTime.Now.AddDays(-2) },
+        new TransactionViewModel { Type = "Sell", Symbol = "TSLA", Shares = 5, Price = 245.00m, Date = DateTime.Now.AddDays(-5) },
+        new TransactionViewModel { Type = "Buy", Symbol = "VOO", Shares = 20, Price = 432.50m, Date = DateTime.Now.AddDays(-10) }
     };
 
     /// <summary>
-    /// Shows the trade modal dialog.
+    ///     Shows the trade modal dialog.
     /// </summary>
     private void ShowTradeModal()
     {
@@ -237,7 +246,7 @@
     }
 
     /// <summary>
-    /// View model for portfolio holdings.
+    ///     View model for portfolio holdings.
     /// </summary>
     private class HoldingViewModel
     {
@@ -252,7 +261,7 @@
     }
 
     /// <summary>
-    /// View model for transactions.
+    ///     View model for transactions.
     /// </summary>
     private class TransactionViewModel
     {
@@ -262,5 +271,5 @@
         public decimal Price { get; set; }
         public DateTime Date { get; set; }
     }
-}
 
+}

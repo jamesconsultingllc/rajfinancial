@@ -5,25 +5,55 @@
                 <NotAuthorized>
                     @if (context.User.Identity?.IsAuthenticated != true)
                     {
-                        <RedirectToLogin />
+                        <RedirectToLogin/>
                     }
                     else
                     {
-                        <LayoutView Layout="@typeof(MainLayout)">
-                            <div class="alert alert-warning" role="alert">
-                                <h4>Access Denied</h4>
-                                <p>You are not authorized to access this resource.</p>
+                        <div class="access-denied-container">
+                            <div class="card card-premium border-gold-accent p-6" style="max-width: 500px; margin: 2rem auto;">
+                                <div class="flex items-center gap-4 mb-4">
+                                    <div class="flex items-center justify-content-center" style="width: 48px; height: 48px; background: var(--warning-100); border-radius: var(--radius-lg);">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning-600);">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="heading-4 mb-1" style="color: var(--neutral-900);">Access Denied</h4>
+                                        <p class="text-muted mb-0">You are not authorized to access this resource.</p>
+                                    </div>
+                                </div>
+                                <a href="" class="btn btn-gold w-full">Return to Home</a>
                             </div>
-                        </LayoutView>
+                        </div>
                     }
                 </NotAuthorized>
             </AuthorizeRouteView>
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1"/>
         </Found>
         <NotFound>
             <PageTitle>Not found</PageTitle>
             <LayoutView Layout="@typeof(MainLayout)">
-                <p role="alert">Sorry, there's nothing at this address.</p>
+                <div class="access-denied-container">
+                    <div class="card card-premium border-gold-accent p-6" style="max-width: 500px; margin: 2rem auto;">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="flex items-center justify-content-center" style="width: 48px; height: 48px; background: var(--info-100); border-radius: var(--radius-lg);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--info-600);">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="heading-4 mb-1" style="color: var(--neutral-900);">Page Not Found</h4>
+                                <p class="text-muted mb-0">Sorry, there's nothing at this address.</p>
+                            </div>
+                        </div>
+                        <a href="" class="btn btn-gold w-full">Return to Home</a>
+                    </div>
+                </div>
             </LayoutView>
         </NotFound>
     </Router>

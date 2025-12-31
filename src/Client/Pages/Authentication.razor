@@ -1,16 +1,35 @@
+@*
+    Authentication.razor
+    
+    Handles all authentication flows (login, logout, register).
+    
+    Features:
+    - WCAG 2.1 AA accessible
+    - Fully localized
+*@
+
 @page "/authentication/{action}"
-@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.Extensions.Localization
+@inject NavigationManager Navigation
+@inject IStringLocalizer<Authentication> L
 
-<PageTitle>Authentication</PageTitle>
+<PageTitle>@L["PageTitle"]</PageTitle>
 
-<RemoteAuthenticatorView Action="@Action">
+<RemoteAuthenticatorView Action="@Action" @ref="authenticator">
     <LoggingIn>
         <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
             <div class="text-center">
                 <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">@L["Loading"]</span>
                 </div>
-                <p class="text-muted">Signing you in...</p>
+                <p class="text-muted mb-4">@L["SigningIn"]</p>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true" focusable="false">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    @L["CancelAndReturnHome"]
+                </a>
             </div>
         </div>
     </LoggingIn>
@@ -18,9 +37,9 @@
         <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
             <div class="text-center">
                 <div class="spinner-border text-success mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">@L["Loading"]</span>
                 </div>
-                <p class="text-muted">Completing sign in...</p>
+                <p class="text-muted">@L["CompletingSignIn"]</p>
             </div>
         </div>
     </CompletingLoggingIn>
@@ -28,9 +47,16 @@
         <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
             <div class="text-center">
                 <div class="spinner-border text-warning mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">@L["Loading"]</span>
                 </div>
-                <p class="text-muted">Signing you out...</p>
+                <p class="text-muted mb-4">@L["SigningOut"]</p>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true" focusable="false">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    @L["CancelAndReturnHome"]
+                </a>
             </div>
         </div>
     </LogOut>
@@ -38,34 +64,88 @@
         <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
             <div class="text-center">
                 <div class="spinner-border text-info mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">@L["Loading"]</span>
                 </div>
-                <p class="text-muted">Completing sign out...</p>
+                <p class="text-muted">@L["CompletingSignOut"]</p>
             </div>
         </div>
     </CompletingLogOut>
     <LogInFailed>
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">Authentication Failed</h4>
-            <p>There was an error trying to log you in. Please try again.</p>
-            <hr>
-            <a href="/" class="btn btn-primary">Return to Home</a>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="alert alert-danger" role="alert">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-3 text-danger" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <h4 class="alert-heading">@L["AuthenticationFailed"]</h4>
+                    <p class="mb-0">@L["LoginErrorMessage"]</p>
+                </div>
+                <div class="mt-3">
+                    <a href="authentication/login" class="btn btn-primary me-2">
+                        @L["TryAgain"]
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        @L["ReturnToHome"]
+                    </a>
+                </div>
+            </div>
         </div>
     </LogInFailed>
     <LogOutFailed>
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">Logout Failed</h4>
-            <p>There was an error trying to log you out. Please try again.</p>
-            <hr>
-            <a href="/" class="btn btn-primary">Return to Home</a>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="text-center">
+                <div class="alert alert-danger" role="alert">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-3 text-danger" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <h4 class="alert-heading">@L["LogoutFailed"]</h4>
+                    <p class="mb-0">@L["LogoutErrorMessage"]</p>
+                </div>
+                <div class="mt-3">
+                    <a href="authentication/logout" class="btn btn-primary me-2">
+                        @L["TryAgain"]
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        @L["ReturnToHome"]
+                    </a>
+                </div>
+            </div>
         </div>
     </LogOutFailed>
 </RemoteAuthenticatorView>
 
 @code {
+
     /// <summary>
-    /// The authentication action to perform (login, logout, login-callback, logout-callback, etc.).
+    ///     The authentication action to perform (login, logout, register, login-callback, logout-callback, etc.).
     /// </summary>
     [Parameter]
     public string? Action { get; set; }
+
+    private RemoteAuthenticatorView? authenticator;
+
+    protected override void OnParametersSet()
+    {
+        // Handle "register" action by redirecting to login with prompt=create
+        // This tells Entra External ID to show the sign-up screen directly
+        if (string.Equals(Action, "register", StringComparison.OrdinalIgnoreCase))
+        {
+            // Build the authorization URL with prompt=create to go directly to sign-up
+            var options = new InteractiveRequestOptions
+            {
+                Interaction = InteractionType.SignIn,
+                ReturnUrl = Navigation.ToAbsoluteUri("/").ToString()
+            };
+
+            // Add prompt=create to show sign-up screen instead of sign-in
+            options.TryAddAdditionalParameter("prompt", "create");
+
+            Navigation.NavigateToLogin("authentication/login", options);
+        }
+    }
+
 }

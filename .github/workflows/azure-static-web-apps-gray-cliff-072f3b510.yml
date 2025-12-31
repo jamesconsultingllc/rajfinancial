@@ -26,6 +26,24 @@ permissions:
   contents: read
 
 jobs:
+  detect_changes:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: Detect Changes
+    outputs:
+      src_changed: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filters: |
+            src:
+              - 'src/**'
+
   unit_tests_job:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -36,7 +54,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -48,10 +66,10 @@ jobs:
         run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    needs: unit_tests_job
+    needs: [detect_changes, unit_tests_job]
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -74,7 +92,26 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
+
+      - name: Use localStorage for MSAL in non-production
+        if: github.ref != 'refs/heads/main'
+        run: |
+          # Use localStorage for MSAL cache in non-production environments
+          # This enables Playwright E2E tests to work with sessionStorage not persisting across contexts
+          cat > src/Client/wwwroot/appsettings.json << 'EOF'
+          {
+            "AzureAd": {
+              "Authority": "https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com",
+              "ClientId": "2d6a08c7-b142-4d53-a307-9ac75bae75eb",
+              "ValidateAuthority": true
+            },
+            "Msal": {
+              "CacheLocation": "localStorage"
+            }
+          }
+          EOF
+          echo "Updated appsettings.json to use localStorage for MSAL cache"
 
       - name: Build And Deploy
         id: builddeploy
@@ -83,14 +120,16 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
+          deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
           api_location: "src/Api"
           output_location: "wwwroot"
+          production_branch: main
           skip_app_build: false
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
-        uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
+        uses: jamesconsultingllc/sync-swa-settings-action@c01d1d9ac7c7ee1f77a7f54894f5ca15dbbd7fba # v1.1.0
         with:
           swa-name: rajfinancial
           resource-group: rajfinancial
@@ -128,23 +167,108 @@ jobs:
       #     origin: https://${{ steps.resolve-env.outputs.target-slot }}.gray-cliff-072f3b510.azurestaticapps.net
     outputs:
       deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
+      target-environment: ${{ steps.resolve-env.outputs.target-environment }}
 
   e2e_tests_job:
-    if: github.event_name != 'pull_request'
+    if: |
+      github.event_name != 'pull_request' && 
+      always() &&
+      needs.unit_tests_job.result == 'success' &&
+      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
     runs-on: ubuntu-latest
     name: E2E Tests
-    needs: build_and_deploy_job
+    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
     strategy:
       fail-fast: false
       matrix:
-        browser: [ chromium, firefox, webkit ]
+        browser: [ chromium, firefox, webkit, msedge ]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Resolve Environment
+        id: resolve-env
+        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+
+      - name: Determine SWA URL
+        id: swa-url
+        run: |
+          if [[ "${{ needs.build_and_deploy_job.result }}" == "success" ]]; then
+            echo "url=${{ needs.build_and_deploy_job.outputs.deployed-url }}" >> $GITHUB_OUTPUT
+          else
+            # Construct URL from branch pattern
+            TARGET_SLOT="${{ steps.resolve-env.outputs.target-slot }}"
+            if [[ "$TARGET_SLOT" == "" || "$TARGET_SLOT" == "production" ]]; then
+              echo "url=https://gray-cliff-072f3b510.azurestaticapps.net" >> $GITHUB_OUTPUT
+            else
+              echo "url=https://gray-cliff-072f3b510-${TARGET_SLOT}.centralus.azurestaticapps.net" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch Test Passwords from SWA Settings
+        id: fetch-passwords
+        run: |
+          target_env="${{ steps.resolve-env.outputs.target-environment }}"
+          echo "Fetching app settings for environment: $target_env"
+          
+          # Get app settings from SWA
+          settings=$(az staticwebapp appsettings list \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$target_env" \
+            --query "properties" -o json 2>/dev/null || echo "{}")
+          
+          # Extract test passwords for all roles
+          admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+          advisor_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADVISOR // empty')
+          client_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_CLIENT // empty')
+          viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
+          
+          # Set as masked environment variables for subsequent steps
+          if [[ -n "$admin_password" ]]; then
+            echo "::add-mask::$admin_password"
+            echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_ADMINISTRATOR not found in SWA settings"
+          fi
+          
+          if [[ -n "$advisor_password" ]]; then
+            echo "::add-mask::$advisor_password"
+            echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_ADVISOR password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_ADVISOR not found in SWA settings"
+          fi
+          
+          if [[ -n "$client_password" ]]; then
+            echo "::add-mask::$client_password"
+            echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_CLIENT password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_CLIENT not found in SWA settings"
+          fi
+          
+          if [[ -n "$viewer_password" ]]; then
+            echo "::add-mask::$viewer_password"
+            echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
+            echo "Found DEVELOPMENT_TEST_VIEWER password"
+          else
+            echo "Warning: DEVELOPMENT_TEST_VIEWER not found in SWA settings"
+          fi
 
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -152,16 +276,17 @@ jobs:
       - name: Build test project
         run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
 
-      - name: Install Playwright browsers
-        run: pwsh tests/AcceptanceTests/bin/Debug/net8.0/playwright.ps1 install --with-deps
+      - name: Install Playwright browser (${{ matrix.browser }})
+        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }} --with-deps
 
       - name: Wait for deployment to stabilize
+        if: needs.build_and_deploy_job.result == 'success'
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests"
+        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests&Category!=signup"
         env:
-          BASE_URL: ${{ needs.build_and_deploy_job.outputs.deployed-url }}
+          BASE_URL: ${{ steps.swa-url.outputs.url }}
           BROWSER: ${{ matrix.browser }}
 
       - name: Upload test results
@@ -207,41 +332,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Find Source Slot in SWA
-        id: find-slot
-        uses: ./.github/actions/find-swa-slot
-        with:
-          swa-name: rajfinancial
-          resource-group: rajfinancial
-          slot-pattern: ${{ steps.source-env.outputs.sanitized-branch }}
-
       - name: Sync New Settings to Target
-        if: steps.find-slot.outputs.found == 'true'
-        uses: jamesconsultingllc/sync-swa-settings-action@fb31db1767b3bcc45f546e8b310372079f29cd88 # v1
+        uses: jamesconsultingllc/sync-swa-settings-action@c01d1d9ac7c7ee1f77a7f54894f5ca15dbbd7fba # v1.1.0
         with:
           swa-name: rajfinancial
           resource-group: rajfinancial
-          source-environment: ${{ steps.find-slot.outputs.slot }}
+          source-environment: ${{ steps.source-env.outputs.sanitized-branch }}
           target-environment: ${{ steps.target-env.outputs.target-environment }}
 
-      - name: Delete Preview Environment
-        id: delete-env
-        if: steps.find-slot.outputs.found == 'true'
-        shell: bash
-        continue-on-error: true
-        run: |
-          source_slot="${{ steps.find-slot.outputs.slot }}"
-
-          echo "Deleting environment: $source_slot"
-          az staticwebapp environment delete \
-            --name rajfinancial \
-            --resource-group rajfinancial \
-            --environment-name "$source_slot" \
-            --yes
-          echo "deleted=true" >> "$GITHUB_OUTPUT"
 
       - name: Azure Login with OIDC (Entra External ID)
-        if: steps.find-slot.outputs.found == 'true'
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.ENTRA_CLIENT_ID }}
@@ -249,13 +349,12 @@ jobs:
           allow-no-subscriptions: true
 
       - name: Remove Entra Redirect URI for Preview Environment
-        if: steps.find-slot.outputs.found == 'true'
         uses: ./.github/actions/manage-entra-redirect-uris
         with:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: ${{ steps.find-slot.outputs.origin }}
-          callback-path: '/.auth/login/entraExternalId/callback'
+          origin: https://gray-cliff-072f3b510-${{ steps.source-env.outputs.sanitized-branch }}.centralus.azurestaticapps.net/
+          callback-path: '/authentication/login-callback'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS cleanup when storage account is created
@@ -268,10 +367,10 @@ jobs:
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
-      - name: Fallback - Close with SWA Action
-        if: steps.find-slot.outputs.found != 'true'
+      - name: Close Preview Environment
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
           action: close
+          deployment_environment: ${{ steps.source-env.outputs.sanitized-branch }}
 

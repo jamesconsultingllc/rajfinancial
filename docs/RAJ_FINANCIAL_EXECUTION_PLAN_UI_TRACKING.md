@@ -10,22 +10,23 @@ This document contains the UI implementation tracking tables extracted from [RAJ
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| CSS Design Tokens (raj-theme.css) | ⬜ Not Started | P0 | Gold palette, typography, spacing |
-| Animation keyframes | ⬜ Not Started | P1 | fadeIn, slideUp, celebrate, shimmer |
-| Gradient utilities | ⬜ Not Started | P1 | gradient-gold, gradient-mesh |
-| Glass effect styles | ⬜ Not Started | P1 | Backdrop blur, borders |
-| Button styles (btn-gold) | ⬜ Not Started | P0 | Primary, outline variants |
-| Focus states (accessibility) | ⬜ Not Started | P0 | Gold focus rings |
-| Skeleton loading styles | ⬜ Not Started | P1 | Shimmer animation |
+| CSS Design Tokens (raj-theme.css) | ✅ Complete | P0 | Comprehensive design system with CSS custom properties |
+| Animation keyframes | ✅ Complete | P1 | fadeIn, slideUp, slideDown, scaleIn, shimmer, celebrate, goldShine, countUp, float, spin |
+| Gradient utilities | ✅ Complete | P1 | gradient-gold, gradient-gold-shine, gradient-mesh, gradient-dark-gold |
+| Glass effect styles | ✅ Complete | P1 | .glass, .glass-dark, .card-glass with backdrop blur |
+| Button styles (btn-gold) | ✅ Complete | P0 | btn-gold, btn-gold-solid, btn-gold-outline, btn-gold-outline-dark, btn-hero-outline |
+| Focus states (accessibility) | ✅ Complete | P0 | Gold focus rings on all interactive elements |
+| Skeleton loading styles | ✅ Complete | P1 | Shimmer animation with gold tint |
 
 ### 1.2 Layout Components
 
-| Component | File | Status | Priority |
-|-----------|------|--------|----------|
-| MainLayout.razor | Components/Layout/ | ⬜ Not Started | P0 |
-| DesktopSidebar.razor | Components/Layout/ | ⬜ Not Started | P0 |
-| MobileBottomNav.razor | Components/Layout/ | ⬜ Not Started | P0 |
-| MobileHeader.razor | Components/Layout/ | ⬜ Not Started | P0 |
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| MainLayout.razor | Shared/MainLayout.razor | ✅ Complete | P0 | Dual layout: authenticated (with sidebar) & public (no sidebar) |
+| NavMenu.razor | Shared/NavMenu.razor | ✅ Complete | P0 | Role-based navigation with AuthorizeView, mobile-responsive |
+| Desktop Sidebar | Integrated in MainLayout | ✅ Complete | P0 | Sticky sidebar for desktop (1024px+) |
+| Mobile Hamburger Menu | Integrated in MainLayout | ✅ Complete | P0 | Collapsible sidebar with overlay for mobile |
+| MobileBottomNav.razor | Components/Layout/ | ⬜ Not Started | P1 | Optional future enhancement |
 
 ### 1.3 Common/Shared Components
 
@@ -127,11 +128,38 @@ This document contains the UI implementation tracking tables extracted from [RAJ
 | SecuritySection.razor | Components/Settings/ | ⬜ Not Started | P2 |
 | NotificationPrefs.razor | Components/Settings/ | ⬜ Not Started | P3 |
 
-### 1.12 Authentication Pages
+### 1.12 Authentication & Account Pages
 
+#### Landing/Home Page (Completed)
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| Index.razor | Pages/Index.razor | ✅ Complete | P0 | Dual experience: authenticated quick actions & public landing page |
+| Index.razor.css | Pages/Index.razor.css | ✅ Complete | P0 | Mobile-first responsive styling with animations |
+| Public Hero Section | In Index.razor | ✅ Complete | P0 | Brand messaging with dark gradient background |
+| Features Section | In Index.razor | ✅ Complete | P0 | 6 feature cards in responsive grid |
+| How It Works Section | In Index.razor | ✅ Complete | P0 | 3-step workflow explanation |
+| Security & Trust Section | In Index.razor | ✅ Complete | P0 | 4 trust indicators |
+| CTA Section | In Index.razor | ✅ Complete | P0 | Final call-to-action |
+| Footer | In Index.razor | ✅ Complete | P1 | Brand footer for public pages |
+
+#### Authentication Components (Completed)
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| Authentication.razor | Pages/ | ✅ Complete | P0 | Handles login/logout callbacks |
+| LoginDisplay.razor | Shared/ | ✅ Complete | P0 | Login/logout buttons |
+| RedirectToLogin.razor | Shared/ | ✅ Complete | P0 | Redirect unauthenticated users |
+
+#### Sign-Up / Account Workflow
+| Component | File | Status | Priority | Notes |
+|-----------|------|--------|----------|-------|
+| Add "Sign Up" button | Shared/LoginDisplay.razor | ⬜ Not Started | P0 | Separate from Log in |
+| CompleteProfile.razor | Pages/Account/ | ⬜ Not Started | P0 | Post-signup profile completion |
+| Settings.razor | Pages/Account/ | ⬜ Not Started | P1 | User profile management |
+| UserProfileService | Services/ | ⬜ Not Started | P0 | Sync Entra claims with profile |
+
+#### Auth Error/Redirect Pages
 | Component | File | Status | Priority |
 |-----------|------|--------|----------|
-| AuthRedirect.razor | Pages/Auth/ | ⬜ Not Started | P0 |
 | AccessDenied.razor | Pages/Auth/ | ⬜ Not Started | P0 |
 | LoggingIn.razor | Pages/Auth/ | ⬜ Not Started | P1 |
 

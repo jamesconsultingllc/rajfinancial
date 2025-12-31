@@ -1,44 +1,123 @@
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RajFinancial.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// Configure localization
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+
 // Configure MSAL authentication with Entra External ID
-builder.Services.AddMsalAuthentication(options =>
+builder.Services.AddMsalAuthentication<RemoteAuthenticationState, RemoteUserAccount>(options =>
 {
     builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
     options.ProviderOptions.DefaultAccessTokenScopes.Add("openid");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("profile");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("email");
     options.ProviderOptions.DefaultAccessTokenScopes.Add("offline_access");
-});
+
+    // Token cache location: "sessionStorage" (default, more secure) or "localStorage" (for testing).
+    // - sessionStorage: Tokens cleared when tab closes. More secure but requires re-login.
+    // - localStorage: Tokens persist across sessions. Better UX but larger XSS attack surface.
+    // Production (main branch) uses sessionStorage; non-production uses localStorage for Playwright E2E test compatibility.
+    // See: .github/workflows/azure-static-web-apps-*.yml for the build-time config swap.
+    var cacheLocation = builder.Configuration.GetValue<string>("Msal:CacheLocation") ?? "sessionStorage";
+    options.ProviderOptions.Cache.CacheLocation = cacheLocation;
+
+    // Use redirect flow instead of popup for better compatibility with:
+    // - Headless browsers (Playwright E2E tests)
+    // - Mobile browsers (popup blockers)
+    // - Strict browser security policies
+    options.ProviderOptions.LoginMode = "redirect";
+
+    // Map the 'roles' claim from Entra ID to .NET's role claim
+    // This enables AuthorizeView Policy="..." and [Authorize(Roles = "...")] to work
+    options.UserOptions.RoleClaim = "roles";
+}).AddAccountClaimsPrincipalFactory<RemoteAuthenticationState, RemoteUserAccount, CustomAccountFactory>();
 
 // Configure authorization policies
+// 
+// ????????????????????????????????????????????????????????????????????????????
+// AUTHORIZATION MODEL: Implicit Client Role + Explicit Administrator Role
+// ????????????????????????????????????????????????????????????????????????????
+//
+// PRINCIPLE: All authenticated users are Clients by default.
+// Only Administrators require explicit role assignment in Entra ID.
+//
+// WHY THIS APPROACH:
+//   - No Entra ID P1/P2 license required for dynamic group assignment
+//   - No API Connector needed during signup
+//   - Simpler user onboarding - sign up and you're a Client
+//   - Administrators are manually assigned via Azure Portal
+//
+// APP ROLES (defined in Entra External ID):
+//   - Client: Implicit for all authenticated users (no explicit assignment needed)
+//   - Administrator: Explicit assignment required via Azure Portal
+//
+// DATA ACCESS MODEL (enforced at API level via DataAccessGrant):
+//   - Users OWN their data and control who can see it
+//   - Owners GRANT access to others (spouse, CPA, attorney, financial advisor)
+//   - Grants specify: access level (read/write), scope, expiration
+//   - All data access is audited
+//
+// ????????????????????????????????????????????????????????????????????????????
+
 builder.Services.AddAuthorizationCore(options =>
 {
-    // Admin-only features (user management, system configuration)
+    // ????????????????????????????????????????????????????????????????????????
+    // SYSTEM ADMINISTRATION
+    // ????????????????????????????????????????????????????????????????????????
+    
+    // System configuration, user management, audit logs, support functions
+    // REQUIRES explicit "Administrator" role assignment in Entra ID
+    // Note: Administrators do NOT automatically get access to user financial data
+    // They must still be granted access via DataAccessGrant for support cases
     options.AddPolicy("RequireAdministrator", policy =>
         policy.RequireRole("Administrator"));
 
-    // Advisor features (client management, portfolio operations)
-    // Administrators can also perform advisor tasks
-    options.AddPolicy("RequireAdvisor", policy =>
-        policy.RequireRole("Advisor", "Administrator"));
-
-    // Client features (view own portfolio, make transactions)
-    // All authenticated users with any role can access client features
+    // ????????????????????????????????????????????????????????????????????????
+    // CLIENT FEATURES (Default for all authenticated users)
+    // ????????????????????????????????????????????????????????????????????????
+    
+    // Standard client features: portfolio management, account linking, beneficiaries
+    // ANY authenticated user is considered a Client (explicit role not required)
+    // Administrators also have access to client features
     options.AddPolicy("RequireClient", policy =>
-        policy.RequireRole("Client", "Advisor", "Administrator"));
+        policy.RequireAssertion(context =>
+        {
+            // Must be authenticated
+            if (context.User.Identity?.IsAuthenticated != true)
+                return false;
 
-    // Any authenticated user
+            // Explicit Client or Administrator role grants access
+            if (context.User.IsInRole("Client") || context.User.IsInRole("Administrator"))
+                return true;
+
+            // Authenticated users without any role are implicitly Clients
+            // This handles new users who haven't been assigned a role yet
+            var hasAnyRole = context.User.Claims.Any(c => 
+                c.Type == "roles" || 
+                c.Type == "role" || 
+                c.Type == System.Security.Claims.ClaimTypes.Role);
+            
+            return !hasAnyRole; // No role = implicit Client
+        }));
+
+    // ????????????????????????????????????????????????????????????????????????
+    // GENERAL POLICIES
+    // ????????????????????????????????????????????????????????????????????????
+
+    // Any authenticated user (for profile, settings, help, etc.)
     options.AddPolicy("RequireAuthenticated", policy =>
         policy.RequireAuthenticatedUser());
 });
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-await builder.Build().RunAsync();
+// Set default culture
+var host = builder.Build();
+
+await host.RunAsync();

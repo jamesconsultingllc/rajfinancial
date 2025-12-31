@@ -1,4 +1,4 @@
-﻿# Claude AI Assistant Instructions
+# Claude AI Assistant Instructions
 
 ## Project Overview
 
@@ -98,15 +98,162 @@ docs/                       # Documentation and planning
 
 ---
 
+## 🔒 OWASP Web Security Standards
+
+All code must follow the **OWASP Web Security Testing Guide (WSTG) v4.2** and address the **OWASP Top 10** vulnerabilities.
+
+### References
+
+- **OWASP WSTG v4.2**: https://owasp.org/www-project-web-security-testing-guide/v42/
+- **OWASP Top 10:2021**: https://owasp.org/Top10/2021/
+- **OWASP Top 10:2025 (RC)**: https://owasp.org/Top10/2025/
+
+### OWASP Top 10:2025 Compliance
+
+| Rank | Vulnerability | Key Mitigations |
+|------|---------------|-----------------|
+| **A01** | Broken Access Control | Deny by default, verify ownership, log failures |
+| **A02** | Security Misconfiguration | Security headers, remove unused features |
+| **A03** | Software Supply Chain Failures | Verify packages, use lockfiles, audit deps |
+| **A04** | Cryptographic Failures | Strong algorithms (AES-256, Argon2id), TLS 1.2+ |
+| **A05** | Injection | Parameterized queries, input validation |
+| **A06** | Insecure Design | Threat modeling, secure design patterns |
+| **A07** | Authentication Failures | MFA, rate limiting, secure sessions |
+| **A08** | Software/Data Integrity | Verify signatures, validate serialized data |
+| **A09** | Logging & Alerting Failures | Log security events, protect logs |
+| **A10** | Mishandling Exceptions | Don't leak stack traces, fail securely |
+
+### Cross-Site Scripting (XSS) Prevention
+
+**XSS protection is mandatory for all user-facing code.** Follow these rules without exception:
+
+#### Blazor-Specific XSS Protection
+
+```razor
+@* ✅ Correct: Blazor automatically HTML-encodes expressions *@
+<p>@userInput</p>  @* Safe - automatically encoded *@
+
+@* ❌ NEVER use MarkupString with untrusted input *@
+@((MarkupString)untrustedHtml)  @* DANGEROUS - allows XSS *@
+
+@* ✅ If HTML rendering is required, sanitize first *@
+@((MarkupString)HtmlSanitizer.Sanitize(trustedHtml))
+```
+
+#### XSS Prevention Rules
+
+- **Never** use `MarkupString` with untrusted input
+- **Always** validate input length, format, and allowed characters
+- **Use** HTML sanitizer libraries (e.g., HtmlSanitizer) when rendering user HTML
+- **Encode** output for the appropriate context (HTML, JavaScript, URL, CSS)
+- **Configure** Content Security Policy (CSP) headers
+- **Never** construct HTML by string concatenation with user input
+- **Validate** URLs before using in `href` or `src` attributes
+- **Use** `HttpOnly` and `Secure` flags on cookies
+
+### SQL Injection Prevention
+
+**Always use parameterized queries. Never concatenate user input into SQL.**
+
+```csharp
+// ✅ Correct: Parameterized query with Entity Framework
+var accounts = await _context.Accounts
+    .Where(a => a.UserId == userId && a.Name == searchName)
+    .ToListAsync();
+
+// ❌ NEVER: String concatenation in SQL
+var sql = $"SELECT * FROM Accounts WHERE UserId = '{userId}'"; // SQL INJECTION!
+```
+
+### Input Validation Requirements
+
+Apply defense-in-depth with multiple validation layers:
+
+```csharp
+// ✅ Use Data Annotations for validation
+public class CreateAccountRequest
+{
+    [Required]
+    [StringLength(100, MinimumLength = 1)]
+    [RegularExpression(@"^[a-zA-Z0-9\s\-]+$", ErrorMessage = "Invalid characters")]
+    public required string Name { get; set; }
+    
+    [Range(0, double.MaxValue)]
+    public decimal InitialBalance { get; set; }
+}
+```
+
+### IDOR Prevention
+
+Always verify resource ownership before returning data:
+
+```csharp
+// ✅ Correct: Scope queries to authenticated user
+var account = await _context.Accounts
+    .Where(a => a.Id == accountId && a.UserId == userId)
+    .FirstOrDefaultAsync();
+```
+
+### Security Headers
+
+Configure in `staticwebapp.config.json`:
+
+```json
+{
+  "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+  }
+}
+```
+
+### OWASP Security Checklist
+
+Before code review/merge, verify:
+
+#### OWASP Top 10 Coverage
+- [ ] **A01**: All endpoints verify resource ownership (no IDOR)
+- [ ] **A02**: Security headers configured, no debug info in prod
+- [ ] **A03**: Dependencies audited, lockfiles used
+- [ ] **A04**: Strong encryption, no hardcoded secrets
+- [ ] **A05**: Parameterized queries, no XSS vulnerabilities
+- [ ] **A06**: Threat model reviewed for new features
+- [ ] **A07**: Auth has rate limiting, secure session config
+- [ ] **A08**: Serialized data validated, signatures verified
+- [ ] **A09**: Security events logged (auth failures, access denied)
+- [ ] **A10**: Exceptions handled securely, no stack traces leaked
+
+- [ ] All user input is validated server-side
+- [ ] SQL queries use parameterized statements  
+- [ ] No XSS vulnerabilities (no raw MarkupString with user input)
+- [ ] IDOR prevented (resource access scoped to user/tenant)
+- [ ] Cookies use HttpOnly, Secure, SameSite flags
+- [ ] Error messages don't leak sensitive information
+- [ ] No hardcoded secrets in code
+- [ ] TLS 1.2+ required for all connections
+
+**Full security guidelines**: See [`.github/copilot-instructions.md`](.github/copilot-instructions.md#owasp-web-security-standards)
+
+---
+
 ## 📋 Planning & Progress Tracking
 
-### Active Planning Documents
+### ⚠️ IMPORTANT: Approval Required
 
-All project planning and progress tracking is maintained in the `docs/` folder:
+**NEVER commit changes without explicit user approval.** Always:
+1. Describe what changes you plan to make
+2. Wait for user confirmation before committing
+3. If in doubt, ask first
+
+### Permanent Execution Plans (Source of Truth)
+
+**All project planning and progress tracking is maintained in the `docs/` folder.** These are the authoritative documents - always keep them up to date:
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) | Master execution plan with phases and milestones |
+| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) | **Master execution plan** - phases, infrastructure, security tasks |
 | [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md) | API implementation progress and task tracking |
 | [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md) | UI implementation progress and task tracking |
 | [`docs/RAJ_FINANCIAL_INTEGRATIONS_API.md`](docs/RAJ_FINANCIAL_INTEGRATIONS_API.md) | API integration specifications |
@@ -114,13 +261,23 @@ All project planning and progress tracking is maintained in the `docs/` folder:
 
 ### When Starting Work
 
-1. **Read the tracking documents** to understand current progress:
-   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md` for API tasks
-   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md` for UI tasks
+1. **Read the execution plans** to understand current progress:
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md` for infrastructure/security tasks (Part 0)
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md` for API tasks (Part 2)
+   - Check `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md` for UI tasks (Part 1)
 
-2. **Update progress** as you complete tasks by checking off items in the tracking documents
+2. **Update the permanent execution plans** as you complete tasks:
+   - Change `⬜ Not Started` to `🟡 In Progress` or `✅ Complete`
+   - Add notes with relevant details (dates, PRs, etc.)
 
-3. **For new feature branches**, also create an `IMPLEMENTATION_PLAN.md` at the repo root (see copilot-instructions.md)
+3. **Reference task numbers** from the execution plan in commits and PRs
+
+### Temporary Branch Plans (Optional)
+
+You may create a temporary `IMPLEMENTATION_PLAN.md` at the repo root for the current feature branch to make it easier to follow immediate progress. Requirements:
+- Reference tasks by number from the permanent execution plans
+- Delete before merging to `develop`
+- Always sync completed work back to the permanent execution plans
 
 ---
 
@@ -138,6 +295,22 @@ All coding standards are documented in [`.github/copilot-instructions.md`](.gith
 6. **Observability** - Structured logging with ILogger
 7. **SOLID Principles** - Clean architecture patterns
 8. **DRY** - Extract reusable components and services
+
+### UI Implementation
+
+**All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
+
+**Syncfusion Essential UI Kit**: https://blazor.syncfusion.com/essential-ui-kit/
+
+Before creating any UI component:
+1. **Check Syncfusion Essential UI Kit** at https://blazor.syncfusion.com/essential-ui-kit/ for design inspiration and page templates
+2. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+3. Follow the exact component structure and props defined
+4. Use the CSS classes and design tokens specified
+5. Use Syncfusion Blazor v24+ for complex UI elements
+6. Apply glass morphism effects using the GlassCard component
+7. Implement mobile-first responsive design
+8. Adapt Syncfusion UI Kit designs to match RAJ Financial's gold brand palette
 
 ### Code Documentation
 

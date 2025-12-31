@@ -30,4 +30,3 @@ public class SampleUnitTests
         Assert.Equal(expected, actual);
     }
 }
-

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="PageTitle" xml:space="preserve">
+    <value>Admin Dashboard - RAJ Financial</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>Administrator Dashboard</value>
+  </data>
+  <data name="Subtitle" xml:space="preserve">
+    <value>System overview and management tools</value>
+  </data>
+  <data name="Stats.TotalUsers" xml:space="preserve">
+    <value>Total Users</value>
+  </data>
+  <data name="Stats.ActiveAdvisors" xml:space="preserve">
+    <value>Active Advisors</value>
+  </data>
+  <data name="Stats.TotalClients" xml:space="preserve">
+    <value>Total Clients</value>
+  </data>
+  <data name="Stats.AssetsUnderMgmt" xml:space="preserve">
+    <value>Assets Under Mgmt</value>
+  </data>
+  <data name="QuickActions" xml:space="preserve">
+    <value>Quick Actions</value>
+  </data>
+  <data name="Action.ManageUsers" xml:space="preserve">
+    <value>Manage Users</value>
+  </data>
+  <data name="Action.SystemSettings" xml:space="preserve">
+    <value>System Settings</value>
+  </data>
+  <data name="Action.AuditLogs" xml:space="preserve">
+    <value>Audit Logs</value>
+  </data>
+  <data name="Action.SystemReports" xml:space="preserve">
+    <value>System Reports</value>
+  </data>
+  <data name="RecentActivity" xml:space="preserve">
+    <value>Recent Activity</value>
+  </data>
+  <data name="Activity.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Activity.Info" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="Activity.Alert" xml:space="preserve">
+    <value>Alert</value>
+  </data>
+  <data name="Activity.UserRegistration" xml:space="preserve">
+    <value>User registration pending approval</value>
+  </data>
+  <data name="Activity.SystemBackup" xml:space="preserve">
+    <value>System backup completed</value>
+  </data>
+  <data name="Activity.TransactionFlagged" xml:space="preserve">
+    <value>High-value transaction flagged</value>
+  </data>
+  <data name="Stats.ActiveClients" xml:space="preserve">
+    <value>Active Clients</value>
+  </data>
+  <data name="Stats.ActiveShares" xml:space="preserve">
+    <value>Active Shares</value>
+  </data>
+  <data name="Activity.DataAccessGranted" xml:space="preserve">
+    <value>Data access granted</value>
+  </data>
+  <data name="Activity.DataAccessRevoked" xml:space="preserve">
+    <value>Data access revoked</value>
+  </data>
+</root>
