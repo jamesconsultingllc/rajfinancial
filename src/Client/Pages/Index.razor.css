@@ -507,7 +507,19 @@
 
 .how-it-works-section {
     padding: var(--space-12) var(--space-4);
-    background: var(--neutral-50);
+    background: linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%);
+}
+
+.how-it-works-section .section-label {
+    color: var(--gold-500);
+}
+
+.how-it-works-section .section-title {
+    color: white;
+}
+
+.how-it-works-section .section-subtitle {
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .steps-grid {
@@ -522,11 +534,18 @@
 
 .step-card {
     position: relative;
-    background: white;
+    background: rgba(255, 255, 255, 0.03);
     padding: var(--space-6);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--neutral-200);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.step-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(235, 187, 16, 0.3);
+    box-shadow: 0 8px 32px rgba(235, 187, 16, 0.1);
 }
 
 .step-number {
@@ -539,22 +558,23 @@
     font-size: var(--text-xl);
     font-weight: var(--font-bold);
     color: var(--neutral-900);
-    background: var(--gold-100);
+    background: linear-gradient(135deg, var(--gold-400) 0%, var(--gold-600) 100%);
     border-radius: var(--radius-full);
     margin-bottom: var(--space-4);
+    box-shadow: 0 4px 12px rgba(235, 187, 16, 0.3);
 }
 
 .step-title {
     font-family: var(--font-display);
     font-size: var(--text-lg);
     font-weight: var(--font-semibold);
-    color: var(--neutral-900);
+    color: white;
     margin: 0 0 var(--space-2);
 }
 
 .step-description {
     font-size: var(--text-base);
-    color: var(--neutral-600);
+    color: rgba(255, 255, 255, 0.7);
     line-height: var(--leading-relaxed);
     margin: 0;
 }

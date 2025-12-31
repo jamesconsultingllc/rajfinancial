@@ -13,9 +13,8 @@
 *@
 
 @page "/dashboard"
-@attribute [Authorize]
-
 @using Microsoft.Extensions.Localization
+@attribute [Authorize]
 @inject IStringLocalizer<Dashboard> L
 
 <PageTitle>@L["PageTitle"]</PageTitle>

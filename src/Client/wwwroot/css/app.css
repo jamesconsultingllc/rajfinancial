@@ -23,6 +23,29 @@ a:hover, .btn-link:hover {
     color: var(--gold-700);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SIDEBAR NAVIGATION LINKS
+   Override global link styles within sidebar
+   ═══════════════════════════════════════════════════════════ */
+
+.raj-sidebar a.nav-link,
+.raj-sidebar a.nav-link:link,
+.raj-sidebar a.nav-link:visited {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-decoration: none !important;
+}
+
+.raj-sidebar a.nav-link:hover {
+    color: var(--gold-300) !important;
+}
+
+.raj-sidebar a.nav-link.active,
+.raj-sidebar a.nav-link.active:link,
+.raj-sidebar a.nav-link.active:visited,
+.raj-sidebar a.nav-link.active:hover {
+    color: var(--neutral-900) !important;
+}
+
 /* Primary button with gold styling */
 .btn-primary {
     color: var(--neutral-900);

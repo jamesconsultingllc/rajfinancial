@@ -1,3 +1,4 @@
+@using Microsoft.Extensions.Localization
 @*
     LoginDisplay.razor
 
@@ -15,7 +16,6 @@
     Usage:
     <LoginDisplay />
 *@
-@using Microsoft.Extensions.Localization
 
 @inject NavigationManager Navigation
 @inject IStringLocalizer<LoginDisplay> L
@@ -30,8 +30,9 @@
                 </svg>
                 <span class="visually-hidden">@L["LoggedInAs"] </span>@context.User.Identity?.Name
             </span>
-            <button class="btn btn-gold-outline btn-sm" 
-                    @onclick="BeginLogout" 
+            <button class="btn btn-gold-outline btn-sm"
+                    data-testid="logout-button"
+                    @onclick="BeginLogout"
                     aria-label="@L["Logout.AriaLabel"]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true" focusable="false">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -44,12 +45,14 @@
     </Authorized>
     <NotAuthorized>
         <div class="auth-buttons d-flex align-items-center gap-2">
-            <a href="authentication/login" 
+            <a href="authentication/login"
                class="btn btn-gold-solid btn-sm"
+               data-testid="login-button"
                aria-label="@L["Login.AriaLabel"]">
                 @L["Login"]
             </a>
-            <a href="authentication/register" 
+            <a href="authentication/register"
+               data-testid="register-button"
                class="btn btn-dark-gold btn-sm"
                aria-label="@L["GetStarted.AriaLabel"]">
                 @L["GetStarted"]
@@ -59,11 +62,14 @@
 </AuthorizeView>
 
 @code {
+
     /// <summary>
-    /// Initiates the logout process by navigating to the logout page.
+    ///     Initiates the logout process by navigating to the logout page.
+    ///     After logout completes, the user is redirected to the home page.
     /// </summary>
     private void BeginLogout()
     {
-        Navigation.NavigateToLogout("authentication/logout");
+        Navigation.NavigateToLogout("authentication/logout", "/");
     }
+
 }

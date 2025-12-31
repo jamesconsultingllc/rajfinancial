@@ -11,18 +11,19 @@ using Reqnroll;
 namespace RajFinancial.AcceptanceTests.StepDefinitions;
 
 /// <summary>
-/// Step definitions for admin dashboard scenarios.
+///     Step definitions for admin dashboard scenarios.
 /// </summary>
 [Binding]
 public class AdminDashboardSteps
 {
     private readonly ScenarioContext scenarioContext;
-    private IPage Page => scenarioContext.GetPage();
 
     protected AdminDashboardSteps(ScenarioContext scenarioContext)
     {
         this.scenarioContext = scenarioContext;
     }
+
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should see statistics cards with numeric values")]
     public async Task ThenIShouldSeeStatisticsCardsWithNumericValues()
@@ -32,22 +33,23 @@ public class AdminDashboardSteps
         await Page.WaitForTimeoutAsync(500);
 
         var cards = Page.Locator(".card h3");
-        await Assertions.Expect(cards).ToHaveCountAsync(4, new() { Timeout = 15000 });
+        await Assertions.Expect(cards).ToHaveCountAsync(4, new LocatorAssertionsToHaveCountOptions { Timeout = 15000 });
 
         var count = await cards.CountAsync();
         Assert.True(count >= 4, "Should have at least four statistic values");
 
-        for (int i = 0; i < Math.Min(4, count); i++)
+        for (var i = 0; i < Math.Min(4, count); i++)
         {
             var text = (await cards.Nth(i).InnerTextAsync()).Trim();
             // Normalize currency symbols and commas
             var normalized = text.Replace(",", string.Empty)
-                                  .Replace("$", string.Empty)
-                                  .Replace("�", string.Empty)
-                                  .Replace("�", string.Empty)
-                                  .Trim();
+                .Replace("$", string.Empty)
+                .Replace("�", string.Empty)
+                .Replace("�", string.Empty)
+                .Trim();
 
-            Assert.True(decimal.TryParse(normalized, out _), $"Card {i + 1} should display a numeric value but was '{text}'");
+            Assert.True(decimal.TryParse(normalized, out _),
+                $"Card {i + 1} should display a numeric value but was '{text}'");
         }
     }
 
@@ -120,9 +122,11 @@ public class AdminDashboardSteps
         await Page.WaitForTimeoutAsync(500);
 
         var quickActions = Page.Locator("[data-testid='quick-actions'], h5:has-text(\"Quick Actions\")");
-        await quickActions.First.WaitForAsync(new() { Timeout = 20000, State = WaitForSelectorState.Attached });
+        await quickActions.First.WaitForAsync(new LocatorWaitForOptions
+            { Timeout = 20000, State = WaitForSelectorState.Attached });
         await quickActions.First.ScrollIntoViewIfNeededAsync();
-        await Assertions.Expect(quickActions.First).ToBeVisibleAsync(new() { Timeout = 20000 });
+        await Assertions.Expect(quickActions.First)
+            .ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 20000 });
     }
 
     [Then(@"the statistics cards should adapt to tablet layout")]
@@ -161,8 +165,8 @@ public class AdminDashboardSteps
             var title = await icon.GetAttributeAsync("title");
 
             var isAccessible = ariaHidden == "true" ||
-                              !string.IsNullOrWhiteSpace(ariaLabel) ||
-                              !string.IsNullOrWhiteSpace(title);
+                               !string.IsNullOrWhiteSpace(ariaLabel) ||
+                               !string.IsNullOrWhiteSpace(title);
 
             Assert.True(isAccessible, "Icons should be hidden from screen readers or have labels");
         }

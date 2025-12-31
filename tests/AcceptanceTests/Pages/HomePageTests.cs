@@ -10,18 +10,20 @@ using RajFinancial.AcceptanceTests.Helpers;
 namespace RajFinancial.AcceptanceTests.Pages;
 
 /// <summary>
-/// End-to-end tests for the home page.
+///     End-to-end tests for the home page.
 /// </summary>
 public class HomePageTests : IAsyncLifetime
 {
-    private IPlaywright? playwright;
+    private readonly string baseUrl =
+        Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+
     private IBrowser? browser;
-    private readonly string baseUrl = Environment.GetEnvironmentVariable("BASE_URL") ?? TestConfiguration.Instance.BaseUrl;
+    private IPlaywright? playwright;
 
     public async Task InitializeAsync()
     {
         playwright = await Playwright.CreateAsync();
-        browser = await BrowserHelper.LaunchBrowserAsync(playwright, headless: true);
+        browser = await BrowserHelper.LaunchBrowserAsync(playwright, true);
     }
 
     public async Task DisposeAsync()
@@ -31,6 +33,7 @@ public class HomePageTests : IAsyncLifetime
             await browser.CloseAsync();
             await browser.DisposeAsync();
         }
+
         playwright?.Dispose();
     }
 
@@ -39,7 +42,7 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
@@ -60,13 +63,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000); // Wait for Blazor
-            
+
             var title = await page.TitleAsync();
 
             // Assert
@@ -83,13 +86,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert
             var heroSection = await page.Locator(".hero-section").CountAsync();
             Assert.True(heroSection >= 1, "Hero section should be visible");
@@ -105,13 +108,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert
             var content = await page.ContentAsync();
             Assert.Contains("RAJ Financial", content);
@@ -127,13 +130,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert
             var content = await page.ContentAsync();
             Assert.Contains("Your Financial Future", content);
@@ -149,13 +152,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert
             var featureCards = await page.Locator(".feature-card").CountAsync();
             Assert.True(featureCards >= 3, $"Expected at least 3 feature cards, found {featureCards}");
@@ -171,13 +174,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert
             var ctaSection = await page.Locator(".cta-section").CountAsync();
             Assert.True(ctaSection >= 1, "CTA section should be visible");
@@ -193,16 +196,16 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Find Get Started button
             var getStartedButton = page.Locator("text=Get Started").First;
-            
+
             // Assert it's visible and clickable
             await Assertions.Expect(getStartedButton).ToBeVisibleAsync();
             await Assertions.Expect(getStartedButton).ToBeEnabledAsync();
@@ -218,20 +221,20 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Set mobile viewport
             await page.SetViewportSizeAsync(375, 667); // iPhone SE size
-            
+
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert - content should still be visible
             var heroSection = await page.Locator(".hero-section").CountAsync();
             Assert.True(heroSection >= 1, "Hero section should be visible on mobile");
-            
+
             // Verify no horizontal scroll
             var hasHorizontalScroll = await page.EvaluateAsync<bool>(
                 "document.documentElement.scrollWidth > document.documentElement.clientWidth");
@@ -248,16 +251,16 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Set tablet viewport
             await page.SetViewportSizeAsync(768, 1024); // iPad size
-            
+
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert - content should still be visible
             var heroSection = await page.Locator(".hero-section").CountAsync();
             Assert.True(heroSection >= 1, "Hero section should be visible on tablet");
@@ -273,16 +276,16 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Set desktop viewport
             await page.SetViewportSizeAsync(1920, 1080);
-            
+
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert - content should still be visible
             var heroSection = await page.Locator(".hero-section").CountAsync();
             Assert.True(heroSection >= 1, "Hero section should be visible on desktop");
@@ -298,13 +301,13 @@ public class HomePageTests : IAsyncLifetime
     {
         // Arrange
         var page = await browser!.NewPageAsync();
-        
+
         try
         {
             // Act
-            await page.GotoAsync(baseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(2000);
-            
+
             // Assert - Look for the Sign In button (solid gold) or Get Started button (dark gold)
             // Updated to match new separate button layout
             var loginButton = page.Locator("text=Sign In").Or(
@@ -312,7 +315,7 @@ public class HomePageTests : IAsyncLifetime
                 page.Locator("a[href*='authentication/login']")).Or(
                 page.Locator("a[href*='authentication/register']")).Or(
                 page.Locator("[aria-label*='Sign in']"));
-            
+
             await Assertions.Expect(loginButton.First).ToBeVisibleAsync();
         }
         finally

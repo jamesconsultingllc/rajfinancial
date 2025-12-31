@@ -11,9 +11,8 @@
 *@
 
 @page "/admin/users"
-@attribute [Authorize(Policy = "RequireAdministrator")]
-
 @using Microsoft.Extensions.Localization
+@attribute [Authorize(Policy = "RequireAdministrator")]
 @inject IStringLocalizer<Users> L
 
 <PageTitle>@L["PageTitle"]</PageTitle>
@@ -43,20 +42,20 @@
                         <table class="table table-hover" data-testid="user-table" aria-describedby="user-table-caption">
                             <caption id="user-table-caption" class="visually-hidden">@L["Table.Caption"]</caption>
                             <thead>
-                                <tr>
-                                    <th scope="col">@L["Table.Name"]</th>
-                                    <th scope="col">@L["Table.Email"]</th>
-                                    <th scope="col">@L["Table.Role"]</th>
-                                    <th scope="col">@L["Table.Status"]</th>
-                                    <th scope="col">@L["Table.Actions"]</th>
-                                </tr>
+                            <tr>
+                                <th scope="col">@L["Table.Name"]</th>
+                                <th scope="col">@L["Table.Email"]</th>
+                                <th scope="col">@L["Table.Role"]</th>
+                                <th scope="col">@L["Table.Status"]</th>
+                                <th scope="col">@L["Table.Actions"]</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
-                                        @L["NoUsersFound"]
-                                    </td>
-                                </tr>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    @L["NoUsersFound"]
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>

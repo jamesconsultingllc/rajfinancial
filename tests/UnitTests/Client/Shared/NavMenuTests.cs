@@ -2,6 +2,13 @@
 // RAJ Financial - NavMenu Component Unit Tests
 // ============================================================================
 // bUnit tests for the navigation menu with role-based authorization
+//
+// Role Model:
+//   - Client: Standard user who owns their financial data (IMPLICIT)
+//   - Administrator: Platform staff with system-wide access (EXPLICIT)
+//
+// Fine-grained access control is handled via DataAccessGrant entities,
+// not through additional roles.
 // ============================================================================
 
 using Bunit;
@@ -14,7 +21,7 @@ using RajFinancial.Client.Shared;
 namespace RajFinancial.UnitTests.Client.Shared;
 
 /// <summary>
-/// Unit tests for the NavMenu component.
+///     Unit tests for the NavMenu component.
 /// </summary>
 public class NavMenuTests : TestContext
 {
@@ -28,27 +35,28 @@ public class NavMenuTests : TestContext
     }
 
     /// <summary>
-    /// Returns localized values matching the resource file.
+    ///     Returns localized values matching the resource file.
     /// </summary>
-    private static string GetLocalizedValue(string key) => key switch
+    private static string GetLocalizedValue(string key)
     {
-        "Brand.Name" => "RAJ Financial",
-        "Brand.Home.AriaLabel" => "RAJ Financial - Home",
-        "Nav.AriaLabel" => "Main navigation",
-        "Nav.Home" => "Home",
-        "Section.MyAccount" => "My Account",
-        "Nav.Portfolio" => "My Portfolio",
-        "Nav.Transactions" => "Transactions",
-        "Nav.Statements" => "Statements",
-        "Section.AdvisorTools" => "Advisor Tools",
-        "Nav.MyClients" => "My Clients",
-        "Nav.Reports" => "Reports",
-        "Section.Administration" => "Administration",
-        "Nav.Dashboard" => "Dashboard",
-        "Nav.UserManagement" => "User Management",
-        "Nav.Settings" => "Settings",
-        _ => key
-    };
+        return key switch
+        {
+            "Brand.Name" => "RAJ Financial",
+            "Brand.Home.AriaLabel" => "RAJ Financial - Home",
+            "Nav.AriaLabel" => "Main navigation",
+            "Nav.Home" => "Home",
+            "Section.MyAccount" => "My Account",
+            "Nav.Portfolio" => "My Portfolio",
+            "Nav.Transactions" => "Transactions",
+            "Nav.Statements" => "Statements",
+            "Nav.Sharing" => "Sharing",
+            "Section.Administration" => "Administration",
+            "Nav.Dashboard" => "Dashboard",
+            "Nav.UserManagement" => "User Management",
+            "Nav.Settings" => "Settings",
+            _ => key
+        };
+    }
 
     [Fact]
     public void NavMenu_Renders_BrandLogo()
@@ -59,13 +67,14 @@ public class NavMenuTests : TestContext
         // Act
         var cut = RenderComponent<NavMenu>();
 
-        // Assert
-        var logo = cut.Find(".nav-brand-icon");
+        // Assert - Logo should be rendered with nav-brand-logo class
+        var logo = cut.Find(".nav-brand-logo");
         Assert.NotNull(logo);
+        Assert.Equal("img", logo.TagName.ToLower());
     }
 
     [Fact]
-    public void NavMenu_Renders_BrandName()
+    public void NavMenu_BrandLogo_HasAltText()
     {
         // Arrange
         SetupAuthorization();
@@ -73,9 +82,10 @@ public class NavMenuTests : TestContext
         // Act
         var cut = RenderComponent<NavMenu>();
 
-        // Assert
-        var brandText = cut.Find(".nav-brand-text");
-        Assert.Equal("RAJ Financial", brandText.TextContent);
+        // Assert - Logo should have alt text for accessibility
+        var logo = cut.Find(".nav-brand-logo");
+        Assert.True(logo.HasAttribute("alt"), "Logo should have alt attribute");
+        Assert.Equal("RAJ Financial", logo.GetAttribute("alt"));
     }
 
     [Fact]
@@ -89,7 +99,7 @@ public class NavMenuTests : TestContext
 
         // Assert - "Home" appears somewhere in the markup
         Assert.Contains("Home", cut.Markup);
-        
+
         // Also verify a home link exists
         var homeLink = cut.Find("a[href='']");
         Assert.NotNull(homeLink);
@@ -99,7 +109,7 @@ public class NavMenuTests : TestContext
     public void NavMenu_HidesClientSection_ForUnauthenticatedUsers()
     {
         // Arrange
-        SetupAuthorization(isAuthenticated: false);
+        SetupAuthorization(false);
 
         // Act
         var cut = RenderComponent<NavMenu>();
@@ -123,33 +133,7 @@ public class NavMenuTests : TestContext
     }
 
     [Fact]
-    public void NavMenu_HidesAdvisorSection_ForClientRole()
-    {
-        // Arrange - Client has RequireClient but NOT RequireAdvisor
-        SetupAuthorizationWithPolicies("RequireClient");
-
-        // Act
-        var cut = RenderComponent<NavMenu>();
-
-        // Assert - Advisor Tools should NOT be visible
-        Assert.DoesNotContain("Advisor Tools", cut.Markup);
-    }
-
-    [Fact]
-    public void NavMenu_ShowsAdvisorSection_ForAdvisorRole()
-    {
-        // Arrange - Advisor has both RequireAdvisor and RequireClient
-        SetupAuthorizationWithPolicies("RequireAdvisor", "RequireClient");
-
-        // Act
-        var cut = RenderComponent<NavMenu>();
-
-        // Assert - Advisor Tools should be visible
-        Assert.Contains("Advisor Tools", cut.Markup);
-    }
-
-    [Fact]
-    public void NavMenu_HidesAdminSection_ForNonAdminRoles()
+    public void NavMenu_HidesAdminSection_ForClientRole()
     {
         // Arrange - Client only has RequireClient
         SetupAuthorizationWithPolicies("RequireClient");
@@ -164,7 +148,7 @@ public class NavMenuTests : TestContext
     [Fact]
     public void NavMenu_ShowsAdminSection_ForAdministratorRole()
     {
-        // Arrange - Administrator only has RequireAdministrator
+        // Arrange - Administrator has RequireAdministrator
         SetupAuthorizationWithPolicies("RequireAdministrator");
 
         // Act
@@ -175,18 +159,30 @@ public class NavMenuTests : TestContext
     }
 
     [Fact]
-    public void NavMenu_ShowsAllSections_ForAdminAdvisorRole()
+    public void NavMenu_ShowsAllSections_ForAdministratorWithClientAccess()
     {
-        // Arrange - AdminAdvisor has all policies
-        SetupAuthorizationWithPolicies("RequireAdministrator", "RequireAdvisor", "RequireClient");
+        // Arrange - Administrator can also access client features
+        SetupAuthorizationWithPolicies("RequireAdministrator", "RequireClient");
 
         // Act
         var cut = RenderComponent<NavMenu>();
 
         // Assert - All sections should be visible
         Assert.Contains("My Account", cut.Markup);
-        Assert.Contains("Advisor Tools", cut.Markup);
         Assert.Contains("Administration", cut.Markup);
+    }
+
+    [Fact]
+    public void NavMenu_ShowsSharingLink_ForAuthenticatedUsers()
+    {
+        // Arrange
+        SetupAuthorizationWithPolicies("RequireClient");
+
+        // Act
+        var cut = RenderComponent<NavMenu>();
+
+        // Assert - Sharing link should be visible in My Account section
+        Assert.Contains("Sharing", cut.Markup);
     }
 
     [Fact]
@@ -215,31 +211,25 @@ public class NavMenuTests : TestContext
         // Assert - All nav links should have text content
         var links = cut.FindAll(".nav-link");
         foreach (var link in links)
-        {
-            Assert.False(string.IsNullOrWhiteSpace(link.TextContent), 
+            Assert.False(string.IsNullOrWhiteSpace(link.TextContent),
                 "Nav links should have text content");
-        }
     }
 
     /// <summary>
-    /// Sets up authorization for unauthenticated or basic authenticated state.
+    ///     Sets up authorization for unauthenticated or basic authenticated state.
     /// </summary>
     private void SetupAuthorization(bool isAuthenticated = false)
     {
         var authContext = this.AddTestAuthorization();
-        
+
         if (isAuthenticated)
-        {
             authContext.SetAuthorized("testuser@example.com");
-        }
         else
-        {
             authContext.SetNotAuthorized();
-        }
     }
 
     /// <summary>
-    /// Sets up authorization with specific policies granted.
+    ///     Sets up authorization with specific policies granted.
     /// </summary>
     private void SetupAuthorizationWithPolicies(params string[] policies)
     {

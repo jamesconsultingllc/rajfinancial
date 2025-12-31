@@ -11,7 +11,7 @@ using Reqnroll;
 namespace RajFinancial.AcceptanceTests.StepDefinitions;
 
 /// <summary>
-/// Step definitions for home page scenarios.
+///     Step definitions for home page scenarios.
 /// </summary>
 [Binding]
 public class HomePageSteps(ScenarioContext scenarioContext)
@@ -92,7 +92,8 @@ public class HomePageSteps(ScenarioContext scenarioContext)
     public async Task ThenTheNavigationShouldBeAccessible()
     {
         // On mobile, navigation is accessible via hamburger menu
-        var hamburger = await Page.Locator("[aria-label*='menu'], [aria-label*='Menu'], .hamburger, .menu-toggle").CountAsync();
+        var hamburger = await Page.Locator("[aria-label*='menu'], [aria-label*='Menu'], .hamburger, .menu-toggle")
+            .CountAsync();
         var nav = await Page.Locator("nav").CountAsync();
         Assert.True(hamburger >= 1 || nav >= 1, "Navigation should be accessible");
     }
@@ -110,7 +111,7 @@ public class HomePageSteps(ScenarioContext scenarioContext)
     {
         await Page.Keyboard.PressAsync("Tab");
         await Page.Keyboard.PressAsync("Tab");
-        
+
         var hasFocusIndicator = await Page.EvaluateAsync<bool>(@"
             () => {
                 const el = document.activeElement;

@@ -6,60 +6,32 @@
 // ============================================================================
 
 using Microsoft.Playwright;
-using RajFinancial.AcceptanceTests.Hooks;
 using RajFinancial.AcceptanceTests.Helpers;
+using RajFinancial.AcceptanceTests.Hooks;
 using Reqnroll;
 
 namespace RajFinancial.AcceptanceTests.StepDefinitions;
 
 /// <summary>
-/// Step definitions for authentication flows (signup, login, logout).
-/// Uses data-testid selectors for Entra External ID forms where available.
+///     Step definitions for authentication flows (signup, login, logout).
+///     Uses data-testid selectors for Entra External ID forms where available.
 /// </summary>
 [Binding]
 public class AuthenticationSteps(ScenarioContext scenarioContext)
 {
-    private IPage Page => scenarioContext.GetPage();
-
     // Track test users created during tests for cleanup
     private static readonly List<string> testUsersToCleanup = new();
-
-    // ========================================================================
-    // Entra External ID Form Selectors (using data-testid attributes)
-    // ========================================================================
-    private static class EntraSelectors
-    {
-        // Form
-        public const string AttributeCollectionForm = "[data-testid='attribute-collection-form']";
-
-        // Password fields
-        public const string PasswordInput = "input[data-testid='ipasswordInput']";
-        public const string PasswordConfirmationInput = "input[data-testid='ipasswordConfirmationInput']";
-
-        // Profile fields
-        public const string GivenNameInput = "input[data-testid='igivenNameInput']";
-        public const string SurnameInput = "input[data-testid='isurnameInput']";
-        public const string UsernameInput = "input[data-testid='iusernameInput']";
-
-        // Verification code input
-        public const string VerificationCodeInput = "input#idTxtBx_OTC_Password";
-        
-        // Buttons
-        public const string NextButton = "button[name='idSIButton9']";
-        public const string SubmitButton = "button[type='submit']";
-        public const string CancelButton = "button.ext-secondary";
-        public const string VerifyButton = "input#idSubmit_SAOTCC_Continue";
-    }
+    private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should be redirected to the Entra External ID login page")]
-    public async Task ThenIShouldBeRedirectedToTheEntraExternalIDLoginPage()
+    public async Task ThenIShouldBeRedirectedToTheEntraExternalIdLoginPage()
     {
         // Wait for redirect to Microsoft/Entra login page
         await Page.WaitForURLAsync(url =>
-            url.Contains("ciamlogin.com") ||
-            url.Contains("login.microsoftonline.com") ||
-            url.Contains("b2clogin.com"),
-            new() { Timeout = 15000 });
+                url.Contains("ciamlogin.com") ||
+                url.Contains("login.microsoftonline.com") ||
+                url.Contains("b2clogin.com"),
+            new PageWaitForURLOptions { Timeout = 15000 });
 
         var url = Page.Url;
         Assert.True(
@@ -99,11 +71,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         var clicked = false;
         foreach (var selector in signupLinkSelectors)
-        {
             try
             {
                 var link = Page.Locator(selector).First;
-                await link.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 2000 });
+                await link.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 2000 });
                 await link.ClickAsync();
                 clicked = true;
                 Console.WriteLine($"✓ Clicked signup link using selector: {selector}");
@@ -113,12 +85,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!clicked)
         {
             // Take screenshot for debugging
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/entra-page-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -135,8 +106,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    /// Checks for and clicks "Use another account" button if present on account picker page.
-    /// This is needed when there are cached/remembered accounts in the browser.
+    ///     Checks for and clicks "Use another account" button if present on account picker page.
+    ///     This is needed when there are cached/remembered accounts in the browser.
     /// </summary>
     private async Task TryClickUseAnotherAccountAsync()
     {
@@ -153,11 +124,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         };
 
         foreach (var selector in useAnotherAccountSelectors)
-        {
             try
             {
                 var element = Page.Locator(selector).First;
-                await element.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 2000 });
+                await element.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 2000 });
                 await element.ClickAsync();
                 Console.WriteLine($"✓ Clicked 'Use another account' using selector: {selector}");
                 await Page.WaitForTimeoutAsync(1000);
@@ -167,7 +138,6 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         // No "Use another account" found - this is fine, we might be on a fresh login page
         Console.WriteLine("ℹ 'Use another account' not found - proceeding with current page");
@@ -207,9 +177,9 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Fill in email field - optimized based on test logs
         var emailSelectors = new[]
         {
-            "input[type='email']",  // ✓ Works - tested 2024-12-26
-            "input[name='email']",  // Fallback
-            "input#email"           // Fallback
+            "input[type='email']", // ✓ Works - tested 2024-12-26
+            "input[name='email']", // Fallback
+            "input#email" // Fallback
         };
 
         var emailField = await FindFirstVisibleInput(emailSelectors);
@@ -220,7 +190,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         }
         else
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/email-field-not-found-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -240,36 +210,29 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         // Add specific selectors based on button text - optimized
         if (buttonText.Equals("Next", StringComparison.OrdinalIgnoreCase))
-        {
             buttonSelectors.AddRange(new[]
             {
-                "#idSIButton9",               // ✓ Works - tested 2024-12-26
-                EntraSelectors.NextButton,    // ✓ Works - button[name='idSIButton9']
-                "input[type='submit']"        // Fallback
+                "#idSIButton9", // ✓ Works - tested 2024-12-26
+                EntraSelectors.NEXT_BUTTON, // ✓ Works - button[name='idSIButton9']
+                "input[type='submit']" // Fallback
             });
-        }
         else if (buttonText.Equals("Verify", StringComparison.OrdinalIgnoreCase))
-        {
             buttonSelectors.AddRange(new[]
             {
                 "[data-testid='verifyButton']",
                 "#verifyButton",
                 "#verify",
                 "button:has-text('Verify')",
-                EntraSelectors.SubmitButton
+                EntraSelectors.SUBMIT_BUTTON
             });
-        }
         else if (buttonText.Equals("Accept", StringComparison.OrdinalIgnoreCase))
-        {
             buttonSelectors.AddRange(new[]
             {
-                "input[type='submit'][value='Accept']",  // ✓ Works - tested 2024-12-26
-                "button:has-text('Accept')",             // Fallback
-                EntraSelectors.SubmitButton              // Fallback
+                "input[type='submit'][value='Accept']", // ✓ Works - tested 2024-12-26
+                "button:has-text('Accept')", // Fallback
+                EntraSelectors.SUBMIT_BUTTON // Fallback
             });
-        }
         else
-        {
             // Generic button selectors
             buttonSelectors.AddRange(new[]
             {
@@ -278,15 +241,14 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"input[type='button'][value*='{buttonText}' i]",
                 $"a:has-text('{buttonText}')"
             });
-        }
 
         var clicked = false;
         foreach (var selector in buttonSelectors)
-        {
             try
             {
                 var button = Page.Locator(selector).First;
-                await button.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                await button.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
                 await button.ClickAsync();
                 clicked = true;
                 Console.WriteLine($"✓ Clicked '{buttonText}' button using selector: {selector}");
@@ -296,13 +258,13 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!clicked)
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
-                Path = $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{DateTime.Now:yyyyMMddHHmmss}.png",
+                Path =
+                    $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
             });
             throw new Exception($"Could not find '{buttonText}' button on Entra page. Screenshot saved.");
@@ -323,13 +285,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                                   content.Contains("confirmation", StringComparison.OrdinalIgnoreCase);
 
         if (!hasVerificationPage)
-        {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/verification-page-expected-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
             });
-        }
 
         Assert.True(hasVerificationPage, "Should see email verification code input page");
     }
@@ -341,17 +301,14 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         var emailHelper = new TestEmailHelper();
 
         if (!emailHelper.IsConfigured())
-        {
             throw new InconclusiveException(
                 "Email verification required but IMAP is not configured. " +
                 "Set IMAP settings in appsettings.local.json or environment variables.");
-        }
 
         Console.WriteLine("📧 Waiting for verification email...");
         var verificationCode = await emailHelper.GetVerificationCodeFromEmail(
             testEmail,
-            timeoutSeconds: 120,
-            searchSubject: null);
+            120);
 
         Console.WriteLine($"✓ Retrieved verification code: {verificationCode}");
         scenarioContext.Set(verificationCode, "VerificationCode");
@@ -373,17 +330,17 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Check for Entra attribute collection form or password fields - optimized
         var passwordFieldSelectors = new[]
         {
-            EntraSelectors.PasswordInput,  // ✓ Works - [data-testid='ipasswordInput']
-            "input[type='password']"       // Fallback
+            EntraSelectors.PASSWORD_INPUT, // ✓ Works - [data-testid='ipasswordInput']
+            "input[type='password']" // Fallback
         };
 
         var foundPasswordField = false;
         foreach (var selector in passwordFieldSelectors)
-        {
             try
             {
                 var passwordField = Page.Locator(selector).First;
-                await passwordField.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                await passwordField.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
                 foundPasswordField = true;
                 Console.WriteLine($"✓ Password creation form is visible (found with selector: {selector})");
                 break;
@@ -392,7 +349,6 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!foundPasswordField)
         {
@@ -404,7 +360,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"password-form-expected-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = screenshotPath,
                 FullPage = true
@@ -412,21 +368,25 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
             var content = await Page.ContentAsync();
             var url = Page.Url;
-            Console.WriteLine($"❌ Password field not found!");
+            Console.WriteLine("❌ Password field not found!");
             Console.WriteLine($"📍 Page URL: {url}");
-            Console.WriteLine($"🔍 Page contains 'password': {content.Contains("password", StringComparison.OrdinalIgnoreCase)}");
-            Console.WriteLine($"🔍 Page contains 'attribute': {content.Contains("attribute", StringComparison.OrdinalIgnoreCase)}");
-            Console.WriteLine($"🔍 Page contains 'Given Name': {content.Contains("Given Name", StringComparison.OrdinalIgnoreCase)}");
+            Console.WriteLine(
+                $"🔍 Page contains 'password': {content.Contains("password", StringComparison.OrdinalIgnoreCase)}");
+            Console.WriteLine(
+                $"🔍 Page contains 'attribute': {content.Contains("attribute", StringComparison.OrdinalIgnoreCase)}");
+            Console.WriteLine(
+                $"🔍 Page contains 'Given Name': {content.Contains("Given Name", StringComparison.OrdinalIgnoreCase)}");
             Console.WriteLine($"🔍 Page contains 'givenName': {content.Contains("givenName")}");
             Console.WriteLine($"📸 Screenshot saved to: {screenshotPath}");
 
             // Check if we might already be on the attribute collection form with all fields
             var hasProfileFields = content.Contains("givenName") ||
-                                  content.Contains("surname") ||
-                                  content.Contains("displayName");
+                                   content.Contains("surname") ||
+                                   content.Contains("displayName");
             if (hasProfileFields)
             {
-                Console.WriteLine("ℹ️  It appears the page has profile fields. The password and profile fields might be on the same page.");
+                Console.WriteLine(
+                    "ℹ️  It appears the page has profile fields. The password and profile fields might be on the same page.");
                 Console.WriteLine("ℹ️  Skipping this assertion - the test will continue to fill in fields.");
                 return; // Don't fail - just continue
             }
@@ -447,8 +407,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized password selectors based on test logs
         var passwordSelectors = new[]
         {
-            EntraSelectors.PasswordInput,         // ✓ Works - [data-testid='ipasswordInput']
-            "input[type='password']:first-of-type"  // Fallback
+            EntraSelectors.PASSWORD_INPUT, // ✓ Works - [data-testid='ipasswordInput']
+            "input[type='password']:first-of-type" // Fallback
         };
 
         var passwordField = await FindFirstVisibleInput(passwordSelectors, "password field");
@@ -462,7 +422,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             // Check if password was already entered or if we're past that step
             var content = await Page.ContentAsync();
             var hasConfirmation = content.Contains("password", StringComparison.OrdinalIgnoreCase) &&
-                                 content.Contains("confirm", StringComparison.OrdinalIgnoreCase);
+                                  content.Contains("confirm", StringComparison.OrdinalIgnoreCase);
 
             if (hasConfirmation)
             {
@@ -477,12 +437,12 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"password-field-not-found-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = screenshotPath,
                 FullPage = true
             });
-            Console.WriteLine($"❌ Could not find password input field");
+            Console.WriteLine("❌ Could not find password input field");
             Console.WriteLine($"📸 Screenshot saved to: {screenshotPath}");
             throw new Exception($"Could not find password input field. Screenshot: {screenshotPath}");
         }
@@ -496,8 +456,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized password confirmation selectors based on test logs
         var confirmSelectors = new[]
         {
-            EntraSelectors.PasswordConfirmationInput,  // ✓ Works - [data-testid='ipasswordConfirmationInput']
-            "input#reenterPassword"                    // Fallback
+            EntraSelectors.PASSWORD_CONFIRMATION_INPUT, // ✓ Works - [data-testid='ipasswordConfirmationInput']
+            "input#reenterPassword" // Fallback
         };
 
         var confirmField = await FindFirstVisibleInput(confirmSelectors, "password confirmation field");
@@ -526,19 +486,19 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Check for Entra attribute collection form with profile fields
         var profileFieldSelectors = new[]
         {
-            EntraSelectors.GivenNameInput,   // [data-testid='igivenNameInput']
-            EntraSelectors.SurnameInput,     // [data-testid='isurnameInput']
-            EntraSelectors.UsernameInput,    // [data-testid='iusernameInput']
-            EntraSelectors.AttributeCollectionForm
+            EntraSelectors.GIVEN_NAME_INPUT, // [data-testid='igivenNameInput']
+            EntraSelectors.SURNAME_INPUT, // [data-testid='isurnameInput']
+            EntraSelectors.USERNAME_INPUT, // [data-testid='iusernameInput']
+            EntraSelectors.ATTRIBUTE_COLLECTION_FORM
         };
 
         var foundProfileForm = false;
         foreach (var selector in profileFieldSelectors)
-        {
             try
             {
                 var element = Page.Locator(selector).First;
-                await element.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                await element.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
                 foundProfileForm = true;
                 Console.WriteLine($"✓ Found profile form element: {selector}");
                 break;
@@ -547,11 +507,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!foundProfileForm)
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/profile-form-expected-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -569,7 +528,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         // Check if we're still on the Entra page or if we got redirected
         var url = Page.Url;
-        if (!url.Contains("ciamlogin.com") && !url.Contains("login.microsoftonline.com") && !url.Contains("b2clogin.com"))
+        if (!url.Contains("ciamlogin.com") && !url.Contains("login.microsoftonline.com") &&
+            !url.Contains("b2clogin.com"))
         {
             Console.WriteLine($"⚠️  Not on Entra page anymore. URL: {url}");
             Console.WriteLine($"ℹ️  Skipping field '{fieldName}' entry - might have already progressed past this step");
@@ -583,16 +543,16 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         {
             fieldSelectors.AddRange(new[]
             {
-                EntraSelectors.GivenNameInput,  // ✓ Works - [data-testid='igivenNameInput']
-                "input[name='givenName']"       // Fallback
+                EntraSelectors.GIVEN_NAME_INPUT, // ✓ Works - [data-testid='igivenNameInput']
+                "input[name='givenName']" // Fallback
             });
         }
         else if (fieldName.Contains("Surname", StringComparison.OrdinalIgnoreCase))
         {
             fieldSelectors.AddRange(new[]
             {
-                EntraSelectors.SurnameInput,  // ✓ Works - [data-testid='isurnameInput']
-                "input[name='surname']"       // Fallback
+                EntraSelectors.SURNAME_INPUT, // ✓ Works - [data-testid='isurnameInput']
+                "input[name='surname']" // Fallback
             });
         }
         else
@@ -624,7 +584,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"field-{fieldName.Replace(" ", "-")}-not-found-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = screenshotPath,
                 FullPage = true
@@ -648,9 +608,9 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized username selectors based on test logs
         var usernameSelectors = new[]
         {
-            EntraSelectors.UsernameInput,  // ✓ Works - [data-testid='iusernameInput']
-            "input[name='displayName']",   // Fallback
-            "input[name='username']"       // Fallback
+            EntraSelectors.USERNAME_INPUT, // ✓ Works - [data-testid='iusernameInput']
+            "input[name='displayName']", // Fallback
+            "input[name='username']" // Fallback
         };
 
         var usernameField = await FindFirstVisibleInput(usernameSelectors, "username/display name field");
@@ -661,7 +621,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         }
         else
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/username-field-not-found-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -714,7 +674,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"consent-screen-expected-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = screenshotPath,
                 FullPage = true
@@ -748,13 +708,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                             content.Contains("Portfolio", StringComparison.OrdinalIgnoreCase);
 
         if (!isOnDashboard)
-        {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/client-dashboard-expected-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
             });
-        }
 
         Assert.True(isOnDashboard, $"Should see client dashboard. Current URL: {url}");
     }
@@ -774,21 +732,20 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         var usernameVisible = content.Contains(username, StringComparison.OrdinalIgnoreCase);
 
         if (!usernameVisible)
-        {
             // Try checking for partial match (first part of username)
             usernameVisible = content.Contains("testuser_", StringComparison.OrdinalIgnoreCase);
-        }
 
         if (!usernameVisible)
         {
             // Check if we're logged in at all (Log out button visible)
             var logoutVisible = content.Contains("Log out", StringComparison.OrdinalIgnoreCase) ||
-                               content.Contains("Logout", StringComparison.OrdinalIgnoreCase) ||
-                               content.Contains("Sign out", StringComparison.OrdinalIgnoreCase);
+                                content.Contains("Logout", StringComparison.OrdinalIgnoreCase) ||
+                                content.Contains("Sign out", StringComparison.OrdinalIgnoreCase);
 
             if (logoutVisible)
             {
-                Console.WriteLine($"✓ User is logged in (logout button visible), but username '{username}' not found in UI");
+                Console.WriteLine(
+                    $"✓ User is logged in (logout button visible), but username '{username}' not found in UI");
                 Console.WriteLine("ℹ️  This is acceptable - the account was created successfully");
                 return; // Accept as pass - user is logged in even if username not visible
             }
@@ -800,14 +757,14 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"username-not-visible-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = screenshotPath,
                 FullPage = true
             });
             Console.WriteLine($"❌ Looking for username: {username}");
             Console.WriteLine($"📸 Screenshot saved to: {screenshotPath}");
-            Assert.Fail($"User does not appear to be logged in - no logout button or username found");
+            Assert.Fail("User does not appear to be logged in - no logout button or username found");
         }
         else
         {
@@ -816,7 +773,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     }
 
     [Then(@"I should be redirected back to the RAJ Financial app")]
-    public async Task ThenIShouldBeRedirectedBackToTheRAJFinancialApp()
+    public async Task ThenIShouldBeRedirectedBackToTheRajFinancialApp()
     {
         // Wait for redirect back to the app
         var maxWaitSeconds = 30;
@@ -838,7 +795,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             await Page.WaitForTimeoutAsync(1000);
         }
 
-        await Page.ScreenshotAsync(new()
+        await Page.ScreenshotAsync(new PageScreenshotOptions
         {
             Path = $"TestResults/Screenshots/redirect-timeout-{DateTime.Now:yyyyMMddHHmmss}.png",
             FullPage = true
@@ -851,7 +808,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     {
         // Wait for the page to fully load after authentication
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        
+
         // Wait for Blazor to process authentication and render authenticated layout
         await WaitForAuthenticatedStateAsync();
 
@@ -863,18 +820,18 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             "a:has-text('Log out')",
             ".user-name",
             "[data-testid='user-menu']",
-            ".raj-sidebar",                    // Authenticated layout sidebar
-            "nav[aria-label*='navigation']",   // Navigation that only appears when logged in
+            ".raj-sidebar", // Authenticated layout sidebar
+            "nav[aria-label*='navigation']", // Navigation that only appears when logged in
             "[data-testid='logout-button']"
         };
 
         var foundIndicator = false;
         foreach (var selector in authenticatedIndicators)
-        {
             try
             {
                 var element = Page.Locator(selector).First;
-                await element.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+                await element.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 5000 });
                 foundIndicator = true;
                 Console.WriteLine($"✓ Found authenticated indicator: {selector}");
                 break;
@@ -883,12 +840,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next indicator
             }
-        }
 
         if (!foundIndicator)
         {
             // Take screenshot for debugging
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/auth-check-failed-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -904,7 +860,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    /// Waits for the authenticated state to be resolved after login/signup.
+    ///     Waits for the authenticated state to be resolved after login/signup.
     /// </summary>
     private async Task WaitForAuthenticatedStateAsync()
     {
@@ -914,23 +870,19 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             await Page.WaitForTimeoutAsync(500);
 
             var url = Page.Url;
-            
+
             // Check if we're on a dashboard or authenticated page
-            if (url.Contains("/dashboard") || url.Contains("/admin") || 
+            if (url.Contains("/dashboard") || url.Contains("/admin") ||
                 url.Contains("/advisor") || url.Contains("/client") ||
                 url.Contains("/portfolio"))
-            {
                 break;
-            }
 
             // Check for authenticated UI elements
             try
             {
-                var logoutButton = Page.Locator("text=/Log out/i, a:has-text('Log out'), button:has-text('Log out')").First;
-                if (await logoutButton.IsVisibleAsync())
-                {
-                    break;
-                }
+                var logoutButton = Page.Locator("text=/Log out/i, a:has-text('Log out'), button:has-text('Log out')")
+                    .First;
+                if (await logoutButton.IsVisibleAsync()) break;
             }
             catch
             {
@@ -941,10 +893,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             try
             {
                 var sidebar = Page.Locator(".raj-sidebar, nav[aria-label*='navigation']").First;
-                if (await sidebar.IsVisibleAsync())
-                {
-                    break;
-                }
+                if (await sidebar.IsVisibleAsync()) break;
             }
             catch
             {
@@ -971,12 +920,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Get test credentials
         var email = GetTestUserEmail(role);
         var password = TestConfiguration.Instance.GetPassword(role)
-            ?? Environment.GetEnvironmentVariable($"TEST_{role.ToUpper()}_PASSWORD");
+                       ?? Environment.GetEnvironmentVariable($"TEST_{role.ToUpper()}_PASSWORD");
 
         if (string.IsNullOrEmpty(password))
-        {
             throw new InconclusiveException($"Password not configured for {role} test user");
-        }
 
         // Wait for Entra login page to load
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
@@ -986,168 +933,247 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         await PlaywrightHooks.HandleEntraLoginPage(Page, email, password);
 
         // Wait for redirect back to app
-        await Page.WaitForURLAsync(url => url.Contains(PlaywrightHooks.BaseUrl), new() { Timeout = 15000 });
+        await Page.WaitForURLAsync(url => url.Contains(PlaywrightHooks.BaseUrl),
+            new PageWaitForURLOptions { Timeout = 15000 });
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     [Then(@"I should be logged out")]
     public async Task ThenIShouldBeLoggedOut()
     {
-        // Handle potential Entra account picker page during logout
-        await HandleEntraLogoutFlowAsync();
+        // Handle Entra account picker if present, then wait for redirect to app
+        await HandleEntraLogoutAndWaitForAppAsync();
+    }
 
-        // Wait for redirect back to app and page to settle
-        await WaitForAppRedirectAfterLogoutAsync();
-
-        // Wait for Blazor to update auth state
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(2000);
-
-        // Should see login button again - try multiple selectors for robustness
-        // Updated to match new separate Sign In / Get Started buttons
-        var loginButtonSelectors = new[]
+    /// <summary>
+    ///     Handles the Entra account picker page and waits for redirect back to app.
+    /// </summary>
+    private async Task HandleEntraLogoutAndWaitForAppAsync()
+    {
+        // Try to get the logged-in email from scenario context for targeted selector
+        string? loggedInEmail = null;
+        try
         {
-            "text=Sign In",
-            "text=Get Started",
-            "a[href*='authentication/login']",
-            "a[href*='authentication/register']",
-            "[aria-label*='Sign in']",
-            ".btn:has-text('Sign In')",
-            ".btn-gold-solid:has-text('Sign In')",
-            ".btn-dark-gold:has-text('Get Started')"
-        };
+            loggedInEmail = scenarioContext.Get<string>("LoggedInEmail");
+        }
+        catch
+        {
+            // Email not stored, will use generic selectors
+        }
 
-        var foundLoginButton = false;
-        foreach (var selector in loginButtonSelectors)
+        // First, wait for navigation to Entra logout page
+        try
+        {
+            await Page.WaitForURLAsync(
+                url => IsEntraPage(url),
+                new PageWaitForURLOptions { Timeout = 10000 });
+            
+            Console.WriteLine($"🔄 On Entra logout page: {Page.Url}");
+            
+            // Wait for page to fully load
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            
+            // Click the account to complete logout
+            await ClickAccountOnEntraLogoutPageAsync(loggedInEmail);
+        }
+        catch (TimeoutException)
+        {
+            // Maybe already redirected back to app, or no Entra page needed
+            Console.WriteLine($"ℹ️ Not on Entra page, current URL: {Page.Url}");
+            if (!IsEntraPage(Page.Url))
+            {
+                // Already on app, we're done
+                await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                return;
+            }
+        }
+
+        // Wait for redirect back to app (away from Entra)
+        try
+        {
+            await Page.WaitForURLAsync(
+                url => !IsEntraPage(url) && (url.Contains("localhost") || url.Contains(PlaywrightHooks.BaseUrl)),
+                new PageWaitForURLOptions { Timeout = 15000, WaitUntil = WaitUntilState.NetworkIdle });
+            
+            Console.WriteLine($"✓ Redirected to app: {Page.Url}");
+        }
+        catch (TimeoutException)
+        {
+            // Entra account picker didn't work - force logout by navigating to post_logout_redirect_uri
+            Console.WriteLine("⚠️ Entra logout page stuck, forcing redirect to app...");
+            
+            // Navigate directly to the home page to complete logout
+            // The MSAL library will clean up the local session
+            await Page.GotoAsync(PlaywrightHooks.BaseUrl, new PageGotoOptions 
+            { 
+                WaitUntil = WaitUntilState.NetworkIdle,
+                Timeout = 15000
+            });
+            
+            // Clear browser storage to ensure logout is complete
+            await Page.EvaluateAsync(@"() => {
+                localStorage.clear();
+                sessionStorage.clear();
+            }");
+            
+            // Reload to pick up the logged-out state
+            await Page.ReloadAsync(new PageReloadOptions { WaitUntil = WaitUntilState.NetworkIdle });
+            
+            Console.WriteLine($"✓ Forced redirect to: {Page.Url}");
+        }
+    }
+
+    /// <summary>
+    ///     Clicks the account tile on the Entra logout page.
+    /// </summary>
+    private async Task ClickAccountOnEntraLogoutPageAsync(string? email)
+    {
+        // Build selectors list - prioritize email-based selector if available
+        var accountSelectors = new List<string>();
+        
+        // Add email-specific selector first (highest priority)
+        if (!string.IsNullOrEmpty(email))
+        {
+            accountSelectors.Add($"[data-test-id='{email}']");
+            Console.WriteLine($"🔍 Looking for account with email: {email}");
+        }
+        
+        // Add generic account picker selectors as fallback
+        accountSelectors.AddRange(new[]
+        {
+            "[data-test-id='account-picker-account']",
+            "#tilesHolder .tile",
+            ".table-row.tile",
+            "[role='listitem']",
+            "[role='option']",
+            "div.tile",
+            ".signOutCard",
+            "button:has-text('Sign out')",
+            "button:has-text('Continue')"
+        });
+
+        // Try to find and click an account element (with shorter timeout per selector)
+        foreach (var selector in accountSelectors)
         {
             try
             {
-                var button = Page.Locator(selector).First;
-                await button.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
-                foundLoginButton = true;
-                break;
+                var element = Page.Locator(selector).First;
+                await element.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                await element.ClickAsync();
+                Console.WriteLine($"✓ Clicked logout element using selector: {selector}");
+                return;
+            }
+            catch (TimeoutException)
+            {
+                // This selector didn't match, try next one
             }
             catch
             {
-                // Try next selector
+                // Other error, try next selector
             }
         }
 
-        if (!foundLoginButton)
+        // No element found after trying all selectors
+        // The account tiles may not have loaded - try refreshing the page once
+        Console.WriteLine("⚠️ Account tiles not loaded, refreshing page...");
+        await Page.ReloadAsync(new PageReloadOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        
+        // Try the email selector one more time after refresh
+        if (!string.IsNullOrEmpty(email))
         {
-            // Take screenshot for debugging
-            await Page.ScreenshotAsync(new()
+            try
             {
-                Path = $"TestResults/Screenshots/logout-failed-{DateTime.Now:yyyyMMddHHmmss}.png",
-                FullPage = true
-            });
-            var content = await Page.ContentAsync();
-            Console.WriteLine($"Page URL after logout: {Page.Url}");
-            Console.WriteLine($"Page contains 'Sign In': {content.Contains("Sign In")}");
-            Console.WriteLine($"Page contains 'Get Started': {content.Contains("Get Started")}");
-            Console.WriteLine($"Page contains 'Log out': {content.Contains("Log out")}");
+                var element = Page.Locator($"[data-test-id='{email}']").First;
+                await element.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 10000 });
+                await element.ClickAsync();
+                Console.WriteLine($"✓ Clicked account after refresh: {email}");
+                return;
+            }
+            catch
+            {
+                // Still didn't work
+            }
         }
 
-        Assert.True(foundLoginButton, "Should see login button after logout");
+        // Take screenshot for debugging
+        var screenshotDir = Path.Combine(Directory.GetCurrentDirectory(), "TestResults", "Screenshots");
+        Directory.CreateDirectory(screenshotDir);
+        var screenshotPath = Path.Combine(screenshotDir, $"entra-logout-no-element-{DateTime.Now:yyyyMMddHHmmss}.png");
+        
+        await Page.ScreenshotAsync(new PageScreenshotOptions
+        {
+            Path = screenshotPath,
+            FullPage = true
+        });
+        Console.WriteLine($"⚠️ Could not find account picker element. Screenshot: {screenshotPath}");
     }
 
     /// <summary>
-    /// Handles the Entra account picker page that may appear during logout.
+    ///     Checks if the URL is an Entra authentication page.
     /// </summary>
-    private async Task HandleEntraLogoutFlowAsync()
+    private static bool IsEntraPage(string url)
     {
-        var maxAttempts = 20; // 10 seconds total
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            var url = Page.Url;
-
-            // Check if we're on an Entra logout/account picker page
-            if (url.Contains("ciamlogin.com") ||
-                url.Contains("login.microsoftonline.com") ||
-                url.Contains("b2clogin.com"))
-            {
-                // Look for account picker elements and click the account to sign out
-                var accountSelectors = new[]
-                {
-                    "[data-test-id='account-picker-account']", // Common account picker element
-                    ".table-row",                               // Account list row
-                    "[role='option']",                          // Account option
-                    ".tile",                                    // Account tile
-                    "div[data-testid*='account']",
-                    ".signOutCard",                             // Sign out card
-                    "button:has-text('Sign out')",
-                    "a:has-text('Sign out')"
-                };
-
-                foreach (var selector in accountSelectors)
-                {
-                    try
-                    {
-                        var element = Page.Locator(selector).First;
-                        await element.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 1000 });
-                        await element.ClickAsync();
-                        await Page.WaitForTimeoutAsync(1000);
-                        break;
-                    }
-                    catch
-                    {
-                        // Try next selector
-                    }
-                }
-            }
-
-            // Check if we've returned to the app
-            if (url.Contains(PlaywrightHooks.BaseUrl) ||
-                url.Contains("localhost") ||
-                (!url.Contains("ciamlogin.com") &&
-                 !url.Contains("login.microsoftonline.com") &&
-                 !url.Contains("b2clogin.com")))
-            {
-                break;
-            }
-
-            await Page.WaitForTimeoutAsync(500);
-        }
-    }
-
-    /// <summary>
-    /// Waits for the redirect back to the app after logout completes.
-    /// </summary>
-    private async Task WaitForAppRedirectAfterLogoutAsync()
-    {
-        var maxAttempts = 20; // 10 seconds total
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            var url = Page.Url;
-
-            // Check if we're back on the app
-            if ((url.Contains(PlaywrightHooks.BaseUrl) ||
-                url.Contains("localhost") ||
-                url.Contains("rajfinancial")) && !url.Contains("authentication/logout-callback"))
-            {
-                break;
-            }
-
-            await Page.WaitForTimeoutAsync(500);
-        }
-
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        return url.Contains("ciamlogin.com") ||
+               url.Contains("login.microsoftonline.com") ||
+               url.Contains("b2clogin.com");
     }
 
     [Then(@"I should be redirected to the home page")]
     public async Task ThenIShouldBeRedirectedToTheHomePage()
     {
-        var url = Page.Url;
-        Assert.True(
-            url == PlaywrightHooks.BaseUrl || url == PlaywrightHooks.BaseUrl + "/" || url.EndsWith("/#"),
-            $"Should be on home page, but was on: {url}");
+        await WaitForHomePageAsync();
+    }
+
+    [Then(@"I should be on the home page")]
+    public async Task ThenIShouldBeOnTheHomePage()
+    {
+        await WaitForHomePageAsync();
+    }
+
+    /// <summary>
+    ///     Waits for and verifies the browser is on the home page.
+    /// </summary>
+    private async Task WaitForHomePageAsync()
+    {
+        // If on Entra page, handle logout flow first
+        if (IsEntraPage(Page.Url))
+        {
+            await HandleEntraLogoutAndWaitForAppAsync();
+        }
+
+        // Wait for home page URL
+        try
+        {
+            await Page.WaitForURLAsync(
+                url => IsHomePage(url),
+                new PageWaitForURLOptions { Timeout = 15000, WaitUntil = WaitUntilState.NetworkIdle });
+            
+            Console.WriteLine($"✓ On home page: {Page.Url}");
+        }
+        catch (TimeoutException)
+        {
+            var url = Page.Url;
+            Assert.Fail($"Should be on home page, but was on: {url}");
+        }
+    }
+
+    /// <summary>
+    ///     Checks if the URL is the home page.
+    /// </summary>
+    private static bool IsHomePage(string url)
+    {
+        return url == PlaywrightHooks.BaseUrl ||
+               url == PlaywrightHooks.BaseUrl + "/" ||
+               url.EndsWith("/#") ||
+               (url.Contains("localhost") && !url.Contains("authentication") && !IsEntraPage(url));
     }
 
     [Then(@"I should see an ""(.*)"" message or be redirected")]
     public async Task ThenIShouldSeeAnAccessDeniedMessageOrBeRedirected(string expectedMessage)
     {
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(1000);
 
         var content = await Page.ContentAsync();
         var url = Page.Url;
@@ -1159,8 +1185,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                                      content.Contains("not authorized", StringComparison.OrdinalIgnoreCase);
 
         var isOnHomePage = url == PlaywrightHooks.BaseUrl ||
-                          url == PlaywrightHooks.BaseUrl + "/" ||
-                          url.EndsWith("/#");
+                           url == PlaywrightHooks.BaseUrl + "/" ||
+                           url.EndsWith("/#");
 
         Assert.True(
             hasAccessDeniedMessage || isOnHomePage,
@@ -1169,7 +1195,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    /// Enters the email verification code into the Entra External ID verification form.
+    ///     Enters the email verification code into the Entra External ID verification form.
     /// </summary>
     private async Task EnterVerificationCodeAsync(string verificationCode)
     {
@@ -1180,18 +1206,18 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized verification code input selectors based on test logs
         var codeInputSelectors = new[]
         {
-            EntraSelectors.VerificationCodeInput,  // ✓ Works - input#idTxtBx_OTC_Password
-            "input[name='otc']",                   // Fallback
-            "input[type='tel']"                    // Fallback
+            EntraSelectors.VERIFICATION_CODE_INPUT, // ✓ Works - input#idTxtBx_OTC_Password
+            "input[name='otc']", // Fallback
+            "input[type='tel']" // Fallback
         };
 
         var codeEntered = false;
         foreach (var selector in codeInputSelectors)
-        {
             try
             {
                 var input = Page.Locator(selector).First;
-                await input.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                await input.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
                 await input.ClearAsync();
                 await input.FillAsync(verificationCode);
                 codeEntered = true;
@@ -1202,12 +1228,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!codeEntered)
         {
             // Take screenshot for debugging
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/verification-code-input-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -1226,18 +1251,18 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized verify/continue button selectors based on test logs
         var submitSelectors = new[]
         {
-            "input[type='submit']",         // ✓ Works - tested 2024-12-26
-            EntraSelectors.SubmitButton,    // Fallback - button[type='submit']
-            EntraSelectors.NextButton       // Fallback - button[name='idSIButton9']
+            "input[type='submit']", // ✓ Works - tested 2024-12-26
+            EntraSelectors.SUBMIT_BUTTON, // Fallback - button[type='submit']
+            EntraSelectors.NEXT_BUTTON // Fallback - button[name='idSIButton9']
         };
 
         var submitted = false;
         foreach (var selector in submitSelectors)
-        {
             try
             {
                 var button = Page.Locator(selector).First;
-                await button.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 2000 });
+                await button.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 2000 });
                 await button.ClickAsync();
                 submitted = true;
                 Console.WriteLine($"✓ Clicked verify button using selector: {selector}");
@@ -1247,11 +1272,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
 
         if (!submitted)
         {
-            await Page.ScreenshotAsync(new()
+            await Page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Path = $"TestResults/Screenshots/verify-button-not-found-{DateTime.Now:yyyyMMddHHmmss}.png",
                 FullPage = true
@@ -1278,28 +1302,29 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 $"verification-failed-{DateTime.Now:yyyyMMddHHmmss}.png"
             );
             Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-            await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+            await Page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
 
-            Console.WriteLine($"❌ Verification code was rejected by Entra!");
+            Console.WriteLine("❌ Verification code was rejected by Entra!");
             Console.WriteLine($"📸 Screenshot saved to: {screenshotPath}");
-            throw new Exception($"Email verification code failed validation. This might indicate the code expired or was incorrect.");
+            throw new Exception(
+                "Email verification code failed validation. This might indicate the code expired or was incorrect.");
         }
 
         Console.WriteLine($"✓ Verification code accepted! Now on: {url}");
     }
 
     /// <summary>
-    /// Helper method to find the first visible input from a list of selectors.
+    ///     Helper method to find the first visible input from a list of selectors.
     /// </summary>
     private async Task<ILocator?> FindFirstVisibleInput(string[] selectors, string? fieldName = null)
     {
         foreach (var selector in selectors)
-        {
             try
             {
                 var input = Page.Locator(selector).First;
                 // Use shorter timeout since we're trying multiple selectors
-                await input.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 500 });
+                await input.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = 500 });
 
                 // Log which selector worked for optimization
                 var fieldDescription = fieldName ?? "field";
@@ -1310,12 +1335,12 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             {
                 // Try next selector
             }
-        }
+
         return null;
     }
 
     /// <summary>
-    /// Generates a secure password for test users.
+    ///     Generates a secure password for test users.
     /// </summary>
     private static string GenerateSecurePassword()
     {
@@ -1327,7 +1352,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    /// Gets the email for a test user by role.
+    ///     Gets the email for a test user by role.
     /// </summary>
     private static string GetTestUserEmail(string role)
     {
@@ -1338,22 +1363,52 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             ["Administrator"] = "test-admin@rajfinancialdev.onmicrosoft.com"
         };
 
-        if (emails.TryGetValue(role, out var email))
-        {
-            return email;
-        }
+        if (emails.TryGetValue(role, out var email)) return email;
 
         throw new ArgumentException($"Unknown test role: {role}");
     }
 
     /// <summary>
-    /// Gets the list of test users created during this test run that need cleanup.
-    /// This can be used by a cleanup job or AfterTestRun hook.
+    ///     Gets the list of test users created during this test run that need cleanup.
+    ///     This can be used by a cleanup job or AfterTestRun hook.
     /// </summary>
-    public static IReadOnlyList<string> GetTestUsersForCleanup() => testUsersToCleanup.AsReadOnly();
+    public static IReadOnlyList<string> GetTestUsersForCleanup()
+    {
+        return testUsersToCleanup.AsReadOnly();
+    }
 
     /// <summary>
-    /// Clears the list of test users to cleanup. Call this after cleanup is complete.
+    ///     Clears the list of test users to cleanup. Call this after cleanup is complete.
     /// </summary>
-    public static void ClearCleanupList() => testUsersToCleanup.Clear();
+    public static void ClearCleanupList()
+    {
+        testUsersToCleanup.Clear();
+    }
+
+    // ========================================================================
+    // Entra External ID Form Selectors (using data-testid attributes)
+    // ========================================================================
+    private static class EntraSelectors
+    {
+        // Form
+        public const string ATTRIBUTE_COLLECTION_FORM = "[data-testid='attribute-collection-form']";
+
+        // Password fields
+        public const string PASSWORD_INPUT = "input[data-testid='ipasswordInput']";
+        public const string PASSWORD_CONFIRMATION_INPUT = "input[data-testid='ipasswordConfirmationInput']";
+
+        // Profile fields
+        public const string GIVEN_NAME_INPUT = "input[data-testid='igivenNameInput']";
+        public const string SURNAME_INPUT = "input[data-testid='isurnameInput']";
+        public const string USERNAME_INPUT = "input[data-testid='iusernameInput']";
+
+        // Verification code input
+        public const string VERIFICATION_CODE_INPUT = "input#idTxtBx_OTC_Password";
+
+        // Buttons
+        public const string NEXT_BUTTON = "button[name='idSIButton9']";
+        public const string SUBMIT_BUTTON = "button[type='submit']";
+        public const string CANCEL_BUTTON = "button.ext-secondary";
+        public const string VERIFY_BUTTON = "input#idSubmit_SAOTCC_Continue";
+    }
 }

@@ -14,9 +14,8 @@
 *@
 
 @page "/admin/dashboard"
-@attribute [Authorize(Policy = "RequireAdministrator")]
-
 @using Microsoft.Extensions.Localization
+@attribute [Authorize(Policy = "RequireAdministrator")]
 @inject IStringLocalizer<Dashboard> L
 
 <PageTitle>@L["PageTitle"]</PageTitle>
@@ -31,7 +30,7 @@
     </div>
 
     @* Stats Cards Row - Responsive grid *@
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4" role="region" aria-label="@L["Heading"]">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" role="region" aria-label="@L["Heading"]">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
@@ -50,11 +49,11 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-shrink-0">
-                        <span class="oi oi-briefcase fs-2 text-success" aria-hidden="true"></span>
+                        <span class="oi oi-wallet fs-2 text-success" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h2 class="h6 text-muted mb-0">@L["Stats.ActiveAdvisors"]</h2>
-                        <p class="h3 mb-0">@ActiveAdvisors</p>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.ActiveClients"]</h2>
+                        <p class="h3 mb-0">@ActiveClients</p>
                     </div>
                 </div>
             </div>
@@ -64,25 +63,11 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-shrink-0">
-                        <span class="oi oi-wallet fs-2 text-warning" aria-hidden="true"></span>
+                        <span class="oi oi-share-boxed fs-2 text-info" aria-hidden="true"></span>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h2 class="h6 text-muted mb-0">@L["Stats.TotalClients"]</h2>
-                        <p class="h3 mb-0">@TotalClients</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <span class="oi oi-dollar fs-2 text-info" aria-hidden="true"></span>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h2 class="h6 text-muted mb-0">@L["Stats.AssetsUnderMgmt"]</h2>
-                        <p class="h3 mb-0">@AssetsUnderManagement.ToString("C0")</p>
+                        <h2 class="h6 text-muted mb-0">@L["Stats.ActiveShares"]</h2>
+                        <p class="h3 mb-0">@ActiveDataAccessGrants</p>
                     </div>
                 </div>
             </div>
@@ -141,16 +126,16 @@
                 <div class="card-body">
                     <ul class="list-unstyled mb-0" role="list">
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-success me-2">@L["Activity.New"]</span>
+                            <span class="badge bg-success me-2" style="min-width: 3rem; text-align: center;">@L["Activity.New"]</span>
                             <span class="text-muted small">@L["Activity.UserRegistration"]</span>
                         </li>
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-info me-2">@L["Activity.Info"]</span>
-                            <span class="text-muted small">@L["Activity.SystemBackup"]</span>
+                            <span class="badge bg-info me-2" style="min-width: 3rem; text-align: center;">@L["Activity.Info"]</span>
+                            <span class="text-muted small">@L["Activity.DataAccessGranted"]</span>
                         </li>
                         <li class="d-flex align-items-center mb-3">
-                            <span class="badge bg-warning me-2">@L["Activity.Alert"]</span>
-                            <span class="text-muted small">@L["Activity.TransactionFlagged"]</span>
+                            <span class="badge bg-warning me-2" style="min-width: 3rem; text-align: center;">@L["Activity.Alert"]</span>
+                            <span class="text-muted small">@L["Activity.DataAccessRevoked"]</span>
                         </li>
                     </ul>
                 </div>
@@ -160,25 +145,21 @@
 </div>
 
 @code {
-    /// <summary>
-    /// Total number of registered users in the system.
-    /// </summary>
-    private int TotalUsers { get; set; } = 156;
 
     /// <summary>
-    /// Number of advisors currently active.
+    ///     Total number of registered users in the system.
     /// </summary>
-    private int ActiveAdvisors { get; set; } = 12;
+    private int TotalUsers { get; } = 156;
 
     /// <summary>
-    /// Total number of client accounts.
+    ///     Number of clients with active accounts.
     /// </summary>
-    private int TotalClients { get; set; } = 142;
+    private int ActiveClients { get; } = 142;
 
     /// <summary>
-    /// Total assets under management in USD.
+    ///     Number of active data access grants (users sharing data with others).
     /// </summary>
-    private decimal AssetsUnderManagement { get; set; } = 45_750_000;
+    private int ActiveDataAccessGrants { get; } = 47;
 
     // TODO: Implement data fetching from API
     // protected override async Task OnInitializedAsync()
@@ -186,4 +167,3 @@
     //     await LoadDashboardData();
     // }
 }
-

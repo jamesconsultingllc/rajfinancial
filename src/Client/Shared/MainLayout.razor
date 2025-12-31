@@ -13,8 +13,8 @@
     - Fully localized
 *@
 
-@inherits LayoutComponentBase
 @using Microsoft.Extensions.Localization
+@inherits LayoutComponentBase
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IStringLocalizer<MainLayout> L
@@ -29,22 +29,23 @@
         @* Authenticated Layout with Sidebar *@
         <div class="raj-layout">
             @* Sidebar Navigation *@
-            <aside class="raj-sidebar @(SidebarOpen ? "open" : "")" 
+            <aside class="raj-sidebar @(SidebarOpen ? "open" : "")"
                    aria-label="Main navigation"
                    aria-hidden="@(!SidebarOpen ? "true" : "false")"
                    @onkeydown="HandleKeyDown">
-                <NavMenu OnNavigate="CloseSidebar" />
-            </aside>    
+                <NavMenu OnNavigate="CloseSidebar"/>
+            </aside>
 
             @* Mobile Overlay *@
             @if (SidebarOpen)
             {
-                <div class="raj-overlay" 
-                     @onclick="CloseSidebar" 
+                <div class="raj-overlay"
+                     @onclick="CloseSidebar"
                      @onkeydown="HandleOverlayKeyDown"
                      tabindex="0"
                      role="button"
-                     aria-label="Close navigation menu"></div>
+                     aria-label="Close navigation menu">
+                </div>
             }
 
             @* Main Content Area *@
@@ -52,8 +53,8 @@
                 @* Top Header Bar *@
                 <header class="raj-header" role="banner">
                     @* Mobile Menu Button *@
-                    <button class="raj-menu-toggle" 
-                            @onclick="ToggleSidebar" 
+                    <button class="raj-menu-toggle"
+                            @onclick="ToggleSidebar"
                             aria-label="@L["ToggleMenu"]"
                             aria-expanded="@SidebarOpen"
                             aria-controls="main-nav">
@@ -68,7 +69,7 @@
 
                     @* Right side actions *@
                     <div class="raj-header-actions">
-                        <LoginDisplay />
+                        <LoginDisplay/>
                     </div>
                 </header>
 
@@ -79,7 +80,7 @@
             </div>
         </div>
     </Authorized>
-    
+
     <NotAuthorized>
         @* Public Layout - No Sidebar *@
         <div class="raj-layout raj-layout-public">
@@ -89,14 +90,14 @@
                     <nav class="raj-header-nav" aria-label="@L["Nav.Primary"]">
                         @* Brand Logo *@
                         <a href="" class="raj-header-brand" aria-label="@L["Brand.Name"] - Home">
-                            <img src="/images/brand/logo-horizontal.svg" alt="RAJ Financial" class="raj-header-logo" height="32" />
+                            <img src="/images/brand/logo-horizontal.svg" alt="RAJ Financial" class="raj-header-logo" height="32"/>
                         </a>
 
                         <div class="raj-header-spacer"></div>
 
                         @* Right side actions *@
                         <div class="raj-header-actions">
-                            <LoginDisplay />
+                            <LoginDisplay/>
                         </div>
                     </nav>
                 </header>
@@ -114,18 +115,24 @@
     private bool SidebarOpen { get; set; }
 
     /// <summary>
-    /// Toggles the sidebar visibility.
+    ///     Toggles the sidebar visibility.
     /// </summary>
-    private void ToggleSidebar() => SidebarOpen = !SidebarOpen;
+    private void ToggleSidebar()
+    {
+        SidebarOpen = !SidebarOpen;
+    }
 
     /// <summary>
-    /// Closes the sidebar.
+    ///     Closes the sidebar.
     /// </summary>
-    private void CloseSidebar() => SidebarOpen = false;
+    private void CloseSidebar()
+    {
+        SidebarOpen = false;
+    }
 
     /// <summary>
-    /// Handles keyboard navigation for the sidebar.
-    /// Closes on Escape key press.
+    ///     Handles keyboard navigation for the sidebar.
+    ///     Closes on Escape key press.
     /// </summary>
     private void HandleKeyDown(KeyboardEventArgs e)
     {
@@ -136,8 +143,8 @@
     }
 
     /// <summary>
-    /// Handles keyboard events on the overlay.
-    /// Closes on Escape or Enter key press.
+    ///     Handles keyboard events on the overlay.
+    ///     Closes on Escape or Enter key press.
     /// </summary>
     private void HandleOverlayKeyDown(KeyboardEventArgs e)
     {
@@ -146,4 +153,5 @@
             CloseSidebar();
         }
     }
+
 }

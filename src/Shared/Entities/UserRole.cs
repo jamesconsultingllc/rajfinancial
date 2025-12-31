@@ -7,23 +7,22 @@
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
-/// Defines the roles a user can have in the RAJ Financial system.
+///     Defines the roles a user can have in the RAJ Financial system.
 /// </summary>
 public enum UserRole
 {
     /// <summary>
-    /// System administrator with full access to all features.
+    ///     System administrator with full access to all features.
     /// </summary>
     Administrator = 0,
 
     /// <summary>
-    /// Financial advisor who manages client portfolios.
+    ///     Financial advisor who manages client portfolios.
     /// </summary>
     Advisor = 1,
 
     /// <summary>
-    /// Client user who views their own financial data.
+    ///     Client user who views their own financial data.
     /// </summary>
     Client = 2
 }
-

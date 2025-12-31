@@ -11,9 +11,8 @@
 *@
 
 @page "/debug/claims"
-@attribute [Authorize]
-
 @using System.Security.Claims
+@attribute [Authorize]
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Debug: User Claims</PageTitle>
@@ -28,7 +27,7 @@
         </div>
         <div class="card-body">
             <div class="alert alert-warning" role="alert">
-                <strong>?? Debug Page</strong> - This page displays sensitive token information. 
+                <strong>?? Debug Page</strong> - This page displays sensitive token information.
                 Remove or disable this page before deploying to production.
             </div>
 
@@ -57,8 +56,10 @@
                     <h2 class="h5 mb-3">User Identity</h2>
                     <dl class="row">
                         <dt class="col-sm-3">Name</dt>
-                        <dd class="col-sm-9"><code>@userName</code></dd>
-                        
+                        <dd class="col-sm-9">
+                            <code>@userName</code>
+                        </dd>
+
                         <dt class="col-sm-3">Is Authenticated</dt>
                         <dd class="col-sm-9">
                             @if (isAuthenticated)
@@ -70,15 +71,17 @@
                                 <span class="badge bg-danger">No</span>
                             }
                         </dd>
-                        
+
                         <dt class="col-sm-3">Authentication Type</dt>
-                        <dd class="col-sm-9"><code>@(authenticationType ?? "N/A")</code></dd>
+                        <dd class="col-sm-9">
+                            <code>@(authenticationType ?? "N/A")</code>
+                        </dd>
                     </dl>
                 </section>
 
                 <section class="mb-4">
                     <h2 class="h5 mb-3">
-                        Roles 
+                        Roles
                         <span class="badge bg-secondary">@roles.Count()</span>
                     </h2>
                     @if (roles.Any())
@@ -94,7 +97,7 @@
                     {
                         <div class="alert alert-danger" role="alert">
                             <strong>No roles found!</strong> This is likely why authorization policies are failing.
-                            <hr />
+                            <hr/>
                             <p class="mb-0">To fix this:</p>
                             <ol class="mb-0 mt-2">
                                 <li>Go to Azure Portal ? App Registrations ? Your App ? App roles</li>
@@ -109,32 +112,34 @@
 
                 <section>
                     <h2 class="h5 mb-3">
-                        All Claims 
+                        All Claims
                         <span class="badge bg-secondary">@claims.Count()</span>
                     </h2>
                     <div class="table-responsive">
                         <table class="table table-striped table-hover table-sm" aria-describedby="claims-caption">
                             <caption id="claims-caption" class="visually-hidden">User token claims and their values</caption>
                             <thead class="table-dark">
-                                <tr>
-                                    <th scope="col" style="width: 40%">Claim Type</th>
-                                    <th scope="col" style="width: 60%">Value</th>
-                                </tr>
+                            <tr>
+                                <th scope="col" style="width: 40%">Claim Type</th>
+                                <th scope="col" style="width: 60%">Value</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                @foreach (var claim in claims.OrderBy(c => c.Type))
-                                {
-                                    <tr class="@GetRowClass(claim.Type)">
-                                        <td>
-                                            <code class="text-break">@GetFriendlyClaimType(claim.Type)</code>
-                                            @if (IsRoleClaim(claim.Type))
-                                            {
-                                                <span class="badge bg-success ms-2">Role</span>
-                                            }
-                                        </td>
-                                        <td><code class="text-break">@claim.Value</code></td>
-                                    </tr>
-                                }
+                            @foreach (var claim in claims.OrderBy(c => c.Type))
+                            {
+                                <tr class="@GetRowClass(claim.Type)">
+                                    <td>
+                                        <code class="text-break">@GetFriendlyClaimType(claim.Type)</code>
+                                        @if (IsRoleClaim(claim.Type))
+                                        {
+                                            <span class="badge bg-success ms-2">Role</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <code class="text-break">@claim.Value</code>
+                                    </td>
+                                </tr>
+                            }
                             </tbody>
                         </table>
                     </div>
@@ -163,7 +168,7 @@
     private string? errorMessage;
 
     /// <summary>
-    /// Loads the current user's authentication state and extracts claims.
+    ///     Loads the current user's authentication state and extracts claims.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
@@ -193,7 +198,7 @@
     }
 
     /// <summary>
-    /// Determines if a claim type represents a role.
+    ///     Determines if a claim type represents a role.
     /// </summary>
     private static bool IsRoleClaim(string claimType)
     {
@@ -204,7 +209,7 @@
     }
 
     /// <summary>
-    /// Gets a friendly display name for common claim types.
+    ///     Gets a friendly display name for common claim types.
     /// </summary>
     private static string GetFriendlyClaimType(string claimType)
     {
@@ -221,17 +226,18 @@
     }
 
     /// <summary>
-    /// Gets a CSS class for highlighting important rows.
+    ///     Gets a CSS class for highlighting important rows.
     /// </summary>
     private static string GetRowClass(string claimType)
     {
         if (IsRoleClaim(claimType))
             return "table-success";
-        
+
         if (claimType.Contains("name", StringComparison.OrdinalIgnoreCase) ||
             claimType.Contains("email", StringComparison.OrdinalIgnoreCase))
             return "table-info";
 
         return string.Empty;
     }
+
 }

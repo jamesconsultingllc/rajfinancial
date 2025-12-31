@@ -23,16 +23,6 @@ Scenario: Client user sees client navigation
     And I should not see the "Advisor Tools" section
     And I should not see the "Administration" section
 
-@authenticated @advisor
-Scenario: Advisor user sees advisor and client navigation
-    Given I am logged in as an "Advisor"
-    When I view the navigation menu
-    Then I should see the "Home" link
-    And I should see the "My Account" section
-    And I should see the "Advisor Tools" section
-    And I should see the "My Clients" link
-    And I should not see the "Administration" section
-
 @authenticated @administrator
 Scenario: Administrator sees admin navigation only
     Given I am logged in as an "Administrator"
@@ -41,8 +31,7 @@ Scenario: Administrator sees admin navigation only
     And I should see the "Administration" section
     And I should see the "Dashboard" link in admin section
     And I should see the "User Management" link
-    And I should not see the "My Account" section
-    And I should not see the "Advisor Tools" section
+    And I should see the "My Account" section
 
 @accessibility
 Scenario: Navigation is keyboard accessible

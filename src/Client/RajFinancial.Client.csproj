@@ -14,4 +14,8 @@
     <PackageReference Include="Microsoft.Extensions.Localization" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Pages\Advisor\" />
+  </ItemGroup>
+
 </Project>
