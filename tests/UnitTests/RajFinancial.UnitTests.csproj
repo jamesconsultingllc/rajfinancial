@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -11,6 +11,7 @@
     <PackageReference Include="bunit" Version="1.36.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="FluentAssertions" Version="7.0.0" />
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
@@ -27,6 +28,11 @@
     <ProjectReference Include="..\..\src\Api\RajFinancial.Api.csproj" />
     <ProjectReference Include="..\..\src\Shared\RajFinancial.Shared.csproj" />
     <ProjectReference Include="..\..\src\Client\RajFinancial.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Api\Functions\Auth\" />
+    <Folder Include="Api\Services\" />
   </ItemGroup>
 
 </Project>
