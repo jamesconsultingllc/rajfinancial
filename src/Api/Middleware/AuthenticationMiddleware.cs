@@ -86,7 +86,7 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
     {
         // In Azure Functions isolated worker, claims are available through
         // the FunctionContext.Features collection
-        if (context.Features.Get<IFunctionBindingsFeature>() is { } bindingsFeature)
+        if (context.Features.Get<IFunctionBindingsFeature>() is not null)
         {
             // For HTTP triggers, the ClaimsPrincipal is typically available
             // through the invocation features
