@@ -18,7 +18,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     private static IPlaywright? playwright;
     private static IBrowser? browser;
 
-    private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> TestUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Client"] = "test-client@rajfinancialdev.onmicrosoft.com",
         ["Advisor"] = "test-advisor@rajfinancialdev.onmicrosoft.com",
@@ -79,7 +79,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             var storagePath = TestConfiguration.Instance.GetStorageStatePath(role);
             if (string.IsNullOrWhiteSpace(storagePath)) continue;
 
-            if (!testUserEmails.TryGetValue(role, out var email)) continue;
+            if (!TestUserEmails.TryGetValue(role, out var email)) continue;
 
             await EnsureStorageStateAsync(role, email, storagePath);
         }
@@ -318,9 +318,10 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         // Step 1: Look for email input field
         var emailSelectors = new[]
         {
-            "input[data-testid='iusernameInput']",  // Entra External ID
+            "input[name='username']",               // Entra External ID (CIAM) - type="text"
+            "input[data-testid='iusernameInput']",  // Entra External ID (older)
             "input[type='email']",
-            "input[name='loginfmt']",
+            "input[name='loginfmt']",               // Entra ID (B2B/workforce)
             "input[name='email']"
         };
 
@@ -362,9 +363,10 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         // Step 2: Wait for and fill password field
         var passwordSelectors = new[]
         {
-            "input[data-testid='ipasswordInput']",  // Entra External ID
+            "input[name='password']",               // Entra External ID (CIAM)
+            "input[data-testid='ipasswordInput']",  // Entra External ID (older)
             "input[type='password']",
-            "input[name='passwd']"
+            "input[name='passwd']"                   // Entra ID (B2B/workforce)
         };
 
         ILocator? passwordInput = null;
