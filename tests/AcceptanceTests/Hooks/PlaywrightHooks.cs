@@ -289,7 +289,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         // With MSAL configured to use localStorage, Playwright's native storage state captures tokens.
         // Debug: Check localStorage
         var localStorageKeys = await page.EvaluateAsync<string[]>("() => Object.keys(localStorage)");
-        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys?.Length ?? 0}");
+        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys.Length}");
         Console.WriteLine($"[{role}] Current URL: {page.Url}");
 
         // Save storage state using Playwright's native method

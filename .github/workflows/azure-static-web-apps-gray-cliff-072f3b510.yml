@@ -310,10 +310,13 @@ jobs:
           name: e2e-debug-screenshots-${{ matrix.browser }}
           path: |
             /tmp/entra-*.png
-            /tmp/auth-failed-*.png
-            /tmp/login-redirect-*.png
-            tests/AcceptanceTests/TestResults/Screenshots/
             /tmp/entra-*.html
+            /tmp/auth-failed-*.png
+            /tmp/auth-failed-*.html
+            /tmp/login-redirect-*.png
+            /tmp/login-redirect-*.html
+            TestResults/Screenshots/
+            tests/AcceptanceTests/TestResults/Screenshots/
           if-no-files-found: ignore
           retention-days: 7
 

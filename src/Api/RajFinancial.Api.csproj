@@ -43,11 +43,17 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
-    <None Update="certificate.pfx" Condition="Exists('certificate.pfx')">
+    <None Update="certificate.pfx" Condition="Exists('certificate.pfx') And '$(BuildingInsideVisualStudio)' != 'true' And '$(BuildingForLiveUnitTesting)' != 'true'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Copy certificate.pfx to output only for local func start, ensuring output dir exists first -->
+  <Target Name="CopyCertificate" AfterTargets="Build" Condition="Exists('certificate.pfx') And '$(BuildingForLiveUnitTesting)' != 'true'">
+    <MakeDir Directories="$(OutputPath)" />
+    <Copy SourceFiles="certificate.pfx" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" ContinueOnError="true" />
+  </Target>
 
 </Project>
 

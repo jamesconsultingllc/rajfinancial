@@ -20,7 +20,7 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 public class AuthenticationSteps(ScenarioContext scenarioContext)
 {
     // Track test users created during tests for cleanup
-    private static readonly List<string> testUsersToCleanup = new();
+    private static readonly List<string> TestUsersToCleanup = new();
     private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should be redirected to the Entra External ID login page")]
@@ -162,7 +162,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         Console.WriteLine($"🔗 IMAP: {emailHelper.GetConnectionInfo()}");
 
         // Store for cleanup and later use
-        testUsersToCleanup.Add(testEmail);
+        TestUsersToCleanup.Add(testEmail);
         scenarioContext.Set(testEmail, "TestUserEmail");
         scenarioContext.Set(usernameGuid, "UsernameGuid");
 
@@ -177,9 +177,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Fill in email field - optimized based on test logs
         var emailSelectors = new[]
         {
-            "input[type='email']", // ✓ Works - tested 2024-12-26
-            "input[name='email']", // Fallback
-            "input#email" // Fallback
+            "input[name='username']",  // Entra External ID (CIAM) - type="text"
+            "input[type='email']",
+            "input[name='email']",
+            "input#email"
         };
 
         var emailField = await FindFirstVisibleInput(emailSelectors);
@@ -212,9 +213,11 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         if (buttonText.Equals("Next", StringComparison.OrdinalIgnoreCase))
             buttonSelectors.AddRange(new[]
             {
-                "#idSIButton9", // ✓ Works - tested 2024-12-26
-                EntraSelectors.NextButton, // ✓ Works - button[name='idSIButton9']
-                "input[type='submit']" // Fallback
+                "button[data-testid='usernamePrimaryButton']", // Entra External ID (CIAM)
+                "button[type='submit']",                       // Generic submit button
+                "#idSIButton9",                                // Entra ID (B2B/workforce)
+                EntraSelectors.NextButton,                     // button[name='idSIButton9']
+                "input[type='submit']"                         // Fallback
             });
         else if (buttonText.Equals("Verify", StringComparison.OrdinalIgnoreCase))
             buttonSelectors.AddRange(new[]
@@ -223,20 +226,23 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
                 "#verifyButton",
                 "#verify",
                 "button:has-text('Verify')",
+                "button[type='submit']",
                 EntraSelectors.SubmitButton
             });
         else if (buttonText.Equals("Accept", StringComparison.OrdinalIgnoreCase))
             buttonSelectors.AddRange(new[]
             {
-                "input[type='submit'][value='Accept']", // ✓ Works - tested 2024-12-26
-                "button:has-text('Accept')", // Fallback
-                EntraSelectors.SubmitButton // Fallback
+                "input[type='submit'][value='Accept']",
+                "button:has-text('Accept')",
+                "button[type='submit']",
+                EntraSelectors.SubmitButton
             });
         else
             // Generic button selectors
             buttonSelectors.AddRange(new[]
             {
                 $"button:has-text('{buttonText}')",
+                $"button[type='submit']",
                 $"input[type='submit'][value*='{buttonText}' i]",
                 $"input[type='button'][value*='{buttonText}' i]",
                 $"a:has-text('{buttonText}')"
@@ -261,13 +267,20 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         if (!clicked)
         {
-            await Page.ScreenshotAsync(new PageScreenshotOptions
-            {
-                Path =
-                    $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{DateTime.Now:yyyyMMddHHmmss}.png",
-                FullPage = true
-            });
-            throw new Exception($"Could not find '{buttonText}' button on Entra page. Screenshot saved.");
+            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var screenshotPath = $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{timestamp}.png";
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"entra-button-{buttonText.Replace(" ", "-")}-{timestamp}.html");
+
+            Directory.CreateDirectory("TestResults/Screenshots");
+            await Page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
+            var pageHtml = await Page.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Debug screenshot: {screenshotPath}");
+            Console.WriteLine($"Debug HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {Page.Url}");
+
+            throw new Exception($"Could not find '{buttonText}' button on Entra page. Screenshot: {screenshotPath}, HTML: {htmlPath}");
         }
 
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
@@ -910,7 +923,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     public async Task ThenTheTestUserShouldBeMarkedForCleanup()
     {
         var email = scenarioContext.Get<string>("TestUserEmail");
-        Assert.Contains(email, testUsersToCleanup);
+        Assert.Contains(email, TestUsersToCleanup);
         await TestUserCleanupExtensions.RunScheduledCleanup();
     }
 
@@ -1374,7 +1387,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static IReadOnlyList<string> GetTestUsersForCleanup()
     {
-        return testUsersToCleanup.AsReadOnly();
+        return TestUsersToCleanup.AsReadOnly();
     }
 
     /// <summary>
@@ -1382,7 +1395,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static void ClearCleanupList()
     {
-        testUsersToCleanup.Clear();
+        TestUsersToCleanup.Clear();
     }
 
     // ========================================================================
@@ -1408,7 +1421,5 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Buttons
         public const string NextButton = "button[name='idSIButton9']";
         public const string SubmitButton = "button[type='submit']";
-        public const string CancelButton = "button.ext-secondary";
-        public const string VerifyButton = "input#idSubmit_SAOTCC_Continue";
     }
 }
