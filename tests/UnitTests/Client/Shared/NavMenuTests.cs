@@ -219,7 +219,7 @@ public class NavMenuTests : BunitContext
     /// </summary>
     private void SetupAuthorization(bool isAuthenticated = false)
     {
-        var authContext = this.AddAuthorization();
+        var authContext = AddAuthorization();
 
         if (isAuthenticated)
             authContext.SetAuthorized("testuser@example.com");
@@ -232,7 +232,7 @@ public class NavMenuTests : BunitContext
     /// </summary>
     private void SetupAuthorizationWithPolicies(params string[] policies)
     {
-        var authContext = this.AddAuthorization();
+        var authContext = AddAuthorization();
         authContext.SetAuthorized("testuser@example.com");
         authContext.SetPolicies(policies);
     }

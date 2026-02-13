@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FluentAssertions;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
 
@@ -229,7 +230,7 @@ public class FunctionContextExtensionsTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Identity!.Name.Should().Be("testuser");
+        result.Identity!.Name.Should().Be("testuser");
     }
 
     [Fact]

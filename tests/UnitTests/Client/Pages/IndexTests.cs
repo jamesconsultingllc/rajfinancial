@@ -20,7 +20,7 @@ public class IndexTests : BunitContext
     public IndexTests()
     {
         // Setup authorization services for unauthenticated state by default
-        var authContext = this.AddAuthorization();
+        var authContext = AddAuthorization();
         authContext.SetNotAuthorized();
 
         // Setup localization services with mock that returns the key as value

@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware.Content;
 
-namespace RajFinancial.Api.Middleware;
+namespace RajFinancial.Api.Middleware.Exception;
 
 /// <summary>
 /// Global exception handling middleware that catches and formats all unhandled exceptions.
@@ -67,13 +67,11 @@ public class ExceptionMiddleware(
             logger.LogError(ex, "Configuration error: {Message}", ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "CONFIGURATION_ERROR", "Service configuration error");
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
-            // Log the full exception details server-side
             logger.LogError(ex, "Unhandled exception in {FunctionName}: {Message}",
                 context.FunctionDefinition.Name, ex.Message);
 
-            // Return generic error to client (never expose stack traces)
             await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "INTERNAL_ERROR", "An unexpected error occurred");
         }
     }
@@ -90,7 +88,7 @@ public class ExceptionMiddleware(
 
         var response = httpRequest.CreateResponse(statusCode);
 
-        // Remove existing Content-Type header to prevent FormatException
+        // Remove the existing Content-Type header to prevent FormatException
         if (response.Headers.Contains("Content-Type"))
         {
             response.Headers.Remove("Content-Type");

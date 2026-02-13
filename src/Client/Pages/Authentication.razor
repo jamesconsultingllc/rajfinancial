@@ -129,7 +129,7 @@
 
     protected override void OnParametersSet()
     {
-        // Handle "register" action by redirecting to login with prompt=create
+        // Handle the "register" action by redirecting to login with prompt=create
         // This tells Entra External ID to show the sign-up screen directly
         if (string.Equals(Action, "register", StringComparison.OrdinalIgnoreCase))
         {

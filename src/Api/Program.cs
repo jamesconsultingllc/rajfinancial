@@ -1,4 +1,3 @@
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +7,7 @@ using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Content;
+using RajFinancial.Api.Middleware.Exception;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 

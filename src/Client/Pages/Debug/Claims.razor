@@ -179,7 +179,7 @@
             isAuthenticated = user.Identity?.IsAuthenticated ?? false;
             userName = user.Identity?.Name;
             authenticationType = user.Identity?.AuthenticationType;
-            claims = user.Claims?.ToList() ?? new List<Claim>();
+            claims = user.Claims.ToList();
 
             // Extract roles from various possible claim types
             roles = claims

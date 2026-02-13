@@ -1,9 +1,9 @@
-﻿namespace RajFinancial.Api.Middleware;
+﻿namespace RajFinancial.Api.Middleware.Exception;
 
 /// <summary>
 /// Exception thrown when a requested resource is not found.
 /// </summary>
-public class NotFoundException(string errorCode, string message) : Exception(message)
+public class NotFoundException(string errorCode, string message) : System.Exception(message)
 {
     public string ErrorCode { get; } = errorCode;
 

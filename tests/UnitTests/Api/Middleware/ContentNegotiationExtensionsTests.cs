@@ -57,7 +57,7 @@ public class ContentNegotiationExtensionsTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test");
+        result.Name.Should().Be("Test");
         result.Value.Should().Be(42);
     }
 
@@ -76,7 +76,7 @@ public class ContentNegotiationExtensionsTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Fallback");
+        result.Name.Should().Be("Fallback");
     }
 
     [Fact]

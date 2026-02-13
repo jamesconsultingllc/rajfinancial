@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -72,7 +73,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Applicatio
     {
         try
         {
-            var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+            var builder = new SqlConnectionStringBuilder(connectionString);
             return $"{builder.DataSource}/{builder.InitialCatalog}";
         }
         catch

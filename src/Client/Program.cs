@@ -116,7 +116,7 @@ builder.Services.AddAuthorizationCore(options =>
         policy.RequireAuthenticatedUser());
 });
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 // Set default culture
 var host = builder.Build();

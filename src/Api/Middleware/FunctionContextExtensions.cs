@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
+using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.Api.Middleware;
 

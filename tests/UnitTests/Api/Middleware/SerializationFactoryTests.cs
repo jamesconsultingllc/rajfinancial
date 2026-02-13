@@ -126,7 +126,7 @@ public partial class SerializationFactoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test");
+        result.Name.Should().Be("Test");
         result.Value.Should().Be(42);
     }
 
@@ -174,7 +174,7 @@ public partial class SerializationFactoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("RoundTrip");
+        result.Name.Should().Be("RoundTrip");
         result.Value.Should().Be(123);
     }
 
