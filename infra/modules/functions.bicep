@@ -94,7 +94,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     httpsOnly: true
     publicNetworkAccess: 'Enabled'
     siteConfig: {
-      netFrameworkVersion: 'v8.0'
+      netFrameworkVersion: 'v10.0'
       use32BitWorkerProcess: false
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
