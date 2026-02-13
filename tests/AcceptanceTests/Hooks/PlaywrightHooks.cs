@@ -302,26 +302,93 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task HandleEntraLoginPage(IPage loginPage, string email, string password)
     {
         await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await loginPage.WaitForTimeoutAsync(500);
+        await loginPage.WaitForTimeoutAsync(1000);
 
-        // Email input - try multiple selectors for Entra External ID
-        var emailInput = loginPage.Locator("input[type='email'], input[name='loginfmt'], input[data-testid='iusernameInput']");
-        if (await emailInput.IsVisibleAsync())
+        // Entra External ID (CIAM) may show email and password on the same page,
+        // or may have a two-step flow. Handle both cases.
+        
+        // Step 1: Look for email input field
+        var emailSelectors = new[]
         {
-            await emailInput.FillAsync(email);
-            // Click Next/Submit button
-            var nextButton = loginPage.Locator("input[type='submit'], button[type='submit'], button[name='idSIButton9']");
-            await nextButton.ClickAsync();
+            "input[data-testid='iusernameInput']",  // Entra External ID
+            "input[type='email']",
+            "input[name='loginfmt']",
+            "input[name='email']"
+        };
+
+        ILocator? emailInput = null;
+        foreach (var selector in emailSelectors)
+        {
+            var locator = loginPage.Locator(selector).First;
+            try
+            {
+                await locator.WaitForAsync(new LocatorWaitForOptions 
+                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
+                emailInput = locator;
+                break;
+            }
+            catch
+            {
+                // Try next selector
+            }
         }
 
-        // Password input - use Entra External ID selector with fallback
-        var passwordSelectors = "input[data-testid='ipasswordInput'], input[type='password']";
-        await loginPage.WaitForSelectorAsync(passwordSelectors,
-            new PageWaitForSelectorOptions { Timeout = 15000, State = WaitForSelectorState.Visible });
-        await loginPage.FillAsync(passwordSelectors, password);
-        var submitButton =
-            loginPage.Locator(
-                "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next'), button[name='idSIButton9']");
+        if (emailInput != null)
+        {
+            await emailInput.FillAsync(email);
+            
+            // Check if password field is already visible (same-page flow)
+            var passwordVisible = await loginPage.Locator("input[data-testid='ipasswordInput'], input[type='password']")
+                .First.IsVisibleAsync();
+            
+            if (!passwordVisible)
+            {
+                // Two-step flow: click Next to proceed to password
+                var nextButton = loginPage.Locator("input[type='submit'], button[type='submit'], button[name='idSIButton9']").First;
+                await nextButton.ClickAsync();
+                await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                await loginPage.WaitForTimeoutAsync(1000);
+            }
+        }
+
+        // Step 2: Wait for and fill password field
+        var passwordSelectors = new[]
+        {
+            "input[data-testid='ipasswordInput']",  // Entra External ID
+            "input[type='password']",
+            "input[name='passwd']"
+        };
+
+        ILocator? passwordInput = null;
+        foreach (var selector in passwordSelectors)
+        {
+            var locator = loginPage.Locator(selector).First;
+            try
+            {
+                await locator.WaitForAsync(new LocatorWaitForOptions 
+                    { State = WaitForSelectorState.Visible, Timeout = 10000 });
+                passwordInput = locator;
+                break;
+            }
+            catch
+            {
+                // Try next selector
+            }
+        }
+
+        if (passwordInput == null)
+        {
+            // Take debug screenshot
+            var debugPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath, FullPage = true });
+            throw new TimeoutException($"Password field not found. Screenshot saved to: {debugPath}. Current URL: {loginPage.Url}");
+        }
+
+        await passwordInput.FillAsync(password);
+        
+        // Step 3: Submit the form
+        var submitButton = loginPage.Locator(
+            "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button[name='idSIButton9']").First;
         await submitButton.ClickAsync();
 
         // Handle "Stay signed in?" or "Keep me signed in" prompt
