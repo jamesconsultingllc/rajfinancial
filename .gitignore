@@ -40,3 +40,10 @@ appsettings.local.json
 
 # Local HTTPS certificate
 certificate.pfx
+
+# Debug/test artifacts
+test-publish/
+func-logs/
+func-logs2/
+func-logs*.zip
+docs/session.md
