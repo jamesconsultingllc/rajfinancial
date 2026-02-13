@@ -11,7 +11,6 @@
 *@
 
 @page "/admin/users"
-@using Microsoft.Extensions.Localization
 @attribute [Authorize(Policy = "RequireAdministrator")]
 @inject IStringLocalizer<Users> L
 

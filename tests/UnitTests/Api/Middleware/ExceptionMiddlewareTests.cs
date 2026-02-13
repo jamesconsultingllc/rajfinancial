@@ -1,10 +1,6 @@
-using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using Moq;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
 
@@ -14,15 +10,6 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 /// </summary>
 public class ExceptionMiddlewareTests
 {
-    private readonly Mock<ILogger<ExceptionMiddleware>> _loggerMock;
-    private readonly ExceptionMiddleware _sut;
-
-    public ExceptionMiddlewareTests()
-    {
-        _loggerMock = new Mock<ILogger<ExceptionMiddleware>>();
-        _sut = new ExceptionMiddleware(_loggerMock.Object);
-    }
-
     [Fact]
     public void NotFoundException_ShouldHaveCorrectErrorCode()
     {

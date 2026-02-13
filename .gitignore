@@ -37,3 +37,6 @@ appsettings.local.json
 /tests/AcceptanceTests/appsettings.local.json
 /src/Api/local.settings.json
 /themes
+
+# Local HTTPS certificate
+certificate.pfx

@@ -2,31 +2,46 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Data;
 
 namespace RajFinancial.Api.Functions;
 
 /// <summary>
-///     Sample HTTP function for testing Azure Functions integration.
+///     Health check endpoint that reports API status and database connectivity.
 /// </summary>
-public class HealthCheckFunction(ILoggerFactory loggerFactory)
+public class HealthCheckFunction(ILoggerFactory loggerFactory, ApplicationDbContext context)
 {
-    private readonly ILogger logger = loggerFactory.CreateLogger<HealthCheckFunction>();
+    private readonly ILogger _logger = loggerFactory.CreateLogger<HealthCheckFunction>();
 
     /// <summary>
-    ///     Health check endpoint for the API.
+    ///     Returns the health status of the API and database connectivity.
     /// </summary>
     /// <param name="req">The HTTP request.</param>
-    /// <returns>A 200 OK response with status information.</returns>
+    /// <returns>A 200 OK response with status information, or 503 if degraded.</returns>
     [Function("HealthCheck")]
-    public HttpResponseData Run(
+    public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")]
         HttpRequestData req)
     {
-        logger.LogInformation("Health check requested");
+        _logger.LogInformation("Health check requested");
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
+        var dbHealthy = false;
+        try
+        {
+            dbHealthy = await context.Database.CanConnectAsync();
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogWarning(ex, "Database connectivity check failed");
+        }
+
+        var status = dbHealthy ? "healthy" : "degraded";
+        var statusCode = dbHealthy ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable;
+
+        var response = req.CreateResponse(statusCode);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        response.WriteString("{\"status\":\"healthy\",\"service\":\"RajFinancial API\"}");
+        await response.WriteStringAsync(
+            $"{{\"status\":\"{status}\",\"service\":\"RajFinancial API\",\"database\":\"{(dbHealthy ? "connected" : "unavailable")}\"}}");
 
         return response;
     }

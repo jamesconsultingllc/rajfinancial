@@ -18,7 +18,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     private static IPlaywright? playwright;
     private static IBrowser? browser;
 
-    private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> TestUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Client"] = "test-client@rajfinancialdev.onmicrosoft.com",
         ["Advisor"] = "test-advisor@rajfinancialdev.onmicrosoft.com",
@@ -79,7 +79,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             var storagePath = TestConfiguration.Instance.GetStorageStatePath(role);
             if (string.IsNullOrWhiteSpace(storagePath)) continue;
 
-            if (!testUserEmails.TryGetValue(role, out var email)) continue;
+            if (!TestUserEmails.TryGetValue(role, out var email)) continue;
 
             await EnsureStorageStateAsync(role, email, storagePath);
         }
@@ -270,10 +270,18 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         if (!authenticated)
         {
-            // Take a debug screenshot
-            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            // Capture debug screenshot and page HTML
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.html");
+
             await page.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath, FullPage = true });
-            Console.WriteLine($"Auth failed for {role}. Debug screenshot: {debugPath}");
+            var pageHtml = await page.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Auth failed for {role}. Screenshot: {debugPath}, HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {page.Url}");
+            Console.WriteLine($"Page title: {await page.TitleAsync()}");
             await context.CloseAsync();
             return false;
         }
@@ -281,7 +289,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         // With MSAL configured to use localStorage, Playwright's native storage state captures tokens.
         // Debug: Check localStorage
         var localStorageKeys = await page.EvaluateAsync<string[]>("() => Object.keys(localStorage)");
-        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys?.Length ?? 0}");
+        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys.Length}");
         Console.WriteLine($"[{role}] Current URL: {page.Url}");
 
         // Save storage state using Playwright's native method
@@ -302,21 +310,78 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task HandleEntraLoginPage(IPage loginPage, string email, string password)
     {
         await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await loginPage.WaitForTimeoutAsync(500);
+        await loginPage.WaitForTimeoutAsync(1000);
 
-        var emailInput = loginPage.Locator("input[type='email'], input[name='loginfmt']");
-        if (await emailInput.IsVisibleAsync())
+        // Entra External ID (CIAM) may show email and password on the same page,
+        // or may have a two-step flow. Handle both cases.
+        
+        // Step 1: Look for email input field
+        var emailSelectors = new[]
+        {
+            "input[name='username']",               // Entra External ID (CIAM) - type="text"
+            "input[data-testid='iusernameInput']",  // Entra External ID (older)
+            "input[type='email']",
+            "input[name='loginfmt']",               // Entra ID (B2B/workforce)
+            "input[name='email']"
+        };
+
+        var emailInput = await FindVisibleLocatorAsync(loginPage, emailSelectors, 3000);
+
+        if (emailInput != null)
         {
             await emailInput.FillAsync(email);
-            await loginPage.ClickAsync("input[type='submit'], button[type='submit']");
+            
+            // Check if password field is already visible (same-page flow)
+            var passwordVisible = await loginPage.Locator("input[data-testid='ipasswordInput'], input[type='password']")
+                .First.IsVisibleAsync();
+            
+            if (!passwordVisible)
+            {
+                // Two-step flow: click Next to proceed to password
+                var nextButton = loginPage.Locator("input[type='submit'], button[type='submit'], button[name='idSIButton9']").First;
+                await nextButton.ClickAsync();
+                await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                await loginPage.WaitForTimeoutAsync(1000);
+            }
         }
 
-        await loginPage.WaitForSelectorAsync("input[type='password']",
-            new PageWaitForSelectorOptions { Timeout = 15000, State = WaitForSelectorState.Visible });
-        await loginPage.FillAsync("input[type='password']", password);
-        var submitButton =
-            loginPage.Locator(
-                "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next')");
+        // Step 2: Wait for and fill password field
+        var passwordSelectors = new[]
+        {
+            "input[name='password']",               // Entra External ID (CIAM)
+            "input[data-testid='ipasswordInput']",  // Entra External ID (older)
+            "input[type='password']",
+            "input[name='passwd']"                   // Entra ID (B2B/workforce)
+        };
+
+        var passwordInput = await FindVisibleLocatorAsync(loginPage, passwordSelectors, 10000);
+
+        if (passwordInput == null)
+        {
+            // Capture debug screenshot and page HTML for diagnostics
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var screenshotPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.html");
+
+            await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
+
+            var pageHtml = await loginPage.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Debug screenshot: {screenshotPath}");
+            Console.WriteLine($"Debug HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {loginPage.Url}");
+            Console.WriteLine($"Page title: {await loginPage.TitleAsync()}");
+
+            throw new TimeoutException(
+                $"Password field not found. Screenshot: {screenshotPath}, HTML: {htmlPath}. Current URL: {loginPage.Url}");
+        }
+
+        await passwordInput.FillAsync(password);
+        
+        // Step 3: Submit the form
+        var submitButton = loginPage.Locator(
+            "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button[name='idSIButton9']").First;
         await submitButton.ClickAsync();
 
         // Handle "Stay signed in?" or "Keep me signed in" prompt
@@ -334,7 +399,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             // Prompt not shown - may auto-redirect or use different flow
         }
 
-        // For redirect flow: wait for redirect back to the app
+        // Step 4: For redirect flow: wait for redirect back to the app
         // For popup flow: the popup will close automatically
         try
         {
@@ -346,19 +411,55 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         }
         catch
         {
-            // URL check failed - take debug screenshot
+            // URL check failed - capture debug screenshot and HTML
             Console.WriteLine("Warning: Login redirect did not complete within 30s.");
             try
             {
+                var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
                 var debugPath = Path.Combine(Path.GetTempPath(),
-                    $"login-redirect-timeout-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                    $"login-redirect-timeout-{timestamp}.png");
+                var htmlPath = Path.Combine(Path.GetTempPath(),
+                    $"login-redirect-timeout-{timestamp}.html");
+
                 await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath });
-                Console.WriteLine($"Debug screenshot saved to: {debugPath}");
+                var pageHtml = await loginPage.ContentAsync();
+                await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+                Console.WriteLine($"Debug screenshot: {debugPath}");
+                Console.WriteLine($"Debug HTML: {htmlPath}");
+                Console.WriteLine($"Current URL: {loginPage.Url}");
             }
             catch
             {
-                /* Ignore screenshot errors */
+                /* Ignore screenshot/HTML capture errors */
             }
         }
+    }
+
+    /// <summary>
+    ///     Finds the first visible locator from a list of CSS selectors.
+    /// </summary>
+    /// <param name="page">The page to search.</param>
+    /// <param name="selectors">CSS selectors to try in order.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds for each selector.</param>
+    /// <returns>The first visible locator, or null if none found.</returns>
+    private static async Task<ILocator?> FindVisibleLocatorAsync(IPage page, string[] selectors, int timeoutMs)
+    {
+        foreach (var selector in selectors)
+        {
+            var locator = page.Locator(selector).First;
+            try
+            {
+                await locator.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+                return locator;
+            }
+            catch
+            {
+                // Try next selector
+            }
+        }
+
+        return null;
     }
 }

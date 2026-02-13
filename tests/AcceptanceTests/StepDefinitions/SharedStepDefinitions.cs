@@ -260,10 +260,11 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
     }
 
     [Then(@"I should be on the ""(.*)"" page")]
-    public async Task ThenIShouldBeOnThePage(string path)
+    public Task ThenIShouldBeOnThePage(string path)
     {
         var url = Page.Url;
         Assert.Contains(path, url);
+        return Task.CompletedTask;
     }
 
     [Then(@"I should see the ""(.*)"" link")]

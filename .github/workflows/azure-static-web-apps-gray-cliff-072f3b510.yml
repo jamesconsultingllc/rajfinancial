@@ -66,7 +66,12 @@ jobs:
         run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
+    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    if: |
+      github.event_name != 'pull_request' && 
+      (needs.detect_changes.outputs.src_changed == 'true' || 
+       startsWith(github.ref, 'refs/heads/feature/') || 
+       startsWith(github.ref, 'refs/heads/hotfix/'))
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
@@ -122,10 +127,10 @@ jobs:
           action: upload
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
-          api_location: "src/Api"
           output_location: "wwwroot"
           production_branch: main
           skip_app_build: false
+          skip_api_build: true
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
@@ -297,6 +302,20 @@ jobs:
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Upload debug screenshots
+        if: failure()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-debug-screenshots-${{ matrix.browser }}
+          path: |
+            /tmp/entra-*.png
+            /tmp/auth-failed-*.png
+            /tmp/login-redirect-*.png
+            TestResults/Screenshots/
+            tests/AcceptanceTests/TestResults/Screenshots/
+          if-no-files-found: ignore
+          retention-days: 1
 
   close_pull_request_job:
     if: |

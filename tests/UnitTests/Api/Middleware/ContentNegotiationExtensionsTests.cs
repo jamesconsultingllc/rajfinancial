@@ -1,9 +1,9 @@
+using System.Text;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
 
@@ -14,66 +14,69 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 public class ContentNegotiationExtensionsTests
 {
     [Fact]
-    public void DeserializeBody_WhenNoBodyBytes_ReturnsNull()
+    public async Task DeserializeBodyAsync_WhenNoBodyBytes_ReturnsNull()
     {
         // Arrange
         var context = new TestFunctionContext();
+        var factory = CreateSerializationFactory();
 
         // Act
-        var result = context.DeserializeBody<TestDto>();
+        var result = await context.DeserializeBodyAsync<TestDto>(factory);
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public void DeserializeBody_WhenEmptyBytes_ReturnsNull()
+    public async Task DeserializeBodyAsync_WhenEmptyBytes_ReturnsNull()
     {
         // Arrange
         var context = new TestFunctionContext();
         context.Items["RequestBodyBytes"] = Array.Empty<byte>();
+        var factory = CreateSerializationFactory();
 
         // Act
-        var result = context.DeserializeBody<TestDto>();
+        var result = await context.DeserializeBodyAsync<TestDto>(factory);
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public void DeserializeBody_WithJsonBytes_DeserializesCorrectly()
+    public async Task DeserializeBodyAsync_WithJsonBytes_DeserializesCorrectly()
     {
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Test","value":42}""";
-        context.Items["RequestBodyBytes"] = System.Text.Encoding.UTF8.GetBytes(json);
+        context.Items["RequestBodyBytes"] = Encoding.UTF8.GetBytes(json);
         context.Items["RequestContentType"] = SerializationFactory.JsonContentType;
-        context.Items["SerializationFactory"] = CreateSerializationFactory();
+        var factory = CreateSerializationFactory();
 
         // Act
-        var result = context.DeserializeBody<TestDto>();
+        var result = await context.DeserializeBodyAsync<TestDto>(factory);
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test");
+        result.Name.Should().Be("Test");
         result.Value.Should().Be(42);
     }
 
     [Fact]
-    public void DeserializeBody_WithoutFactory_FallsBackToJson()
+    public async Task DeserializeBodyAsync_DefaultsToJsonContentType_WhenNotSet()
     {
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Fallback","value":99}""";
-        context.Items["RequestBodyBytes"] = System.Text.Encoding.UTF8.GetBytes(json);
-        // No SerializationFactory in context
+        context.Items["RequestBodyBytes"] = Encoding.UTF8.GetBytes(json);
+        // RequestContentType not set - should default to JSON
+        var factory = CreateSerializationFactory();
 
         // Act
-        var result = context.DeserializeBody<TestDto>();
+        var result = await context.DeserializeBodyAsync<TestDto>(factory);
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Fallback");
+        result.Name.Should().Be("Fallback");
     }
 
     [Fact]
@@ -101,35 +104,6 @@ public class ContentNegotiationExtensionsTests
 
         // Assert
         result.Should().Be(SerializationFactory.JsonContentType);
-    }
-
-    [Fact]
-    public void GetSerializationFactory_WhenSet_ReturnsFactory()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        var factory = CreateSerializationFactory();
-        context.Items["SerializationFactory"] = factory;
-
-        // Act
-        var result = context.GetSerializationFactory();
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Should().BeSameAs(factory);
-    }
-
-    [Fact]
-    public void GetSerializationFactory_WhenNotSet_ReturnsNull()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-
-        // Act
-        var result = context.GetSerializationFactory();
-
-        // Assert
-        result.Should().BeNull();
     }
 
     private static ISerializationFactory CreateSerializationFactory()

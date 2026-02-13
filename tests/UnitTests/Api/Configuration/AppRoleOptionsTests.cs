@@ -8,16 +8,16 @@ namespace RajFinancial.UnitTests.Api.Configuration;
 /// </summary>
 public class AppRoleOptionsTests
 {
-    private readonly AppRoleOptions _sut;
-    private readonly Guid _clientRoleId = Guid.NewGuid();
-    private readonly Guid _administratorRoleId = Guid.NewGuid();
+    private readonly AppRoleOptions sut;
+    private readonly Guid clientRoleId = Guid.NewGuid();
+    private readonly Guid administratorRoleId = Guid.NewGuid();
 
     public AppRoleOptionsTests()
     {
-        _sut = new AppRoleOptions
+        sut = new AppRoleOptions
         {
-            Client = _clientRoleId,
-            Administrator = _administratorRoleId
+            Client = clientRoleId,
+            Administrator = administratorRoleId
         };
     }
 
@@ -36,10 +36,10 @@ public class AppRoleOptionsTests
     public void GetRoleId_WithClientRole_ReturnsClientGuid(string roleName)
     {
         // Act
-        var result = _sut.GetRoleId(roleName);
+        var result = sut.GetRoleId(roleName);
 
         // Assert
-        result.Should().Be(_clientRoleId);
+        result.Should().Be(clientRoleId);
     }
 
     [Theory]
@@ -50,10 +50,10 @@ public class AppRoleOptionsTests
     public void GetRoleId_WithAdministratorRole_ReturnsAdministratorGuid(string roleName)
     {
         // Act
-        var result = _sut.GetRoleId(roleName);
+        var result = sut.GetRoleId(roleName);
 
         // Assert
-        result.Should().Be(_administratorRoleId);
+        result.Should().Be(administratorRoleId);
     }
 
     [Theory]
@@ -64,7 +64,7 @@ public class AppRoleOptionsTests
     public void GetRoleId_WithUnknownRole_ReturnsNull(string roleName)
     {
         // Act
-        var result = _sut.GetRoleId(roleName);
+        var result = sut.GetRoleId(roleName);
 
         // Assert
         result.Should().BeNull();
@@ -78,7 +78,7 @@ public class AppRoleOptionsTests
     public void IsValidRole_ReturnsExpectedResult(string roleName, bool expected)
     {
         // Act
-        var result = _sut.IsValidRole(roleName);
+        var result = sut.IsValidRole(roleName);
 
         // Assert
         result.Should().Be(expected);

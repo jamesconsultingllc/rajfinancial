@@ -1,6 +1,4 @@
-using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using RajFinancial.Api.Middleware;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
@@ -24,7 +22,7 @@ public class ValidationExtensionsTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test");
+        result.Name.Should().Be("Test");
         result.Value.Should().Be(42);
     }
 
@@ -82,7 +80,7 @@ public class ValidationExtensionsTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("CamelCase");
+        result.Name.Should().Be("CamelCase");
     }
 
     [Fact]
@@ -98,7 +96,7 @@ public class ValidationExtensionsTests
 
         // Assert - PropertyNameCaseInsensitive = true handles this
         result.Should().NotBeNull();
-        result!.Name.Should().Be("PascalCase");
+        result.Name.Should().Be("PascalCase");
     }
 
     [Fact]

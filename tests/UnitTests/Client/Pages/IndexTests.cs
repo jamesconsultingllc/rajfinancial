@@ -5,7 +5,6 @@
 // ============================================================================
 
 using Bunit;
-using Bunit.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Moq;
@@ -16,12 +15,12 @@ namespace RajFinancial.UnitTests.Client.Pages;
 /// <summary>
 ///     Unit tests for the Index (home) page component.
 /// </summary>
-public class IndexTests : TestContext
+public class IndexTests : BunitContext
 {
     public IndexTests()
     {
         // Setup authorization services for unauthenticated state by default
-        var authContext = this.AddTestAuthorization();
+        var authContext = AddAuthorization();
         authContext.SetNotAuthorized();
 
         // Setup localization services with mock that returns the key as value
@@ -56,7 +55,7 @@ public class IndexTests : TestContext
     public void Index_Renders_HeroSection()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert
         Assert.NotNull(cut.Find(".hero-section"));
@@ -66,7 +65,7 @@ public class IndexTests : TestContext
     public void Index_Renders_BrandName()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - Footer contains brand name
         var markup = cut.Markup;
@@ -77,7 +76,7 @@ public class IndexTests : TestContext
     public void Index_Renders_Tagline()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - Hero title includes "Financial Future"
         var markup = cut.Markup;
@@ -88,7 +87,7 @@ public class IndexTests : TestContext
     public void Index_Renders_GetStartedButton()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - Look for Get Started Free button in hero section (btn-gold-solid)
         var button = cut.Find(".hero-actions a.btn-gold-solid, .hero-actions button.btn-gold-solid");
@@ -99,7 +98,7 @@ public class IndexTests : TestContext
     public void Index_Renders_ExploreFeatures_ForUnauthenticated()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - Unauthenticated view shows Explore Features button
         var markup = cut.Markup;
@@ -110,7 +109,7 @@ public class IndexTests : TestContext
     public void Index_Renders_FeatureCards()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert
         var featureCards = cut.FindAll(".feature-card");
@@ -121,7 +120,7 @@ public class IndexTests : TestContext
     public void Index_Renders_CtaSection()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert
         Assert.NotNull(cut.Find(".cta-section"));
@@ -131,7 +130,7 @@ public class IndexTests : TestContext
     public void Index_Has_AccessibleStructure()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - Check for proper heading hierarchy
         var h1 = cut.FindAll("h1");
@@ -142,7 +141,7 @@ public class IndexTests : TestContext
     public void Index_ButtonsHaveAccessibleLabels()
     {
         // Act
-        var cut = RenderComponent<Index>();
+        var cut = Render<Index>();
 
         // Assert - All buttons/links should have text or aria-label
         // Updated to match new button classes

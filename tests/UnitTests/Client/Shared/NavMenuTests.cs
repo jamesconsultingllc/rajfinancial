@@ -12,7 +12,6 @@
 // ============================================================================
 
 using Bunit;
-using Bunit.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Moq;
@@ -23,7 +22,7 @@ namespace RajFinancial.UnitTests.Client.Shared;
 /// <summary>
 ///     Unit tests for the NavMenu component.
 /// </summary>
-public class NavMenuTests : TestContext
+public class NavMenuTests : BunitContext
 {
     public NavMenuTests()
     {
@@ -65,7 +64,7 @@ public class NavMenuTests : TestContext
         SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Logo should be rendered with nav-brand-logo class
         var logo = cut.Find(".nav-brand-logo");
@@ -80,7 +79,7 @@ public class NavMenuTests : TestContext
         SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Logo should have alt text for accessibility
         var logo = cut.Find(".nav-brand-logo");
@@ -95,7 +94,7 @@ public class NavMenuTests : TestContext
         SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - "Home" appears somewhere in the markup
         Assert.Contains("Home", cut.Markup);
@@ -109,10 +108,10 @@ public class NavMenuTests : TestContext
     public void NavMenu_HidesClientSection_ForUnauthenticatedUsers()
     {
         // Arrange
-        SetupAuthorization(false);
+        SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - My Account section should not be visible
         Assert.DoesNotContain("My Account", cut.Markup);
@@ -126,7 +125,7 @@ public class NavMenuTests : TestContext
         SetupAuthorizationWithPolicies("RequireClient");
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - My Account section should be visible
         Assert.Contains("My Account", cut.Markup);
@@ -139,7 +138,7 @@ public class NavMenuTests : TestContext
         SetupAuthorizationWithPolicies("RequireClient");
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Administration should NOT be visible
         Assert.DoesNotContain("Administration", cut.Markup);
@@ -152,7 +151,7 @@ public class NavMenuTests : TestContext
         SetupAuthorizationWithPolicies("RequireAdministrator");
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Administration should be visible
         Assert.Contains("Administration", cut.Markup);
@@ -165,7 +164,7 @@ public class NavMenuTests : TestContext
         SetupAuthorizationWithPolicies("RequireAdministrator", "RequireClient");
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - All sections should be visible
         Assert.Contains("My Account", cut.Markup);
@@ -179,7 +178,7 @@ public class NavMenuTests : TestContext
         SetupAuthorizationWithPolicies("RequireClient");
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Sharing link should be visible in My Account section
         Assert.Contains("Sharing", cut.Markup);
@@ -192,7 +191,7 @@ public class NavMenuTests : TestContext
         SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - Should have nav element with aria-label
         var nav = cut.Find("nav");
@@ -206,7 +205,7 @@ public class NavMenuTests : TestContext
         SetupAuthorization();
 
         // Act
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         // Assert - All nav links should have text content
         var links = cut.FindAll(".nav-link");
@@ -220,7 +219,7 @@ public class NavMenuTests : TestContext
     /// </summary>
     private void SetupAuthorization(bool isAuthenticated = false)
     {
-        var authContext = this.AddTestAuthorization();
+        var authContext = AddAuthorization();
 
         if (isAuthenticated)
             authContext.SetAuthorized("testuser@example.com");
@@ -233,7 +232,7 @@ public class NavMenuTests : TestContext
     /// </summary>
     private void SetupAuthorizationWithPolicies(params string[] policies)
     {
-        var authContext = this.AddTestAuthorization();
+        var authContext = AddAuthorization();
         authContext.SetAuthorized("testuser@example.com");
         authContext.SetPolicies(policies);
     }
