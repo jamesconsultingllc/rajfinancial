@@ -66,7 +66,12 @@ jobs:
         run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
+    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    if: |
+      github.event_name != 'pull_request' && 
+      (needs.detect_changes.outputs.src_changed == 'true' || 
+       startsWith(github.ref, 'refs/heads/feature/') || 
+       startsWith(github.ref, 'refs/heads/hotfix/'))
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
