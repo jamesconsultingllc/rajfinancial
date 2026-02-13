@@ -22,7 +22,8 @@ var builder = FunctionsApplication.CreateBuilder(args);
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false);
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables(); // Ensure environment variables (Azure App Settings) always take precedence
 
 // Configure Functions web application for HTTP triggers
 builder.ConfigureFunctionsWebApplication();
@@ -40,9 +41,11 @@ builder.UseMiddleware<AuthenticationMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();
 
-// Add Application Insights telemetry
-//builder.Services.AddApplicationInsightsTelemetryWorkerService();
-//builder.Services.ConfigureFunctionsApplicationInsights();
+// TODO: Enable Application Insights telemetry once ConfigureFunctionsApplicationInsights API
+// is verified for Microsoft.Azure.Functions.Worker.ApplicationInsights v2.50.0.
+// The infra already provisions App Insights and injects APPINSIGHTS_INSTRUMENTATIONKEY.
+// builder.Services.AddApplicationInsightsTelemetryWorkerService();
+// builder.Services.ConfigureFunctionsApplicationInsights();
 
 // ============================================================================
 // Serialization
@@ -68,7 +71,9 @@ builder.Services.AddSingleton(builder.Configuration);
 // Database (Entity Framework Core with Managed Identity)
 // ============================================================================
 
-var sqlConnectionString = builder.Configuration.GetConnectionString("SqlConnectionString");
+// Azure Functions infra sets this as an app setting (not under ConnectionStrings section)
+var sqlConnectionString = builder.Configuration["SqlConnectionString"]
+                          ?? builder.Configuration.GetConnectionString("SqlConnectionString");
 var useManagedIdentity = builder.Configuration.GetValue("UseManagedIdentity", defaultValue: true);
 
 if (!string.IsNullOrEmpty(sqlConnectionString))

@@ -2,22 +2,22 @@
 
 This directory contains all automation scripts for infrastructure provisioning, CI/CD setup, and operational tasks.
 
-## ?? Directory Structure
+## Directory Structure
 
 ```
 scripts/
-??? README.md                           # This file
-??? infra/                              # Infrastructure provisioning (one-time setup)
-?   ??? register-entra-apps.ps1         # Register SPA & API apps in Entra External ID
-??? setup-entra-oidc.ps1                # Create GitHub Actions OIDC service principal
-??? add-entra-federated-credentials.ps1 # Add OIDC credentials to existing app
-??? configure-entra-app-roles.ps1       # Configure app roles (Admin, Advisor, Client)
-??? configure-user-flows.ps1            # Check/configure Entra user flows & MFA
-??? check-user-flows.ps1                # Quick check of current user flows
-??? README-ENTRA-OIDC.md                # Detailed OIDC setup documentation
++-- README.md                           # This file
++-- infra/                              # Infrastructure provisioning (one-time setup)
+|   +-- register-entra-apps.ps1         # Register SPA & API apps in Entra External ID
++-- setup-entra-oidc.ps1                # Create GitHub Actions OIDC service principal
++-- add-entra-federated-credentials.ps1 # Add OIDC credentials to existing app
++-- configure-entra-app-roles.ps1       # Configure app roles (Admin, Advisor, Client)
++-- configure-user-flows.ps1            # Check/configure Entra user flows & MFA
++-- check-user-flows.ps1                # Quick check of current user flows
++-- README-ENTRA-OIDC.md                # Detailed OIDC setup documentation
 ```
 
-## ?? Script Categories
+## Script Categories
 
 ### Infrastructure Provisioning (`infra/`)
 
@@ -48,7 +48,7 @@ Scripts for ongoing configuration and diagnostics.
 
 ---
 
-## ?? Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -86,7 +86,7 @@ If you already have an app registration and just need OIDC:
 
 ---
 
-## ?? Detailed Script Documentation
+## Detailed Script Documentation
 
 ### `infra/register-entra-apps.ps1`
 
@@ -224,7 +224,7 @@ Quick diagnostic script to check user flows in the Dev tenant.
 
 ---
 
-## ?? Environment Configuration
+## Environment Configuration
 
 ### Development Tenant
 
@@ -246,7 +246,7 @@ Quick diagnostic script to check user flows in the Dev tenant.
 
 ---
 
-## ?? GitHub Secrets Reference
+## GitHub Secrets Reference
 
 These secrets are required for CI/CD workflows:
 
@@ -262,7 +262,7 @@ These secrets are required for CI/CD workflows:
 
 ---
 
-## ?? Additional Resources
+## Additional Resources
 
 - [README-ENTRA-OIDC.md](./README-ENTRA-OIDC.md) - Detailed OIDC setup guide
 - [Azure OIDC with GitHub Actions](https://learn.microsoft.com/azure/developer/github/connect-from-azure)
@@ -271,7 +271,7 @@ These secrets are required for CI/CD workflows:
 
 ---
 
-## ?? Troubleshooting
+## Troubleshooting
 
 ### "AADSTS700016: Application not found"
 

@@ -26,7 +26,7 @@ namespace RajFinancial.Api.Middleware.Content;
 /// <b>Usage in Functions:</b>
 /// <code>
 /// // Get request body
-/// var request = context.DeserializeBody&lt;CreateAssetRequest&gt;();
+/// var request = await context.DeserializeBodyAsync&lt;CreateAssetRequest&gt;();
 /// 
 /// // Create response with content negotiation
 /// return await context.CreateSerializedResponseAsync(req, HttpStatusCode.OK, data);
@@ -60,17 +60,23 @@ public class ContentNegotiationMiddleware(
             }
 
             // Read and store request body for later deserialization
-                if (httpRequest.Body.CanRead)
+            if (httpRequest.Body.CanRead)
             {
-                    using var memoryStream = new MemoryStream();
-                    await httpRequest.Body.CopyToAsync(memoryStream);
-                    var bodyBytes = memoryStream.ToArray();
+                using var memoryStream = new MemoryStream();
+                await httpRequest.Body.CopyToAsync(memoryStream);
+                var bodyBytes = memoryStream.ToArray();
 
-                    if (bodyBytes.Length > 0)
-                    {
-                        context.Items["RequestBodyBytes"] = bodyBytes;
-                        context.Items["RequestContentType"] = contentTypeHeader ?? SerializationFactory.JsonContentType;
-                    }
+                if (bodyBytes.Length > 0)
+                {
+                    context.Items["RequestBodyBytes"] = bodyBytes;
+                    context.Items["RequestContentType"] = contentTypeHeader ?? SerializationFactory.JsonContentType;
+                }
+
+                // Reset body stream position so downstream functions can still read it
+                if (httpRequest.Body.CanSeek)
+                {
+                    httpRequest.Body.Position = 0;
+                }
             }
         }
 

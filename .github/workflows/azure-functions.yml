@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -48,13 +48,13 @@ jobs:
         run: dotnet build ${{ env.API_PROJECT_PATH }} --configuration Release --no-restore
 
       - name: Run unit tests
-        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName~Api" || true
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName~Api"
 
       - name: Publish
         run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --output ./publish --no-build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: function-app
           path: ./publish
@@ -68,20 +68,20 @@ jobs:
     environment: development
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: function-app
           path: ./publish
 
       - name: Azure Login with OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
+        uses: Azure/functions-action@0bd707f87c0b6385742bab336c74e1afc61f6369 # v1
         with:
           app-name: func-rajfinancial-dev
           package: ./publish
@@ -102,20 +102,20 @@ jobs:
     environment: production
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: function-app
           path: ./publish
 
       - name: Azure Login with OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
+        uses: Azure/functions-action@0bd707f87c0b6385742bab336c74e1afc61f6369 # v1
         with:
           app-name: func-rajfinancial-prod
           package: ./publish

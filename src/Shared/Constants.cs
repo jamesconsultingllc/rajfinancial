@@ -2,7 +2,7 @@
 
 namespace RajFinancial.Shared;
 
-public static class Contstants
+public static class Constants
 {
     public const string DefaultCurrency = "USD";
     public const string DefaultLanguage = "en-US";

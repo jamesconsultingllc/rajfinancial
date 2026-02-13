@@ -325,22 +325,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             "input[name='email']"
         };
 
-        ILocator? emailInput = null;
-        foreach (var selector in emailSelectors)
-        {
-            var locator = loginPage.Locator(selector).First;
-            try
-            {
-                await locator.WaitForAsync(new LocatorWaitForOptions 
-                    { State = WaitForSelectorState.Visible, Timeout = 3000 });
-                emailInput = locator;
-                break;
-            }
-            catch
-            {
-                // Try next selector
-            }
-        }
+        var emailInput = await FindVisibleLocatorAsync(loginPage, emailSelectors, 3000);
 
         if (emailInput != null)
         {
@@ -369,22 +354,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             "input[name='passwd']"                   // Entra ID (B2B/workforce)
         };
 
-        ILocator? passwordInput = null;
-        foreach (var selector in passwordSelectors)
-        {
-            var locator = loginPage.Locator(selector).First;
-            try
-            {
-                await locator.WaitForAsync(new LocatorWaitForOptions 
-                    { State = WaitForSelectorState.Visible, Timeout = 10000 });
-                passwordInput = locator;
-                break;
-            }
-            catch
-            {
-                // Try next selector
-            }
-        }
+        var passwordInput = await FindVisibleLocatorAsync(loginPage, passwordSelectors, 10000);
 
         if (passwordInput == null)
         {
@@ -429,7 +399,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             // Prompt not shown - may auto-redirect or use different flow
         }
 
-        // For redirect flow: wait for redirect back to the app
+        // Step 4: For redirect flow: wait for redirect back to the app
         // For popup flow: the popup will close automatically
         try
         {
@@ -464,5 +434,32 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
                 /* Ignore screenshot/HTML capture errors */
             }
         }
+    }
+
+    /// <summary>
+    ///     Finds the first visible locator from a list of CSS selectors.
+    /// </summary>
+    /// <param name="page">The page to search.</param>
+    /// <param name="selectors">CSS selectors to try in order.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds for each selector.</param>
+    /// <returns>The first visible locator, or null if none found.</returns>
+    private static async Task<ILocator?> FindVisibleLocatorAsync(IPage page, string[] selectors, int timeoutMs)
+    {
+        foreach (var selector in selectors)
+        {
+            var locator = page.Locator(selector).First;
+            try
+            {
+                await locator.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+                return locator;
+            }
+            catch
+            {
+                // Try next selector
+            }
+        }
+
+        return null;
     }
 }
