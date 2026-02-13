@@ -1,0 +1,214 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-01-01T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2024.0.0",
+  "resources": [
+    {
+      "_id": "wrk_rajfinancial",
+      "_type": "workspace",
+      "name": "RAJ Financial - Auth Tests",
+      "description": "Test endpoints for validating Entra External ID authentication and role-based access control.",
+      "scope": "collection",
+      "parentId": null
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "name": "Base Environment",
+      "parentId": "wrk_rajfinancial",
+      "data": {
+        "authority": "https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com",
+        "client_id": "2d6a08c7-b142-4d53-a307-9ac75bae75eb",
+        "scopes": "openid profile email offline_access"
+      }
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "name": "Auth Test Endpoints",
+      "description": "Endpoints for testing authentication and RBAC",
+      "parentId": "wrk_rajfinancial"
+    },
+    {
+      "_id": "req_public",
+      "_type": "request",
+      "name": "GET /auth/public (No Auth Required)",
+      "description": "Public endpoint - no authentication needed. Use this first to verify the API is reachable.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/public"
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {},
+      "body": {},
+      "parentId": "fld_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_me",
+      "_type": "request",
+      "name": "GET /auth/me (Authenticated User Info)",
+      "description": "Returns current user's claims, roles, and profile info. Requires a valid Bearer token.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/me",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "grantType": "authorization_code",
+        "authorizationUrl": "{{ _.authority }}/oauth2/v2.0/authorize",
+        "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
+        "clientId": "{{ _.client_id }}",
+        "scope": "{{ _.scopes }}",
+        "redirectUrl": "http://localhost",
+        "usePkce": true,
+        "pkceMethod": "S256",
+        "tokenPrefix": "Bearer"
+      },
+      "body": {},
+      "parentId": "fld_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_client",
+      "_type": "request",
+      "name": "GET /auth/client (Any Authenticated User)",
+      "description": "Accessible by any authenticated user (implicit Client role). Returns 401 if not authenticated.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/client",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "grantType": "authorization_code",
+        "authorizationUrl": "{{ _.authority }}/oauth2/v2.0/authorize",
+        "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
+        "clientId": "{{ _.client_id }}",
+        "scope": "{{ _.scopes }}",
+        "redirectUrl": "http://localhost",
+        "usePkce": true,
+        "pkceMethod": "S256",
+        "tokenPrefix": "Bearer"
+      },
+      "body": {},
+      "parentId": "fld_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_admin",
+      "_type": "request",
+      "name": "GET /auth/admin (Administrator Role Required)",
+      "description": "Requires explicit Administrator role assignment. Returns 403 if authenticated but missing role, 401 if not authenticated.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/admin",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "grantType": "authorization_code",
+        "authorizationUrl": "{{ _.authority }}/oauth2/v2.0/authorize",
+        "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
+        "clientId": "{{ _.client_id }}",
+        "scope": "{{ _.scopes }}",
+        "redirectUrl": "http://localhost",
+        "usePkce": true,
+        "pkceMethod": "S256",
+        "tokenPrefix": "Bearer"
+      },
+      "body": {},
+      "parentId": "fld_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "fld_no_auth",
+      "_type": "request_group",
+      "name": "Without Auth (Expect 401)",
+      "description": "Same endpoints but without tokens - verify they return 401",
+      "parentId": "wrk_rajfinancial"
+    },
+    {
+      "_id": "req_me_noauth",
+      "_type": "request",
+      "name": "GET /auth/me (No Token → 401)",
+      "description": "Expect 401 Unauthorized response.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/me",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {},
+      "body": {},
+      "parentId": "fld_no_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_client_noauth",
+      "_type": "request",
+      "name": "GET /auth/client (No Token → 401)",
+      "description": "Expect 401 Unauthorized response.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/client",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {},
+      "body": {},
+      "parentId": "fld_no_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
+      "_id": "req_admin_noauth",
+      "_type": "request",
+      "name": "GET /auth/admin (No Token → 401)",
+      "description": "Expect 401 Unauthorized response.",
+      "method": "GET",
+      "url": "{{ _.endpoint }}/auth/admin",
+      "headers": [
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {},
+      "body": {},
+      "parentId": "fld_no_auth",
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    }
+  ]
+}

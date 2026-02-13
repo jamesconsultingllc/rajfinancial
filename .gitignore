@@ -47,3 +47,6 @@ func-logs/
 func-logs2/
 func-logs*.zip
 docs/session.md
+
+# Insomnia exports may contain tokens after use
+# tools/insomnia/
