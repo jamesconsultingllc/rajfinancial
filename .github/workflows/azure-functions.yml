@@ -59,6 +59,7 @@ jobs:
           name: function-app
           path: ./publish
           retention-days: 1
+          include-hidden-files: true
 
   deploy-dev:
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
