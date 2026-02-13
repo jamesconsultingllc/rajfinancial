@@ -270,10 +270,18 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         if (!authenticated)
         {
-            // Take a debug screenshot
-            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            // Capture debug screenshot and page HTML
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.html");
+
             await page.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath, FullPage = true });
-            Console.WriteLine($"Auth failed for {role}. Debug screenshot: {debugPath}");
+            var pageHtml = await page.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Auth failed for {role}. Screenshot: {debugPath}, HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {page.Url}");
+            Console.WriteLine($"Page title: {await page.TitleAsync()}");
             await context.CloseAsync();
             return false;
         }
@@ -378,10 +386,23 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         if (passwordInput == null)
         {
-            // Take debug screenshot
-            var debugPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-            await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath, FullPage = true });
-            throw new TimeoutException($"Password field not found. Screenshot saved to: {debugPath}. Current URL: {loginPage.Url}");
+            // Capture debug screenshot and page HTML for diagnostics
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var screenshotPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.html");
+
+            await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
+
+            var pageHtml = await loginPage.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Debug screenshot: {screenshotPath}");
+            Console.WriteLine($"Debug HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {loginPage.Url}");
+            Console.WriteLine($"Page title: {await loginPage.TitleAsync()}");
+
+            throw new TimeoutException(
+                $"Password field not found. Screenshot: {screenshotPath}, HTML: {htmlPath}. Current URL: {loginPage.Url}");
         }
 
         await passwordInput.FillAsync(password);
@@ -418,18 +439,27 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         }
         catch
         {
-            // URL check failed - take debug screenshot
+            // URL check failed - capture debug screenshot and HTML
             Console.WriteLine("Warning: Login redirect did not complete within 30s.");
             try
             {
+                var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
                 var debugPath = Path.Combine(Path.GetTempPath(),
-                    $"login-redirect-timeout-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                    $"login-redirect-timeout-{timestamp}.png");
+                var htmlPath = Path.Combine(Path.GetTempPath(),
+                    $"login-redirect-timeout-{timestamp}.html");
+
                 await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath });
-                Console.WriteLine($"Debug screenshot saved to: {debugPath}");
+                var pageHtml = await loginPage.ContentAsync();
+                await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+                Console.WriteLine($"Debug screenshot: {debugPath}");
+                Console.WriteLine($"Debug HTML: {htmlPath}");
+                Console.WriteLine($"Current URL: {loginPage.Url}");
             }
             catch
             {
-                /* Ignore screenshot errors */
+                /* Ignore screenshot/HTML capture errors */
             }
         }
     }
