@@ -20,7 +20,7 @@ namespace RajFinancial.UnitTests.Client.Authorization;
 /// </summary>
 public class AuthorizationPolicyTests
 {
-    private readonly IAuthorizationService _authorizationService;
+    private readonly IAuthorizationService authorizationService;
 
     public AuthorizationPolicyTests()
     {
@@ -59,7 +59,7 @@ public class AuthorizationPolicyTests
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();
-        _authorizationService = serviceProvider.GetRequiredService<IAuthorizationService>();
+        authorizationService = serviceProvider.GetRequiredService<IAuthorizationService>();
     }
 
     #region RequireClient Policy Tests
@@ -71,7 +71,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUser("user@example.com", "Client");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireClient");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireClient");
 
         // Assert
         Assert.True(result.Succeeded, "User with explicit Client role should pass RequireClient policy");
@@ -84,7 +84,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUser("admin@example.com", "Administrator");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireClient");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireClient");
 
         // Assert
         Assert.True(result.Succeeded, "Administrator should have access to Client features");
@@ -97,7 +97,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUserWithoutRoles("newuser@example.com");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireClient");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireClient");
 
         // Assert
         Assert.True(result.Succeeded, "Authenticated user without roles should be treated as implicit Client");
@@ -110,7 +110,7 @@ public class AuthorizationPolicyTests
         var user = CreateUnauthenticatedUser();
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireClient");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireClient");
 
         // Assert
         Assert.False(result.Succeeded, "Unauthenticated user should not pass RequireClient policy");
@@ -123,7 +123,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUser("user@example.com", "UnknownRole");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireClient");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireClient");
 
         // Assert
         Assert.False(result.Succeeded, 
@@ -141,7 +141,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUser("admin@example.com", "Administrator");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAdministrator");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAdministrator");
 
         // Assert
         Assert.True(result.Succeeded, "User with Administrator role should pass RequireAdministrator policy");
@@ -154,7 +154,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUser("user@example.com", "Client");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAdministrator");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAdministrator");
 
         // Assert
         Assert.False(result.Succeeded, "Client role should not pass RequireAdministrator policy");
@@ -167,7 +167,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUserWithoutRoles("newuser@example.com");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAdministrator");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAdministrator");
 
         // Assert
         Assert.False(result.Succeeded, "User without roles should not pass RequireAdministrator policy");
@@ -180,7 +180,7 @@ public class AuthorizationPolicyTests
         var user = CreateUnauthenticatedUser();
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAdministrator");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAdministrator");
 
         // Assert
         Assert.False(result.Succeeded, "Unauthenticated user should not pass RequireAdministrator policy");
@@ -197,7 +197,7 @@ public class AuthorizationPolicyTests
         var user = CreateAuthenticatedUserWithoutRoles("user@example.com");
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAuthenticated");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAuthenticated");
 
         // Assert
         Assert.True(result.Succeeded, "Authenticated user should pass RequireAuthenticated policy");
@@ -210,7 +210,7 @@ public class AuthorizationPolicyTests
         var user = CreateUnauthenticatedUser();
 
         // Act
-        var result = await _authorizationService.AuthorizeAsync(user, "RequireAuthenticated");
+        var result = await authorizationService.AuthorizeAsync(user, "RequireAuthenticated");
 
         // Assert
         Assert.False(result.Succeeded, "Unauthenticated user should not pass RequireAuthenticated policy");

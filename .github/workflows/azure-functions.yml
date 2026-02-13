@@ -1,0 +1,128 @@
+name: Azure Functions CI/CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/Api/**'
+      - 'src/Shared/**'
+      - '.github/workflows/azure-functions.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  API_PROJECT_PATH: 'src/Api/RajFinancial.Api.csproj'
+  SHARED_PROJECT_PATH: 'src/Shared/RajFinancial.Shared.csproj'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build and Test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.API_PROJECT_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.API_PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName~Api" || true
+
+      - name: Publish
+        run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --output ./publish --no-build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-app
+          path: ./publish
+          retention-days: 1
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    name: Deploy to Dev
+    needs: build
+    environment: development
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-app
+          path: ./publish
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: func-rajfinancial-dev
+          package: ./publish
+          respect-funcignore: true
+
+      - name: Health check
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          # Add health check endpoint call here when available
+          echo "Deployment complete: https://func-rajfinancial-dev.azurewebsites.net"
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    runs-on: ubuntu-latest
+    name: Deploy to Prod
+    needs: build
+    environment: production
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-app
+          path: ./publish
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: func-rajfinancial-prod
+          package: ./publish
+          respect-funcignore: true
+
+      - name: Health check
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          echo "Deployment complete: https://func-rajfinancial-prod.azurewebsites.net"

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
 
@@ -13,11 +14,11 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 /// </summary>
 public partial class SerializationFactoryTests
 {
-    private readonly Mock<ILogger<SerializationFactory>> _loggerMock;
+    private readonly Mock<ILogger<SerializationFactory>> loggerMock;
 
     public SerializationFactoryTests()
     {
-        _loggerMock = new Mock<ILogger<SerializationFactory>>();
+        loggerMock = new Mock<ILogger<SerializationFactory>>();
     }
 
     private SerializationFactory CreateFactory(string environment = "Development", bool useMemoryPackInProduction = true)
@@ -32,7 +33,7 @@ public partial class SerializationFactoryTests
             .AddInMemoryCollection(configData)
             .Build();
 
-        return new SerializationFactory(configuration, _loggerMock.Object);
+        return new SerializationFactory(configuration, loggerMock.Object);
     }
 
     [Fact]

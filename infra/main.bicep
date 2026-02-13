@@ -25,8 +25,26 @@ param location string = 'southcentralus'
 @description('The base name for all resources')
 param baseName string = 'rajfinancial'
 
+@description('Override for resource group name (if not provided, uses rg-{baseName}-{environment})')
+param resourceGroupNameOverride string = ''
+
+// Note: This parameter is used for documentation and future Azure RBAC integration
+#disable-next-line no-unused-params
 @description('Microsoft Entra External ID Tenant ID for this environment')
 param entraExternalIdTenantId string
+
+@description('Entra admin object ID for SQL Server (user or group)')
+param sqlAdminObjectId string
+
+@description('Entra admin display name for SQL Server')
+param sqlAdminName string
+
+@description('Entra admin principal type for SQL Server')
+@allowed(['User', 'Group', 'Application'])
+param sqlAdminPrincipalType string = 'User'
+
+@description('Override location for SQL Server (some regions have capacity issues)')
+param sqlLocation string = ''
 
 @description('Tags to apply to all resources')
 param tags object = {
@@ -39,14 +57,13 @@ param tags object = {
 // Variables
 // ============================================================================
 
-var resourceGroupName = 'rg-${baseName}-${environment}'
+var resourceGroupName = resourceGroupNameOverride != '' ? resourceGroupNameOverride : 'rg-${baseName}-${environment}'
 var keyVaultName = 'kv-${baseName}-${environment}'
 var sqlServerName = 'sql-${baseName}-${environment}'
 var sqlDatabaseName = 'sqldb-${baseName}-${environment}'
 var functionAppName = 'func-${baseName}-${environment}'
-var staticWebAppName = 'stapp-${baseName}-${environment}'
 var storageAccountName = 'st${baseName}${environment}'
-var redisName = 'redis-${baseName}-${environment}'
+// var redisName = 'redis-${baseName}-${environment}'  // Redis disabled
 var appInsightsName = 'appi-${baseName}-${environment}'
 var logAnalyticsName = 'log-${baseName}-${environment}'
 
@@ -111,28 +128,31 @@ module sql 'modules/sql.bicep' = {
   name: 'sql-deployment'
   scope: rg
   params: {
-    location: location
+    location: sqlLocation != '' ? sqlLocation : location
     sqlServerName: sqlServerName
     sqlDatabaseName: sqlDatabaseName
     environment: environment
+    entraAdminObjectId: sqlAdminObjectId
+    entraAdminName: sqlAdminName
+    entraAdminPrincipalType: sqlAdminPrincipalType
     tags: tags
   }
 }
 
 // ============================================================================
-// Azure Redis Cache
+// Azure Redis Cache (DISABLED - not needed yet, saves ~$15/month)
 // ============================================================================
-
-module redis 'modules/redis.bicep' = {
-  name: 'redis-deployment'
-  scope: rg
-  params: {
-    location: location
-    redisName: redisName
-    environment: environment
-    tags: tags
-  }
-}
+// Uncomment when caching is needed for performance optimization
+// module redis 'modules/redis.bicep' = {
+//   name: 'redis-deployment'
+//   scope: rg
+//   params: {
+//     location: location
+//     redisName: redisName
+//     environment: environment
+//     tags: tags
+//   }
+// }
 
 // ============================================================================
 // Azure Functions
@@ -156,16 +176,10 @@ module functions 'modules/functions.bicep' = {
 // ============================================================================
 // Static Web App (Blazor WASM)
 // ============================================================================
-
-module staticWebApp 'modules/staticwebapp.bicep' = {
-  name: 'staticwebapp-deployment'
-  scope: rg
-  params: {
-    location: location
-    staticWebAppName: staticWebAppName
-    tags: tags
-  }
-}
+// SKIPPED: SWA already exists in 'rajfinancial' resource group (Central US)
+// Uses preview environments for dev/prod branching
+// Existing SWA: gray-cliff-072f3b510.azurestaticapps.net
+// ============================================================================
 
 // ============================================================================
 // Identity & RBAC Assignments
@@ -189,9 +203,8 @@ module identity 'modules/identity.bicep' = {
 output resourceGroupName string = rg.name
 output keyVaultUri string = keyVault.outputs.keyVaultUri
 output functionAppUrl string = functions.outputs.functionAppUrl
-output staticWebAppUrl string = staticWebApp.outputs.staticWebAppUrl
 output sqlServerFqdn string = sql.outputs.sqlServerFqdn
-output redisHostName string = redis.outputs.redisHostName
+// output redisHostName string = redis.outputs.redisHostName  // Redis disabled
 output storageAccountName string = storage.outputs.storageAccountName
 output appInsightsConnectionString string = monitoring.outputs.appInsightsConnectionString
 

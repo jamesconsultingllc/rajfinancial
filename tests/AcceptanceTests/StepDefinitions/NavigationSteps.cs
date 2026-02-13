@@ -28,7 +28,7 @@ public class NavigationSteps(ScenarioContext scenarioContext)
     ///     Note: Only Client and Administrator roles are defined.
     ///     Data sharing is handled via DataAccessGrant entities.
     /// </summary>
-    private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> TestUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Client"] = "test-client@rajfinancialdev.onmicrosoft.com",
         ["Administrator"] = "test-admin@rajfinancialdev.onmicrosoft.com"
@@ -59,9 +59,9 @@ public class NavigationSteps(ScenarioContext scenarioContext)
 
     private static string GetEmailForRole(string role)
     {
-        if (!testUserEmails.TryGetValue(role, out var email))
+        if (!TestUserEmails.TryGetValue(role, out var email))
             throw new ArgumentException(
-                $"Unknown test role: '{role}'. Valid roles: {string.Join(", ", testUserEmails.Keys)}");
+                $"Unknown test role: '{role}'. Valid roles: {string.Join(", ", TestUserEmails.Keys)}");
         return email;
     }
 

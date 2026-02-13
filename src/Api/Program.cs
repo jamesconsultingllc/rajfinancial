@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Content;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 

@@ -14,13 +14,13 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 /// </summary>
 public class ExceptionMiddlewareTests
 {
-    private readonly Mock<ILogger<ExceptionMiddleware>> _loggerMock;
-    private readonly ExceptionMiddleware _sut;
+    private readonly Mock<ILogger<ExceptionMiddleware>> loggerMock;
+    private readonly ExceptionMiddleware sut;
 
     public ExceptionMiddlewareTests()
     {
-        _loggerMock = new Mock<ILogger<ExceptionMiddleware>>();
-        _sut = new ExceptionMiddleware(_loggerMock.Object);
+        loggerMock = new Mock<ILogger<ExceptionMiddleware>>();
+        sut = new ExceptionMiddleware(loggerMock.Object);
     }
 
     [Fact]
