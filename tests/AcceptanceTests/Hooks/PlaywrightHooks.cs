@@ -304,19 +304,24 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await loginPage.WaitForTimeoutAsync(500);
 
-        var emailInput = loginPage.Locator("input[type='email'], input[name='loginfmt']");
+        // Email input - try multiple selectors for Entra External ID
+        var emailInput = loginPage.Locator("input[type='email'], input[name='loginfmt'], input[data-testid='iusernameInput']");
         if (await emailInput.IsVisibleAsync())
         {
             await emailInput.FillAsync(email);
-            await loginPage.ClickAsync("input[type='submit'], button[type='submit']");
+            // Click Next/Submit button
+            var nextButton = loginPage.Locator("input[type='submit'], button[type='submit'], button[name='idSIButton9']");
+            await nextButton.ClickAsync();
         }
 
-        await loginPage.WaitForSelectorAsync("input[type='password']",
+        // Password input - use Entra External ID selector with fallback
+        var passwordSelectors = "input[data-testid='ipasswordInput'], input[type='password']";
+        await loginPage.WaitForSelectorAsync(passwordSelectors,
             new PageWaitForSelectorOptions { Timeout = 15000, State = WaitForSelectorState.Visible });
-        await loginPage.FillAsync("input[type='password']", password);
+        await loginPage.FillAsync(passwordSelectors, password);
         var submitButton =
             loginPage.Locator(
-                "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next')");
+                "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next'), button[name='idSIButton9']");
         await submitButton.ClickAsync();
 
         // Handle "Stay signed in?" or "Keep me signed in" prompt
