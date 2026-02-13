@@ -10,7 +10,7 @@ namespace RajFinancial.Api.Middleware;
 /// </summary>
 public static class ValidationExtensions
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -25,7 +25,7 @@ public static class ValidationExtensions
     /// <exception cref="ValidationException">Thrown when validation fails.</exception>
     public static async Task<T> GetValidatedBodyAsync<T>(this FunctionContext context) where T : class
     {
-        var body = GetBody<T>(context);
+        var body = context.GetBody<T>();
         if (body == null)
         {
             throw new ValidationException("Request body is required");
@@ -67,7 +67,7 @@ public static class ValidationExtensions
         {
             try
             {
-                return JsonSerializer.Deserialize<T>(bodyString, JsonOptions);
+                return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
             }
             catch (JsonException)
             {
@@ -85,7 +85,7 @@ public static class ValidationExtensions
     /// <returns>The request body as a dictionary, or null if not available.</returns>
     public static Dictionary<string, object>? GetBodyAsDictionary(this FunctionContext context)
     {
-        return GetBody<Dictionary<string, object>>(context);
+        return context.GetBody<Dictionary<string, object>>();
     }
 
     /// <summary>

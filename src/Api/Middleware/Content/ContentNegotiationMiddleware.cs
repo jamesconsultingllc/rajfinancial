@@ -20,7 +20,6 @@ namespace RajFinancial.Api.Middleware.Content;
 /// <list type="number">
 ///   <item>Reads the request body and stores it in context for later deserialization</item>
 ///   <item>Determines the response content type based on Accept header and environment</item>
-///   <item>Stores the serialization factory in context for use by functions</item>
 /// </list>
 /// </para>
 /// <para>
@@ -34,19 +33,11 @@ namespace RajFinancial.Api.Middleware.Content;
 /// </code>
 /// </para>
 /// </remarks>
-public class ContentNegotiationMiddleware : IFunctionsWorkerMiddleware
+public class ContentNegotiationMiddleware(
+    ILogger<ContentNegotiationMiddleware> logger,
+    ISerializationFactory serializationFactory)
+    : IFunctionsWorkerMiddleware
 {
-    private readonly ILogger<ContentNegotiationMiddleware> logger;
-    private readonly ISerializationFactory serializationFactory;
-
-    public ContentNegotiationMiddleware(
-        ILogger<ContentNegotiationMiddleware> logger,
-        ISerializationFactory serializationFactory)
-    {
-        this.logger = logger;
-        this.serializationFactory = serializationFactory;
-    }
-
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         var httpRequest = await context.GetHttpRequestDataAsync();
@@ -69,24 +60,23 @@ public class ContentNegotiationMiddleware : IFunctionsWorkerMiddleware
             }
 
             // Read and store request body for later deserialization
-            if (httpRequest.Body.CanRead && httpRequest.Body.Length > 0)
+                if (httpRequest.Body.CanRead)
             {
-                httpRequest.Body.Position = 0;
-                var bodyBytes = new byte[httpRequest.Body.Length];
-                await httpRequest.Body.ReadExactlyAsync(bodyBytes);
-                httpRequest.Body.Position = 0; // Reset for potential re-reading
+                    using var memoryStream = new MemoryStream();
+                    await httpRequest.Body.CopyToAsync(memoryStream);
+                    var bodyBytes = memoryStream.ToArray();
 
-                context.Items["RequestBodyBytes"] = bodyBytes;
-                context.Items["RequestContentType"] = contentTypeHeader ?? SerializationFactory.JsonContentType;
+                    if (bodyBytes.Length > 0)
+                    {
+                        context.Items["RequestBodyBytes"] = bodyBytes;
+                        context.Items["RequestContentType"] = contentTypeHeader ?? SerializationFactory.JsonContentType;
+                    }
             }
         }
 
-        // Determine response content type
+        // Determine response content type and store in context for use by functions
         var responseContentType = serializationFactory.GetPreferredContentType(acceptHeader);
-
-        // Store in context for use by functions
         context.Items["ResponseContentType"] = responseContentType;
-        context.Items["SerializationFactory"] = serializationFactory;
 
         logger.LogDebug(
             "Content negotiation: Accept={Accept}, ContentType={ContentType}, ResponseFormat={ResponseFormat}",

@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.39.26.7824",
-      "templateHash": "4009721280359312079"
+      "version": "0.40.2.10011",
+      "templateHash": "17435867953057967077"
     }
   },
   "parameters": {
@@ -46,6 +46,31 @@
         "description": "Microsoft Entra External ID Tenant ID for this environment"
       }
     },
+    "entraExternalIdClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Entra External ID API Client ID (from API app registration)"
+      }
+    },
+    "appRoleClient": {
+      "type": "string",
+      "metadata": {
+        "description": "Client App Role GUID"
+      }
+    },
+    "appRoleAdministrator": {
+      "type": "string",
+      "metadata": {
+        "description": "Administrator App Role GUID"
+      }
+    },
+    "entraServicePrincipalId": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra External ID Service Principal ID (stored in Key Vault)"
+      }
+    },
     "sqlAdminObjectId": {
       "type": "string",
       "metadata": {
@@ -77,6 +102,13 @@
         "description": "Override location for SQL Server (some regions have capacity issues)"
       }
     },
+    "functionAppLocation": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Override location for Function App (some regions have quota issues)"
+      }
+    },
     "tags": {
       "type": "object",
       "defaultValue": {
@@ -92,8 +124,8 @@
   "variables": {
     "resourceGroupName": "[if(not(equals(parameters('resourceGroupNameOverride'), '')), parameters('resourceGroupNameOverride'), format('rg-{0}-{1}', parameters('baseName'), parameters('environment')))]",
     "keyVaultName": "[format('kv-{0}-{1}', parameters('baseName'), parameters('environment'))]",
-    "sqlServerName": "[format('sql-{0}-{1}', parameters('baseName'), parameters('environment'))]",
-    "sqlDatabaseName": "[format('sqldb-{0}-{1}', parameters('baseName'), parameters('environment'))]",
+    "sqlServerName": "[if(equals(parameters('environment'), 'prod'), parameters('baseName'), format('{0}-{1}', parameters('baseName'), parameters('environment')))]",
+    "sqlDatabaseName": "[parameters('baseName')]",
     "functionAppName": "[format('func-{0}-{1}', parameters('baseName'), parameters('environment'))]",
     "storageAccountName": "[format('st{0}{1}', parameters('baseName'), parameters('environment'))]",
     "appInsightsName": "[format('appi-{0}-{1}', parameters('baseName'), parameters('environment'))]",
@@ -137,8 +169,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "9640959863725104818"
+              "version": "0.40.2.10011",
+              "templateHash": "11752943314507995467"
             }
           },
           "parameters": {
@@ -249,6 +281,9 @@
           },
           "tags": {
             "value": "[parameters('tags')]"
+          },
+          "entraServicePrincipalId": {
+            "value": "[parameters('entraServicePrincipalId')]"
           }
         },
         "template": {
@@ -257,8 +292,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "7947309623154536841"
+              "version": "0.40.2.10011",
+              "templateHash": "5946124614761721821"
             }
           },
           "parameters": {
@@ -278,6 +313,13 @@
               "type": "object",
               "metadata": {
                 "description": "Tags to apply to resources"
+              }
+            },
+            "entraServicePrincipalId": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Entra External ID Service Principal ID (optional - only stored if provided)"
               }
             }
           },
@@ -307,6 +349,22 @@
                   "bypass": "AzureServices"
                 }
               }
+            },
+            {
+              "condition": "[not(empty(parameters('entraServicePrincipalId')))]",
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('keyVaultName'), 'EntraExternalId-ServicePrincipalId')]",
+              "properties": {
+                "value": "[parameters('entraServicePrincipalId')]",
+                "contentType": "text/plain",
+                "attributes": {
+                  "enabled": true
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+              ]
             }
           ],
           "outputs": {
@@ -356,8 +414,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "13542659652850153627"
+              "version": "0.40.2.10011",
+              "templateHash": "5368000889170308306"
             }
           },
           "parameters": {
@@ -504,8 +562,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "8180659019256779021"
+              "version": "0.40.2.10011",
+              "templateHash": "6989527257126607022"
             }
           },
           "parameters": {
@@ -601,7 +659,7 @@
               "sku": "[if(equals(parameters('environment'), 'dev'), createObject('name', 'Free', 'tier', 'Free'), createObject('name', 'Basic', 'tier', 'Basic', 'capacity', 5))]",
               "properties": {
                 "collation": "SQL_Latin1_General_CP1_CI_AS",
-                "maxSizeBytes": "[if(equals(parameters('environment'), 'dev'), json('34359738368'), json('2147483648'))]",
+                "maxSizeBytes": "[if(equals(parameters('environment'), 'dev'), 33554432, json('2147483648'))]",
                 "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
                 "zoneRedundant": false,
                 "readScale": "Disabled",
@@ -698,9 +756,7 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "location": {
-            "value": "[parameters('location')]"
-          },
+          "location": "[if(not(equals(parameters('functionAppLocation'), '')), createObject('value', parameters('functionAppLocation')), createObject('value', parameters('location')))]",
           "functionAppName": {
             "value": "[variables('functionAppName')]"
           },
@@ -713,8 +769,26 @@
           "appInsightsInstrumentationKey": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.appInsightsInstrumentationKey.value]"
           },
-          "keyVaultUri": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
+          "keyVaultName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
+          },
+          "sqlServerFqdn": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sql-deployment'), '2025-04-01').outputs.sqlServerFqdn.value]"
+          },
+          "sqlDatabaseName": {
+            "value": "[variables('sqlDatabaseName')]"
+          },
+          "entraExternalIdTenantId": {
+            "value": "[parameters('entraExternalIdTenantId')]"
+          },
+          "entraExternalIdClientId": {
+            "value": "[parameters('entraExternalIdClientId')]"
+          },
+          "appRoleClient": {
+            "value": "[parameters('appRoleClient')]"
+          },
+          "appRoleAdministrator": {
+            "value": "[parameters('appRoleAdministrator')]"
           },
           "environment": {
             "value": "[parameters('environment')]"
@@ -729,8 +803,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "11013490724394245334"
+              "version": "0.40.2.10011",
+              "templateHash": "17560991233139229486"
             }
           },
           "parameters": {
@@ -764,10 +838,46 @@
                 "description": "Application Insights instrumentation key"
               }
             },
-            "keyVaultUri": {
+            "keyVaultName": {
               "type": "string",
               "metadata": {
-                "description": "Key Vault URI for secret references"
+                "description": "Key Vault name for secret references"
+              }
+            },
+            "sqlServerFqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "SQL Server FQDN"
+              }
+            },
+            "sqlDatabaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "SQL Database name"
+              }
+            },
+            "entraExternalIdTenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Entra External ID Tenant ID"
+              }
+            },
+            "entraExternalIdClientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Entra External ID API Client ID"
+              }
+            },
+            "appRoleClient": {
+              "type": "string",
+              "metadata": {
+                "description": "Client App Role GUID"
+              }
+            },
+            "appRoleAdministrator": {
+              "type": "string",
+              "metadata": {
+                "description": "Administrator App Role GUID"
               }
             },
             "environment": {
@@ -797,7 +907,7 @@
               "name": "[variables('planName')]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
-              "sku": "[if(equals(parameters('environment'), 'dev'), createObject('name', 'B1', 'tier', 'Basic', 'size', 'B1', 'capacity', 1), createObject('name', 'EP1', 'tier', 'ElasticPremium'))]",
+              "sku": "[if(equals(parameters('environment'), 'dev'), createObject('name', 'Y1', 'tier', 'Dynamic'), createObject('name', 'EP1', 'tier', 'ElasticPremium'))]",
               "properties": {
                 "reserved": false
               }
@@ -846,6 +956,10 @@
                       "value": "dotnet-isolated"
                     },
                     {
+                      "name": "WEBSITE_RUN_FROM_PACKAGE",
+                      "value": "1"
+                    },
+                    {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
                       "value": "[parameters('appInsightsConnectionString')]"
                     },
@@ -854,12 +968,28 @@
                       "value": "[parameters('appInsightsInstrumentationKey')]"
                     },
                     {
-                      "name": "KeyVaultUri",
-                      "value": "[parameters('keyVaultUri')]"
+                      "name": "SqlConnectionString",
+                      "value": "[format('Server=tcp:{0},1433;Initial Catalog={1};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default', parameters('sqlServerFqdn'), parameters('sqlDatabaseName'))]"
                     },
                     {
-                      "name": "WEBSITE_RUN_FROM_PACKAGE",
-                      "value": "1"
+                      "name": "EntraExternalId__TenantId",
+                      "value": "[parameters('entraExternalIdTenantId')]"
+                    },
+                    {
+                      "name": "EntraExternalId__ClientId",
+                      "value": "[parameters('entraExternalIdClientId')]"
+                    },
+                    {
+                      "name": "EntraExternalId__ServicePrincipalId",
+                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=EntraExternalId-ServicePrincipalId)', parameters('keyVaultName'))]"
+                    },
+                    {
+                      "name": "AppRoles__Client",
+                      "value": "[parameters('appRoleClient')]"
+                    },
+                    {
+                      "name": "AppRoles__Administrator",
+                      "value": "[parameters('appRoleAdministrator')]"
                     }
                   ]
                 }
@@ -897,6 +1027,7 @@
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sql-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     },
@@ -930,8 +1061,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "12088142424237625931"
+              "version": "0.40.2.10011",
+              "templateHash": "14296188590228506441"
             }
           },
           "parameters": {
@@ -969,7 +1100,7 @@
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
               "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('functionAppPrincipalId'), variables('keyVaultSecretsUserRoleId'))]",
               "properties": {
                 "principalId": "[parameters('functionAppPrincipalId')]",
@@ -980,7 +1111,7 @@
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
               "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('functionAppPrincipalId'), variables('storageBlobDataContributorRoleId'))]",
               "properties": {
                 "principalId": "[parameters('functionAppPrincipalId')]",
@@ -991,7 +1122,7 @@
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
               "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('functionAppPrincipalId'), variables('storageQueueDataContributorRoleId'))]",
               "properties": {
                 "principalId": "[parameters('functionAppPrincipalId')]",

@@ -121,18 +121,44 @@ Fine-grained access (spouses, CPAs, attorneys) is handled through **DataAccessGr
 
 ### `register-entra-apps.ps1`
 
-Registers SPA and API applications in Entra External ID:
+Registers SPA and API applications in Entra External ID and optionally stores IDs in Key Vault:
 
 ```powershell
+# Basic registration (outputs config, stores in Key Vault)
 .\register-entra-apps.ps1 -Environment dev
-.\register-entra-apps.ps1 -Environment prod
+
+# Full automation: register apps, store in Key Vault, update Bicep params
+.\register-entra-apps.ps1 -Environment dev `
+    -KeyVaultName "kv-rajfinancial-dev" `
+    -AzureSubscriptionId "your-subscription-id" `
+    -UpdateBicepParams
+
+# Skip Key Vault storage (just register apps)
+.\register-entra-apps.ps1 -Environment dev -SkipKeyVault
 ```
 
-Creates:
+**Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `-Environment` | Required. `dev` or `prod` |
+| `-KeyVaultName` | Key Vault to store secrets (defaults to `kv-rajfinancial-{env}`) |
+| `-AzureSubscriptionId` | Azure subscription for Key Vault access |
+| `-UpdateBicepParams` | Auto-update `infra/parameters/{env}.bicepparam` |
+| `-SkipKeyVault` | Skip storing secrets in Key Vault |
+
+**Creates:**
 - SPA app with redirect URIs
 - API app with OAuth2 scopes
 - App roles (Client, Administrator)
 - Service principals
+
+**Stores in Key Vault:**
+- `EntraExternalId-TenantId`
+- `EntraExternalId-ClientId`
+- `EntraExternalId-ServicePrincipalId`
+- `EntraExternalId-SpaClientId`
+- `AppRoles-Client`
+- `AppRoles-Administrator`
 
 ### `configure-sql-access.ps1`
 

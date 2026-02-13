@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -14,8 +14,13 @@ public static class ContentNegotiationExtensions
     /// </summary>
     /// <typeparam name="T">The type to deserialize to.</typeparam>
     /// <param name="context">The function context.</param>
+    /// <param name="serializationFactory">The serialization factory (injected via DI).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The deserialized object, or null if body is empty.</returns>
-    public static T? DeserializeBody<T>(this FunctionContext context) where T : class
+    public static async Task<T?> DeserializeBodyAsync<T>(
+        this FunctionContext context,
+        ISerializationFactory serializationFactory,
+        CancellationToken cancellationToken = default) where T : class
     {
         if (!context.Items.TryGetValue("RequestBodyBytes", out var bodyObj) ||
             bodyObj is not byte[] bodyBytes ||
@@ -28,20 +33,7 @@ public static class ContentNegotiationExtensions
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
 
-        var factory = context.Items.TryGetValue("SerializationFactory", out var f)
-            ? f as ISerializationFactory
-            : null;
-
-        if (factory == null)
-        {
-            // Fallback to JSON if factory not available
-            return JsonSerializer.Deserialize<T>(bodyBytes, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-        }
-
-        return factory.Deserialize<T>(bodyBytes, contentType);
+        return await serializationFactory.DeserializeAsync<T>(bodyBytes, contentType, cancellationToken);
     }
 
     /// <summary>
@@ -52,34 +44,26 @@ public static class ContentNegotiationExtensions
     /// <param name="request">The HTTP request.</param>
     /// <param name="statusCode">The HTTP status code.</param>
     /// <param name="data">The data to serialize.</param>
+    /// <param name="serializationFactory">The serialization factory (injected via DI).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The HTTP response with serialized data.</returns>
     public static async Task<HttpResponseData> CreateSerializedResponseAsync<T>(
         this FunctionContext context,
         HttpRequestData request,
-        System.Net.HttpStatusCode statusCode,
-        T data)
+        HttpStatusCode statusCode,
+        T data,
+        ISerializationFactory serializationFactory,
+        CancellationToken cancellationToken = default)
     {
         var contentType = context.Items.TryGetValue("ResponseContentType", out var ct)
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
 
-        var factory = context.Items.TryGetValue("SerializationFactory", out var f)
-            ? f as ISerializationFactory
-            : null;
-
         var response = request.CreateResponse(statusCode);
         response.Headers.Add("Content-Type", contentType);
 
-        if (factory != null)
-        {
-            var bytes = factory.Serialize(data, contentType);
-            await response.Body.WriteAsync(bytes);
-        }
-        else
-        {
-            // Fallback to JSON
-            await response.WriteAsJsonAsync(data);
-        }
+        var bytes = await serializationFactory.SerializeAsync(data, contentType, cancellationToken);
+        await response.Body.WriteAsync(bytes, cancellationToken);
 
         return response;
     }
@@ -96,15 +80,4 @@ public static class ContentNegotiationExtensions
             : SerializationFactory.JsonContentType;
     }
 
-    /// <summary>
-    /// Gets the serialization factory from the context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The serialization factory, or null if not available.</returns>
-    public static ISerializationFactory? GetSerializationFactory(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("SerializationFactory", out var f)
-            ? f as ISerializationFactory
-            : null;
-    }
 }

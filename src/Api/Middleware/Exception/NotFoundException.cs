@@ -3,14 +3,9 @@
 /// <summary>
 /// Exception thrown when a requested resource is not found.
 /// </summary>
-public class NotFoundException : Exception
+public class NotFoundException(string errorCode, string message) : Exception(message)
 {
-    public string ErrorCode { get; }
-
-    public NotFoundException(string errorCode, string message) : base(message)
-    {
-        ErrorCode = errorCode;
-    }
+    public string ErrorCode { get; } = errorCode;
 
     public static NotFoundException Asset(Guid assetId) =>
         new("ASSET_NOT_FOUND", $"Asset with ID {assetId} was not found");

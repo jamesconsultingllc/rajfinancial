@@ -1,6 +1,4 @@
-using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using RajFinancial.Api.Middleware;
 
 namespace RajFinancial.UnitTests.Api.Middleware;

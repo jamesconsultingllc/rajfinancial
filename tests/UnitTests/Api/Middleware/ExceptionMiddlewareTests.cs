@@ -1,10 +1,9 @@
-using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
 
@@ -15,12 +14,29 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 public class ExceptionMiddlewareTests
 {
     private readonly Mock<ILogger<ExceptionMiddleware>> loggerMock;
+    private readonly ISerializationFactory serializationFactory;
     private readonly ExceptionMiddleware sut;
 
     public ExceptionMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<ExceptionMiddleware>>();
-        sut = new ExceptionMiddleware(loggerMock.Object);
+        serializationFactory = CreateSerializationFactory();
+        sut = new ExceptionMiddleware(loggerMock.Object, serializationFactory);
+    }
+
+    private static ISerializationFactory CreateSerializationFactory()
+    {
+        var configData = new Dictionary<string, string?>
+        {
+            { "AZURE_FUNCTIONS_ENVIRONMENT", "Development" }
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var loggerMock = new Mock<ILogger<SerializationFactory>>();
+        return new SerializationFactory(configuration, loggerMock.Object);
     }
 
     [Fact]

@@ -1,9 +1,9 @@
-using System.Text.Json;
+using System.Text;
 using FluentAssertions;
+using MemoryPack;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.UnitTests.Api.Middleware;
@@ -14,12 +14,7 @@ namespace RajFinancial.UnitTests.Api.Middleware;
 /// </summary>
 public partial class SerializationFactoryTests
 {
-    private readonly Mock<ILogger<SerializationFactory>> loggerMock;
-
-    public SerializationFactoryTests()
-    {
-        loggerMock = new Mock<ILogger<SerializationFactory>>();
-    }
+    private readonly Mock<ILogger<SerializationFactory>> loggerMock = new();
 
     private SerializationFactory CreateFactory(string environment = "Development", bool useMemoryPackInProduction = true)
     {
@@ -40,7 +35,7 @@ public partial class SerializationFactoryTests
     public void GetPreferredContentType_InDevelopment_AlwaysReturnsJson()
     {
         // Arrange
-        var factory = CreateFactory("Development");
+        var factory = CreateFactory();
 
         // Act & Assert - should return JSON regardless of Accept header
         factory.GetPreferredContentType(null).Should().Be(SerializationFactory.JsonContentType);
@@ -102,32 +97,32 @@ public partial class SerializationFactoryTests
     }
 
     [Fact]
-    public void Serialize_WithJsonContentType_ReturnsJsonBytes()
+    public async Task SerializeAsync_WithJsonContentType_ReturnsJsonBytes()
     {
         // Arrange
         var factory = CreateFactory();
         var testData = new TestDto { Name = "Test", Value = 42 };
 
         // Act
-        var bytes = factory.Serialize(testData, SerializationFactory.JsonContentType);
+        var bytes = await factory.SerializeAsync(testData, SerializationFactory.JsonContentType);
 
         // Assert
         bytes.Should().NotBeEmpty();
-        var json = System.Text.Encoding.UTF8.GetString(bytes);
+        var json = Encoding.UTF8.GetString(bytes);
         json.Should().Contain("name");
         json.Should().Contain("Test");
     }
 
     [Fact]
-    public void Deserialize_WithJsonContentType_ReturnsObject()
+    public async Task DeserializeAsync_WithJsonContentType_ReturnsObject()
     {
         // Arrange
         var factory = CreateFactory();
         var json = """{"name":"Test","value":42}""";
-        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        var bytes = Encoding.UTF8.GetBytes(json);
 
         // Act
-        var result = factory.Deserialize<TestDto>(bytes, SerializationFactory.JsonContentType);
+        var result = await factory.DeserializeAsync<TestDto>(bytes, SerializationFactory.JsonContentType);
 
         // Assert
         result.Should().NotBeNull();
@@ -136,46 +131,46 @@ public partial class SerializationFactoryTests
     }
 
     [Fact]
-    public void Deserialize_WithEmptyBytes_ReturnsDefault()
+    public async Task DeserializeAsync_WithEmptyBytes_ReturnsDefault()
     {
         // Arrange
         var factory = CreateFactory();
 
         // Act
-        var result = factory.Deserialize<TestDto>([], SerializationFactory.JsonContentType);
+        var result = await factory.DeserializeAsync<TestDto>([], SerializationFactory.JsonContentType);
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Serialize_WithMemoryPackContentType_ReturnsMemoryPackBytes()
+    public async Task SerializeAsync_WithMemoryPackContentType_ReturnsMemoryPackBytes()
     {
         // Arrange
         var factory = CreateFactory();
         var testData = new TestDto { Name = "Test", Value = 42 };
 
         // Act
-        var bytes = factory.Serialize(testData, SerializationFactory.MemoryPackContentType);
+        var bytes = await factory.SerializeAsync(testData, SerializationFactory.MemoryPackContentType);
 
         // Assert
         bytes.Should().NotBeEmpty();
         // MemoryPack uses binary format, so we can't easily verify content
         // but we can verify it's different from JSON
-        var jsonBytes = factory.Serialize(testData, SerializationFactory.JsonContentType);
+        var jsonBytes = await factory.SerializeAsync(testData, SerializationFactory.JsonContentType);
         bytes.Should().NotBeEquivalentTo(jsonBytes);
     }
 
     [Fact]
-    public void SerializeAndDeserialize_WithMemoryPack_RoundTripsCorrectly()
+    public async Task SerializeAndDeserializeAsync_WithMemoryPack_RoundTripsCorrectly()
     {
         // Arrange
         var factory = CreateFactory();
         var testData = new TestDto { Name = "RoundTrip", Value = 123 };
 
         // Act
-        var bytes = factory.Serialize(testData, SerializationFactory.MemoryPackContentType);
-        var result = factory.Deserialize<TestDto>(bytes, SerializationFactory.MemoryPackContentType);
+        var bytes = await factory.SerializeAsync(testData, SerializationFactory.MemoryPackContentType);
+        var result = await factory.DeserializeAsync<TestDto>(bytes, SerializationFactory.MemoryPackContentType);
 
         // Assert
         result.Should().NotBeNull();
@@ -194,7 +189,7 @@ public partial class SerializationFactoryTests
     /// <summary>
     /// Test DTO for serialization tests.
     /// </summary>
-    [MemoryPack.MemoryPackable]
+    [MemoryPackable]
     public partial class TestDto
     {
         public string? Name { get; set; }

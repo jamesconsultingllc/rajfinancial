@@ -3,7 +3,4 @@
 /// <summary>
 /// Exception thrown when required configuration is missing or invalid.
 /// </summary>
-public class ConfigurationException : Exception
-{
-    public ConfigurationException(string message) : base(message) { }
-}
+public class ConfigurationException(string message) : Exception(message);

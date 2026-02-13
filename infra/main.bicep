@@ -28,10 +28,21 @@ param baseName string = 'rajfinancial'
 @description('Override for resource group name (if not provided, uses rg-{baseName}-{environment})')
 param resourceGroupNameOverride string = ''
 
-// Note: This parameter is used for documentation and future Azure RBAC integration
-#disable-next-line no-unused-params
 @description('Microsoft Entra External ID Tenant ID for this environment')
 param entraExternalIdTenantId string
+
+@description('Entra External ID API Client ID (from API app registration)')
+param entraExternalIdClientId string
+
+@description('Client App Role GUID')
+param appRoleClient string
+
+@description('Administrator App Role GUID')
+param appRoleAdministrator string
+
+@description('Entra External ID Service Principal ID (stored in Key Vault)')
+@secure()
+param entraServicePrincipalId string = ''
 
 @description('Entra admin object ID for SQL Server (user or group)')
 param sqlAdminObjectId string
@@ -46,6 +57,9 @@ param sqlAdminPrincipalType string = 'User'
 @description('Override location for SQL Server (some regions have capacity issues)')
 param sqlLocation string = ''
 
+@description('Override location for Function App (some regions have quota issues)')
+param functionAppLocation string = ''
+
 @description('Tags to apply to all resources')
 param tags object = {
   Project: 'RAJ Financial'
@@ -59,8 +73,9 @@ param tags object = {
 
 var resourceGroupName = resourceGroupNameOverride != '' ? resourceGroupNameOverride : 'rg-${baseName}-${environment}'
 var keyVaultName = 'kv-${baseName}-${environment}'
-var sqlServerName = 'sql-${baseName}-${environment}'
-var sqlDatabaseName = 'sqldb-${baseName}-${environment}'
+// SQL naming: prod gets clean name (rajfinancial), dev gets suffix (rajfinancial-dev)
+var sqlServerName = environment == 'prod' ? baseName : '${baseName}-${environment}'
+var sqlDatabaseName = baseName
 var functionAppName = 'func-${baseName}-${environment}'
 var storageAccountName = 'st${baseName}${environment}'
 // var redisName = 'redis-${baseName}-${environment}'  // Redis disabled
@@ -103,6 +118,7 @@ module keyVault 'modules/keyvault.bicep' = {
     location: location
     keyVaultName: keyVaultName
     tags: tags
+    entraServicePrincipalId: entraServicePrincipalId
   }
 }
 
@@ -162,12 +178,18 @@ module functions 'modules/functions.bicep' = {
   name: 'functions-deployment'
   scope: rg
   params: {
-    location: location
+    location: functionAppLocation != '' ? functionAppLocation : location
     functionAppName: functionAppName
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: monitoring.outputs.appInsightsInstrumentationKey
-    keyVaultUri: keyVault.outputs.keyVaultUri
+    keyVaultName: keyVault.outputs.keyVaultName
+    sqlServerFqdn: sql.outputs.sqlServerFqdn
+    sqlDatabaseName: sqlDatabaseName
+    entraExternalIdTenantId: entraExternalIdTenantId
+    entraExternalIdClientId: entraExternalIdClientId
+    appRoleClient: appRoleClient
+    appRoleAdministrator: appRoleAdministrator
     environment: environment
     tags: tags
   }

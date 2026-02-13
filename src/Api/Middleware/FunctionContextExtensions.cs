@@ -69,7 +69,7 @@ public static class FunctionContextExtensions
     /// <returns>True if the user has the role, false otherwise.</returns>
     public static bool HasRole(this FunctionContext context, string role)
     {
-        return GetUserRoles(context).Contains(role, StringComparer.OrdinalIgnoreCase);
+        return context.GetUserRoles().Contains(role, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public static class FunctionContextExtensions
     /// <returns>True if the user is an administrator, false otherwise.</returns>
     public static bool IsAdministrator(this FunctionContext context)
     {
-        return HasRole(context, "Administrator");
+        return context.HasRole("Administrator");
     }
 
     /// <summary>
@@ -103,7 +103,7 @@ public static class FunctionContextExtensions
     {
         if (!context.IsAuthenticated())
         {
-            throw new UnauthorizedException("Authentication required");
+            throw new UnauthorizedException();
         }
     }
 
@@ -132,6 +132,6 @@ public static class FunctionContextExtensions
     /// <exception cref="ForbiddenException">Thrown when not an administrator.</exception>
     public static void RequireAdministrator(this FunctionContext context)
     {
-        RequireRole(context, "Administrator");
+        context.RequireRole("Administrator");
     }
 }

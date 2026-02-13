@@ -25,7 +25,19 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('dev', 'prod')]
-    [string]$Environment
+    [string]$Environment,
+
+    [Parameter(Mandatory = $false)]
+    [string]$KeyVaultName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$AzureSubscriptionId,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$UpdateBicepParams,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipKeyVault
 )
 
 # ============================================================================
@@ -473,31 +485,151 @@ Write-Host "Configuration saved to: $outputPath" -ForegroundColor Green
 Write-Host ""
 
 # ============================================================================
-# Step 5: Admin Consent Reminder
+# Step 5: Get Service Principal ID
 # ============================================================================
 
+Write-Host "Step 5: Getting Service Principal ID..." -ForegroundColor Yellow
+
+$apiServicePrincipal = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?\`$filter=appId eq '$($apiApp.appId)'" `
+    2>$null | ConvertFrom-Json
+
+$servicePrincipalId = $apiServicePrincipal.value[0].id
+Write-Host "Service Principal ID: $servicePrincipalId" -ForegroundColor Green
+Write-Host ""
+
+# ============================================================================
+# Step 6: Store Secrets in Key Vault (optional)
+# ============================================================================
+
+$keyVaultDefaults = @{
+    dev = "kv-rajfinancial-dev"
+    prod = "kv-rajfinancial-prod"
+}
+
+$subscriptionDefaults = @{
+    dev = "your-dev-subscription-id"
+    prod = "your-prod-subscription-id"
+}
+
+if (-not $SkipKeyVault) {
+    $vaultName = if ($KeyVaultName) { $KeyVaultName } else { $keyVaultDefaults[$Environment] }
+
+    Write-Host "Step 6: Storing secrets in Key Vault ($vaultName)..." -ForegroundColor Yellow
+
+    # Switch to Azure subscription context (different from Entra tenant)
+    if ($AzureSubscriptionId) {
+        Write-Host "Switching to Azure subscription: $AzureSubscriptionId" -ForegroundColor Yellow
+        az account set --subscription $AzureSubscriptionId
+    } else {
+        Write-Host "Note: Using current Azure subscription. Use -AzureSubscriptionId to specify." -ForegroundColor Yellow
+    }
+
+    # Store secrets in Key Vault
+    $secrets = @{
+        "EntraExternalId-TenantId" = $envConfig.TenantId
+        "EntraExternalId-ClientId" = $apiApp.appId
+        "EntraExternalId-ServicePrincipalId" = $servicePrincipalId
+        "EntraExternalId-SpaClientId" = $spaApp.appId
+        "AppRoles-Client" = $envConfig.RoleGuids.Client
+        "AppRoles-Administrator" = $envConfig.RoleGuids.Administrator
+    }
+
+    foreach ($secret in $secrets.GetEnumerator()) {
+        Write-Host "  Setting $($secret.Key)..." -ForegroundColor Gray
+        az keyvault secret set `
+            --vault-name $vaultName `
+            --name $secret.Key `
+            --value $secret.Value `
+            --output none 2>$null
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "    Stored: $($secret.Key)" -ForegroundColor Green
+        } else {
+            Write-Warning "    Failed to store $($secret.Key) - check Key Vault permissions"
+        }
+    }
+
+    Write-Host ""
+} else {
+    Write-Host "Step 6: Skipping Key Vault storage (use -SkipKeyVault:$false to enable)" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+# ============================================================================
+# Step 7: Update Bicep Parameter Files (optional)
+# ============================================================================
+
+if ($UpdateBicepParams) {
+    Write-Host "Step 7: Updating Bicep parameter files..." -ForegroundColor Yellow
+
+    $bicepParamPath = Join-Path $PSScriptRoot "..\..\infra\parameters\$Environment.bicepparam"
+
+    if (Test-Path $bicepParamPath) {
+        $content = Get-Content $bicepParamPath -Raw
+
+        # Update the parameters
+        $content = $content -replace "param entraExternalIdClientId = '[^']*'", "param entraExternalIdClientId = '$($apiApp.appId)'"
+        $content = $content -replace "param appRoleClient = '[^']*'", "param appRoleClient = '$($envConfig.RoleGuids.Client)'"
+        $content = $content -replace "param appRoleAdministrator = '[^']*'", "param appRoleAdministrator = '$($envConfig.RoleGuids.Administrator)'"
+
+        $content | Out-File -FilePath $bicepParamPath -Encoding utf8 -NoNewline
+        Write-Host "Updated: $bicepParamPath" -ForegroundColor Green
+    } else {
+        Write-Warning "Bicep parameter file not found: $bicepParamPath"
+    }
+
+    Write-Host ""
+} else {
+    Write-Host "Step 7: Skipping Bicep parameter update (use -UpdateBicepParams to enable)" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+# ============================================================================
+# Summary & Next Steps
+# ============================================================================
+
+Write-Host "============================================" -ForegroundColor Green
+Write-Host " Registration Complete!" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "Registered Applications:" -ForegroundColor Cyan
+Write-Host "  API App ID:           $($apiApp.appId)"
+Write-Host "  API Object ID:        $($apiApp.id)"
+Write-Host "  Service Principal ID: $servicePrincipalId"
+Write-Host "  SPA App ID:           $($spaApp.appId)"
+Write-Host ""
+
+if (-not $SkipKeyVault) {
+    Write-Host "Key Vault Secrets Stored:" -ForegroundColor Cyan
+    Write-Host "  EntraExternalId-TenantId"
+    Write-Host "  EntraExternalId-ClientId"
+    Write-Host "  EntraExternalId-ServicePrincipalId"
+    Write-Host "  EntraExternalId-SpaClientId"
+    Write-Host "  AppRoles-Client"
+    Write-Host "  AppRoles-Administrator"
+    Write-Host ""
+}
+
 Write-Host "============================================" -ForegroundColor Yellow
-Write-Host " IMPORTANT: Next Steps" -ForegroundColor Yellow
+Write-Host " Next Steps" -ForegroundColor Yellow
 Write-Host "============================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "1. Update your configuration files with the generated values above"
+Write-Host "1. Grant admin consent for API permissions:" -ForegroundColor White
+Write-Host "   az ad app permission admin-consent --id $($spaApp.appId)" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "2. Grant admin consent for API permissions:"
-Write-Host "   Go to Azure Portal -> Entra External ID -> App registrations"
-Write-Host "   -> $($envConfig.SpaName) -> API permissions -> Grant admin consent"
+Write-Host "2. Deploy infrastructure (if not already done):" -ForegroundColor White
+Write-Host "   az deployment sub create --location southcentralus --template-file infra/main.bicep --parameters infra/parameters/$Environment.bicepparam" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   Or run this command:" -ForegroundColor Cyan
-Write-Host "   az ad app permission admin-consent --id $($spaApp.appId)"
+Write-Host "3. Deploy the Function App:" -ForegroundColor White
+Write-Host "   Push to the '$( if ($Environment -eq 'dev') { 'develop' } else { 'main' })' branch or run the GitHub Action manually" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "3. Update the ServicePrincipalId in your API configuration:"
-Write-Host "   Get it from the API app's Enterprise Application (Service Principal)"
+Write-Host "App Roles:" -ForegroundColor Yellow
+Write-Host "  - Client: Standard users who own their financial data"
+Write-Host "  - Administrator: Platform staff with system-wide access"
 Write-Host ""
-Write-Host "4. The app roles are:" -ForegroundColor Cyan
-Write-Host "   - Client: For standard users who own their financial data"
-Write-Host "   - Administrator: For platform staff"
-Write-Host ""
-Write-Host "   Note: Fine-grained access (spouses, CPAs, attorneys viewing client data)"
-Write-Host "   is handled through DataAccessGrant entities in the database,"
-Write-Host "   NOT through additional app roles."
+Write-Host "Note: Fine-grained access (spouses, CPAs, attorneys) is handled"
+Write-Host "through DataAccessGrant entities, NOT through app roles."
 Write-Host ""
 

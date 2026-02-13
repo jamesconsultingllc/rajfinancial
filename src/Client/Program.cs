@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -101,7 +102,7 @@ builder.Services.AddAuthorizationCore(options =>
             var hasAnyRole = context.User.Claims.Any(c => 
                 c.Type == "roles" || 
                 c.Type == "role" || 
-                c.Type == System.Security.Claims.ClaimTypes.Role);
+                c.Type == ClaimTypes.Role);
             
             return !hasAnyRole; // No role = implicit Client
         }));

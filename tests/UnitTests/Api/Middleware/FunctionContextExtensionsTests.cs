@@ -97,7 +97,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Client", "Administrator" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act
         var result = context.GetUserRoles();
@@ -173,7 +173,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act
         var result = context.HasRole(role);
@@ -188,7 +188,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act
         var result = context.IsAdministrator();
@@ -203,7 +203,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act
         var result = context.IsAdministrator();
@@ -277,7 +277,7 @@ public class FunctionContextExtensionsTests
         var context = new TestFunctionContext();
         context.Items["IsAuthenticated"] = true;
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act & Assert
         var action = () => context.RequireRole("Administrator");
@@ -291,7 +291,7 @@ public class FunctionContextExtensionsTests
         var context = new TestFunctionContext();
         context.Items["IsAuthenticated"] = true;
         var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act & Assert
         var action = () => context.RequireRole("Administrator");
@@ -318,7 +318,7 @@ public class FunctionContextExtensionsTests
         var context = new TestFunctionContext();
         context.Items["IsAuthenticated"] = true;
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act & Assert
         var action = () => context.RequireAdministrator();
@@ -332,7 +332,7 @@ public class FunctionContextExtensionsTests
         var context = new TestFunctionContext();
         context.Items["IsAuthenticated"] = true;
         var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = (IReadOnlyList<string>)roles;
+        context.Items["UserRoles"] = roles;
 
         // Act & Assert
         var action = () => context.RequireAdministrator();

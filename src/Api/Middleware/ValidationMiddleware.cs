@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
 
@@ -38,26 +37,16 @@ namespace RajFinancial.Api.Middleware;
 /// </list>
 /// </para>
 /// </remarks>
-public class ValidationMiddleware : IFunctionsWorkerMiddleware
+public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
-    private readonly ILogger<ValidationMiddleware> logger;
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    public ValidationMiddleware(ILogger<ValidationMiddleware> logger)
-    {
-        this.logger = logger;
-    }
+    private static readonly string get = HttpMethod.Get.ToString();
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         var httpRequest = await context.GetHttpRequestDataAsync();
-
+        
         // Only process requests with a body
-        if (httpRequest?.Body != null && httpRequest.Body.Length > 0)
+        if (!string.Equals(httpRequest?.Method, get, StringComparison.OrdinalIgnoreCase) && (bool)httpRequest?.Body?.CanRead)
         {
             try
             {

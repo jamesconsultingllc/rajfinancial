@@ -34,15 +34,15 @@ $ErrorActionPreference = "Stop"
 
 $config = @{
     dev = @{
-        ResourceGroup = "rg-rajfinancial-dev"
-        SqlServer = "sql-rajfinancial-dev"
-        SqlDatabase = "sqldb-rajfinancial-dev"
+        ResourceGroup = "raj-financial-dev-rg"
+        SqlServer = "rajfinancial-dev"
+        SqlDatabase = "rajfinancial"
         FunctionAppName = "func-rajfinancial-dev"
     }
     prod = @{
-        ResourceGroup = "rg-rajfinancial-prod"
-        SqlServer = "sql-rajfinancial-prod"
-        SqlDatabase = "sqldb-rajfinancial-prod"
+        ResourceGroup = "raj-financial-prod-rg"
+        SqlServer = "rajfinancial"
+        SqlDatabase = "rajfinancial"
         FunctionAppName = "func-rajfinancial-prod"
     }
 }
@@ -151,16 +151,29 @@ $sql | Out-File -FilePath $sqlFile -Encoding UTF8
 try {
     Write-Host "  Executing SQL commands..." -ForegroundColor Gray
 
-    # Execute using access token authentication
-    sqlcmd -S "tcp:$sqlFqdn,1433" `
+    # Execute using Azure AD Default authentication (uses az login credentials)
+    # Note: The new go-sqlcmd uses --authentication-method, older sqlcmd uses -G
+    $result = sqlcmd -S "tcp:$sqlFqdn,1433" `
         -d $envConfig.SqlDatabase `
-        -G `
-        -P $token `
+        --authentication-method=ActiveDirectoryDefault `
         -i $sqlFile `
-        -b
+        -b 2>&1
 
     if ($LASTEXITCODE -ne 0) {
-        throw "sqlcmd failed with exit code $LASTEXITCODE"
+        # Fallback: try legacy sqlcmd with -G flag
+        Write-Host "  Trying legacy sqlcmd..." -ForegroundColor Gray
+        $env:SQLCMDPASSWORD = $token
+        sqlcmd -S "tcp:$sqlFqdn,1433" `
+            -d $envConfig.SqlDatabase `
+            -G `
+            -U "dummy" `
+            -i $sqlFile `
+            -b
+        $env:SQLCMDPASSWORD = $null
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "sqlcmd failed with exit code $LASTEXITCODE"
+        }
     }
 
     Write-Host "  ✓ Database user configured successfully" -ForegroundColor Green

@@ -67,8 +67,8 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
 // ============================================================================
 // SQL Database
 // ============================================================================
-// FREE tier (dev): 32GB storage, 100 DTUs burst, perfect for development
-// Basic tier (prod): Entry-level production with SLA
+// FREE tier (dev): 32MB storage limit, good for development
+// Basic tier (prod): 2GB storage, entry-level production with SLA
 // ============================================================================
 
 resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
@@ -86,7 +86,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: environment == 'dev' ? 34359738368 : 2147483648 // 32GB free, 2GB basic
+    maxSizeBytes: environment == 'dev' ? 33554432 : 2147483648 // 32MB free, 2GB basic
     catalogCollation: 'SQL_Latin1_General_CP1_CI_AS'
     zoneRedundant: false
     readScale: 'Disabled'

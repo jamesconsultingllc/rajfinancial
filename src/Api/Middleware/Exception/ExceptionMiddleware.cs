@@ -1,9 +1,9 @@
 using System.Net;
-using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -26,15 +26,11 @@ namespace RajFinancial.Api.Middleware;
 /// </list>
 /// </para>
 /// </remarks>
-public class ExceptionMiddleware : IFunctionsWorkerMiddleware
+public class ExceptionMiddleware(
+    ILogger<ExceptionMiddleware> logger,
+    ISerializationFactory serializationFactory)
+    : IFunctionsWorkerMiddleware
 {
-    private readonly ILogger<ExceptionMiddleware> logger;
-
-    public ExceptionMiddleware(ILogger<ExceptionMiddleware> logger)
-    {
-        this.logger = logger;
-    }
-
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         try
@@ -82,7 +78,7 @@ public class ExceptionMiddleware : IFunctionsWorkerMiddleware
         }
     }
 
-    private static async Task WriteErrorResponseAsync(
+    private async Task WriteErrorResponseAsync(
         FunctionContext context,
         HttpStatusCode statusCode,
         string code,
@@ -93,7 +89,12 @@ public class ExceptionMiddleware : IFunctionsWorkerMiddleware
         if (httpRequest == null) return;
 
         var response = httpRequest.CreateResponse(statusCode);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+
+        // Remove existing Content-Type header to prevent FormatException
+        if (response.Headers.Contains("Content-Type"))
+        {
+            response.Headers.Remove("Content-Type");
+        }
 
         var error = new ApiErrorResponse
         {
@@ -103,14 +104,17 @@ public class ExceptionMiddleware : IFunctionsWorkerMiddleware
             TraceId = context.TraceContext.TraceParent
         };
 
-        await response.WriteAsJsonAsync(error);
+        // Use content negotiation: get request-specific content type from context
+        var contentType = context.Items.TryGetValue("ResponseContentType", out var ct)
+            ? ct as string ?? SerializationFactory.JsonContentType
+            : SerializationFactory.JsonContentType;
+
+        var bytes = await serializationFactory.SerializeAsync(error, contentType);
+        response.Headers.Add("Content-Type", contentType);
+        await response.Body.WriteAsync(bytes);
 
         // Set the response on the context
         var invocationResult = context.GetInvocationResult();
         invocationResult.Value = response;
     }
 }
-
-#region Custom Exceptions
-
-#endregion

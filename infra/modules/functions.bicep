@@ -25,8 +25,26 @@ param appInsightsConnectionString string
 @description('Application Insights instrumentation key')
 param appInsightsInstrumentationKey string
 
-@description('Key Vault URI for secret references')
-param keyVaultUri string
+@description('Key Vault name for secret references')
+param keyVaultName string
+
+@description('SQL Server FQDN')
+param sqlServerFqdn string
+
+@description('SQL Database name')
+param sqlDatabaseName string
+
+@description('Entra External ID Tenant ID')
+param entraExternalIdTenantId string
+
+@description('Entra External ID API Client ID')
+param entraExternalIdClientId string
+
+@description('Client App Role GUID')
+param appRoleClient string
+
+@description('Administrator App Role GUID')
+param appRoleAdministrator string
 
 @description('The environment (dev or prod)')
 @allowed(['dev', 'prod'])
@@ -41,17 +59,15 @@ param tags object
 
 var planName = 'asp-${functionAppName}'
 
-// Use Basic B1 for dev (Consumption/Dynamic not available in all subscriptions)
-// Use Elastic Premium EP1 for prod (scale-out, always warm)
+// Use Consumption (Y1) for dev - pay per execution, no VM quota needed
+// Use Elastic Premium EP1 for prod - scale-out, always warm, VNet support
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
   tags: tags
   sku: environment == 'dev' ? {
-    name: 'B1'
-    tier: 'Basic'
-    size: 'B1'
-    capacity: 1
+    name: 'Y1'
+    tier: 'Dynamic'
   } : {
     name: 'EP1'
     tier: 'ElasticPremium'
@@ -94,6 +110,9 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         supportCredentials: true
       }
       appSettings: [
+        // ====================================================================
+        // Azure Functions Runtime
+        // ====================================================================
         {
           name: 'AzureWebJobsStorage__accountName'
           value: storageAccountName
@@ -107,6 +126,13 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: 'dotnet-isolated'
         }
         {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        // ====================================================================
+        // Monitoring
+        // ====================================================================
+        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsightsConnectionString
         }
@@ -114,13 +140,41 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: appInsightsInstrumentationKey
         }
+        // ====================================================================
+        // Database - Connection string built from components (Managed Identity)
+        // ====================================================================
         {
-          name: 'KeyVaultUri'
-          value: keyVaultUri
+          name: 'SqlConnectionString'
+          value: 'Server=tcp:${sqlServerFqdn},1433;Initial Catalog=${sqlDatabaseName};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default'
+        }
+        // ====================================================================
+        // Entra External ID (non-sensitive - public values from tokens)
+        // ====================================================================
+        {
+          name: 'EntraExternalId__TenantId'
+          value: entraExternalIdTenantId
         }
         {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
+          name: 'EntraExternalId__ClientId'
+          value: entraExternalIdClientId
+        }
+        // ====================================================================
+        // Entra External ID (sensitive - Key Vault reference)
+        // ====================================================================
+        {
+          name: 'EntraExternalId__ServicePrincipalId'
+          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=EntraExternalId-ServicePrincipalId)'
+        }
+        // ====================================================================
+        // App Roles
+        // ====================================================================
+        {
+          name: 'AppRoles__Client'
+          value: appRoleClient
+        }
+        {
+          name: 'AppRoles__Administrator'
+          value: appRoleAdministrator
         }
       ]
     }

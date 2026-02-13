@@ -20,7 +20,7 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 public class AuthenticationSteps(ScenarioContext scenarioContext)
 {
     // Track test users created during tests for cleanup
-    private static readonly List<string> TestUsersToCleanup = new();
+    private static readonly List<string> testUsersToCleanup = new();
     private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should be redirected to the Entra External ID login page")]
@@ -162,7 +162,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         Console.WriteLine($"🔗 IMAP: {emailHelper.GetConnectionInfo()}");
 
         // Store for cleanup and later use
-        TestUsersToCleanup.Add(testEmail);
+        testUsersToCleanup.Add(testEmail);
         scenarioContext.Set(testEmail, "TestUserEmail");
         scenarioContext.Set(usernameGuid, "UsernameGuid");
 
@@ -910,7 +910,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     public async Task ThenTheTestUserShouldBeMarkedForCleanup()
     {
         var email = scenarioContext.Get<string>("TestUserEmail");
-        Assert.Contains(email, TestUsersToCleanup);
+        Assert.Contains(email, testUsersToCleanup);
         await TestUserCleanupExtensions.RunScheduledCleanup();
     }
 
@@ -1374,7 +1374,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static IReadOnlyList<string> GetTestUsersForCleanup()
     {
-        return TestUsersToCleanup.AsReadOnly();
+        return testUsersToCleanup.AsReadOnly();
     }
 
     /// <summary>
@@ -1382,7 +1382,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static void ClearCleanupList()
     {
-        TestUsersToCleanup.Clear();
+        testUsersToCleanup.Clear();
     }
 
     // ========================================================================

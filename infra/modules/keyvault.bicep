@@ -1,6 +1,9 @@
 // ============================================================================
 // RAJ Financial - Key Vault Module
 // ============================================================================
+// Creates Key Vault and optionally stores Entra External ID secrets.
+// Secrets are only created if the parameter values are provided.
+// ============================================================================
 
 @description('The Azure region for resources')
 param location string
@@ -10,6 +13,14 @@ param keyVaultName string
 
 @description('Tags to apply to resources')
 param tags object
+
+// ============================================================================
+// Optional Entra External ID Secrets (passed from PowerShell registration)
+// ============================================================================
+
+@description('Entra External ID Service Principal ID (optional - only stored if provided)')
+@secure()
+param entraServicePrincipalId string = ''
 
 // ============================================================================
 // Key Vault
@@ -36,6 +47,22 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     networkAcls: {
       defaultAction: 'Allow'
       bypass: 'AzureServices'
+    }
+  }
+}
+
+// ============================================================================
+// Secrets (only created if values provided)
+// ============================================================================
+
+resource servicePrincipalIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(entraServicePrincipalId)) {
+  parent: keyVault
+  name: 'EntraExternalId-ServicePrincipalId'
+  properties: {
+    value: entraServicePrincipalId
+    contentType: 'text/plain'
+    attributes: {
+      enabled: true
     }
   }
 }

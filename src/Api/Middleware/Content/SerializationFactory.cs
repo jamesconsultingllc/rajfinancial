@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using MemoryPack;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -25,28 +26,20 @@ namespace RajFinancial.Api.Middleware.Content;
 /// </list>
 /// </para>
 /// </remarks>
-public class SerializationFactory : ISerializationFactory
+public class SerializationFactory(
+    IConfiguration configuration,
+    ILogger<SerializationFactory> logger)
+    : ISerializationFactory
 {
     public const string JsonContentType = "application/json";
     public const string MemoryPackContentType = "application/x-memorypack";
 
-    private readonly IConfiguration configuration;
-    private readonly ILogger<SerializationFactory> logger;
-    private readonly JsonSerializerOptions jsonOptions;
-
-    public SerializationFactory(
-        IConfiguration configuration,
-        ILogger<SerializationFactory> logger)
+    private readonly JsonSerializerOptions jsonOptions = new()
     {
-        this.configuration = configuration;
-        this.logger = logger;
-        jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-    }
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     /// <summary>
     /// Whether to use MemoryPack in production (configurable).
@@ -100,33 +93,46 @@ public class SerializationFactory : ISerializationFactory
     }
 
     /// <inheritdoc />
-    public byte[] Serialize<T>(T value, string contentType)
+    public async Task<byte[]> SerializeAsync<T>(T value, string contentType, CancellationToken cancellationToken = default)
     {
+        if (value == null)
+        {
+            return [];
+        }
+
+        using var stream = new MemoryStream();
+
         if (contentType.Equals(MemoryPackContentType, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogDebug("Serializing {Type} with MemoryPack", typeof(T).Name);
-            return MemoryPackSerializer.Serialize(value);
+            await MemoryPackSerializer.SerializeAsync(stream, value, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            logger.LogDebug("Serializing {Type} with JSON", typeof(T).Name);
+            await JsonSerializer.SerializeAsync(stream, value, jsonOptions, cancellationToken);
         }
 
-        logger.LogDebug("Serializing {Type} with JSON", typeof(T).Name);
-        return JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions);
+        return stream.ToArray();
     }
 
     /// <inheritdoc />
-    public T? Deserialize<T>(byte[] data, string contentType)
+    public async Task<T?> DeserializeAsync<T>(byte[] data, string contentType, CancellationToken cancellationToken = default)
     {
         if (data.Length == 0)
         {
             return default;
         }
 
+        using var stream = new MemoryStream(data);
+
         if (contentType.Equals(MemoryPackContentType, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogDebug("Deserializing {Type} with MemoryPack", typeof(T).Name);
-            return MemoryPackSerializer.Deserialize<T>(data);
+            return await MemoryPackSerializer.DeserializeAsync<T>(stream, cancellationToken: cancellationToken);
         }
 
         logger.LogDebug("Deserializing {Type} with JSON", typeof(T).Name);
-        return JsonSerializer.Deserialize<T>(data, jsonOptions);
+        return await JsonSerializer.DeserializeAsync<T>(stream, jsonOptions, cancellationToken);
     }
 }
