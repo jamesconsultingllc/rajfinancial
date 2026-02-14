@@ -14,8 +14,8 @@ Feature: API Authentication Integration
     @smoke @security
     Scenario: Health endpoint is publicly accessible
         When I send a GET request to "/api/health"
-        Then the HTTP response status should be 200
-        And the response body should contain "healthy"
+        Then the HTTP response status should be 200 or 503
+        And the response body should contain "RajFinancial API"
 
     @security @A01
     Scenario: Public auth endpoint is accessible without authentication

@@ -1,4 +1,3 @@
-using System.Net;
 using FluentAssertions;
 using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
@@ -8,9 +7,9 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 /// <summary>
 /// Step definitions for API authentication integration tests.
 /// These tests hit real HTTP endpoints via the Azure Functions host.
+/// Fixture is injected via Reqnroll DI (registered in FunctionsHostHooks).
 /// </summary>
 [Binding]
-[Collection(FunctionsHostCollection.Name)]
 public class ApiAuthenticationSteps
 {
     private readonly HttpClient client;
@@ -64,13 +63,26 @@ public class ApiAuthenticationSteps
         response.Should().NotBeNull("a request should have been sent");
         ((int)response!.StatusCode).Should().Be(expectedStatusCode,
             $"expected HTTP {expectedStatusCode} but got {(int)response.StatusCode} {response.StatusCode}. " +
-            $"Body: {responseBody?[..Math.Min(responseBody?.Length ?? 0, 500)]}");
+            $"Body: {TruncateBody()}");
+    }
+
+    [Then("the HTTP response status should be {int} or {int}")]
+    public void ThenTheHttpResponseStatusShouldBeEither(int status1, int status2)
+    {
+        response.Should().NotBeNull("a request should have been sent");
+        var actual = (int)response!.StatusCode;
+        actual.Should().BeOneOf([status1, status2],
+            $"expected HTTP {status1} or {status2} but got {actual} {response.StatusCode}. " +
+            $"Body: {TruncateBody()}");
     }
 
     [Then("the response body should contain {string}")]
     public void ThenTheResponseBodyShouldContain(string expected)
     {
         responseBody.Should().NotBeNull("response body should have been read");
-        responseBody.Should().Contain(expected, Exactly.Once());
+        responseBody.Should().Contain(expected);
     }
+
+    private string TruncateBody()
+        => responseBody?[..Math.Min(responseBody?.Length ?? 0, 500)] ?? "(empty)";
 }

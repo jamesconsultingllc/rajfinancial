@@ -25,11 +25,19 @@ public class FunctionsHostFixture : IAsyncLifetime
             .AddEnvironmentVariables()
             .Build();
 
-        baseUrl = config["FunctionsHost:BaseUrl"] ?? "http://localhost:7071";
+        baseUrl = config["FunctionsHost:BaseUrl"] ?? "https://localhost:7071";
         projectPath = config["FunctionsHost:ProjectPath"] ?? "../../src/Api";
         startupTimeoutSeconds = int.Parse(config["FunctionsHost:StartupTimeoutSeconds"] ?? "30");
 
-        Client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+        // Accept self-signed certs from local func start --useHttps
+        var handler = new HttpClientHandler();
+        if (IsLocalhost(baseUrl))
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+
+        Client = new HttpClient(handler) { BaseAddress = new Uri(baseUrl) };
     }
 
     /// <summary>
@@ -51,7 +59,7 @@ public class FunctionsHostFixture : IAsyncLifetime
         }
 
         // Only auto-launch func start for localhost — remote endpoints must already be running
-        if (!IsLocalhost())
+        if (!IsLocalhost(baseUrl))
         {
             throw new InvalidOperationException(
                 $"Remote Functions host at {baseUrl} is not reachable. " +
@@ -67,7 +75,7 @@ public class FunctionsHostFixture : IAsyncLifetime
             StartInfo = new ProcessStartInfo
             {
                 FileName = "func",
-                Arguments = "start --port 7071",
+                Arguments = IsHttps(baseUrl) ? "start --useHttps --port 7071" : "start --port 7071",
                 WorkingDirectory = absoluteProjectPath,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -128,11 +136,13 @@ public class FunctionsHostFixture : IAsyncLifetime
         }
     }
 
-    private bool IsLocalhost()
+    private static bool IsLocalhost(string url)
     {
-        var uri = new Uri(baseUrl);
+        var uri = new Uri(url);
         return uri.Host is "localhost" or "127.0.0.1" or "::1";
     }
+
+    private static bool IsHttps(string url) => new Uri(url).Scheme == "https";
 }
 
 /// <summary>
