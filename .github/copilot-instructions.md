@@ -4,8 +4,9 @@ applyTo: '**'
 
 # Copilot Instructions
 
-> **Primary instructions are in [`AGENT.md`](../AGENT.md).** Read that file first.
-> This file contains Copilot-specific instructions only.
+> **Global standards**: [`E:\AGENT.md`](file:///E:/AGENT.md) (methodology, security, a11y, i18n).
+> **Project instructions**: [`AGENT.md`](../AGENT.md) (tech stack, structure, conventions).
+> This file contains **Copilot-specific** instructions only.
 
 ---
 
@@ -28,7 +29,8 @@ The following files are auto-generated and should be **ignored during code revie
 
 ## Links
 
-- **Agent Instructions (PRIMARY)**: [AGENT.md](../AGENT.md)
+- **Global Standards**: [E:\AGENT.md](file:///E:/AGENT.md)
+- **Project Instructions**: [AGENT.md](../AGENT.md)
 - **Claude Instructions**: [CLAUDE.md](../CLAUDE.md)
 - **Execution Plan**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN.md)
 - **API Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md)
