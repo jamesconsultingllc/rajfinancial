@@ -320,14 +320,13 @@ public class SharedStepDefinitions(ScenarioContext scenarioContext)
         if (string.Equals(linkText, "Home", StringComparison.OrdinalIgnoreCase))
             candidates.Add(Page.Locator(".raj-header-brand"));
 
-        candidates.AddRange(new[]
-        {
+        candidates.AddRange([
             Page.Locator($"a:has-text(\"{linkText}\")"),
             Page.Locator($"button:has-text(\"{linkText}\")"),
             Page.Locator($"[role='link']:has-text(\"{linkText}\")"),
             Page.Locator($".nav-link:has-text(\"{linkText}\")"),
             Page.Locator($"text={linkText}")
-        });
+        ]);
 
         var foundVisible = false;
         foreach (var candidate in candidates)

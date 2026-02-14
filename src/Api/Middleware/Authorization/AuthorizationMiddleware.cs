@@ -44,7 +44,7 @@ namespace RajFinancial.Api.Middleware.Authorization;
 // ReSharper disable once ClassNeverInstantiated.Global
 public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
-    private readonly ConcurrentDictionary<string, MethodInfo?> _methodCache = new();
+    private readonly ConcurrentDictionary<string, MethodInfo?> methodCache = new();
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -96,7 +96,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
             return null;
 
         var assemblyPath = context.FunctionDefinition?.PathToAssembly;
-        return _methodCache.GetOrAdd(entryPoint, ep => ResolveMethod(ep, assemblyPath));
+        return methodCache.GetOrAdd(entryPoint, ep => ResolveMethod(ep, assemblyPath));
     }
 
     /// <summary>
@@ -157,8 +157,8 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
     private static void EnsureHasRole(FunctionContext context, string[] requiredRoles)
     {
         var userRoles = context.Items.TryGetValue("UserRoles", out var rolesObj)
-            ? rolesObj as IReadOnlyList<string> ?? Array.Empty<string>()
-            : Array.Empty<string>();
+            ? rolesObj as IReadOnlyList<string> ?? []
+            : [];
 
         // OR logic: user needs at least one of the required roles
         var hasRole = requiredRoles.Any(required =>

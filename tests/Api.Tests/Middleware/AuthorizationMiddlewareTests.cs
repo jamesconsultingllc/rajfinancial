@@ -14,13 +14,13 @@ namespace RajFinancial.Api.Tests.Middleware;
 /// </summary>
 public class AuthorizationMiddlewareTests
 {
-    private readonly AuthorizationMiddleware _middleware;
-    private readonly Mock<ILogger<AuthorizationMiddleware>> _loggerMock;
+    private readonly AuthorizationMiddleware middleware;
+    private readonly Mock<ILogger<AuthorizationMiddleware>> loggerMock;
 
     public AuthorizationMiddlewareTests()
     {
-        _loggerMock = new Mock<ILogger<AuthorizationMiddleware>>();
-        _middleware = new AuthorizationMiddleware(_loggerMock.Object);
+        loggerMock = new Mock<ILogger<AuthorizationMiddleware>>();
+        middleware = new AuthorizationMiddleware(loggerMock.Object);
     }
 
     // =========================================================================
@@ -36,7 +36,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -51,7 +51,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -72,7 +72,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -88,7 +88,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedException>();
@@ -109,7 +109,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -125,7 +125,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedException>();
@@ -147,7 +147,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -164,7 +164,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<ForbiddenException>();
@@ -180,7 +180,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedException>();
@@ -202,7 +202,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -219,7 +219,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<ForbiddenException>();
@@ -241,7 +241,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -258,7 +258,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        var act = () => _middleware.Invoke(context, Next);
+        var act = () => middleware.Invoke(context, Next);
 
         // Assert
         await act.Should().ThrowAsync<ForbiddenException>();
@@ -280,7 +280,7 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -300,16 +300,16 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
-        _loggerMock.Verify(
+        loggerMock.Verify(
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Authentication verified")),
                 null,
-                It.IsAny<Func<It.IsAnyType, System.Exception?, string>>()),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
 
@@ -324,16 +324,16 @@ public class AuthorizationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
-        _loggerMock.Verify(
+        loggerMock.Verify(
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Authorization passed")),
                 null,
-                It.IsAny<Func<It.IsAnyType, System.Exception?, string>>()),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
 

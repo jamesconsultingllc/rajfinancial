@@ -65,18 +65,18 @@ internal class NullHttpRequestDataFeature : IHttpRequestDataFeature
 /// </summary>
 internal class TestInvocationFeatures : IInvocationFeatures
 {
-    private readonly Dictionary<Type, object> _features = new();
+    private readonly Dictionary<Type, object> features = new();
 
     public void Set<T>(T instance)
     {
-        _features[typeof(T)] = instance!;
+        features[typeof(T)] = instance!;
     }
 
     public T? Get<T>()
     {
-        return _features.TryGetValue(typeof(T), out var value) ? (T)value : default;
+        return features.TryGetValue(typeof(T), out var value) ? (T)value : default;
     }
 
-    public IEnumerator<KeyValuePair<Type, object>> GetEnumerator() => _features.GetEnumerator();
+    public IEnumerator<KeyValuePair<Type, object>> GetEnumerator() => features.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

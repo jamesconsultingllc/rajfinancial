@@ -42,12 +42,12 @@ namespace RajFinancial.Api.Middleware;
 public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     // Standard claim types for Entra External ID
-    private const string ObjectIdClaim = "http://schemas.microsoft.com/identity/claims/objectidentifier";
-    private const string ObjectIdClaimAlt = "oid";
-    private const string EmailClaim = "emails";
-    private const string EmailClaimAlt = "email";
-    private const string RolesClaim = "roles";
-    private const string NameClaim = "name";
+    private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
+    private const string OBJECT_ID_CLAIM_ALT = "oid";
+    private const string EMAIL_CLAIM = "emails";
+    private const string EMAIL_CLAIM_ALT = "email";
+    private const string ROLES_CLAIM = "roles";
+    private const string NAME_CLAIM = "name";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -138,33 +138,33 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
     private static string? GetUserId(ClaimsPrincipal principal)
     {
         // Try standard Entra claim first, then alternative
-        return principal.FindFirst(ObjectIdClaim)?.Value ??
-               principal.FindFirst(ObjectIdClaimAlt)?.Value;
+        return principal.FindFirst(OBJECT_ID_CLAIM)?.Value ??
+               principal.FindFirst(OBJECT_ID_CLAIM_ALT)?.Value;
     }
 
     private static string? GetEmail(ClaimsPrincipal principal)
     {
         // Entra External ID uses "emails" claim (array), we take first
-        var emailsClaim = principal.FindFirst(EmailClaim)?.Value;
+        var emailsClaim = principal.FindFirst(EMAIL_CLAIM)?.Value;
         if (!string.IsNullOrEmpty(emailsClaim))
         {
             return emailsClaim;
         }
 
-        return principal.FindFirst(EmailClaimAlt)?.Value ??
+        return principal.FindFirst(EMAIL_CLAIM_ALT)?.Value ??
                principal.FindFirst(ClaimTypes.Email)?.Value;
     }
 
     private static string? GetName(ClaimsPrincipal principal)
     {
-        return principal.FindFirst(NameClaim)?.Value ??
+        return principal.FindFirst(NAME_CLAIM)?.Value ??
                principal.FindFirst(ClaimTypes.Name)?.Value;
     }
 
     private static IReadOnlyList<string> GetRoles(ClaimsPrincipal principal)
     {
         // Collect all role claims
-        return principal.FindAll(RolesClaim)
+        return principal.FindAll(ROLES_CLAIM)
             .Select(c => c.Value)
             .Concat(principal.FindAll(ClaimTypes.Role).Select(c => c.Value))
             .Distinct()

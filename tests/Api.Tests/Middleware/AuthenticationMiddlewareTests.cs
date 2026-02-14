@@ -14,13 +14,13 @@ namespace RajFinancial.Api.Tests.Middleware;
 /// </summary>
 public class AuthenticationMiddlewareTests
 {
-    private readonly AuthenticationMiddleware _middleware;
-    private readonly Mock<ILogger<AuthenticationMiddleware>> _loggerMock;
+    private readonly AuthenticationMiddleware middleware;
+    private readonly Mock<ILogger<AuthenticationMiddleware>> loggerMock;
 
     public AuthenticationMiddlewareTests()
     {
-        _loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
-        _middleware = new AuthenticationMiddleware(_loggerMock.Object);
+        loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
+        middleware = new AuthenticationMiddleware(loggerMock.Object);
     }
 
     // =========================================================================
@@ -43,7 +43,7 @@ public class AuthenticationMiddlewareTests
         }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -62,7 +62,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["UserEmail"].Should().Be("test@rajfinancial.com");
@@ -79,7 +79,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["UserName"].Should().Be("John Doe");
@@ -96,7 +96,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
@@ -116,7 +116,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["ClaimsPrincipal"].Should().Be(principal);
@@ -138,7 +138,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["IsAuthenticated"].Should().Be(false);
@@ -153,7 +153,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["IsAuthenticated"].Should().Be(false);
@@ -173,7 +173,7 @@ public class AuthenticationMiddlewareTests
         }
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         nextCalled.Should().BeTrue();
@@ -199,7 +199,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["UserId"].Should().Be("user-alt-123");
@@ -222,7 +222,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["UserEmail"].Should().Be("external@rajfinancial.com");
@@ -245,7 +245,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items["UserEmail"].Should().Be("standard@rajfinancial.com");
@@ -273,7 +273,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
@@ -302,7 +302,7 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
         context.Items.Should().NotContainKey("UserId");
@@ -323,16 +323,16 @@ public class AuthenticationMiddlewareTests
         Task Next(FunctionContext _) => Task.CompletedTask;
 
         // Act
-        await _middleware.Invoke(context, Next);
+        await middleware.Invoke(context, Next);
 
         // Assert
-        _loggerMock.Verify(
+        loggerMock.Verify(
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("user-for-log")),
                 null,
-                It.IsAny<Func<It.IsAnyType, System.Exception?, string>>()),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
 

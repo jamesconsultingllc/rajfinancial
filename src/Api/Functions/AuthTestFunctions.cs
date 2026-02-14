@@ -27,7 +27,7 @@ public class AuthTestFunctions(
     ILogger<AuthTestFunctions> logger,
     IOptions<AppRoleOptions> appRoleOptions)
 {
-    private readonly AppRoleOptions _appRoles = appRoleOptions.Value;
+    private readonly AppRoleOptions appRoles = appRoleOptions.Value;
 
     /// <summary>
     ///     Returns information about the currently authenticated user.
@@ -157,7 +157,7 @@ public class AuthTestFunctions(
                 "access": "administrator",
                 "userId": "{{adminUserId}}",
                 "description": "This endpoint requires explicit Administrator role assignment",
-                "adminRoleId": "{{_appRoles.Administrator}}",
+                "adminRoleId": "{{appRoles.Administrator}}",
                 "timestamp": "{{DateTime.UtcNow:O}}"
             }
             """);

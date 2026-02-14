@@ -218,10 +218,9 @@ public class FunctionContextExtensionsTests
     {
         // Arrange
         var context = new TestFunctionContext();
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity([
             new Claim(ClaimTypes.Name, "testuser")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         context.Items["ClaimsPrincipal"] = principal;
 

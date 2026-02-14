@@ -16,14 +16,14 @@ namespace RajFinancial.Api.Tests.Services.Authorization;
 /// </summary>
 public class AuthorizationServiceTests : IDisposable
 {
-    private readonly ApplicationDbContext _dbContext;
-    private readonly AuthorizationService _service;
+    private readonly ApplicationDbContext dbContext;
+    private readonly AuthorizationService service;
 
     // Fixed test GUIDs
-    private static readonly Guid OwnerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-    private static readonly Guid GranteeId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
-    private static readonly Guid AdminId = Guid.Parse("cccc0000-0000-0000-0000-000000000003");
-    private static readonly Guid StrangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
+    private static readonly Guid ownerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid granteeId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
+    private static readonly Guid adminId = Guid.Parse("cccc0000-0000-0000-0000-000000000003");
+    private static readonly Guid strangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
 
     public AuthorizationServiceTests()
     {
@@ -31,14 +31,14 @@ public class AuthorizationServiceTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _dbContext = new ApplicationDbContext(options);
+        dbContext = new ApplicationDbContext(options);
         var logger = new Mock<ILogger<AuthorizationService>>();
-        _service = new AuthorizationService(_dbContext, logger.Object);
+        service = new AuthorizationService(dbContext, logger.Object);
     }
 
     public void Dispose()
     {
-        _dbContext.Dispose();
+        dbContext.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -49,8 +49,8 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_OwnerAccessesOwnResource_GrantsWithOwnerReason()
     {
-        var decision = await _service.CheckAccessAsync(
-            OwnerId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            ownerId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.ResourceOwner);
@@ -60,8 +60,8 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_OwnerAccessesOwnResource_GrantsRegardlessOfCategory()
     {
-        var decision = await _service.CheckAccessAsync(
-            OwnerId, OwnerId, DataCategories.Documents, AccessType.Full);
+        var decision = await service.CheckAccessAsync(
+            ownerId, ownerId, DataCategories.Documents, AccessType.Full);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.ResourceOwner);
@@ -70,8 +70,8 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_OwnerAccessesOwnResource_GrantsRegardlessOfRequiredLevel()
     {
-        var decision = await _service.CheckAccessAsync(
-            OwnerId, OwnerId, DataCategories.Accounts, AccessType.Owner);
+        var decision = await service.CheckAccessAsync(
+            ownerId, ownerId, DataCategories.Accounts, AccessType.Owner);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.ResourceOwner);
@@ -85,11 +85,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithActiveReadGrant_GrantsWithDataAccessGrantReason()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -99,10 +99,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithActiveFullGrant_GrantsForReadRequest()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Full, GrantStatus.Active);
+        SeedGrant(ownerId, granteeId, AccessType.Full, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -112,10 +112,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithActiveFullGrant_GrantsForFullRequest()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Full, GrantStatus.Active);
+        SeedGrant(ownerId, granteeId, AccessType.Full, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Full);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Full);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -129,11 +129,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithExpiredGrant_Denies()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Expired,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Expired,
             categories: [DataCategories.Accounts]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -142,11 +142,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithRevokedGrant_Denies()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Revoked,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Revoked,
             categories: [DataCategories.Accounts]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -155,11 +155,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithPendingGrant_Denies()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Pending,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Pending,
             categories: [DataCategories.Accounts]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -168,11 +168,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithLimitedAccessToWrongCategory_Denies()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Limited, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Limited, GrantStatus.Active,
             categories: [DataCategories.Documents]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -181,11 +181,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithReadGrant_DeniesFullAccessRequest()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Full);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Full);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -194,12 +194,12 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithExpiresAtInPast_Denies()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts],
             expiresAt: DateTimeOffset.UtcNow.AddHours(-1));
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -208,12 +208,12 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithExpiresAtInFuture_Grants()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts],
             expiresAt: DateTimeOffset.UtcNow.AddDays(30));
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -222,12 +222,12 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWithNullExpiresAt_Grants()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts],
             expiresAt: null);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -240,10 +240,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_FullGrantCoversAnyCategory()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Full, GrantStatus.Active);
+        SeedGrant(ownerId, granteeId, AccessType.Full, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Documents, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Documents, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -252,10 +252,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_ReadGrantCoversAnyCategory()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active);
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Assets, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Assets, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -264,11 +264,11 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_LimitedGrantWithMatchingCategory_Grants()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Limited, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Limited, GrantStatus.Active,
             categories: [DataCategories.Accounts, DataCategories.Assets]);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -282,10 +282,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_Administrator_GrantsWithAdminReason()
     {
-        SeedUserProfile(AdminId, UserRole.Administrator);
+        SeedUserProfile(adminId, UserRole.Administrator);
 
-        var decision = await _service.CheckAccessAsync(
-            AdminId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            adminId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.Administrator);
@@ -295,10 +295,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_Administrator_GrantsForAnyCategory()
     {
-        SeedUserProfile(AdminId, UserRole.Administrator);
+        SeedUserProfile(adminId, UserRole.Administrator);
 
-        var decision = await _service.CheckAccessAsync(
-            AdminId, OwnerId, DataCategories.Documents, AccessType.Full);
+        var decision = await service.CheckAccessAsync(
+            adminId, ownerId, DataCategories.Documents, AccessType.Full);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.Administrator);
@@ -311,8 +311,8 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_StrangerWithNoGrant_Denies()
     {
-        var decision = await _service.CheckAccessAsync(
-            StrangerId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            strangerId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -321,10 +321,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_NonAdminUserWithNoGrant_Denies()
     {
-        SeedUserProfile(StrangerId, UserRole.Client);
+        SeedUserProfile(strangerId, UserRole.Client);
 
-        var decision = await _service.CheckAccessAsync(
-            StrangerId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            strangerId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -337,10 +337,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_OwnerWhoIsAlsoAdmin_ReturnsOwnerReason()
     {
-        SeedUserProfile(OwnerId, UserRole.Administrator);
+        SeedUserProfile(ownerId, UserRole.Administrator);
 
-        var decision = await _service.CheckAccessAsync(
-            OwnerId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            ownerId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.ResourceOwner);
@@ -349,12 +349,12 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_GranteeWhoIsAlsoAdmin_ReturnsDataAccessGrantReason()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Read, GrantStatus.Active,
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
             categories: [DataCategories.Accounts]);
-        SeedUserProfile(GranteeId, UserRole.Administrator);
+        SeedUserProfile(granteeId, UserRole.Administrator);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
@@ -367,10 +367,10 @@ public class AuthorizationServiceTests : IDisposable
     [Fact]
     public async Task CheckAccess_CategoryAll_FullGrantCovers()
     {
-        SeedGrant(OwnerId, GranteeId, AccessType.Full, GrantStatus.Active);
+        SeedGrant(ownerId, granteeId, AccessType.Full, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.All, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.All, AccessType.Read);
 
         decision.IsGranted.Should().BeTrue();
     }
@@ -379,10 +379,10 @@ public class AuthorizationServiceTests : IDisposable
     public async Task CheckAccess_GrantForDifferentOwner_Denies()
     {
         var otherOwnerId = Guid.Parse("eeee0000-0000-0000-0000-000000000005");
-        SeedGrant(otherOwnerId, GranteeId, AccessType.Full, GrantStatus.Active);
+        SeedGrant(otherOwnerId, granteeId, AccessType.Full, GrantStatus.Active);
 
-        var decision = await _service.CheckAccessAsync(
-            GranteeId, OwnerId, DataCategories.Accounts, AccessType.Read);
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
@@ -400,7 +400,7 @@ public class AuthorizationServiceTests : IDisposable
         List<string>? categories = null,
         DateTimeOffset? expiresAt = null)
     {
-        _dbContext.DataAccessGrants.Add(new DataAccessGrant
+        dbContext.DataAccessGrants.Add(new DataAccessGrant
         {
             Id = Guid.NewGuid(),
             GrantorUserId = grantorId,
@@ -412,15 +412,15 @@ public class AuthorizationServiceTests : IDisposable
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-7),
             ExpiresAt = expiresAt
         });
-        _dbContext.SaveChanges();
+        dbContext.SaveChanges();
     }
 
     private void SeedUserProfile(Guid userId, UserRole role)
     {
         // Only add if not already seeded
-        if (!_dbContext.UserProfiles.Any(u => u.Id == userId))
+        if (!dbContext.UserProfiles.Any(u => u.Id == userId))
         {
-            _dbContext.UserProfiles.Add(new UserProfile
+            dbContext.UserProfiles.Add(new UserProfile
             {
                 Id = userId,
                 Email = $"{role.ToString().ToLowerInvariant()}@example.com",
@@ -431,7 +431,7 @@ public class AuthorizationServiceTests : IDisposable
                 TenantId = Guid.NewGuid(),
                 IsActive = true
             });
-            _dbContext.SaveChanges();
+            dbContext.SaveChanges();
         }
     }
 }

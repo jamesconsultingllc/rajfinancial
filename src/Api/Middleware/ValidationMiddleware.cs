@@ -38,14 +38,14 @@ namespace RajFinancial.Api.Middleware;
 /// </remarks>
 public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
-    private static readonly string Get = HttpMethod.Get.ToString();
+    private static readonly string get = HttpMethod.Get.ToString();
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         var httpRequest = await context.GetHttpRequestDataAsync();
         
         // Only process requests with a body
-        if (httpRequest is not null && !string.Equals(httpRequest.Method, Get, StringComparison.OrdinalIgnoreCase) && httpRequest.Body.CanRead)
+        if (httpRequest is not null && !string.Equals(httpRequest.Method, get, StringComparison.OrdinalIgnoreCase) && httpRequest.Body.CanRead)
         {
             try
             {
