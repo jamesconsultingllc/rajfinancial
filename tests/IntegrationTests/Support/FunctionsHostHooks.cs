@@ -4,29 +4,16 @@ using Reqnroll.BoDi;
 namespace RajFinancial.IntegrationTests.Support;
 
 /// <summary>
-/// Reqnroll hook that manages the Functions host lifecycle.
-/// Starts the host once before all tests and tears it down after all tests.
+/// Reqnroll hook that registers the Functions host fixture for DI.
+/// The host must already be running — this does NOT auto-start it.
 /// </summary>
 [Binding]
 public class FunctionsHostHooks
 {
-    private static FunctionsHostFixture? fixture;
-
     [BeforeTestRun]
-    public static async Task StartHost(IObjectContainer container)
+    public static void RegisterFixture(IObjectContainer container)
     {
-        fixture = new FunctionsHostFixture();
-        await fixture.InitializeAsync();
+        var fixture = new FunctionsHostFixture();
         container.RegisterInstanceAs(fixture);
-    }
-
-    [AfterTestRun]
-    public static async Task StopHost()
-    {
-        if (fixture is not null)
-        {
-            await fixture.DisposeAsync();
-            fixture = null;
-        }
     }
 }

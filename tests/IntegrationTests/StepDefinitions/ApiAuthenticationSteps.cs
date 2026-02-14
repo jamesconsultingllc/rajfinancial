@@ -12,12 +12,14 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 [Binding]
 public class ApiAuthenticationSteps
 {
+    private readonly FunctionsHostFixture fixture;
     private readonly HttpClient client;
     private HttpResponseMessage? response;
     private string? responseBody;
 
     public ApiAuthenticationSteps(FunctionsHostFixture fixture)
     {
+        this.fixture = fixture;
         client = fixture.Client;
     }
 
@@ -26,10 +28,9 @@ public class ApiAuthenticationSteps
     // =========================================================================
 
     [Given("the Functions host is running")]
-    public void GivenTheFunctionsHostIsRunning()
+    public async Task GivenTheFunctionsHostIsRunning()
     {
-        // The FunctionsHostFixture handles startup via IAsyncLifetime.
-        // If we got here, the host is running.
+        await fixture.EnsureHostIsRunningAsync();
     }
 
     // =========================================================================

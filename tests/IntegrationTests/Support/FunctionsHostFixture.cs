@@ -1,21 +1,16 @@
-using System.Diagnostics;
 using System.Net;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 
 namespace RajFinancial.IntegrationTests.Support;
 
 /// <summary>
-/// Fixture that manages the Azure Functions host process for integration tests.
-/// Auto-starts <c>func start</c> for localhost; connects to remote endpoints in CI/CD.
+/// Fixture that provides a shared <see cref="HttpClient"/> for integration tests.
+/// Expects the Azure Functions host to already be running (locally via <c>func start</c>,
+/// or a deployed endpoint in CI/CD). Does NOT auto-start the host.
 /// </summary>
-public class FunctionsHostFixture : IAsyncLifetime
+public class FunctionsHostFixture
 {
-    private Process? hostProcess;
     private readonly string baseUrl;
-    private readonly string projectPath;
-    private readonly int startupTimeoutSeconds;
-    private readonly StringBuilder hostOutput = new();
 
     public FunctionsHostFixture()
     {
@@ -27,8 +22,6 @@ public class FunctionsHostFixture : IAsyncLifetime
             .Build();
 
         baseUrl = config["FunctionsHost:BaseUrl"] ?? "https://localhost:7071";
-        projectPath = config["FunctionsHost:ProjectPath"] ?? "../../../../../src/Api";
-        startupTimeoutSeconds = int.Parse(config["FunctionsHost:StartupTimeoutSeconds"] ?? "30");
 
         // Accept self-signed certs from local func start --useHttps
         var handler = new HttpClientHandler();
@@ -51,114 +44,28 @@ public class FunctionsHostFixture : IAsyncLifetime
     /// </summary>
     public string BaseUrl => baseUrl;
 
-    public async Task InitializeAsync()
-    {
-        // Check if a host is already running (manual start, or remote endpoint)
-        if (await IsHostReachableAsync())
-        {
-            return;
-        }
-
-        // Only auto-launch func start for localhost — remote endpoints must already be running
-        if (!IsLocalhost(baseUrl))
-        {
-            throw new InvalidOperationException(
-                $"Remote Functions host at {baseUrl} is not reachable. " +
-                "Ensure the target environment is deployed and accessible.");
-        }
-
-        // Resolve absolute path to Api project
-        var absoluteProjectPath = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, projectPath));
-
-        if (!Directory.Exists(absoluteProjectPath))
-        {
-            throw new DirectoryNotFoundException(
-                $"Api project directory not found at '{absoluteProjectPath}'. " +
-                $"Base: '{AppContext.BaseDirectory}', Relative: '{projectPath}'");
-        }
-
-        var arguments = IsHttps(baseUrl) ? "start --useHttps --port 7071" : "start --port 7071";
-
-        hostProcess = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "func",
-                Arguments = arguments,
-                WorkingDirectory = absoluteProjectPath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            }
-        };
-
-        // Read stdout/stderr asynchronously to prevent buffer deadlock
-        hostProcess.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is not null) hostOutput.AppendLine(e.Data);
-        };
-        hostProcess.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is not null) hostOutput.AppendLine($"[ERR] {e.Data}");
-        };
-
-        hostProcess.Start();
-        hostProcess.BeginOutputReadLine();
-        hostProcess.BeginErrorReadLine();
-
-        // Wait for the host to be reachable
-        var timeout = TimeSpan.FromSeconds(startupTimeoutSeconds);
-        var stopwatch = Stopwatch.StartNew();
-
-        while (stopwatch.Elapsed < timeout)
-        {
-            // Check if process crashed
-            if (hostProcess.HasExited)
-            {
-                throw new InvalidOperationException(
-                    $"Azure Functions host process exited with code {hostProcess.ExitCode} " +
-                    $"before becoming reachable.\n\nOutput:\n{hostOutput}");
-            }
-
-            if (await IsHostReachableAsync())
-            {
-                return;
-            }
-
-            await Task.Delay(1000);
-        }
-
-        throw new TimeoutException(
-            $"Azure Functions host did not become reachable at {baseUrl} " +
-            $"within {startupTimeoutSeconds} seconds.\n\nOutput:\n{hostOutput}");
-    }
-
-    public async Task DisposeAsync()
-    {
-        Client.Dispose();
-
-        if (hostProcess is { HasExited: false })
-        {
-            hostProcess.Kill(entireProcessTree: true);
-            await hostProcess.WaitForExitAsync();
-        }
-
-        hostProcess?.Dispose();
-    }
-
-    private async Task<bool> IsHostReachableAsync()
+    /// <summary>
+    /// Verifies the host is reachable. Throws a clear message if not.
+    /// Called from the Reqnroll "Given the Functions host is running" step.
+    /// </summary>
+    public async Task EnsureHostIsRunningAsync()
     {
         try
         {
             var response = await Client.GetAsync("/api/health");
-            return response.StatusCode is HttpStatusCode.OK or HttpStatusCode.ServiceUnavailable;
+            if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.ServiceUnavailable)
+                return;
         }
         catch
         {
-            return false;
+            // fall through to throw
         }
+
+        throw new InvalidOperationException(
+            $"Functions host is not reachable at {baseUrl}. " +
+            (IsLocalhost(baseUrl)
+                ? "Start it manually: cd src/Api && func start"
+                : "Ensure the target environment is deployed and accessible."));
     }
 
     private static bool IsLocalhost(string url)
@@ -166,15 +73,4 @@ public class FunctionsHostFixture : IAsyncLifetime
         var uri = new Uri(url);
         return uri.Host is "localhost" or "127.0.0.1" or "::1";
     }
-
-    private static bool IsHttps(string url) => new Uri(url).Scheme == "https";
-}
-
-/// <summary>
-/// xUnit collection definition that shares the Functions host across all integration tests.
-/// </summary>
-[CollectionDefinition(Name)]
-public class FunctionsHostCollection : ICollectionFixture<FunctionsHostFixture>
-{
-    public const string Name = "FunctionsHost";
 }
