@@ -13,7 +13,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace RajFinancial.UnitTests.Client.Authorization;
+namespace RajFinancial.Client.Tests.Authorization;
 
 /// <summary>
 ///     Unit tests for the authorization policies defined in Client/Program.cs.

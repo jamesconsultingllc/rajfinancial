@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware.Content;
 
-namespace RajFinancial.UnitTests.Api.Middleware;
+namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
 /// Unit tests for <see cref="ContentNegotiationExtensions"/>.

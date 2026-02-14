@@ -2,7 +2,7 @@ using FluentAssertions;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Exception;
 
-namespace RajFinancial.UnitTests.Api.Middleware;
+namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
 /// Unit tests for <see cref="ExceptionMiddleware"/>.

@@ -1,7 +1,7 @@
 using FluentAssertions;
 using RajFinancial.Api.Configuration;
 
-namespace RajFinancial.UnitTests.Api.Configuration;
+namespace RajFinancial.Api.Tests.Configuration;
 
 /// <summary>
 /// Unit tests for <see cref="AppRoleOptions"/>.

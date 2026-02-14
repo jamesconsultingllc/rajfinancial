@@ -17,7 +17,7 @@ using Microsoft.Extensions.Localization;
 using Moq;
 using RajFinancial.Client.Shared;
 
-namespace RajFinancial.UnitTests.Client.Shared;
+namespace RajFinancial.Client.Tests.Shared;
 
 /// <summary>
 ///     Unit tests for the NavMenu component.

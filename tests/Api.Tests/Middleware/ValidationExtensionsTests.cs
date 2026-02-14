@@ -1,7 +1,7 @@
 using FluentAssertions;
 using RajFinancial.Api.Middleware;
 
-namespace RajFinancial.UnitTests.Api.Middleware;
+namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
 /// Unit tests for <see cref="ValidationExtensions"/>.

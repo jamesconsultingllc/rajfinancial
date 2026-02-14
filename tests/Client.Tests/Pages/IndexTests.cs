@@ -10,7 +10,7 @@ using Microsoft.Extensions.Localization;
 using Moq;
 using Index = RajFinancial.Client.Pages.Index;
 
-namespace RajFinancial.UnitTests.Client.Pages;
+namespace RajFinancial.Client.Tests.Pages;
 
 /// <summary>
 ///     Unit tests for the Index (home) page component.
