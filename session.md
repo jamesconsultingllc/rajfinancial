@@ -18,10 +18,11 @@
 8. ✅ **Tasks 478-480** — Closed as covered by existing BDD feature files; integration step definitions folded into Task 477
 9. ✅ Added "When Finishing a Task" rule to AGENT.md (commit `cec261d`)
 10. ✅ Branch pushed to origin — 147 Api.Tests all passing
+11. ✅ **Task 475** — `AuthorizationService` implementation + 25 tests → Done (commit `3ec2840`)
 
 ## Next
 
-- **Task 475** — Implement AuthorizationService with DataAccessGrant support
+- **Task 476** — Refactor existing functions to use authorization attributes
 
 ### 1. Test Project Restructure (partially complete)
 Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
@@ -71,7 +72,7 @@ Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobil
 
 | Task | Title | State |
 |------|-------|-------|
-| 475 | Implement AuthorizationService with DataAccessGrant support | To Do |
+| 475 | Implement AuthorizationService with DataAccessGrant support | ✅ Done |
 | 476 | Refactor existing functions to use authorization attributes | To Do |
 | 477 | Create IntegrationTests project (includes folded 478-480 step defs) | To Do |
 | 481 | Add integration tests to CI/CD pipeline | To Do |
