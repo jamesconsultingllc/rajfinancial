@@ -19,10 +19,11 @@
 9. ✅ Added "When Finishing a Task" rule to AGENT.md (commit `cec261d`)
 10. ✅ Branch pushed to origin — 147 Api.Tests all passing
 11. ✅ **Task 475** — `AuthorizationService` implementation + 25 tests → Done (commit `3ec2840`)
+12. ✅ **Task 476** — Refactored `AuthTestFunctions` to use `[RequireAuthentication]`/`[RequireRole]` attributes, removed ~50 lines of boilerplate → Done (commit `da76303`)
 
 ## Next
 
-- **Task 476** — Refactor existing functions to use authorization attributes
+- **Task 477** — Create IntegrationTests project with Reqnroll and HttpClient
 
 ### 1. Test Project Restructure (partially complete)
 Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
@@ -73,7 +74,7 @@ Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobil
 | Task | Title | State |
 |------|-------|-------|
 | 475 | Implement AuthorizationService with DataAccessGrant support | ✅ Done |
-| 476 | Refactor existing functions to use authorization attributes | To Do |
+| 476 | Refactor existing functions to use authorization attributes | ✅ Done |
 | 477 | Create IntegrationTests project (includes folded 478-480 step defs) | To Do |
 | 481 | Add integration tests to CI/CD pipeline | To Do |
 
