@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Authorization;
 
 namespace RajFinancial.Api.Functions;
 
@@ -33,22 +34,13 @@ public class AuthTestFunctions(
     ///     Returns information about the currently authenticated user.
     ///     Requires authentication but no specific role.
     /// </summary>
+    [RequireAuthentication]
     [Function("AuthMe")]
     public async Task<HttpResponseData> GetMe(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/me")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/me");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
         var userId = context.GetUserId();
         var email = context.GetUserEmail();
         var name = context.GetUserName();
@@ -79,22 +71,13 @@ public class AuthTestFunctions(
     ///     Endpoint accessible by any authenticated user.
     ///     Demonstrates implicit Client role - all authenticated users are Clients.
     /// </summary>
+    [RequireAuthentication]
     [Function("AuthClient")]
     public async Task<HttpResponseData> GetClientData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/client")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/client");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
         var userId = context.GetUserId();
         logger.LogInformation("Client {UserId} accessed /api/auth/client", userId);
 
@@ -117,35 +100,13 @@ public class AuthTestFunctions(
     ///     Endpoint restricted to users with explicit Administrator role.
     ///     Demonstrates role-based access control.
     /// </summary>
+    [RequireRole("Administrator")]
     [Function("AuthAdmin")]
     public async Task<HttpResponseData> GetAdminData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/admin")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/admin");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
-        // Check for Administrator role
-        if (!context.HasRole("Administrator"))
-        {
-            var userId = context.GetUserId();
-            logger.LogWarning("User {UserId} denied access to /api/auth/admin - missing Administrator role", userId);
-
-            var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
-            forbiddenResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await forbiddenResponse.WriteStringAsync(
-                """{"error":"Forbidden","message":"Administrator role required"}""");
-            return forbiddenResponse;
-        }
-
         var adminUserId = context.GetUserId();
         logger.LogInformation("Administrator {UserId} accessed /api/auth/admin", adminUserId);
 
