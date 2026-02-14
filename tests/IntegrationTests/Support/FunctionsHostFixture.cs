@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Net;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 
 namespace RajFinancial.IntegrationTests.Support;
 
 /// <summary>
-/// xUnit collection fixture that starts the Azure Functions host process
-/// and provides a shared <see cref="HttpClient"/> for integration tests.
-/// The host is started once per test collection and stopped after all tests complete.
+/// Fixture that manages the Azure Functions host process for integration tests.
+/// Auto-starts <c>func start</c> for localhost; connects to remote endpoints in CI/CD.
 /// </summary>
 public class FunctionsHostFixture : IAsyncLifetime
 {
@@ -15,6 +15,7 @@ public class FunctionsHostFixture : IAsyncLifetime
     private readonly string baseUrl;
     private readonly string projectPath;
     private readonly int startupTimeoutSeconds;
+    private readonly StringBuilder hostOutput = new();
 
     public FunctionsHostFixture()
     {
@@ -26,7 +27,7 @@ public class FunctionsHostFixture : IAsyncLifetime
             .Build();
 
         baseUrl = config["FunctionsHost:BaseUrl"] ?? "https://localhost:7071";
-        projectPath = config["FunctionsHost:ProjectPath"] ?? "../../src/Api";
+        projectPath = config["FunctionsHost:ProjectPath"] ?? "../../../../../src/Api";
         startupTimeoutSeconds = int.Parse(config["FunctionsHost:StartupTimeoutSeconds"] ?? "30");
 
         // Accept self-signed certs from local func start --useHttps
@@ -70,26 +71,42 @@ public class FunctionsHostFixture : IAsyncLifetime
         var absoluteProjectPath = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, projectPath));
 
+        if (!Directory.Exists(absoluteProjectPath))
+        {
+            throw new DirectoryNotFoundException(
+                $"Api project directory not found at '{absoluteProjectPath}'. " +
+                $"Base: '{AppContext.BaseDirectory}', Relative: '{projectPath}'");
+        }
+
+        var arguments = IsHttps(baseUrl) ? "start --useHttps --port 7071" : "start --port 7071";
+
         hostProcess = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "func",
-                Arguments = IsHttps(baseUrl) ? "start --useHttps --port 7071" : "start --port 7071",
+                Arguments = arguments,
                 WorkingDirectory = absoluteProjectPath,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true,
-                Environment =
-                {
-                    ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                    ["AzureWebJobsStorage"] = "UseDevelopmentStorage=true"
-                }
+                CreateNoWindow = true
             }
         };
 
+        // Read stdout/stderr asynchronously to prevent buffer deadlock
+        hostProcess.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is not null) hostOutput.AppendLine(e.Data);
+        };
+        hostProcess.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is not null) hostOutput.AppendLine($"[ERR] {e.Data}");
+        };
+
         hostProcess.Start();
+        hostProcess.BeginOutputReadLine();
+        hostProcess.BeginErrorReadLine();
 
         // Wait for the host to be reachable
         var timeout = TimeSpan.FromSeconds(startupTimeoutSeconds);
@@ -97,17 +114,25 @@ public class FunctionsHostFixture : IAsyncLifetime
 
         while (stopwatch.Elapsed < timeout)
         {
+            // Check if process crashed
+            if (hostProcess.HasExited)
+            {
+                throw new InvalidOperationException(
+                    $"Azure Functions host process exited with code {hostProcess.ExitCode} " +
+                    $"before becoming reachable.\n\nOutput:\n{hostOutput}");
+            }
+
             if (await IsHostReachableAsync())
             {
                 return;
             }
 
-            await Task.Delay(500);
+            await Task.Delay(1000);
         }
 
         throw new TimeoutException(
             $"Azure Functions host did not become reachable at {baseUrl} " +
-            $"within {startupTimeoutSeconds} seconds.");
+            $"within {startupTimeoutSeconds} seconds.\n\nOutput:\n{hostOutput}");
     }
 
     public async Task DisposeAsync()
