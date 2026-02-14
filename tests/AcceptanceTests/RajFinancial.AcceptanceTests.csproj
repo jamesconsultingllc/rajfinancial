@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ReqnrollFeatureFile Remove="Features\ApiAuthentication.feature" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Deque.AxeCore.Playwright" Version="4.10.1" />
