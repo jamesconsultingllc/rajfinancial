@@ -20,7 +20,7 @@
       "data": {
         "authority": "https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com",
         "client_id": "2d6a08c7-b142-4d53-a307-9ac75bae75eb",
-        "scopes": "openid profile email offline_access"
+        "scopes": "openid profile email offline_access api://rajfinancial-api-dev/user_impersonation"
       }
     },
     {
@@ -36,7 +36,7 @@
       "name": "GET /auth/public (No Auth Required)",
       "description": "Public endpoint - no authentication needed. Use this first to verify the API is reachable.",
       "method": "GET",
-      "url": "{{ _.endpoint }}/auth/public"
+      "url": "{{ _.endpoint }}/auth/public",
       "headers": [
         { "name": "Accept", "value": "application/json" }
       ],
@@ -67,10 +67,10 @@
         "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
         "clientId": "{{ _.client_id }}",
         "scope": "{{ _.scopes }}",
-        "redirectUrl": "http://localhost",
+        "redirectUrl": "http://localhost/callback",
         "usePkce": true,
         "pkceMethod": "S256",
-        "tokenPrefix": "Bearer"
+        "tokenPrefix": "Bearer","credentialsInBody": true
       },
       "body": {},
       "parentId": "fld_auth",
@@ -98,10 +98,10 @@
         "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
         "clientId": "{{ _.client_id }}",
         "scope": "{{ _.scopes }}",
-        "redirectUrl": "http://localhost",
+        "redirectUrl": "http://localhost/callback",
         "usePkce": true,
         "pkceMethod": "S256",
-        "tokenPrefix": "Bearer"
+        "tokenPrefix": "Bearer","credentialsInBody": true
       },
       "body": {},
       "parentId": "fld_auth",
@@ -129,10 +129,10 @@
         "accessTokenUrl": "{{ _.authority }}/oauth2/v2.0/token",
         "clientId": "{{ _.client_id }}",
         "scope": "{{ _.scopes }}",
-        "redirectUrl": "http://localhost",
+        "redirectUrl": "http://localhost/callback",
         "usePkce": true,
         "pkceMethod": "S256",
-        "tokenPrefix": "Bearer"
+        "tokenPrefix": "Bearer","credentialsInBody": true
       },
       "body": {},
       "parentId": "fld_auth",
