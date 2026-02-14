@@ -790,6 +790,19 @@ Before creating any UI component:
 2. Update status as tasks progress (`⬜ Not Started` -> `🟡 In Progress` -> `✅ Complete`)
 3. Reference task numbers in commits and PRs
 
+### When Finishing a Task
+
+After completing a task (tests green, code committed, work item closed):
+
+1. **Update `session.md`** - mark the task completed and record the commit hash
+2. **Prompt for the next work item** - always end your response with a clear prompt asking whether to continue to the next task in the current feature, e.g.:
+
+   > *Task 474 is done. The next task in Feature 470 is **Task 475 - [title]**. Ready to proceed?*
+
+3. If the feature has no remaining tasks, note that the feature is complete and suggest next steps (e.g., PR creation, branch push).
+
+**Never silently finish.** The user should always know what comes next.
+
 ### Temporary Branch Plans
 
 Optional `IMPLEMENTATION_PLAN.md` at repo root for current feature branch. Delete before merging to `develop`.
