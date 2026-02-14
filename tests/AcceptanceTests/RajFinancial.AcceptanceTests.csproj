@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ReqnrollFeatureFile Remove="Features\ApiAuthentication.feature" />
+    <ReqnrollFeatureFile Remove="Features\ResourceAuthorization.feature" />
   </ItemGroup>
 
   <ItemGroup>

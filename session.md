@@ -12,11 +12,13 @@
 2. ✅ Fixed `TestFunctionContext` — added `NullHttpRequestDataFeature` + `TestInvocationFeatures`
 3. ✅ All 94 API tests + 31 Client tests pass
 4. ✅ **Task 471** — `[RequireAuthentication]` attribute + 8 tests → Done (commit `203eb9f`)
-5. ✅ Branch pushed to origin
+5. ✅ **Task 472** — `[RequireRole]` attribute with parameterized roles + 14 tests → Done (commit `451cec9`)
+6. ✅ **Task 473** — `AuthorizationMiddleware` (reads attributes, enforces role checks) + 16 tests → Done (commit `9a6861c`)
+7. ✅ Branch pushed to origin
 
 ## Next
 
-- **Task 472** — Create `[RequireRole]` attribute with parameterized roles
+- **Task 474** — next task in Feature 470
 
 ### 1. Test Project Restructure (partially complete)
 Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
