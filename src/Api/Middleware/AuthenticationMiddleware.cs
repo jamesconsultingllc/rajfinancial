@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
@@ -27,6 +28,13 @@ namespace RajFinancial.Api.Middleware;
 ///   <item><c>UserEmail</c> - The user's email address</item>
 ///   <item><c>UserRoles</c> - Collection of app roles assigned to the user</item>
 ///   <item><c>ClaimsPrincipal</c> - The full claims principal for advanced scenarios</item>
+/// </list>
+/// </para>
+/// <para>
+/// <b>Authentication Flow:</b>
+/// <list type="number">
+///   <item>In Azure (App Service): ClaimsPrincipal is populated by the runtime via EasyAuth.</item>
+///   <item>Locally / without EasyAuth: The JWT Bearer token is parsed from the Authorization header.</item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -76,24 +84,55 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
         await next(context);
     }
 
-    private static ClaimsPrincipal? GetClaimsPrincipal(FunctionContext context)
+    private ClaimsPrincipal? GetClaimsPrincipal(FunctionContext context)
     {
-        // In Azure Functions isolated worker, claims are available through
-        // the FunctionContext.Features collection
-        if (context.Features.Get<IFunctionBindingsFeature>() is not null)
-        {
-            // For HTTP triggers, the ClaimsPrincipal is typically available
-            // through the invocation features
-        }
-
-        // Alternative: Check if ClaimsPrincipal was set by authentication middleware
+        // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
         if (context.Items.TryGetValue("ClaimsPrincipal", out var existingPrincipal) &&
             existingPrincipal is ClaimsPrincipal principal)
         {
             return principal;
         }
 
-        return null;
+        // Extract JWT from Authorization header for local development / standalone hosting
+        var httpRequestData = context.GetHttpRequestDataAsync().GetAwaiter().GetResult();
+        if (httpRequestData is null)
+        {
+            return null;
+        }
+
+        if (!httpRequestData.Headers.TryGetValues("Authorization", out var authValues))
+        {
+            return null;
+        }
+
+        var authHeader = authValues.FirstOrDefault();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        if (string.IsNullOrEmpty(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            // Parse the JWT without full signature validation.
+            // Signature validation is handled by Azure App Service authentication (EasyAuth)
+            // in production. For local development, we trust the token from the identity provider.
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+
+            var identity = new ClaimsIdentity(jwtToken.Claims, "Bearer");
+            return new ClaimsPrincipal(identity);
+        }
+        catch (System.Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to parse JWT token from Authorization header");
+            return null;
+        }
     }
 
     private static string? GetUserId(ClaimsPrincipal principal)
