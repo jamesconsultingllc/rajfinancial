@@ -1,18 +1,22 @@
 # Session Summary — Feature 470 (Auth Middleware)
 
 **Date**: 2025-02-14
-**Branch**: `develop`
-**Goal**: Build Feature 470 (auth middleware) — tasks 471-475
+**Branch**: `feature/470-authorization-middleware`
+**Goal**: Build Feature 470 (auth middleware) — tasks 471-481
 
 ---
 
 ## Completed
 
 1. ✅ Split `tests/UnitTests/` → `tests/Api.Tests/` (net10.0) + `tests/Client.Tests/` (net9.0)
-2. ✅ Created `tests/AcceptanceTests/Features/ApiAuthentication.feature` (BDD)
-3. ✅ Created `tests/Api.Tests/Middleware/AuthenticationMiddlewareTests.cs` (14 tests)
-4. ✅ Fixed `TestFunctionContext` — added `NullHttpRequestDataFeature` + `TestInvocationFeatures`
-5. ✅ **All 94 API tests pass**
+2. ✅ Fixed `TestFunctionContext` — added `NullHttpRequestDataFeature` + `TestInvocationFeatures`
+3. ✅ All 94 API tests + 31 Client tests pass
+4. ✅ **Task 471** — `[RequireAuthentication]` attribute + 8 tests → Done (commit `203eb9f`)
+5. ✅ Branch pushed to origin
+
+## Next
+
+- **Task 472** — Create `[RequireRole]` attribute with parameterized roles
 
 ### 1. Test Project Restructure (partially complete)
 Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
