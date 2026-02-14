@@ -14,11 +14,14 @@
 4. ✅ **Task 471** — `[RequireAuthentication]` attribute + 8 tests → Done (commit `203eb9f`)
 5. ✅ **Task 472** — `[RequireRole]` attribute with parameterized roles + 14 tests → Done (commit `451cec9`)
 6. ✅ **Task 473** — `AuthorizationMiddleware` (reads attributes, enforces role checks) + 16 tests → Done (commit `9a6861c`)
-7. ✅ Branch pushed to origin
+7. ✅ **Task 474** — `IAuthorizationService` interface + `AccessDecision` + `AccessDecisionReason` + 15 tests + BDD feature → Done (commit `8d88dac`)
+8. ✅ **Tasks 478-480** — Closed as covered by existing BDD feature files; integration step definitions folded into Task 477
+9. ✅ Added "When Finishing a Task" rule to AGENT.md (commit `cec261d`)
+10. ✅ Branch pushed to origin — 147 Api.Tests all passing
 
 ## Next
 
-- **Task 474** — next task in Feature 470
+- **Task 475** — Implement AuthorizationService with DataAccessGrant support
 
 ### 1. Test Project Restructure (partially complete)
 Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
@@ -64,15 +67,14 @@ Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobil
 
 ---
 
-## Next Steps (do one at a time, get approval)
+## Remaining Tasks (Feature 470)
 
-1. **Fix TestFunctionContext** — register `IHttpRequestDataFeature` → all 94 tests green
-2. **Run & verify Client.Tests** — ensure bUnit tests pass in new project
-3. **Delete old `tests/UnitTests/`** — clean up disk
-4. **Write ValidationMiddlewareTests** — task 473
-5. **Create RoleValidationService + tests** — task 474
-6. **Update AGENT.md** — reflect new test project structure
-7. **Update execution plan tracking docs**
+| Task | Title | State |
+|------|-------|-------|
+| 475 | Implement AuthorizationService with DataAccessGrant support | To Do |
+| 476 | Refactor existing functions to use authorization attributes | To Do |
+| 477 | Create IntegrationTests project (includes folded 478-480 step defs) | To Do |
+| 481 | Add integration tests to CI/CD pipeline | To Do |
 
 ---
 
