@@ -32,7 +32,14 @@ internal class TestFunctionContext : FunctionContext
         set => instanceServices = value;
     }
 #pragma warning restore CS8764
-    public override FunctionDefinition FunctionDefinition => null!;
+    /// <summary>
+    /// Gets or sets a custom FunctionDefinition for testing middleware that uses
+    /// <see cref="FunctionDefinition.EntryPoint"/> to resolve target methods.
+    /// Defaults to null (same behavior as before for existing tests).
+    /// </summary>
+    public FunctionDefinition? FunctionDefinitionValue { get; set; }
+
+    public override FunctionDefinition FunctionDefinition => FunctionDefinitionValue!;
     public override IDictionary<object, object> Items
     {
         get => items;

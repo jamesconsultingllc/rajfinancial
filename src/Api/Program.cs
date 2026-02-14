@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
 
@@ -33,11 +34,13 @@ builder.ConfigureFunctionsWebApplication();
 // ============================================================================
 // 1. Exception handling - catches all errors and formats responses
 // 2. Authentication - extracts user context from JWT
-// 3. Content negotiation - handles JSON/MemoryPack serialization
-// 4. Validation - validates request bodies
+// 3. Authorization - enforces [RequireAuthentication] and [RequireRole] attributes
+// 4. Content negotiation - handles JSON/MemoryPack serialization
+// 5. Validation - validates request bodies
 // ============================================================================
 builder.UseMiddleware<ExceptionMiddleware>();
 builder.UseMiddleware<AuthenticationMiddleware>();
+builder.UseMiddleware<AuthorizationMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();
 
