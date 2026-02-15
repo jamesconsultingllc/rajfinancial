@@ -47,7 +47,7 @@ public partial class DataAccessGrant
     ///     Data categories accessible when AccessType is Limited.
     ///     Examples: "accounts", "assets", "beneficiaries", "documents"
     /// </summary>
-    public List<string> Categories { get; set; } = new();
+    public List<string> Categories { get; set; } = [];
 
     /// <summary>
     ///     Optional label describing the relationship.

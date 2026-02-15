@@ -18,6 +18,8 @@ on:
     paths:
       - 'src/Api/**'
       - 'src/Shared/**'
+      - 'tests/Api.Tests/**'
+      - 'tests/IntegrationTests/**'
       - '.github/workflows/azure-functions.yml'
 
 permissions:
@@ -28,6 +30,8 @@ env:
   DOTNET_VERSION: '10.0.x'
   API_PROJECT_PATH: 'src/Api/RajFinancial.Api.csproj'
   SHARED_PROJECT_PATH: 'src/Shared/RajFinancial.Shared.csproj'
+  UNIT_TEST_PROJECT: 'tests/Api.Tests/RajFinancial.Api.Tests.csproj'
+  INTEGRATION_TEST_PROJECT: 'tests/IntegrationTests/RajFinancial.IntegrationTests.csproj'
 
 jobs:
   build:
@@ -48,7 +52,7 @@ jobs:
         run: dotnet build ${{ env.API_PROJECT_PATH }} --configuration Release --no-restore
 
       - name: Run unit tests
-        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName~Api"
+        run: dotnet test ${{ env.UNIT_TEST_PROJECT }} --configuration Release --verbosity normal
 
       - name: Publish
         run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --output ./publish
@@ -92,8 +96,25 @@ jobs:
         run: |
           echo "Waiting for deployment to stabilize..."
           sleep 30
-          # Add health check endpoint call here when available
-          echo "Deployment complete: https://func-rajfinancial-dev.azurewebsites.net"
+          curl -sf --max-time 30 https://func-rajfinancial-dev.azurewebsites.net/api/health || echo "Health check returned non-200"
+
+  integration-test-dev:
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    name: Integration Tests (Dev)
+    needs: deploy-dev
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Run integration tests against dev
+        env:
+          FunctionsHost__BaseUrl: https://func-rajfinancial-dev.azurewebsites.net
+        run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal
 
   deploy-prod:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
@@ -126,4 +147,22 @@ jobs:
         run: |
           echo "Waiting for deployment to stabilize..."
           sleep 30
-          echo "Deployment complete: https://func-rajfinancial-prod.azurewebsites.net"
+          curl -sf --max-time 30 https://func-rajfinancial-prod.azurewebsites.net/api/health || echo "Health check returned non-200"
+
+  integration-test-prod:
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    runs-on: ubuntu-latest
+    name: Integration Tests (Prod)
+    needs: deploy-prod
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Run integration tests against prod
+        env:
+          FunctionsHost__BaseUrl: https://func-rajfinancial-prod.azurewebsites.net
+        run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal

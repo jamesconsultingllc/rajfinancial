@@ -18,7 +18,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     private static IPlaywright? playwright;
     private static IBrowser? browser;
 
-    private static readonly Dictionary<string, string> TestUserEmails = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Client"] = "test-client@rajfinancialdev.onmicrosoft.com",
         ["Advisor"] = "test-advisor@rajfinancialdev.onmicrosoft.com",
@@ -79,7 +79,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             var storagePath = TestConfiguration.Instance.GetStorageStatePath(role);
             if (string.IsNullOrWhiteSpace(storagePath)) continue;
 
-            if (!TestUserEmails.TryGetValue(role, out var email)) continue;
+            if (!testUserEmails.TryGetValue(role, out var email)) continue;
 
             await EnsureStorageStateAsync(role, email, storagePath);
         }

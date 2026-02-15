@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace RajFinancial.Api.Middleware;
@@ -39,20 +40,22 @@ namespace RajFinancial.Api.Middleware;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) : IFunctionsWorkerMiddleware
+public class AuthenticationMiddleware(
+    ILogger<AuthenticationMiddleware> logger,
+    IHostEnvironment environment) : IFunctionsWorkerMiddleware
 {
     // Standard claim types for Entra External ID
-    private const string ObjectIdClaim = "http://schemas.microsoft.com/identity/claims/objectidentifier";
-    private const string ObjectIdClaimAlt = "oid";
-    private const string EmailClaim = "emails";
-    private const string EmailClaimAlt = "email";
-    private const string RolesClaim = "roles";
-    private const string NameClaim = "name";
+    private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
+    private const string OBJECT_ID_CLAIM_ALT = "oid";
+    private const string EMAIL_CLAIM = "emails";
+    private const string EMAIL_CLAIM_ALT = "email";
+    private const string ROLES_CLAIM = "roles";
+    private const string NAME_CLAIM = "name";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         // Extract ClaimsPrincipal from the function context
-        var principal = GetClaimsPrincipal(context);
+        var principal = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
@@ -64,7 +67,10 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
             if (!string.IsNullOrEmpty(userId))
             {
                 // Store user context for use by functions
+                // UserId is stored as both string (backward compat) and Guid (for IAuthorizationService)
                 context.Items["UserId"] = userId;
+                if (Guid.TryParse(userId, out var userGuid))
+                    context.Items["UserIdGuid"] = userGuid;
                 context.Items["UserEmail"] = email ?? string.Empty;
                 context.Items["UserName"] = name ?? string.Empty;
                 context.Items["UserRoles"] = roles;
@@ -84,7 +90,7 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
         await next(context);
     }
 
-    private ClaimsPrincipal? GetClaimsPrincipal(FunctionContext context)
+    private async Task<ClaimsPrincipal?> GetClaimsPrincipalAsync(FunctionContext context)
     {
         // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
         if (context.Items.TryGetValue("ClaimsPrincipal", out var existingPrincipal) &&
@@ -94,7 +100,7 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
         }
 
         // Extract JWT from Authorization header for local development / standalone hosting
-        var httpRequestData = context.GetHttpRequestDataAsync().GetAwaiter().GetResult();
+        var httpRequestData = await context.GetHttpRequestDataAsync();
         if (httpRequestData is null)
         {
             return null;
@@ -119,9 +125,19 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
 
         try
         {
-            // Parse the JWT without full signature validation.
-            // Signature validation is handled by Azure App Service authentication (EasyAuth)
-            // in production. For local development, we trust the token from the identity provider.
+            // SECURITY: Only parse JWTs without signature validation in Development.
+            // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
+            // directly — if we reach this point in production, the token was not validated by EasyAuth
+            // and must be rejected to prevent forged JWT attacks.
+            if (!environment.IsDevelopment())
+            {
+                logger.LogWarning(
+                    "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
+                    "Rejecting unvalidated token in {Environment} environment",
+                    environment.EnvironmentName);
+                return null;
+            }
+
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 
@@ -138,33 +154,33 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
     private static string? GetUserId(ClaimsPrincipal principal)
     {
         // Try standard Entra claim first, then alternative
-        return principal.FindFirst(ObjectIdClaim)?.Value ??
-               principal.FindFirst(ObjectIdClaimAlt)?.Value;
+        return principal.FindFirst(OBJECT_ID_CLAIM)?.Value ??
+               principal.FindFirst(OBJECT_ID_CLAIM_ALT)?.Value;
     }
 
     private static string? GetEmail(ClaimsPrincipal principal)
     {
         // Entra External ID uses "emails" claim (array), we take first
-        var emailsClaim = principal.FindFirst(EmailClaim)?.Value;
+        var emailsClaim = principal.FindFirst(EMAIL_CLAIM)?.Value;
         if (!string.IsNullOrEmpty(emailsClaim))
         {
             return emailsClaim;
         }
 
-        return principal.FindFirst(EmailClaimAlt)?.Value ??
+        return principal.FindFirst(EMAIL_CLAIM_ALT)?.Value ??
                principal.FindFirst(ClaimTypes.Email)?.Value;
     }
 
     private static string? GetName(ClaimsPrincipal principal)
     {
-        return principal.FindFirst(NameClaim)?.Value ??
+        return principal.FindFirst(NAME_CLAIM)?.Value ??
                principal.FindFirst(ClaimTypes.Name)?.Value;
     }
 
     private static IReadOnlyList<string> GetRoles(ClaimsPrincipal principal)
     {
         // Collect all role claims
-        return principal.FindAll(RolesClaim)
+        return principal.FindAll(ROLES_CLAIM)
             .Select(c => c.Value)
             .Concat(principal.FindAll(ClaimTypes.Role).Select(c => c.Value))
             .Distinct()

@@ -11,7 +11,7 @@ namespace RajFinancial.Api.Functions;
 /// </summary>
 public class HealthCheckFunction(ILoggerFactory loggerFactory, ApplicationDbContext context)
 {
-    private readonly ILogger _logger = loggerFactory.CreateLogger<HealthCheckFunction>();
+    private readonly ILogger logger = loggerFactory.CreateLogger<HealthCheckFunction>();
 
     /// <summary>
     ///     Returns the health status of the API and database connectivity.
@@ -23,16 +23,16 @@ public class HealthCheckFunction(ILoggerFactory loggerFactory, ApplicationDbCont
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")]
         HttpRequestData req)
     {
-        _logger.LogInformation("Health check requested");
+        logger.LogInformation("Health check requested");
 
         var dbHealthy = false;
         try
         {
             dbHealthy = await context.Database.CanConnectAsync();
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Database connectivity check failed");
+            logger.LogWarning(ex, "Database connectivity check failed");
         }
 
         var status = dbHealthy ? "healthy" : "degraded";

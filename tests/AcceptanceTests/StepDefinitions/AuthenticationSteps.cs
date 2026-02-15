@@ -20,7 +20,7 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 public class AuthenticationSteps(ScenarioContext scenarioContext)
 {
     // Track test users created during tests for cleanup
-    private static readonly List<string> TestUsersToCleanup = new();
+    private static readonly List<string> testUsersToCleanup = [];
     private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should be redirected to the Entra External ID login page")]
@@ -162,7 +162,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         Console.WriteLine($"🔗 IMAP: {emailHelper.GetConnectionInfo()}");
 
         // Store for cleanup and later use
-        TestUsersToCleanup.Add(testEmail);
+        testUsersToCleanup.Add(testEmail);
         scenarioContext.Set(testEmail, "TestUserEmail");
         scenarioContext.Set(usernameGuid, "UsernameGuid");
 
@@ -211,42 +211,38 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         // Add specific selectors based on button text - optimized
         if (buttonText.Equals("Next", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 "button[data-testid='usernamePrimaryButton']", // Entra External ID (CIAM)
                 "button[type='submit']",                       // Generic submit button
                 "#idSIButton9",                                // Entra ID (B2B/workforce)
                 EntraSelectors.NextButton,                     // button[name='idSIButton9']
                 "input[type='submit']"                         // Fallback
-            });
+            ]);
         else if (buttonText.Equals("Verify", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 "[data-testid='verifyButton']",
                 "#verifyButton",
                 "#verify",
                 "button:has-text('Verify')",
                 "button[type='submit']",
                 EntraSelectors.SubmitButton
-            });
+            ]);
         else if (buttonText.Equals("Accept", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 "input[type='submit'][value='Accept']",
                 "button:has-text('Accept')",
                 "button[type='submit']",
                 EntraSelectors.SubmitButton
-            });
+            ]);
         else
             // Generic button selectors
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 $"button:has-text('{buttonText}')",
                 $"button[type='submit']",
                 $"input[type='submit'][value*='{buttonText}' i]",
                 $"input[type='button'][value*='{buttonText}' i]",
                 $"a:has-text('{buttonText}')"
-            });
+            ]);
 
         var clicked = false;
         foreach (var selector in buttonSelectors)
@@ -554,32 +550,29 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Add data-testid selectors based on field name - optimized
         if (fieldName.Contains("Given", StringComparison.OrdinalIgnoreCase))
         {
-            fieldSelectors.AddRange(new[]
-            {
+            fieldSelectors.AddRange([
                 EntraSelectors.GivenNameInput, // ✓ Works - [data-testid='igivenNameInput']
                 "input[name='givenName']" // Fallback
-            });
+            ]);
         }
         else if (fieldName.Contains("Surname", StringComparison.OrdinalIgnoreCase))
         {
-            fieldSelectors.AddRange(new[]
-            {
+            fieldSelectors.AddRange([
                 EntraSelectors.SurnameInput, // ✓ Works - [data-testid='isurnameInput']
                 "input[name='surname']" // Fallback
-            });
+            ]);
         }
         else
         {
             // Generic selectors for other field names
             var fieldNameLower = fieldName.ToLowerInvariant().Replace(" ", "");
-            fieldSelectors.AddRange(new[]
-            {
+            fieldSelectors.AddRange([
                 $"[data-testid='i{fieldNameLower}Input']",
                 $"input[name*='{fieldNameLower}' i]",
                 $"input[id*='{fieldNameLower}' i]",
                 $"input[placeholder*='{fieldName}' i]",
                 $"input[aria-label*='{fieldName}' i]"
-            });
+            ]);
         }
 
         var field = await FindFirstVisibleInput(fieldSelectors.ToArray(), fieldName);
@@ -923,7 +916,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     public async Task ThenTheTestUserShouldBeMarkedForCleanup()
     {
         var email = scenarioContext.Get<string>("TestUserEmail");
-        Assert.Contains(email, TestUsersToCleanup);
+        Assert.Contains(email, testUsersToCleanup);
         await TestUserCleanupExtensions.RunScheduledCleanup();
     }
 
@@ -1052,8 +1045,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         }
         
         // Add generic account picker selectors as fallback
-        accountSelectors.AddRange(new[]
-        {
+        accountSelectors.AddRange([
             "[data-test-id='account-picker-account']",
             "#tilesHolder .tile",
             ".table-row.tile",
@@ -1063,7 +1055,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             ".signOutCard",
             "button:has-text('Sign out')",
             "button:has-text('Continue')"
-        });
+        ]);
 
         // Try to find and click an account element (with shorter timeout per selector)
         foreach (var selector in accountSelectors)
@@ -1387,7 +1379,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static IReadOnlyList<string> GetTestUsersForCleanup()
     {
-        return TestUsersToCleanup.AsReadOnly();
+        return testUsersToCleanup.AsReadOnly();
     }
 
     /// <summary>
@@ -1395,7 +1387,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     /// </summary>
     public static void ClearCleanupList()
     {
-        TestUsersToCleanup.Clear();
+        testUsersToCleanup.Clear();
     }
 
     // ========================================================================

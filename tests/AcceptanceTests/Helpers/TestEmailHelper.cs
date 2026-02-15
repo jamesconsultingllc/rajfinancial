@@ -29,7 +29,7 @@ namespace RajFinancial.AcceptanceTests.Helpers;
 /// </summary>
 public class TestEmailHelper
 {
-    private const string TestEmailDomain = "rajlegacy.org";
+    private const string TEST_EMAIL_DOMAIN = "rajlegacy.org";
     private readonly string? imapHost;
     private readonly string? imapPassword;
     private readonly int imapPort;
@@ -64,7 +64,7 @@ public class TestEmailHelper
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
         var guid = Guid.NewGuid().ToString("N").Substring(0, 8);
-        return $"test-e2e-{timestamp}-{guid}@{TestEmailDomain}";
+        return $"test-e2e-{timestamp}-{guid}@{TEST_EMAIL_DOMAIN}";
     }
 
     /// <summary>

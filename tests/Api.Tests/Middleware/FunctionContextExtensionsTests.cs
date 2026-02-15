@@ -1,0 +1,274 @@
+using System.Security.Claims;
+using FluentAssertions;
+using RajFinancial.Api.Middleware;
+
+namespace RajFinancial.Api.Tests.Middleware;
+
+/// <summary>
+/// Unit tests for <see cref="FunctionContextExtensions"/>.
+/// Tests the extension methods used to access user context from FunctionContext.
+/// </summary>
+public class FunctionContextExtensionsTests
+{
+    [Fact]
+    public void GetUserId_WhenUserIdExists_ReturnsUserId()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        context.Items["UserId"] = "user-123";
+
+        // Act
+        var result = context.GetUserId();
+
+        // Assert
+        result.Should().Be("user-123");
+    }
+
+    [Fact]
+    public void GetUserId_WhenUserIdMissing_ReturnsNull()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetUserId();
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetUserEmail_WhenEmailExists_ReturnsEmail()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        context.Items["UserEmail"] = "test@example.com";
+
+        // Act
+        var result = context.GetUserEmail();
+
+        // Assert
+        result.Should().Be("test@example.com");
+    }
+
+    [Fact]
+    public void GetUserEmail_WhenEmailMissing_ReturnsNull()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetUserEmail();
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetUserName_WhenNameExists_ReturnsName()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        context.Items["UserName"] = "John Doe";
+
+        // Act
+        var result = context.GetUserName();
+
+        // Assert
+        result.Should().Be("John Doe");
+    }
+
+    [Fact]
+    public void GetUserName_WhenNameMissing_ReturnsNull()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetUserName();
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetUserRoles_WhenRolesExist_ReturnsRoles()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var roles = new List<string> { "Client", "Administrator" };
+        context.Items["UserRoles"] = roles;
+
+        // Act
+        var result = context.GetUserRoles();
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().Contain("Client");
+        result.Should().Contain("Administrator");
+    }
+
+    [Fact]
+    public void GetUserRoles_WhenRolesMissing_ReturnsEmptyCollection()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetUserRoles();
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void IsAuthenticated_WhenTrue_ReturnsTrue()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        context.Items["IsAuthenticated"] = true;
+
+        // Act
+        var result = context.IsAuthenticated();
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsAuthenticated_WhenFalse_ReturnsFalse()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        context.Items["IsAuthenticated"] = false;
+
+        // Act
+        var result = context.IsAuthenticated();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsAuthenticated_WhenMissing_ReturnsFalse()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.IsAuthenticated();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Administrator", true)]
+    [InlineData("administrator", true)]
+    [InlineData("ADMINISTRATOR", true)]
+    [InlineData("Client", false)]
+    [InlineData("Unknown", false)]
+    public void HasRole_ReturnsExpectedResult(string role, bool expected)
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var roles = new List<string> { "Administrator" };
+        context.Items["UserRoles"] = roles;
+
+        // Act
+        var result = context.HasRole(role);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsAdministrator_WhenHasAdminRole_ReturnsTrue()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var roles = new List<string> { "Administrator" };
+        context.Items["UserRoles"] = roles;
+
+        // Act
+        var result = context.IsAdministrator();
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsAdministrator_WhenNoAdminRole_ReturnsFalse()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var roles = new List<string> { "Client" };
+        context.Items["UserRoles"] = roles;
+
+        // Act
+        var result = context.IsAdministrator();
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void GetClaimsPrincipal_WhenExists_ReturnsPrincipal()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var identity = new ClaimsIdentity([
+            new Claim(ClaimTypes.Name, "testuser")
+        ], "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        context.Items["ClaimsPrincipal"] = principal;
+
+        // Act
+        var result = context.GetClaimsPrincipal();
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Identity!.Name.Should().Be("testuser");
+    }
+
+    [Fact]
+    public void GetClaimsPrincipal_WhenMissing_ReturnsNull()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetClaimsPrincipal();
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetUserIdAsGuid_WhenGuidExists_ReturnsGuid()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+        var expected = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+        context.Items["UserIdGuid"] = expected;
+
+        // Act
+        var result = context.GetUserIdAsGuid();
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void GetUserIdAsGuid_WhenMissing_ReturnsNull()
+    {
+        // Arrange
+        var context = new TestFunctionContext();
+
+        // Act
+        var result = context.GetUserIdAsGuid();
+
+        // Assert
+        result.Should().BeNull();
+    }
+}

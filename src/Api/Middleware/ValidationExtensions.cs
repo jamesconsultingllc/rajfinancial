@@ -10,7 +10,7 @@ namespace RajFinancial.Api.Middleware;
 /// </summary>
 public static class ValidationExtensions
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -67,7 +67,7 @@ public static class ValidationExtensions
         {
             try
             {
-                return JsonSerializer.Deserialize<T>(bodyString, JsonOptions);
+                return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
             }
             catch (JsonException)
             {

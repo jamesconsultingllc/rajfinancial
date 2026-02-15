@@ -1,10 +1,12 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Authorization;
 
 namespace RajFinancial.Api.Functions;
 
@@ -27,28 +29,19 @@ public class AuthTestFunctions(
     ILogger<AuthTestFunctions> logger,
     IOptions<AppRoleOptions> appRoleOptions)
 {
-    private readonly AppRoleOptions _appRoles = appRoleOptions.Value;
+    private readonly AppRoleOptions appRoles = appRoleOptions.Value;
 
     /// <summary>
     ///     Returns information about the currently authenticated user.
     ///     Requires authentication but no specific role.
     /// </summary>
+    [RequireAuthentication]
     [Function("AuthMe")]
     public async Task<HttpResponseData> GetMe(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/me")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/me");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
         var userId = context.GetUserId();
         var email = context.GetUserEmail();
         var name = context.GetUserName();
@@ -59,18 +52,17 @@ public class AuthTestFunctions(
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
 
-        var rolesJson = string.Join(",", roles.Select(r => $"\"{r}\""));
-        await response.WriteStringAsync($$"""
-            {
-                "authenticated": true,
-                "userId": "{{userId}}",
-                "email": "{{email}}",
-                "name": "{{name}}",
-                "roles": [{{rolesJson}}],
-                "isAdministrator": {{(context.HasRole("Administrator") ? "true" : "false")}},
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+        var payload = new
+        {
+            authenticated = true,
+            userId,
+            email,
+            name,
+            roles,
+            isAdministrator = context.HasRole("Administrator"),
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -79,36 +71,28 @@ public class AuthTestFunctions(
     ///     Endpoint accessible by any authenticated user.
     ///     Demonstrates implicit Client role - all authenticated users are Clients.
     /// </summary>
+    [RequireAuthentication]
     [Function("AuthClient")]
     public async Task<HttpResponseData> GetClientData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/client")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/client");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
         var userId = context.GetUserId();
         logger.LogInformation("Client {UserId} accessed /api/auth/client", userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "Welcome, Client!",
-                "access": "client",
-                "userId": "{{userId}}",
-                "description": "This endpoint is accessible by any authenticated user (implicit Client role)",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "Welcome, Client!",
+            access = "client",
+            userId,
+            description = "This endpoint is accessible by any authenticated user (implicit Client role)",
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -117,50 +101,29 @@ public class AuthTestFunctions(
     ///     Endpoint restricted to users with explicit Administrator role.
     ///     Demonstrates role-based access control.
     /// </summary>
+    [RequireRole("Administrator")]
     [Function("AuthAdmin")]
     public async Task<HttpResponseData> GetAdminData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/admin")]
         HttpRequestData req,
         FunctionContext context)
     {
-        if (!context.IsAuthenticated())
-        {
-            logger.LogWarning("Unauthenticated request to /api/auth/admin");
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            unauthorizedResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await unauthorizedResponse.WriteStringAsync(
-                """{"error":"Unauthorized","message":"Authentication required"}""");
-            return unauthorizedResponse;
-        }
-
-        // Check for Administrator role
-        if (!context.HasRole("Administrator"))
-        {
-            var userId = context.GetUserId();
-            logger.LogWarning("User {UserId} denied access to /api/auth/admin - missing Administrator role", userId);
-
-            var forbiddenResponse = req.CreateResponse(HttpStatusCode.Forbidden);
-            forbiddenResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await forbiddenResponse.WriteStringAsync(
-                """{"error":"Forbidden","message":"Administrator role required"}""");
-            return forbiddenResponse;
-        }
-
         var adminUserId = context.GetUserId();
         logger.LogInformation("Administrator {UserId} accessed /api/auth/admin", adminUserId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "Welcome, Administrator!",
-                "access": "administrator",
-                "userId": "{{adminUserId}}",
-                "description": "This endpoint requires explicit Administrator role assignment",
-                "adminRoleId": "{{_appRoles.Administrator}}",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "Welcome, Administrator!",
+            access = "administrator",
+            userId = adminUserId,
+            description = "This endpoint requires explicit Administrator role assignment",
+            adminRoleId = appRoles.Administrator,
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -182,16 +145,17 @@ public class AuthTestFunctions(
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "This is a public endpoint",
-                "access": "public",
-                "authenticated": {{(isAuthenticated ? "true" : "false")}},
-                "userId": {{(userId != null ? $"\"{userId}\"" : "null")}},
-                "description": "No authentication required to access this endpoint",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "This is a public endpoint",
+            access = "public",
+            authenticated = isAuthenticated,
+            userId,
+            description = "No authentication required to access this endpoint",
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
