@@ -40,32 +40,35 @@ Feature: API Authentication Integration
 
     # =========================================================================
     # Authenticated scenarios (using unsigned test JWTs — Development mode only)
+    # These tests require the Functions host to run in Development environment
+    # where AuthenticationMiddleware parses JWTs without signature validation.
+    # Tagged @devOnly so CI/CD pipelines can exclude them.
     # =========================================================================
 
-    @security @A07
+    @security @A07 @devOnly
     Scenario: Authenticated user can access protected endpoint
         When I send a GET request to "/api/auth/me" with a valid user token
         Then the HTTP response status should be 200
         And the response body should contain "authenticated"
 
-    @security @A07
+    @security @A07 @devOnly
     Scenario: Authenticated user can access client endpoint
         When I send a GET request to "/api/auth/client" with a valid user token
         Then the HTTP response status should be 200
         And the response body should contain "Welcome, Client!"
 
-    @security @A01
+    @security @A01 @devOnly
     Scenario: Non-admin user gets 403 on admin endpoint
         When I send a GET request to "/api/auth/admin" with a "Client" role token
         Then the HTTP response status should be 403
 
-    @security @A01
+    @security @A01 @devOnly
     Scenario: Administrator can access admin endpoint
         When I send a GET request to "/api/auth/admin" with an administrator token
         Then the HTTP response status should be 200
         And the response body should contain "Welcome, Administrator!"
 
-    @security @A01
+    @security @A01 @devOnly
     Scenario: Public endpoint includes user info when authenticated
         When I send a GET request to "/api/auth/public" with a valid user token
         Then the HTTP response status should be 200
