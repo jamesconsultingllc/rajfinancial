@@ -54,7 +54,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: |
+            9.0.x
+            10.0.x
 
       - name: Restore dependencies
         run: dotnet restore src/RajFinancial.sln
@@ -62,8 +64,11 @@ jobs:
       - name: Build
         run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
 
-      - name: Run unit tests
-        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
+      - name: Run API unit tests
+        run: dotnet test tests/Api.Tests/RajFinancial.Api.Tests.csproj --configuration Release --verbosity normal --logger trx
+
+      - name: Run Client unit tests
+        run: dotnet test tests/Client.Tests/RajFinancial.Client.Tests.csproj --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
     # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
