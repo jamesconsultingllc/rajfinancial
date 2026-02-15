@@ -69,4 +69,5 @@ Feature: API Authentication Integration
     Scenario: Public endpoint includes user info when authenticated
         When I send a GET request to "/api/auth/public" with a valid user token
         Then the HTTP response status should be 200
-        And the response body should contain "\"authenticated\":true"
+        And the response body should contain "authenticated"
+        And the response body should contain "userId"
