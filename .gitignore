@@ -49,6 +49,7 @@ test-publish/
 func-logs/
 func-logs2/
 func-logs*.zip
+session.md
 docs/session.md
 
 # Insomnia exports may contain tokens after use
