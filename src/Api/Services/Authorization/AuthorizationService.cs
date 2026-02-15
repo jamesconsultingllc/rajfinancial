@@ -40,6 +40,12 @@ public class AuthorizationService(
         string category,
         AccessType requiredLevel)
     {
+        // Owner access type is implicit (Tier 1 only) and cannot be requested directly
+        if (requiredLevel == AccessType.Owner)
+            throw new ArgumentException(
+                "AccessType.Owner cannot be used as a required level. Owner access is implicit via Tier 1 (resource ownership).",
+                nameof(requiredLevel));
+
         // =====================================================================
         // Tier 1: Resource Owner — immediate grant, no DB query needed
         // =====================================================================
@@ -108,26 +114,21 @@ public class AuthorizationService(
 
         // Query for grants where:
         // - Grantor is the resource owner
-        // - Grantee is the requesting user
+        // - Grantee is the requesting user (GranteeUserId is Guid? — pending grants have null and correctly won't match)
         // - Status is Active
         // - Not expired (ExpiresAt is null or in the future)
-        var grants = await dbContext.DataAccessGrants
+        // Then evaluate category/level match in memory (GrantCoversRequest requires C# logic)
+        var grant = await dbContext.DataAccessGrants
             .AsNoTracking()
             .Where(g =>
                 g.GrantorUserId == resourceOwnerId &&
                 g.GranteeUserId == requestingUserId &&
                 g.Status == GrantStatus.Active &&
                 (g.ExpiresAt == null || g.ExpiresAt > now))
-            .ToListAsync();
+            .AsAsyncEnumerable()
+            .FirstOrDefaultAsync(g => GrantCoversRequest(g, category, requiredLevel));
 
-        // Evaluate each grant for category and level match
-        foreach (var grant in grants)
-        {
-            if (GrantCoversRequest(grant, category, requiredLevel))
-                return grant;
-        }
-
-        return null;
+        return grant;
     }
 
     /// <summary>

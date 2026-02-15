@@ -154,7 +154,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
     /// by checking <c>UserRoles</c> in <see cref="FunctionContext.Items"/>.
     /// </summary>
     /// <exception cref="ForbiddenException">Thrown when the user lacks all required roles.</exception>
-    private static void EnsureHasRole(FunctionContext context, string[] requiredRoles)
+    private void EnsureHasRole(FunctionContext context, string[] requiredRoles)
     {
         var userRoles = context.Items.TryGetValue("UserRoles", out var rolesObj)
             ? rolesObj as IReadOnlyList<string> ?? []
@@ -166,7 +166,13 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
                 string.Equals(userRole, required, StringComparison.OrdinalIgnoreCase)));
 
         if (!hasRole)
-            throw new ForbiddenException(
-                $"Access denied. Required role(s): {string.Join(", ", requiredRoles)}");
+        {
+            logger.LogWarning(
+                "User lacks required roles [{Roles}] for {Function}",
+                string.Join(", ", requiredRoles),
+                context.FunctionDefinition?.Name ?? "unknown");
+
+            throw new ForbiddenException();
+        }
     }
 }

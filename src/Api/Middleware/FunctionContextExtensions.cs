@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
-using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -17,6 +16,17 @@ public static class FunctionContextExtensions
     public static string? GetUserId(this FunctionContext context)
     {
         return context.Items.TryGetValue("UserId", out var userId) ? userId as string : null;
+    }
+
+    /// <summary>
+    /// Gets the authenticated user's ID as a <see cref="Guid"/> from the function context.
+    /// Prefer this over <see cref="GetUserId"/> when passing to <c>IAuthorizationService</c>.
+    /// </summary>
+    /// <param name="context">The function context.</param>
+    /// <returns>The user ID as a Guid, or null if not authenticated or not a valid Guid.</returns>
+    public static Guid? GetUserIdAsGuid(this FunctionContext context)
+    {
+        return context.Items.TryGetValue("UserIdGuid", out var guid) ? guid as Guid? : null;
     }
 
     /// <summary>
@@ -93,46 +103,5 @@ public static class FunctionContextExtensions
         return context.Items.TryGetValue("ClaimsPrincipal", out var principal)
             ? principal as ClaimsPrincipal
             : null;
-    }
-
-    /// <summary>
-    /// Requires authentication. Throws UnauthorizedException if not authenticated.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    public static void RequireAuthentication(this FunctionContext context)
-    {
-        if (!context.IsAuthenticated())
-        {
-            throw new UnauthorizedException();
-        }
-    }
-
-    /// <summary>
-    /// Requires a specific role. Throws ForbiddenException if role is missing.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <param name="role">The required role.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    /// <exception cref="ForbiddenException">Thrown when role is missing.</exception>
-    public static void RequireRole(this FunctionContext context, string role)
-    {
-        context.RequireAuthentication();
-
-        if (!context.HasRole(role))
-        {
-            throw new ForbiddenException($"Role '{role}' is required");
-        }
-    }
-
-    /// <summary>
-    /// Requires administrator role. Throws ForbiddenException if not an admin.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    /// <exception cref="ForbiddenException">Thrown when not an administrator.</exception>
-    public static void RequireAdministrator(this FunctionContext context)
-    {
-        context.RequireRole("Administrator");
     }
 }

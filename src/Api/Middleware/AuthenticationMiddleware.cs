@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace RajFinancial.Api.Middleware;
@@ -39,7 +40,9 @@ namespace RajFinancial.Api.Middleware;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) : IFunctionsWorkerMiddleware
+public class AuthenticationMiddleware(
+    ILogger<AuthenticationMiddleware> logger,
+    IHostEnvironment environment) : IFunctionsWorkerMiddleware
 {
     // Standard claim types for Entra External ID
     private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
@@ -64,7 +67,10 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
             if (!string.IsNullOrEmpty(userId))
             {
                 // Store user context for use by functions
+                // UserId is stored as both string (backward compat) and Guid (for IAuthorizationService)
                 context.Items["UserId"] = userId;
+                if (Guid.TryParse(userId, out var userGuid))
+                    context.Items["UserIdGuid"] = userGuid;
                 context.Items["UserEmail"] = email ?? string.Empty;
                 context.Items["UserName"] = name ?? string.Empty;
                 context.Items["UserRoles"] = roles;
@@ -119,9 +125,19 @@ public class AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger) 
 
         try
         {
-            // Parse the JWT without full signature validation.
-            // Signature validation is handled by Azure App Service authentication (EasyAuth)
-            // in production. For local development, we trust the token from the identity provider.
+            // SECURITY: Only parse JWTs without signature validation in Development.
+            // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
+            // directly — if we reach this point in production, the token was not validated by EasyAuth
+            // and must be rejected to prevent forged JWT attacks.
+            if (!environment.IsDevelopment())
+            {
+                logger.LogWarning(
+                    "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
+                    "Rejecting unvalidated token in {Environment} environment",
+                    environment.EnvironmentName);
+                return null;
+            }
+
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -51,18 +52,17 @@ public class AuthTestFunctions(
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
 
-        var rolesJson = string.Join(",", roles.Select(r => $"\"{r}\""));
-        await response.WriteStringAsync($$"""
-            {
-                "authenticated": true,
-                "userId": "{{userId}}",
-                "email": "{{email}}",
-                "name": "{{name}}",
-                "roles": [{{rolesJson}}],
-                "isAdministrator": {{(context.HasRole("Administrator") ? "true" : "false")}},
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+        var payload = new
+        {
+            authenticated = true,
+            userId,
+            email,
+            name,
+            roles,
+            isAdministrator = context.HasRole("Administrator"),
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -83,15 +83,16 @@ public class AuthTestFunctions(
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "Welcome, Client!",
-                "access": "client",
-                "userId": "{{userId}}",
-                "description": "This endpoint is accessible by any authenticated user (implicit Client role)",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "Welcome, Client!",
+            access = "client",
+            userId,
+            description = "This endpoint is accessible by any authenticated user (implicit Client role)",
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -112,16 +113,17 @@ public class AuthTestFunctions(
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "Welcome, Administrator!",
-                "access": "administrator",
-                "userId": "{{adminUserId}}",
-                "description": "This endpoint requires explicit Administrator role assignment",
-                "adminRoleId": "{{appRoles.Administrator}}",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "Welcome, Administrator!",
+            access = "administrator",
+            userId = adminUserId,
+            description = "This endpoint requires explicit Administrator role assignment",
+            adminRoleId = appRoles.Administrator,
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }
@@ -143,16 +145,17 @@ public class AuthTestFunctions(
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync($$"""
-            {
-                "message": "This is a public endpoint",
-                "access": "public",
-                "authenticated": {{(isAuthenticated ? "true" : "false")}},
-                "userId": {{(userId != null ? $"\"{userId}\"" : "null")}},
-                "description": "No authentication required to access this endpoint",
-                "timestamp": "{{DateTime.UtcNow:O}}"
-            }
-            """);
+
+        var payload = new
+        {
+            message = "This is a public endpoint",
+            access = "public",
+            authenticated = isAuthenticated,
+            userId,
+            description = "No authentication required to access this endpoint",
+            timestamp = DateTime.UtcNow
+        };
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
 
         return response;
     }

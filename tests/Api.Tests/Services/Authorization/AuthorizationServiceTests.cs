@@ -71,11 +71,21 @@ public class AuthorizationServiceTests : IDisposable
     public async Task CheckAccess_OwnerAccessesOwnResource_GrantsRegardlessOfRequiredLevel()
     {
         var decision = await service.CheckAccessAsync(
-            ownerId, ownerId, DataCategories.Accounts, AccessType.Owner);
+            ownerId, ownerId, DataCategories.Accounts, AccessType.Full);
 
         decision.IsGranted.Should().BeTrue();
         decision.Reason.Should().Be(AccessDecisionReason.ResourceOwner);
         decision.GrantedAccessLevel.Should().Be(AccessType.Owner);
+    }
+
+    [Fact]
+    public async Task CheckAccess_RequiredLevelOwner_ThrowsArgumentException()
+    {
+        var act = () => service.CheckAccessAsync(
+            ownerId, ownerId, DataCategories.Accounts, AccessType.Owner);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithParameterName("requiredLevel");
     }
 
     // =========================================================================
@@ -386,6 +396,26 @@ public class AuthorizationServiceTests : IDisposable
 
         decision.IsGranted.Should().BeFalse();
         decision.Reason.Should().Be(AccessDecisionReason.Denied);
+    }
+
+    [Fact]
+    public async Task CheckAccess_ExpiredAndActiveGrantForSameUserPair_GrantsViaActiveGrant()
+    {
+        // Seed an expired grant first
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
+            categories: [DataCategories.Accounts],
+            expiresAt: DateTimeOffset.UtcNow.AddHours(-1));
+
+        // Seed an active, non-expired grant
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active,
+            categories: [DataCategories.Accounts],
+            expiresAt: DateTimeOffset.UtcNow.AddDays(30));
+
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Read);
+
+        decision.IsGranted.Should().BeTrue();
+        decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
     }
 
     // =========================================================================

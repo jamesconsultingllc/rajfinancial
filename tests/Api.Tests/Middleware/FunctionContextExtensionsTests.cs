@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FluentAssertions;
 using RajFinancial.Api.Middleware;
-using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.Api.Tests.Middleware;
 
@@ -246,96 +245,30 @@ public class FunctionContextExtensionsTests
     }
 
     [Fact]
-    public void RequireAuthentication_WhenAuthenticated_DoesNotThrow()
+    public void GetUserIdAsGuid_WhenGuidExists_ReturnsGuid()
     {
         // Arrange
         var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
+        var expected = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+        context.Items["UserIdGuid"] = expected;
 
-        // Act & Assert
-        var action = () => context.RequireAuthentication();
-        action.Should().NotThrow();
+        // Act
+        var result = context.GetUserIdAsGuid();
+
+        // Assert
+        result.Should().Be(expected);
     }
 
     [Fact]
-    public void RequireAuthentication_WhenNotAuthenticated_ThrowsUnauthorizedException()
+    public void GetUserIdAsGuid_WhenMissing_ReturnsNull()
     {
         // Arrange
         var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = false;
 
-        // Act & Assert
-        var action = () => context.RequireAuthentication();
-        action.Should().Throw<UnauthorizedException>()
-            .WithMessage("Authentication required");
-    }
+        // Act
+        var result = context.GetUserIdAsGuid();
 
-    [Fact]
-    public void RequireRole_WhenHasRole_DoesNotThrow()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = roles;
-
-        // Act & Assert
-        var action = () => context.RequireRole("Administrator");
-        action.Should().NotThrow();
-    }
-
-    [Fact]
-    public void RequireRole_WhenMissingRole_ThrowsForbiddenException()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = roles;
-
-        // Act & Assert
-        var action = () => context.RequireRole("Administrator");
-        action.Should().Throw<ForbiddenException>()
-            .WithMessage("Role 'Administrator' is required");
-    }
-
-    [Fact]
-    public void RequireRole_WhenNotAuthenticated_ThrowsUnauthorizedException()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = false;
-
-        // Act & Assert
-        var action = () => context.RequireRole("Administrator");
-        action.Should().Throw<UnauthorizedException>();
-    }
-
-    [Fact]
-    public void RequireAdministrator_WhenIsAdmin_DoesNotThrow()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = roles;
-
-        // Act & Assert
-        var action = () => context.RequireAdministrator();
-        action.Should().NotThrow();
-    }
-
-    [Fact]
-    public void RequireAdministrator_WhenNotAdmin_ThrowsForbiddenException()
-    {
-        // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = roles;
-
-        // Act & Assert
-        var action = () => context.RequireAdministrator();
-        action.Should().Throw<ForbiddenException>();
+        // Assert
+        result.Should().BeNull();
     }
 }

@@ -57,6 +57,36 @@ public class AuthorizationMiddlewareTests
         nextCalled.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Invoke_InvalidEntryPoint_TreatedAsPublic_CallsNext()
+    {
+        // Arrange — malformed entry point that ResolveMethod cannot parse
+        var context = CreateContext("NoDotsHere");
+        var nextCalled = false;
+        Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert — invalid entry point should be treated as public (no auth check)
+        nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Invoke_NonExistentType_TreatedAsPublic_CallsNext()
+    {
+        // Arrange — valid format but type doesn't exist in any loaded assembly
+        var context = CreateContext("Completely.Fake.Namespace.ClassName.MethodName");
+        var nextCalled = false;
+        Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert — unresolvable type should be treated as public (no auth check)
+        nextCalled.Should().BeTrue();
+    }
+
     // =========================================================================
     // [RequireAuthentication] — method level
     // =========================================================================
@@ -167,7 +197,8 @@ public class AuthorizationMiddlewareTests
         var act = () => middleware.Invoke(context, Next);
 
         // Assert
-        await act.Should().ThrowAsync<ForbiddenException>();
+        await act.Should().ThrowAsync<ForbiddenException>()
+            .WithMessage("Access denied");
     }
 
     [Fact]
@@ -222,7 +253,8 @@ public class AuthorizationMiddlewareTests
         var act = () => middleware.Invoke(context, Next);
 
         // Assert
-        await act.Should().ThrowAsync<ForbiddenException>();
+        await act.Should().ThrowAsync<ForbiddenException>()
+            .WithMessage("Access denied");
     }
 
     // =========================================================================
@@ -261,7 +293,30 @@ public class AuthorizationMiddlewareTests
         var act = () => middleware.Invoke(context, Next);
 
         // Assert
-        await act.Should().ThrowAsync<ForbiddenException>();
+        await act.Should().ThrowAsync<ForbiddenException>()
+            .WithMessage("Access denied");
+    }
+
+    // =========================================================================
+    // Security: ForbiddenException must not leak required role names (OWASP A01)
+    // =========================================================================
+
+    [Fact]
+    public async Task Invoke_RequireRole_ForbiddenMessage_DoesNotLeakRoleNames()
+    {
+        // Arrange — endpoint requires "Administrator", user has "Client"
+        var context = CreateContext(
+            EntryPoint<RoleFunctions>(nameof(RoleFunctions.AdminOnly)),
+            isAuthenticated: true,
+            roles: ["Client"]);
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        var act = () => middleware.Invoke(context, Next);
+
+        // Assert — message must be generic; must never contain required role names
+        var ex = (await act.Should().ThrowAsync<ForbiddenException>()).Which;
+        ex.Message.Should().NotContainAny("Administrator", "Client", "role");
     }
 
     // =========================================================================

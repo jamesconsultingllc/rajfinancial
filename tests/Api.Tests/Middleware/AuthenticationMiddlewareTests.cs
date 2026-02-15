@@ -1,7 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
@@ -16,11 +19,14 @@ public class AuthenticationMiddlewareTests
 {
     private readonly AuthenticationMiddleware middleware;
     private readonly Mock<ILogger<AuthenticationMiddleware>> loggerMock;
+    private readonly Mock<IHostEnvironment> environmentMock;
 
     public AuthenticationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
-        middleware = new AuthenticationMiddleware(loggerMock.Object);
+        environmentMock = new Mock<IHostEnvironment>();
+        environmentMock.Setup(e => e.EnvironmentName).Returns("Development");
+        middleware = new AuthenticationMiddleware(loggerMock.Object, environmentMock.Object);
     }
 
     // =========================================================================
@@ -337,6 +343,122 @@ public class AuthenticationMiddlewareTests
     }
 
     // =========================================================================
+    // UserIdGuid population
+    // =========================================================================
+
+    [Fact]
+    public async Task Invoke_WithValidGuidObjectId_SetsUserIdGuidInContext()
+    {
+        // Arrange
+        var guid = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+        var context = new TestFunctionContext();
+        var principal = CreatePrincipal(objectId: guid.ToString());
+        context.Items["ClaimsPrincipal"] = principal;
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert
+        context.Items["UserIdGuid"].Should().Be(guid);
+    }
+
+    [Fact]
+    public async Task Invoke_WithNonGuidObjectId_DoesNotSetUserIdGuid()
+    {
+        // Arrange — "user-123" is not a valid Guid
+        var context = new TestFunctionContext();
+        var principal = CreatePrincipal(objectId: "user-123");
+        context.Items["ClaimsPrincipal"] = principal;
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert
+        context.Items["UserId"].Should().Be("user-123");
+        context.Items.Should().NotContainKey("UserIdGuid");
+    }
+
+    // =========================================================================
+    // JWT parsing — environment gating (Finding #1 security fix)
+    // =========================================================================
+
+    [Fact]
+    public async Task Invoke_ProductionEnvironment_RejectsUnvalidatedJwt()
+    {
+        // Arrange — create middleware with Production environment
+        var prodEnv = new Mock<IHostEnvironment>();
+        prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
+        var prodMiddleware = new AuthenticationMiddleware(loggerMock.Object, prodEnv.Object);
+
+        // Build a minimal JWT token (unvalidated) to pass via Authorization header
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.CreateEncodedJwt(
+            issuer: "https://fake-issuer",
+            audience: "fake-audience",
+            subject: new ClaimsIdentity([
+                new Claim("oid", Guid.NewGuid().ToString()),
+                new Claim("roles", "Administrator")
+            ]),
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: DateTime.UtcNow.AddHours(1),
+            issuedAt: DateTime.UtcNow,
+            signingCredentials: null);
+
+        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await prodMiddleware.Invoke(context, Next);
+
+        // Assert — token must be rejected; user must NOT be authenticated
+        context.Items["IsAuthenticated"].Should().Be(false);
+        context.Items.Should().NotContainKey("UserId");
+
+        // Verify warning was logged
+        loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Rejecting unvalidated token")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Invoke_DevelopmentEnvironment_ParsesUnvalidatedJwt()
+    {
+        // Arrange — default fixture middleware uses Development environment
+        var handler = new JwtSecurityTokenHandler();
+        var userId = Guid.NewGuid().ToString();
+        var token = handler.CreateEncodedJwt(
+            issuer: "https://fake-issuer",
+            audience: "fake-audience",
+            subject: new ClaimsIdentity([
+                new Claim("oid", userId),
+                new Claim("roles", "Client")
+            ]),
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: DateTime.UtcNow.AddHours(1),
+            issuedAt: DateTime.UtcNow,
+            signingCredentials: null);
+
+        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert — in Development, the unvalidated JWT should be trusted
+        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items["UserId"].Should().Be(userId);
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
@@ -368,5 +490,18 @@ public class AuthenticationMiddlewareTests
 
         var identity = new ClaimsIdentity(claims, "Bearer");
         return new ClaimsPrincipal(identity);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="TestFunctionContext"/> with an HTTP request containing
+    /// an Authorization header. Used to test the JWT parsing path (no EasyAuth principal).
+    /// </summary>
+    private static TestFunctionContext CreateContextWithAuthorizationHeader(string authorizationHeader)
+    {
+        var context = new TestFunctionContext();
+        var headers = new HttpHeadersCollection();
+        headers.Add("Authorization", authorizationHeader);
+        context.SetHttpRequestHeaders(headers);
+        return context;
     }
 }

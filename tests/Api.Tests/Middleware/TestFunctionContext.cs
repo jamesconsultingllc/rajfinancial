@@ -1,6 +1,7 @@
 using System.Collections;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Moq;
 
 namespace RajFinancial.Api.Tests.Middleware;
 
@@ -46,6 +47,21 @@ internal class TestFunctionContext : FunctionContext
         set { /* Items is read-only in this test implementation */ }
     }
     public override IInvocationFeatures Features => features;
+
+    /// <summary>
+    /// Configures the test context to return an <see cref="HttpRequestData"/>
+    /// with the specified headers. Used for testing middleware that reads
+    /// the Authorization header (e.g., JWT parsing path).
+    /// </summary>
+    public void SetHttpRequestHeaders(HttpHeadersCollection headers)
+    {
+        var mockContext = new Mock<FunctionContext>();
+        var mockRequest = new Mock<HttpRequestData>(mockContext.Object);
+        mockRequest.SetupGet(r => r.Url).Returns(new Uri("https://localhost/api/test"));
+        mockRequest.SetupGet(r => r.Headers).Returns(headers);
+
+        features.Set<IHttpRequestDataFeature>(new TestHttpRequestDataFeature(mockRequest.Object));
+    }
 }
 
 /// <summary>
@@ -57,6 +73,18 @@ internal class NullHttpRequestDataFeature : IHttpRequestDataFeature
     public ValueTask<HttpRequestData?> GetHttpRequestDataAsync(FunctionContext context)
     {
         return ValueTask.FromResult<HttpRequestData?>(null);
+    }
+}
+
+/// <summary>
+/// Returns a pre-configured <see cref="HttpRequestData"/> for testing middleware
+/// that reads HTTP request data (e.g., Authorization header for JWT parsing).
+/// </summary>
+internal class TestHttpRequestDataFeature(HttpRequestData requestData) : IHttpRequestDataFeature
+{
+    public ValueTask<HttpRequestData?> GetHttpRequestDataAsync(FunctionContext context)
+    {
+        return ValueTask.FromResult<HttpRequestData?>(requestData);
     }
 }
 

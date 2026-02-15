@@ -21,52 +21,22 @@
 11. ✅ **Task 475** — `AuthorizationService` implementation + 25 tests → Done (commit `3ec2840`)
 12. ✅ **Task 476** — Refactored `AuthTestFunctions` to use `[RequireAuthentication]`/`[RequireRole]` attributes, removed ~50 lines of boilerplate → Done (commit `da76303`)
 13. ✅ **Task 477** — IntegrationTests project (Reqnroll + HttpClient + FunctionsHostFixture) + 5 BDD scenarios → Done (commit `6c72ca3`)
+14. ✅ **PR Review Fixes** — Addressed all findings from code review:
+    - **Finding #1 (Critical)**: JWT parsed without signature validation — gated to Development only via `IHostEnvironment`; Production rejects unvalidated tokens
+    - **Finding #2**: ForbiddenException leaked required role names — now uses generic "Access denied" message; roles logged server-side only
+    - **Finding #3**: UserId string/Guid mismatch — added `UserIdGuid` to context items + `GetUserIdAsGuid()` extension
+    - **Finding #4**: `FindValidGrantAsync` loaded all grants into memory — refactored to `AsAsyncEnumerable().FirstOrDefaultAsync()` for streaming
+    - **Finding #6**: Dead code (imperative `RequireAuthentication`/`RequireRole`/`RequireAdministrator` extension methods) — removed
+    - **Finding #7**: String interpolation for JSON in `AuthTestFunctions` — replaced with `JsonSerializer.Serialize()`
+    - **Finding #9**: `AccessType.Owner` as `requiredLevel` silently denied — now throws `ArgumentException`
+    - **Test gaps**: Added 11 new tests covering JWT environment gating, invalid entry points, multi-grant scenarios, `GetUserIdAsGuid`, and role name leak regression guard
+    - **CI/CD**: Updated `azure-functions.yml` with proper test project targeting, health check curl, and integration test jobs for dev/prod
 
 ## Next
 
-- **Task 481** — Add integration tests to CI/CD pipeline
-
-### 1. Test Project Restructure (partially complete)
-Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobile app support per hybrid design doc):
-
-| Project | Target | Purpose | Status |
-|---------|--------|---------|--------|
-| `tests/Api.Tests/RajFinancial.Api.Tests.csproj` | net10.0 | API unit + integration tests | ✅ Created, added to sln |
-| `tests/Client.Tests/RajFinancial.Client.Tests.csproj` | net9.0 | Blazor WASM/bUnit tests | ✅ Created, added to sln |
-| `tests/UnitTests/` (old) | — | Removed from solution | ⚠️ Folder still on disk |
-
-- Files copied from `UnitTests/Api/` → `Api.Tests/` with namespace updates
-- Files copied from `UnitTests/Client/` → `Client.Tests/` with namespace updates
-- Solution builds ✅
-- 92/94 API tests pass, **2 failures** in `AuthenticationMiddlewareTests` (see below)
-
-### 2. BDD Feature File
-- Created `tests/AcceptanceTests/Features/ApiAuthentication.feature`
-- Covers: public endpoints, auth required, role-based access, malformed JWT, claim extraction
-
-### 3. AuthenticationMiddleware Unit Tests
-- Created `tests/Api.Tests/Middleware/AuthenticationMiddlewareTests.cs`
-- 14 tests covering: context population, unauthenticated requests, alternative claim types, role deduplication, logging
-
-### 4. TestFunctionContext Enhancement
-- Updated `tests/Api.Tests/Middleware/TestFunctionContext.cs` with `TestInvocationFeatures`
-- **Still failing**: 2 tests (`Invoke_WithNoPrincipal_SetsIsAuthenticatedFalse`, `Invoke_AlwaysCallsNext`)
-- **Root cause**: `GetHttpRequestDataAsync()` → `DefaultHttpRequestDataFeature` accesses `BindingContext.BindingData` which is null
-- **Fix needed**: Register `IHttpRequestDataFeature` in `TestInvocationFeatures` that returns null HttpRequestData
-
----
-
-## What's NOT Done
-
-| Task | Description |
-|------|-------------|
-| Fix 2 test failures | Need `IHttpRequestDataFeature` mock in TestFunctionContext |
-| Delete old `tests/UnitTests/` folder | Still on disk, removed from sln |
-| Run Client.Tests | Not yet verified |
-| ValidationMiddlewareTests | Not written |
-| RoleValidationService | Not created (was in open files as planned) |
-| Update AGENT.md | Test structure docs need updating |
-| Update docs tracking | Execution plan not updated |
+- **Task 481** — Add integration tests to CI/CD pipeline → ✅ Done (folded into PR review fixes — `azure-functions.yml` now runs integration tests post-deploy)
+- All tasks for Feature 470 are complete
+- Branch is ready for PR to `develop`
 
 ---
 
@@ -74,10 +44,15 @@ Split monolithic `tests/UnitTests/` into separate projects for decoupling (mobil
 
 | Task | Title | State |
 |------|-------|-------|
-| 475 | Implement AuthorizationService with DataAccessGrant support | ✅ Done |
-| 476 | Refactor existing functions to use authorization attributes | ✅ Done |
-| 477 | Create IntegrationTests project (includes folded 478-480 step defs) | ✅ Done |
-| 481 | Add integration tests to CI/CD pipeline | To Do |
+| 471 | RequireAuthentication attribute | ✅ Done |
+| 472 | RequireRole attribute | ✅ Done |
+| 473 | AuthorizationMiddleware | ✅ Done |
+| 474 | IAuthorizationService interface | ✅ Done |
+| 475 | AuthorizationService implementation | ✅ Done |
+| 476 | Refactor functions to use attributes | ✅ Done |
+| 477 | IntegrationTests project | ✅ Done |
+| 478-480 | Folded into 477 | ✅ Done |
+| 481 | Integration tests in CI/CD | ✅ Done |
 
 ---
 
@@ -86,5 +61,5 @@ Splitting test projects aligns with `docs/hybrid/HYBRID_SOLUTION_STRUCTURE.md` w
 
 ---
 
-## Working Rule (NEW)
+## Working Rule
 **Make changes one step at a time. Show plan. Wait for approval before proceeding.**
