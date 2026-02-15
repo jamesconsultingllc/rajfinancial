@@ -1,9 +1,12 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace RajFinancial.IntegrationTests.Support;
 
 /// <summary>
-/// Fluent builder for creating ClaimsPrincipal instances for integration tests.
+/// Fluent builder for creating <see cref="ClaimsPrincipal"/> instances and JWT Bearer tokens
+/// for integration tests. JWTs are unsigned — the <c>AuthenticationMiddleware</c> in Development
+/// mode parses them without signature validation, enabling full middleware pipeline testing.
 /// </summary>
 internal class TestClaimsBuilder
 {
@@ -80,5 +83,53 @@ internal class TestClaimsBuilder
         string? userId = null)
     {
         return AuthenticatedUser(email, userId, "Administrator");
+    }
+
+    /// <summary>
+    /// Builds an unsigned JWT Bearer token string from the current claims.
+    /// Suitable for integration tests against a Development-mode Functions host
+    /// where <c>AuthenticationMiddleware</c> parses JWTs without signature validation.
+    /// </summary>
+    public string BuildJwtToken()
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var identity = new ClaimsIdentity(claims, authenticationType);
+        return handler.CreateEncodedJwt(
+            issuer: "https://test-issuer.example.com",
+            audience: "test-audience",
+            subject: identity,
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: DateTime.UtcNow.AddHours(1),
+            issuedAt: DateTime.UtcNow,
+            signingCredentials: null);
+    }
+
+    /// <summary>
+    /// Creates an unsigned JWT token for an authenticated user with the given roles.
+    /// </summary>
+    public static string JwtForUser(
+        string email = "user@example.com",
+        string? userId = null,
+        params string[] roles)
+    {
+        var builder = new TestClaimsBuilder()
+            .WithUserId(userId ?? Guid.NewGuid().ToString())
+            .WithEmail(email)
+            .WithName(email.Split('@')[0]);
+
+        foreach (var role in roles)
+            builder.WithRole(role);
+
+        return builder.BuildJwtToken();
+    }
+
+    /// <summary>
+    /// Creates an unsigned JWT token for an administrator.
+    /// </summary>
+    public static string JwtForAdmin(
+        string email = "admin@example.com",
+        string? userId = null)
+    {
+        return JwtForUser(email, userId, "Administrator");
     }
 }

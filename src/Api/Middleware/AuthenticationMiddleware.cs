@@ -55,7 +55,7 @@ public class AuthenticationMiddleware(
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         // Extract ClaimsPrincipal from the function context
-        var principal = GetClaimsPrincipal(context);
+        var principal = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
@@ -90,7 +90,7 @@ public class AuthenticationMiddleware(
         await next(context);
     }
 
-    private ClaimsPrincipal? GetClaimsPrincipal(FunctionContext context)
+    private async Task<ClaimsPrincipal?> GetClaimsPrincipalAsync(FunctionContext context)
     {
         // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
         if (context.Items.TryGetValue("ClaimsPrincipal", out var existingPrincipal) &&
@@ -100,7 +100,7 @@ public class AuthenticationMiddleware(
         }
 
         // Extract JWT from Authorization header for local development / standalone hosting
-        var httpRequestData = context.GetHttpRequestDataAsync().GetAwaiter().GetResult();
+        var httpRequestData = await context.GetHttpRequestDataAsync();
         if (httpRequestData is null)
         {
             return null;
