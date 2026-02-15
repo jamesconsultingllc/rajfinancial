@@ -19,8 +19,8 @@ This document contains the API implementation tracking tables extracted from [RA
 #### Services
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| IDataAccessService interface | ⬜ Not Started | P0 | Authorization logic |
-| DataAccessService implementation | ⬜ Not Started | P0 | Check user access permissions |
+| IAuthorizationService interface | ✅ Complete | P0 | Three-tier resource authorization |
+| AuthorizationService implementation | ✅ Complete | P0 | Owner > DataAccessGrant > Administrator |
 | UserProfileService (API) | ⬜ Not Started | P0 | Sync Entra claims with profile |
 
 #### Data Access Grant Functions
@@ -41,8 +41,8 @@ This document contains the API implementation tracking tables extracted from [RA
 |------|--------|----------|-------|
 | Create solution structure | ✅ Complete | P0 | Api, Client, Shared projects |
 | Configure Azure Functions project | ✅ Complete | P0 | Isolated worker, .NET 9 |
-| Add MemoryPack package | ⬜ Not Started | P0 | High-performance serialization |
-| Set up EF Core 9 with Azure SQL | ⬜ Not Started | P0 | DbContext, migrations, MI auth |
+| Add MemoryPack package | ✅ Complete | P0 | High-performance serialization |
+| Set up EF Core with Azure SQL | ✅ Complete | P0 | DbContext, migrations, MI auth |
 | Configure Key Vault integration | ⬜ Not Started | P0 | Managed Identity access |
 | Set up Application Insights | ⬜ Not Started | P1 | Logging, telemetry |
 | Configure Redis caching | ⬜ Not Started | P1 | IDistributedCache, AAD auth |
@@ -52,16 +52,17 @@ This document contains the API implementation tracking tables extracted from [RA
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| AssetDto + CreateAssetRequest | ⬜ Not Started | P0 | MemoryPack attributes |
+| AssetDto + AssetDetailDto | ⬜ Not Started | P0 | MemoryPack attributes, detail includes depreciation |
+| CreateAssetRequest + UpdateAssetRequest | ⬜ Not Started | P0 | MemoryPack attributes |
 | LinkedAccountDto | ⬜ Not Started | P0 | MemoryPack attributes |
 | BeneficiaryDto + requests | ⬜ Not Started | P0 | MemoryPack attributes |
 | AIInsightDto | ⬜ Not Started | P1 | MemoryPack attributes |
 | DebtPayoffAnalysisDto | ⬜ Not Started | P1 | Strategy results |
 | InsuranceCoverageDto | ⬜ Not Started | P1 | Breakdown included |
-| ApiErrorResponse | ⬜ Not Started | P0 | Standardized errors |
-| ErrorCodes constants | ⬜ Not Started | P0 | All error codes |
+| ApiErrorResponse | ✅ Complete | P0 | Standardized errors with Code, Message, Details |
+| ErrorCodes constants | ✅ Complete | P0 | NotFoundException, ForbiddenException, etc. |
 | AddressDto | ⬜ Not Started | P1 | Value object |
-| Enums (all) | ⬜ Not Started | P0 | AssetType, AccountType, etc. |
+| Enums (all) | ⬜ Not Started | P0 | AssetType, DepreciationMethod, AccountType, etc. |
 
 ### 2.3 Core Domain (RAJFinancial.Core)
 
@@ -69,7 +70,7 @@ This document contains the API implementation tracking tables extracted from [RA
 |------|--------|----------|-------|
 | User entity | ⬜ Not Started | P0 | Entra External ID linked |
 | LinkedAccount entity | ⬜ Not Started | P0 | |
-| Asset entity | ⬜ Not Started | P0 | |
+| Asset entity | ⬜ Not Started | P0 | Includes depreciation, disposal, valuation fields |
 | Beneficiary entity | ⬜ Not Started | P0 | |
 | BeneficiaryAssignment entity | ⬜ Not Started | P0 | |
 | ClientRelationship entity | ⬜ Not Started | P0 | Professional-to-client mapping |
@@ -86,9 +87,9 @@ This document contains the API implementation tracking tables extracted from [RA
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| ApplicationDbContext | ⬜ Not Started | P0 | Tenant isolation |
-| Entity configurations | ⬜ Not Started | P0 | Fluent API |
-| Initial migration | ⬜ Not Started | P0 | |
+| ApplicationDbContext | ✅ Complete | P0 | Tenant isolation, UserProfile + DataAccessGrant |
+| Entity configurations | ✅ Complete | P0 | Fluent API, enums as strings, JSON categories |
+| Initial migration | ✅ Complete | P0 | 20260205040602_InitialCreate |
 | PlaidService implementation | ⬜ Not Started | P0 | Full Plaid integration |
 | ClaudeAIService implementation | ⬜ Not Started | P1 | Insight generation |
 | EncryptionService | ⬜ Not Started | P0 | Key Vault integration |
@@ -102,7 +103,8 @@ This document contains the API implementation tracking tables extracted from [RA
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
 | AccountService | ⬜ Not Started | P0 | Plaid orchestration |
-| AssetService | ⬜ Not Started | P0 | CRUD + validation |
+| AssetService | ⬜ Not Started | P0 | CRUD + validation + depreciation calc |
+| DepreciationCalculator | ⬜ Not Started | P0 | Pure computation: StraightLine, DecliningBalance, MACRS |
 | BeneficiaryService | ⬜ Not Started | P0 | Assignments included |
 | AnalysisService | ⬜ Not Started | P1 | Net worth, debt, insurance |
 | CreateAssetValidator | ⬜ Not Started | P0 | FluentValidation |
@@ -114,16 +116,17 @@ This document contains the API implementation tracking tables extracted from [RA
 #### Middleware
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| ContentNegotiationMiddleware | ⬜ Not Started | P0 | JSON/MemoryPack |
-| ExceptionMiddleware | ⬜ Not Started | P0 | Global error handling |
-| TenantMiddleware | ⬜ Not Started | P0 | User context |
-| AuthenticationMiddleware | ⬜ Not Started | P0 | JWT validation |
+| ContentNegotiationMiddleware | ✅ Complete | P0 | JSON/MemoryPack |
+| ExceptionMiddleware | ✅ Complete | P0 | Global error handling |
+| AuthenticationMiddleware | ✅ Complete | P0 | JWT validation + EasyAuth |
+| AuthorizationMiddleware | ✅ Complete | P0 | Attribute-based [RequireAuthentication]/[RequireRole] |
+| ValidationMiddleware | ✅ Complete | P0 | FluentValidation pipeline |
 
 #### Serialization
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| SerializationFactory | ⬜ Not Started | P0 | ISerializationFactory |
-| MemoryPackSerializer helper | ⬜ Not Started | P0 | |
+| SerializationFactory | ✅ Complete | P0 | ISerializationFactory |
+| MemoryPackSerializer helper | ✅ Complete | P0 | Content negotiation via Accept header |
 
 #### Account Functions
 | Endpoint | Function | Status | Priority |
@@ -143,6 +146,8 @@ This document contains the API implementation tracking tables extracted from [RA
 | PUT /api/assets/{id} | UpdateAsset | ⬜ Not Started | P0 |
 | DELETE /api/assets/{id} | DeleteAsset | ⬜ Not Started | P0 |
 | GET /api/assets/summary | GetAssetSummary | ⬜ Not Started | P1 |
+| POST /api/assets/{id}/dispose | DisposeAsset | ⬜ Not Started | P1 |
+| GET /api/assets/{id}/depreciation | GetDepreciationSchedule | ⬜ Not Started | P2 |
 
 #### Beneficiary Functions
 | Endpoint | Function | Status | Priority |
