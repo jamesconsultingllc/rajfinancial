@@ -165,4 +165,4 @@ jobs:
       - name: Run integration tests against prod
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-prod.azurewebsites.net
-        run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal
+        run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal --filter "Category!=devOnly"
