@@ -96,7 +96,7 @@ jobs:
         run: |
           echo "Waiting for deployment to stabilize..."
           sleep 30
-          curl -sf https://func-rajfinancial-dev.azurewebsites.net/api/health || echo "Health check returned non-200"
+          curl -sf --max-time 30 https://func-rajfinancial-dev.azurewebsites.net/api/health || echo "Health check returned non-200"
 
   integration-test-dev:
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
@@ -147,7 +147,7 @@ jobs:
         run: |
           echo "Waiting for deployment to stabilize..."
           sleep 30
-          curl -sf https://func-rajfinancial-prod.azurewebsites.net/api/health || echo "Health check returned non-200"
+          curl -sf --max-time 30 https://func-rajfinancial-prod.azurewebsites.net/api/health || echo "Health check returned non-200"
 
   integration-test-prod:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')

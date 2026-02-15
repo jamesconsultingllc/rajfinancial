@@ -114,7 +114,7 @@ public class AuthorizationService(
 
         // Query for grants where:
         // - Grantor is the resource owner
-        // - Grantee is the requesting user (GranteeUserId is Guid? — pending grants have null and correctly won't match)
+        // - Grantee is the requesting user (GranteeUserId is Guid? (nullable) — pending grants have null GranteeUserId and won't match this WHERE clause)
         // - Status is Active
         // - Not expired (ExpiresAt is null or in the future)
         // Then evaluate category/level match in memory (GrantCoversRequest requires C# logic)

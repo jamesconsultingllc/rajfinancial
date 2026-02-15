@@ -399,6 +399,23 @@ public class AuthorizationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAccess_MultipleActiveGrants_ReadAndFull_GrantsFullForFullRequest()
+    {
+        // Seed a Read grant (cannot satisfy Full request)
+        SeedGrant(ownerId, granteeId, AccessType.Read, GrantStatus.Active);
+
+        // Seed a Full grant (can satisfy Full request)
+        SeedGrant(ownerId, granteeId, AccessType.Full, GrantStatus.Active);
+
+        var decision = await service.CheckAccessAsync(
+            granteeId, ownerId, DataCategories.Accounts, AccessType.Full);
+
+        decision.IsGranted.Should().BeTrue();
+        decision.Reason.Should().Be(AccessDecisionReason.DataAccessGrant);
+        decision.GrantedAccessLevel.Should().Be(AccessType.Full);
+    }
+
+    [Fact]
     public async Task CheckAccess_ExpiredAndActiveGrantForSameUserPair_GrantsViaActiveGrant()
     {
         // Seed an expired grant first

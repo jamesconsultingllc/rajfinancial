@@ -23,7 +23,8 @@ public class FunctionsHostFixture
 
         baseUrl = config["FunctionsHost:BaseUrl"] ?? "https://localhost:7071";
 
-        // Accept self-signed certs from local func start --useHttps
+        // Accept self-signed certificates issued by Azure Functions Core Tools (func start --useHttps).
+        // This is scoped to localhost only — remote endpoints use real certificates.
         var handler = new HttpClientHandler();
         if (IsLocalhost(baseUrl))
         {
