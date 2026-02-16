@@ -156,27 +156,60 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
     /// <summary>
     ///     Creates a new page before each scenario.
-    ///     Includes browser health check to recover from mid-run crashes
-    ///     (e.g. msedge D-Bus failures on Linux CI).
+    ///     Includes browser health check with retry logic to recover from mid-run crashes
+    ///     (e.g. msedge D-Bus failures on Linux CI). Retries up to 3 times with exponential
+    ///     backoff if the browser dies immediately after re-launch.
     /// </summary>
     [BeforeScenario]
     public async Task BeforeScenario()
     {
-        // Recover from browser crash (e.g. msedge dies from D-Bus issues on Linux CI)
-        if (!await IsBrowserAliveAsync())
+        const int maxRetries = 3;
+
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
-            Console.WriteLine("[BeforeScenario] Browser is not alive — re-launching.");
-            browser = await LaunchBrowserAsync();
+            try
+            {
+                // Recover from browser crash (e.g. msedge dies from D-Bus issues on Linux CI)
+                if (!await IsBrowserAliveAsync())
+                {
+                    Console.WriteLine(
+                        $"[BeforeScenario] Browser is not alive — re-launching (attempt {attempt}/{maxRetries}).");
+                    browser = await LaunchBrowserAsync();
+
+                    // Give the browser process time to stabilise after launch
+                    await Task.Delay(500);
+                }
+
+                var context = await browser!.NewContextAsync(new BrowserNewContextOptions
+                {
+                    ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+                });
+                var page = await context.NewPageAsync();
+
+                scenarioContext.Set(context, "BrowserContext");
+                scenarioContext.Set(page, "Page");
+                return; // Success — exit retry loop
+            }
+            catch (PlaywrightException ex) when (attempt < maxRetries
+                                                     && ex.Message.Contains("Target", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(
+                    $"[BeforeScenario] Browser closed on attempt {attempt}: {ex.Message}");
+
+                // Force-close the dead browser so the next iteration re-launches a fresh one
+                try
+                {
+                    if (browser is not null) await browser.CloseAsync();
+                }
+                catch
+                {
+                    // Ignore — browser may already be dead
+                }
+
+                browser = null;
+                await Task.Delay(1000 * attempt); // Exponential backoff
+            }
         }
-
-        var context = await browser!.NewContextAsync(new BrowserNewContextOptions
-        {
-            ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
-        });
-        var page = await context.NewPageAsync();
-
-        scenarioContext.Set(context, "BrowserContext");
-        scenarioContext.Set(page, "Page");
     }
 
     /// <summary>

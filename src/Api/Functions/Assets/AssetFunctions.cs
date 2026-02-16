@@ -113,7 +113,7 @@ public class AssetFunctions(
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var assetId))
-            throw NotFoundException.Asset(Guid.Empty);
+            throw new ValidationException($"Invalid asset ID format: '{id}'");
 
         logger.LogInformation("Fetching asset {AssetId} for user {UserId}", assetId, userId);
 
@@ -197,7 +197,7 @@ public class AssetFunctions(
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var assetId))
-            throw NotFoundException.Asset(Guid.Empty);
+            throw new ValidationException($"Invalid asset ID format: '{id}'");
 
         var request = await context.GetValidatedBodyAsync<UpdateAssetRequest>();
 
@@ -240,7 +240,7 @@ public class AssetFunctions(
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var assetId))
-            throw NotFoundException.Asset(Guid.Empty);
+            throw new ValidationException($"Invalid asset ID format: '{id}'");
 
         logger.LogInformation("Deleting asset {AssetId} for user {UserId}", assetId, userId);
 
@@ -276,7 +276,7 @@ public class AssetFunctions(
         if (int.TryParse(value, out var intValue) && Enum.IsDefined(typeof(AssetType), intValue))
             return (AssetType)intValue;
 
-        if (Enum.TryParse<AssetType>(value, ignoreCase: true, out var parsed))
+        if (Enum.TryParse<AssetType>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
             return parsed;
 
         return null;

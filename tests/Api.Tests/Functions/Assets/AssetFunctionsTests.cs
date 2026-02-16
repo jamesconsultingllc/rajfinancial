@@ -7,7 +7,7 @@
 //   - Parameter parsing (query strings, route params)
 //   - Proper delegation to IAssetService
 //   - HTTP status codes (200, 201, 204, 401)
-//   - Error handling (invalid GUID → NotFoundException)
+//   - Error handling (invalid GUID → ValidationException, missing resource → NotFoundException)
 // ============================================================================
 
 using System.Collections.Specialized;
@@ -18,6 +18,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Functions.Assets;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
@@ -238,7 +239,7 @@ public class AssetFunctionsTests
     }
 
     [Fact]
-    public async Task GetAssetById_InvalidGuid_ThrowsNotFound()
+    public async Task GetAssetById_InvalidGuid_ThrowsValidationException()
     {
         // Arrange
         var context = CreateAuthenticatedContext();
@@ -248,7 +249,8 @@ public class AssetFunctionsTests
         var act = () => sut.GetAssetById(req.Object, context, "not-a-guid");
 
         // Assert
-        await act.Should().ThrowAsync<NotFoundException>();
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("*not-a-guid*");
     }
 
     [Fact]
@@ -368,7 +370,7 @@ public class AssetFunctionsTests
     }
 
     [Fact]
-    public async Task UpdateAsset_InvalidGuid_ThrowsNotFound()
+    public async Task UpdateAsset_InvalidGuid_ThrowsValidationException()
     {
         // Arrange
         var context = CreateAuthenticatedContext();
@@ -378,7 +380,8 @@ public class AssetFunctionsTests
         var act = () => sut.UpdateAsset(req.Object, context, "bad-id");
 
         // Assert
-        await act.Should().ThrowAsync<NotFoundException>();
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("*bad-id*");
     }
 
     [Fact]
@@ -421,7 +424,7 @@ public class AssetFunctionsTests
     }
 
     [Fact]
-    public async Task DeleteAsset_InvalidGuid_ThrowsNotFound()
+    public async Task DeleteAsset_InvalidGuid_ThrowsValidationException()
     {
         // Arrange
         var context = CreateAuthenticatedContext();
@@ -431,7 +434,8 @@ public class AssetFunctionsTests
         var act = () => sut.DeleteAsset(req.Object, context, "invalid");
 
         // Assert
-        await act.Should().ThrowAsync<NotFoundException>();
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("*invalid*");
     }
 
     [Fact]

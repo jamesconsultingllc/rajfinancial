@@ -409,7 +409,7 @@ public class AssetSteps
     /// <summary>
     ///     Builds an anonymous object from a Reqnroll table row for asset creation/update.
     /// </summary>
-    private static Dictionary<string, object> BuildAssetBodyFromRow(TableRow row)
+    private static Dictionary<string, object> BuildAssetBodyFromRow(DataTableRow row)
     {
         var body = new Dictionary<string, object>();
 
