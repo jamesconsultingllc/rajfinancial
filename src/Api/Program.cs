@@ -16,6 +16,7 @@ using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Assets;
+using RajFinancial.Shared.Contracts.Auth;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -171,6 +172,7 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 
 builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
+builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
 
 // Register validators as they are implemented:
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();

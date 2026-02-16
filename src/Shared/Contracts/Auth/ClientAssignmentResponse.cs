@@ -48,7 +48,8 @@ public sealed record ClientAssignmentResponse
     public required string ClientEmail { get; init; }
 
     /// <summary>
-    ///     The type of access granted (Owner, Full, Read, or Limited).
+    ///     The type of access granted (Full, Read, or Limited).
+    ///     Owner access is implicit for data owners and is not assigned via these endpoints.
     /// </summary>
     public required string AccessType { get; init; }
 

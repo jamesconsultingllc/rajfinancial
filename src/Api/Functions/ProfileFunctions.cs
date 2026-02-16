@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -32,16 +31,6 @@ public class ProfileFunctions(
     ILogger<ProfileFunctions> logger,
     IUserProfileService userProfileService)
 {
-    /// <summary>
-    /// Shared JSON serializer options matching <see cref="Middleware.Content.SerializationFactory"/>
-    /// conventions: camelCase naming, null-value omission.
-    /// </summary>
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     /// <summary>
     /// Returns the persisted <see cref="Shared.Entities.UserProfile"/> for the
     /// currently authenticated user.
@@ -86,7 +75,7 @@ public class ProfileFunctions(
             {
                 code = "PROFILE_NOT_FOUND",
                 message = "User profile has not been provisioned"
-            }, JsonOptions));
+            }, FunctionHelpers.JsonOptions));
             return notFoundResponse;
         }
 
@@ -108,7 +97,7 @@ public class ProfileFunctions(
             createdAt = profile.CreatedAt,
             lastLoginAt = profile.LastLoginAt,
             updatedAt = profile.UpdatedAt
-        }, JsonOptions));
+        }, FunctionHelpers.JsonOptions));
 
         return response;
     }

@@ -17,10 +17,12 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using FluentValidation;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Tests.Middleware;
+using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
 
@@ -92,10 +94,14 @@ public class ClientManagementFunctionsTests
         context.Items["UserName"] = displayName;
         context.Items["UserRoles"] = roles;
 
-        // Store body for GetValidatedBodyAsync
+        // Store body and configure InstanceServices for GetValidatedBodyAsync
         if (requestBody is not null)
         {
             context.Items["RequestBody"] = requestBody;
+            context.WithServices(configure =>
+            {
+                configure.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
+            });
         }
 
         var mockRequest = new Mock<HttpRequestData>(context);

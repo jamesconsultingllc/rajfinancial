@@ -99,19 +99,7 @@ public class ClientManagementFunctions(
                 "AUTH_FORBIDDEN", "Insufficient permissions");
         }
 
-        // Read request body from middleware-captured Items or raw stream
-        var bodyString = context.Items.TryGetValue("RequestBody", out var rb)
-            ? rb as string
-            : null;
-
-        if (bodyString is null)
-        {
-            using var reader = new StreamReader(req.Body);
-            bodyString = await reader.ReadToEndAsync();
-        }
-
-        var assignRequest = JsonSerializer.Deserialize<AssignClientRequest>(
-            bodyString!, FunctionHelpers.JsonOptions)!;
+        var assignRequest = await context.GetValidatedBodyAsync<AssignClientRequest>();
 
         // Self-assignment check (case-insensitive email comparison)
         var userEmail = context.GetUserEmail();
