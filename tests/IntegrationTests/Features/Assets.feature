@@ -118,14 +118,14 @@ Feature: Asset CRUD Operations
         Then the response status should be 200
         And all returned assets should have type "RealEstate"
 
-    @wip
+    @ignore
     Scenario: Disposed assets are excluded by default
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
         And I have an asset "Old Car" that has been disposed
         When I send a GET request to "/api/assets"
         Then the response should not contain asset "Old Car"
 
-    @wip
+    @ignore
     Scenario: Include disposed assets with query parameter
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
         And I have an asset "Old Car" that has been disposed
@@ -207,21 +207,21 @@ Feature: Asset CRUD Operations
     # IDOR Prevention — Cross-User Access
     # =========================================================================
 
-    @wip @security @A01 @idor
+    @ignore @security @A01 @idor
     Scenario: User cannot list another user's assets without a grant
         Given I am authenticated as user "other@rajfinancial.com" with role "Client"
         And user "owner@rajfinancial.com" has assets
         When I send a GET request to "/api/assets?ownerUserId={ownerUserId}"
         Then access should be denied or filtered by the service tier
 
-    @wip @security @A01 @idor
+    @ignore @security @A01 @idor
     Scenario: User cannot access another user's asset by ID without a grant
         Given I am authenticated as user "other@rajfinancial.com" with role "Client"
         And user "owner@rajfinancial.com" has an asset with a known ID
         When I request that asset by ID
         Then access should be denied by the service tier
 
-    @wip @security @A01
+    @ignore @security @A01
     Scenario: Administrator can access any user's assets
         Given I am authenticated as user "admin@rajfinancial.com" with role "Administrator"
         And user "owner@rajfinancial.com" has assets

@@ -352,8 +352,9 @@ public class AssetSteps
     public void ThenTheResponseShouldIncludeDepreciationDetails()
     {
         responseBody.Should().NotBeNullOrEmpty();
-        // AssetDetailDto includes depreciation fields
-        responseBody.Should().Contain("depreciationMethod");
+        // AssetDetailDto always includes the isDepreciable flag.
+        // depreciationMethod is null-omitted for non-depreciable assets.
+        responseBody.Should().Contain("isDepreciable");
     }
 
     [Then(@"the response should include beneficiary information")]
