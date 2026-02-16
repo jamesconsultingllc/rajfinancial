@@ -10,6 +10,7 @@ using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
+using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Services.UserProfiles;
 
 var builder = FunctionsApplication.CreateBuilder(args);
@@ -149,6 +150,9 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
 // Resource-level authorization (three-tier: owner → grant → admin)
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+
+// Advisor–client data-access grant management
+builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
 
 // Services will be registered as they are implemented:
 // builder.Services.AddScoped<IAccountService, AccountService>();

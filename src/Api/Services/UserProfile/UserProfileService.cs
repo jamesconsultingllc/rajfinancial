@@ -112,24 +112,15 @@ public class UserProfileService(
             changed = true;
         }
 
-        // Throttle LastLoginAt updates — only stamp if null or older than 5 minutes
-        var loginStale = profile.LastLoginAt is null
-            || now - profile.LastLoginAt.Value > TimeSpan.FromMinutes(5);
-
-        if (loginStale)
-        {
-            profile.LastLoginAt = now;
-        }
+        // Always stamp LastLoginAt on every authenticated request
+        profile.LastLoginAt = now;
 
         if (changed)
         {
             profile.UpdatedAt = now;
         }
 
-        if (changed || loginStale)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return profile;
     }

@@ -1,0 +1,74 @@
+// ============================================================================
+// RAJ Financial - Client Assignment Response DTO
+// ============================================================================
+// Response contract for client management endpoints:
+//   - POST /api/auth/clients (201 Created — single assignment)
+//   - GET /api/auth/clients  (200 OK — list of assignments)
+// ============================================================================
+
+namespace RajFinancial.Shared.Contracts.Auth;
+
+/// <summary>
+///     Response DTO representing a client assignment (DataAccessGrant).
+/// </summary>
+/// <remarks>
+///     <para>
+///         Used as the response body for POST /api/auth/clients (single item)
+///         and as array elements for GET /api/auth/clients (list).
+///     </para>
+///     <para>
+///         Exposes only the fields needed by the UI — sensitive internal details
+///         like invitation tokens are excluded.
+///     </para>
+/// </remarks>
+/// <example>
+///     <code>
+///     // 201 Created response (POST /api/auth/clients)
+///     {
+///         "grantId": "aaa00000-0000-0000-0000-000000000001",
+///         "clientEmail": "client@example.com",
+///         "accessType": "Read",
+///         "categories": ["accounts", "investments"],
+///         "relationshipLabel": "Primary Advisor",
+///         "status": "Pending",
+///         "createdAt": "2026-02-16T12:00:00Z"
+///     }
+///     </code>
+/// </example>
+public sealed record ClientAssignmentResponse
+{
+    /// <summary>
+    ///     Unique identifier of the data access grant.
+    /// </summary>
+    public required Guid GrantId { get; init; }
+
+    /// <summary>
+    ///     The email address of the assigned client.
+    /// </summary>
+    public required string ClientEmail { get; init; }
+
+    /// <summary>
+    ///     The type of access granted (Owner, Full, Read, or Limited).
+    /// </summary>
+    public required string AccessType { get; init; }
+
+    /// <summary>
+    ///     Data categories accessible under this grant.
+    /// </summary>
+    public required IReadOnlyList<string> Categories { get; init; }
+
+    /// <summary>
+    ///     Optional label describing the relationship (e.g., "Primary Advisor").
+    /// </summary>
+    public string? RelationshipLabel { get; init; }
+
+    /// <summary>
+    ///     Current status of the grant (Pending, Active, Expired, or Revoked).
+    /// </summary>
+    public required string Status { get; init; }
+
+    /// <summary>
+    ///     When the grant was created.
+    /// </summary>
+    public required DateTimeOffset CreatedAt { get; init; }
+}
