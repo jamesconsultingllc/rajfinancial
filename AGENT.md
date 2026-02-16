@@ -281,9 +281,36 @@ _logger.LogWarning("Authorization denied: {UserId} attempted {Action} on {Resour
 | Internal APIs (WASM client) | MemoryPack | MemoryPack 1.21.4 |
 | Content negotiation | `Accept` header | `ContentNegotiationMiddleware` |
 
-- Development: Always JSON for easy debugging
+- **MemoryPack is the primary serialization format** — JSON exists only for development convenience and browser compatibility
 - Production: MemoryPack for 7-8x faster serialization, 60% smaller payloads
-- All shared DTOs decorated with `[MemoryPackable]`
+- All shared DTOs decorated with `[MemoryPackable(GenerateType.VersionTolerant)]` with `[MemoryPackOrder(n)]`
+
+### MemoryPack Testing Requirements
+
+**Every `[MemoryPackable]` DTO must have a MemoryPack round-trip test.** This is mandatory because:
+- `[MemoryPackOrder]` errors are silent at compile time but fail at runtime
+- Constructor-less deserialization can skip required property validation
+- Field ordering changes break binary compatibility
+
+For every new or modified DTO (entities, requests, responses), add tests that verify:
+
+1. **Round-trip fidelity** — Serialize → deserialize → assert all properties match
+2. **Default/empty values** — Round-trip with nulls, empty strings, default enums
+3. **Collection properties** — Round-trip with populated and empty collections
+
+```csharp
+[Fact]
+public void CreateAssetRequest_MemoryPackRoundTrip_PreservesAllProperties()
+{
+    var original = new CreateAssetRequest { /* populate all fields */ };
+    var bytes = MemoryPackSerializer.Serialize(original);
+    var deserialized = MemoryPackSerializer.Deserialize<CreateAssetRequest>(bytes);
+
+    deserialized.Should().BeEquivalentTo(original);
+}
+```
+
+**Do not** rely on generic `TestDto` round-trip tests as a proxy for real DTO coverage. Each DTO has its own `[MemoryPackOrder]` layout and must be tested individually.
 
 ---
 

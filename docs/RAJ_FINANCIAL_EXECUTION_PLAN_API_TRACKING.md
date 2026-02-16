@@ -52,8 +52,8 @@ This document contains the API implementation tracking tables extracted from [RA
 
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
-| AssetDto + AssetDetailDto | ⬜ Not Started | P0 | MemoryPack attributes, detail includes depreciation |
-| CreateAssetRequest + UpdateAssetRequest | ⬜ Not Started | P0 | MemoryPack attributes |
+| AssetDto + AssetDetailDto | ✅ Complete | P0 | MemoryPack attributes, detail includes depreciation |
+| CreateAssetRequest + UpdateAssetRequest | ✅ Complete | P0 | MemoryPack attributes |
 | LinkedAccountDto | ⬜ Not Started | P0 | MemoryPack attributes |
 | BeneficiaryDto + requests | ⬜ Not Started | P0 | MemoryPack attributes |
 | AIInsightDto | ⬜ Not Started | P1 | MemoryPack attributes |
@@ -62,7 +62,7 @@ This document contains the API implementation tracking tables extracted from [RA
 | ApiErrorResponse | ✅ Complete | P0 | Standardized errors with Code, Message, Details |
 | ErrorCodes constants | ✅ Complete | P0 | NotFoundException, ForbiddenException, etc. |
 | AddressDto | ⬜ Not Started | P1 | Value object |
-| Enums (all) | ⬜ Not Started | P0 | AssetType, DepreciationMethod, AccountType, etc. |
+| Enums (all) | ✅ Complete | P0 | AssetType, DepreciationMethod done; AccountType etc. remaining |
 
 ### 2.3 Core Domain (RAJFinancial.Core)
 
@@ -70,13 +70,13 @@ This document contains the API implementation tracking tables extracted from [RA
 |------|--------|----------|-------|
 | User entity | ⬜ Not Started | P0 | Entra External ID linked |
 | LinkedAccount entity | ⬜ Not Started | P0 | |
-| Asset entity | ⬜ Not Started | P0 | Includes depreciation, disposal, valuation fields |
+| Asset entity | ✅ Complete | P0 | Includes depreciation, disposal, valuation fields |
 | Beneficiary entity | ⬜ Not Started | P0 | |
 | BeneficiaryAssignment entity | ⬜ Not Started | P0 | |
 | ClientRelationship entity | ⬜ Not Started | P0 | Professional-to-client mapping |
 | AuditLog entity | ⬜ Not Started | P1 | |
 | IAccountService interface | ⬜ Not Started | P0 | |
-| IAssetService interface | ⬜ Not Started | P0 | |
+| IAssetService interface | ✅ Complete | P0 | |
 | IBeneficiaryService interface | ⬜ Not Started | P0 | |
 | IAnalysisService interface | ⬜ Not Started | P1 | |
 | IPlaidService interface | ⬜ Not Started | P0 | |
@@ -94,7 +94,7 @@ This document contains the API implementation tracking tables extracted from [RA
 | ClaudeAIService implementation | ⬜ Not Started | P1 | Insight generation |
 | EncryptionService | ⬜ Not Started | P0 | Key Vault integration |
 | AuditLogger | ⬜ Not Started | P1 | Change tracking |
-| AssetRepository | ⬜ Not Started | P0 | |
+| AssetRepository | N/A | P0 | Not needed — AssetService uses EF Core directly |
 | LinkedAccountRepository | ⬜ Not Started | P0 | |
 | BeneficiaryRepository | ⬜ Not Started | P0 | |
 
@@ -103,11 +103,11 @@ This document contains the API implementation tracking tables extracted from [RA
 | Task | Status | Priority | Notes |
 |------|--------|----------|-------|
 | AccountService | ⬜ Not Started | P0 | Plaid orchestration |
-| AssetService | ⬜ Not Started | P0 | CRUD + validation + depreciation calc |
-| DepreciationCalculator | ⬜ Not Started | P0 | Pure computation: StraightLine, DecliningBalance, MACRS |
+| AssetService | ✅ Complete | P0 | CRUD + validation + depreciation calc |
+| DepreciationCalculator | ✅ Complete | P0 | Pure computation: StraightLine, DecliningBalance, MACRS |
 | BeneficiaryService | ⬜ Not Started | P0 | Assignments included |
 | AnalysisService | ⬜ Not Started | P1 | Net worth, debt, insurance |
-| CreateAssetValidator | ⬜ Not Started | P0 | FluentValidation |
+| CreateAssetValidator | ✅ Complete | P0 | FluentValidation |
 | CreateBeneficiaryValidator | ⬜ Not Started | P0 | FluentValidation |
 | MappingProfile | ⬜ Not Started | P1 | AutoMapper config |
 
@@ -140,11 +140,11 @@ This document contains the API implementation tracking tables extracted from [RA
 #### Asset Functions
 | Endpoint | Function | Status | Priority |
 |----------|----------|--------|----------|
-| GET /api/assets | GetAssets | ⬜ Not Started | P0 |
-| GET /api/assets/{id} | GetAssetById | ⬜ Not Started | P0 |
-| POST /api/assets | CreateAsset | ⬜ Not Started | P0 |
-| PUT /api/assets/{id} | UpdateAsset | ⬜ Not Started | P0 |
-| DELETE /api/assets/{id} | DeleteAsset | ⬜ Not Started | P0 |
+| GET /api/assets | GetAssets | ✅ Complete | P0 |
+| GET /api/assets/{id} | GetAssetById | ✅ Complete | P0 |
+| POST /api/assets | CreateAsset | ✅ Complete | P0 |
+| PUT /api/assets/{id} | UpdateAsset | ✅ Complete | P0 |
+| DELETE /api/assets/{id} | DeleteAsset | ✅ Complete | P0 |
 | GET /api/assets/summary | GetAssetSummary | ⬜ Not Started | P1 |
 | POST /api/assets/{id}/dispose | DisposeAsset | ⬜ Not Started | P1 |
 | GET /api/assets/{id}/depreciation | GetDepreciationSchedule | ⬜ Not Started | P2 |
