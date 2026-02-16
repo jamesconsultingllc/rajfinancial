@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
 
@@ -33,6 +35,9 @@ public class UserProfileProvisioningSteps
     private string _testUserName = null!;
     private string _testUserRole = "Client";
 
+    // Track all emails used during a scenario for cleanup
+    private readonly List<string> _emailsToCleanup = [];
+
     // For tracking timing of provisioning
     private DateTimeOffset _requestTimestamp;
 
@@ -43,6 +48,44 @@ public class UserProfileProvisioningSteps
     {
         _fixture = fixture;
         _client = fixture.Client;
+    }
+
+    // =========================================================================
+    // Lifecycle — cleanup after each scenario
+    // =========================================================================
+
+    /// <summary>
+    /// Removes any <c>UserProfile</c> rows created during the scenario so that
+    /// subsequent runs start from a clean slate. Cleans up by both user ID and
+    /// any emails registered during the scenario.
+    /// </summary>
+    [AfterScenario]
+    public async Task CleanupAfterScenario()
+    {
+        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        if (string.IsNullOrEmpty(connStr))
+            return;
+
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+
+        // Delete by user ID (covers the primary profile)
+        if (!string.IsNullOrEmpty(_testUserId))
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM UserProfiles WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Delete by any emails registered during the scenario
+        foreach (var email in _emailsToCleanup)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM UserProfiles WHERE Email = @email";
+            cmd.Parameters.AddWithValue("@email", email);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     // =========================================================================
@@ -99,40 +142,63 @@ public class UserProfileProvisioningSteps
         var setupResponse = await _client.SendAsync(request);
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
             "initial request to create profile should succeed");
-
-        // Parse the previous LastLoginAt for comparison in subsequent Then steps
         var body = await setupResponse.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(body).RootElement;
         _previousLastLoginAt = json.GetProperty("lastLoginAt").GetDateTimeOffset();
 
-        // Small delay to ensure LastLoginAt difference is measurable
-        await Task.Delay(100);
+        // Back-date LastLoginAt >5 minutes so the throttle allows it to advance
+        // on the next request (the service throttles updates within 5 minutes).
+        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        if (!string.IsNullOrEmpty(connStr))
+        {
+            await using var conn = new SqlConnection(connStr);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE UserProfiles SET LastLoginAt = DATEADD(MINUTE, -6, LastLoginAt) WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+            await cmd.ExecuteNonQueryAsync();
+
+            // Re-read the back-dated value so _previousLastLoginAt reflects
+            // what the database now holds (the baseline for the Then assertion).
+            _previousLastLoginAt = _previousLastLoginAt.AddMinutes(-6);
+        }
     }
 
     [Given("a UserProfile exists for a user with email {string}")]
     public async Task GivenAUserProfileExistsForAUserWithEmail(string email)
     {
-        _testUserId = Guid.NewGuid().ToString();
+        _testUserId = TestClaimsBuilder.DeterministicUserId(email);
         _testUserEmail = email;
         _testUserName = "Original Name";
         _testUserRole = "Client";
+        _emailsToCleanup.Add(email);
+
+        // Clean up any stale profile for this email left by previous runs
+        // that used a different (random) user ID.
+        await CleanupStaleProfileAsync(email);
 
         var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, _testUserRole);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var setupResponse = await _client.SendAsync(request);
+        var body = await setupResponse.Content.ReadAsStringAsync();
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
-            "initial request to create profile should succeed");
+            $"initial request to create profile should succeed. Status: {setupResponse.StatusCode}, Body: {body}");
     }
 
     [Given("a UserProfile exists for a user with display name {string}")]
     public async Task GivenAUserProfileExistsForAUserWithDisplayName(string displayName)
     {
-        _testUserId = Guid.NewGuid().ToString();
-        _testUserEmail = $"nametest-{_testUserId[..8]}@example.com";
+        _testUserEmail = $"nametest-{displayName.Replace(" ", "").ToLowerInvariant()}@example.com";
+        _testUserId = TestClaimsBuilder.DeterministicUserId(_testUserEmail);
         _testUserName = displayName;
         _testUserRole = "Client";
+        _emailsToCleanup.Add(_testUserEmail);
+
+        // Clean up any stale profile for this email left by previous runs
+        // that used a different (random) user ID.
+        await CleanupStaleProfileAsync(_testUserEmail);
 
         var builder = new TestClaimsBuilder()
             .WithUserId(_testUserId)
@@ -242,6 +308,7 @@ public class UserProfileProvisioningSteps
     public async Task WhenISendAnAuthenticatedRequestToWithUpdatedEmail(string path, string newEmail)
     {
         _requestTimestamp = DateTimeOffset.UtcNow;
+        _emailsToCleanup.Add(newEmail);
 
         var builder = new TestClaimsBuilder()
             .WithUserId(_testUserId)
@@ -377,5 +444,30 @@ public class UserProfileProvisioningSteps
     {
         _responseJson.GetProperty("displayName").GetString()
             .Should().Be(expectedName, "the display name should be synced from updated JWT claims");
+    }
+
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    /// <summary>
+    /// Deletes any existing <c>UserProfile</c> row for the given email so that
+    /// JIT provisioning can create a fresh one with the current deterministic user ID.
+    /// Stale rows are left behind when previous test runs used random GUIDs.
+    /// Requires the <c>SqlConnectionString</c> from <c>appsettings.local.json</c>;
+    /// silently skips if no connection string is configured.
+    /// </summary>
+    private async Task CleanupStaleProfileAsync(string email)
+    {
+        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        if (string.IsNullOrEmpty(connStr))
+            return;
+
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM UserProfiles WHERE Email = @email";
+        cmd.Parameters.AddWithValue("@email", email);
+        await cmd.ExecuteNonQueryAsync();
     }
 }

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -9,9 +10,12 @@ using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Validators;
+using RajFinancial.Shared.Contracts.Assets;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -154,17 +158,21 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 // Advisor–client data-access grant management
 builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
 
+// Asset management
+builder.Services.AddScoped<IAssetService, AssetService>();
+
 // Services will be registered as they are implemented:
 // builder.Services.AddScoped<IAccountService, AccountService>();
-// builder.Services.AddScoped<IAssetService, AssetService>();
 // builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
 
 // ============================================================================
 // Validators (FluentValidation)
 // ============================================================================
 
+builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
+
 // Register validators as they are implemented:
-// builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();
 // builder.Services.AddScoped<IValidator<DebtPayoffRequest>, DebtPayoffRequestValidator>();
 

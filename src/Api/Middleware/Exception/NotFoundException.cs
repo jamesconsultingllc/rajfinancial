@@ -1,4 +1,6 @@
-﻿namespace RajFinancial.Api.Middleware.Exception;
+﻿using RajFinancial.Shared.Contracts.Assets;
+
+namespace RajFinancial.Api.Middleware.Exception;
 
 /// <summary>
 /// Exception thrown when a requested resource is not found.
@@ -8,7 +10,7 @@ public class NotFoundException(string errorCode, string message) : System.Except
     public string ErrorCode { get; } = errorCode;
 
     public static NotFoundException Asset(Guid assetId) =>
-        new("ASSET_NOT_FOUND", $"Asset with ID {assetId} was not found");
+        new(AssetErrorCodes.NOT_FOUND, $"Asset with ID {assetId} was not found");
 
     public static NotFoundException Account(Guid accountId) =>
         new("ACCOUNT_NOT_FOUND", $"Account with ID {accountId} was not found");

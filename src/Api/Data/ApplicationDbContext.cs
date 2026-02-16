@@ -29,6 +29,16 @@ public class ApplicationDbContext : DbContext
     /// </summary>
     public DbSet<DataAccessGrant> DataAccessGrants => Set<DataAccessGrant>();
 
+    /// <summary>
+    /// Assets owned by users (TPH base: includes both Asset and DepreciableAsset).
+    /// </summary>
+    public DbSet<Asset> Assets => Set<Asset>();
+
+    /// <summary>
+    /// Depreciable assets (TPH derived: physical assets that lose value over time).
+    /// </summary>
+    public DbSet<DepreciableAsset> DepreciableAssets => Set<DepreciableAsset>();
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -104,6 +114,58 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.GranteeUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure Asset (TPH base)
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // TPH discriminator
+            entity.HasDiscriminator<string>("AssetDiscriminator")
+                .HasValue<Asset>("Asset")
+                .HasValue<DepreciableAsset>("DepreciableAsset");
+
+            // Indexes for efficient queries
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.Type });
+            entity.HasIndex(e => new { e.UserId, e.IsDisposed });
+
+            // Property constraints
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Location).HasMaxLength(500);
+            entity.Property(e => e.AccountNumber).HasMaxLength(100);
+            entity.Property(e => e.InstitutionName).HasMaxLength(200);
+            entity.Property(e => e.DisposalNotes).HasMaxLength(2000);
+
+            // Decimal precision
+            entity.Property(e => e.CurrentValue).HasPrecision(18, 2);
+            entity.Property(e => e.PurchasePrice).HasPrecision(18, 2);
+            entity.Property(e => e.DisposalPrice).HasPrecision(18, 2);
+            entity.Property(e => e.MarketValue).HasPrecision(18, 2);
+
+            // Store enum as string for readability
+            entity.Property(e => e.Type)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            // FK to UserProfile with restrict delete
+            entity.HasOne<UserProfile>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure DepreciableAsset (TPH derived)
+        modelBuilder.Entity<DepreciableAsset>(entity =>
+        {
+            entity.Property(e => e.SalvageValue).HasPrecision(18, 2);
+
+            // Store enum as string for readability
+            entity.Property(e => e.DepreciationMethod)
+                .HasConversion<string>()
+                .HasMaxLength(50);
         });
     }
 }

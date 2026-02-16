@@ -1183,20 +1183,30 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         var content = await Page.ContentAsync();
         var url = Page.Url;
 
-        // Check if either condition is met:
+        // Check if any of these conditions are met:
         // 1. Access denied message is shown
         // 2. Redirected to home page
+        // 3. Redirected to login page (auth challenge — browser-specific behavior)
         var hasAccessDeniedMessage = content.Contains(expectedMessage, StringComparison.OrdinalIgnoreCase) ||
-                                     content.Contains("not authorized", StringComparison.OrdinalIgnoreCase);
+                                     content.Contains("not authorized", StringComparison.OrdinalIgnoreCase) ||
+                                     content.Contains("access denied", StringComparison.OrdinalIgnoreCase);
 
         var isOnHomePage = url == PlaywrightHooks.BaseUrl ||
                            url == PlaywrightHooks.BaseUrl + "/" ||
                            url.EndsWith("/#");
 
+        var isOnLoginPage = url.Contains("/authentication/login", StringComparison.OrdinalIgnoreCase);
+
+        // Also verify admin content is NOT visible (the real business assertion)
+        var hasAdminContent = content.Contains("Administrator Dashboard", StringComparison.OrdinalIgnoreCase);
+
         Assert.True(
-            hasAccessDeniedMessage || isOnHomePage,
-            $"Expected either '{expectedMessage}' message or redirect to home page. " +
+            hasAccessDeniedMessage || isOnHomePage || isOnLoginPage,
+            $"Expected '{expectedMessage}', redirect to home, or redirect to login. " +
             $"Current URL: {url}, Content contains '{expectedMessage}': {hasAccessDeniedMessage}");
+
+        Assert.False(hasAdminContent,
+            "Admin dashboard content should not be visible to a Client user");
     }
 
     /// <summary>

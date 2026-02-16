@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace RajFinancial.IntegrationTests.Support;
 
@@ -65,7 +67,7 @@ internal class TestClaimsBuilder
         params string[] roles)
     {
         var builder = new TestClaimsBuilder()
-            .WithUserId(userId ?? Guid.NewGuid().ToString())
+            .WithUserId(userId ?? DeterministicUserId(email))
             .WithEmail(email)
             .WithName(email.Split('@')[0]);
 
@@ -113,7 +115,7 @@ internal class TestClaimsBuilder
         params string[] roles)
     {
         var builder = new TestClaimsBuilder()
-            .WithUserId(userId ?? Guid.NewGuid().ToString())
+            .WithUserId(userId ?? DeterministicUserId(email))
             .WithEmail(email)
             .WithName(email.Split('@')[0]);
 
@@ -131,5 +133,24 @@ internal class TestClaimsBuilder
         string? userId = null)
     {
         return JwtForUser(email, userId, "Administrator");
+    }
+
+    /// <summary>
+    /// Generates a deterministic GUID from an email address using MD5 hashing.
+    /// Ensures that the same email always produces the same <c>oid</c> claim across
+    /// test runs, which prevents <c>UserProfile</c> unique-constraint violations on
+    /// <c>(TenantId, Email)</c> when the <c>UserProfileProvisioningMiddleware</c>
+    /// JIT-provisions profiles against a real database.
+    /// </summary>
+    /// <remarks>
+    /// <b>Test-only.</b> MD5 is not cryptographically secure and must not be copied
+    /// into production code. It is used here solely for deterministic ID generation
+    /// where collision resistance and security are irrelevant.
+    /// </remarks>
+    internal static string DeterministicUserId(string email)
+    {
+        // WARNING: MD5 is used for deterministic test IDs only — not for security.
+        var hash = MD5.HashData(Encoding.UTF8.GetBytes(email.ToLowerInvariant()));
+        return new Guid(hash).ToString();
     }
 }

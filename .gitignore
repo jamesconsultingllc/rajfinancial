@@ -48,6 +48,9 @@ certificate.pfx
 test-publish/
 func-logs/
 func-logs2/
+
+# Review artifacts
+review.md
 func-logs*.zip
 session.md
 docs/session.md
