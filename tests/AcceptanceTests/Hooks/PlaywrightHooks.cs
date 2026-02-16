@@ -11,12 +11,24 @@ namespace RajFinancial.AcceptanceTests.Hooks;
 
 /// <summary>
 ///     Hooks for managing Playwright browser and page lifecycle.
+///     Includes automatic browser recovery for headless CI environments
+///     where the browser process may crash due to GPU/dbus issues.
 /// </summary>
 [Binding]
 public class PlaywrightHooks(ScenarioContext scenarioContext)
 {
     private static IPlaywright? playwright;
     private static IBrowser? browser;
+
+    /// <summary>
+    ///     Cached browser type for re-launching after crash recovery.
+    /// </summary>
+    private static string cachedBrowserType = "chromium";
+
+    /// <summary>
+    ///     Cached headless flag for re-launching after crash recovery.
+    /// </summary>
+    private static bool cachedHeadless = true;
 
     private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -38,26 +50,21 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static string BaseUrl => TestConfiguration.Instance.BaseUrl;
 
     /// <summary>
-    ///     Gets the configured browser type name.
-    /// </summary>
-    private static string BrowserType =>
-        Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
-
-    /// <summary>
-    ///     Gets whether headless mode is enabled.
-    /// </summary>
-    private static bool IsHeadless => Environment.GetEnvironmentVariable("HEADED") != "true";
-
-    /// <summary>
     ///     Initializes Playwright before all tests.
     /// </summary>
     [BeforeTestRun]
     public static async Task BeforeTestRun()
     {
         playwright = await Playwright.CreateAsync();
+
+        // Get browser type from environment variable (default: chromium)
+        // Options: chromium, firefox, webkit, msedge, chrome
+        cachedBrowserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
+        cachedHeadless = Environment.GetEnvironmentVariable("HEADED") != "true";
+
         browser = await LaunchBrowserAsync();
 
-        Console.WriteLine($"Browser: {BrowserType}, Headless: {IsHeadless}");
+        Console.WriteLine($"?? Browser: {cachedBrowserType}, Headless: {cachedHeadless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
@@ -68,162 +75,106 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
             if (!testUserEmails.TryGetValue(role, out var email)) continue;
 
-            try
-            {
-                await EnsureStorageStateAsync(role, email, storagePath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[BeforeTestRun] Storage state generation failed for {role}: {ex.Message}");
-
-                // Re-launch browser if it crashed during auth flow
-                if (!await IsBrowserAliveAsync())
-                {
-                    Console.WriteLine("[BeforeTestRun] Browser crashed during auth — re-launching.");
-                    browser = await LaunchBrowserAsync();
-                }
-            }
+            await EnsureStorageStateAsync(role, email, storagePath);
         }
     }
 
     /// <summary>
-    ///     Launches the Playwright browser using the configured type and stability flags.
+    ///     Launches (or re-launches) the browser using the cached configuration.
+    ///     Used during initial setup and for crash recovery in headless CI environments.
     /// </summary>
     /// <returns>The launched browser instance.</returns>
     private static async Task<IBrowser> LaunchBrowserAsync()
     {
-        // Stability flags for headless CI runners.
-        // --disable-gpu / --disable-dev-shm-usage / --no-sandbox: prevent crashes from shared memory and GPU.
-        // --disable-dbus: prevents Edge/Chrome from connecting to missing D-Bus services on Linux CI
-        //   (UPower, theme sync, etc.) which cause TargetClosedException on long-lived instances.
-        var ciArgs = IsHeadless
-            ? new[] { "--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox", "--disable-dbus" }
-            : Array.Empty<string>();
-
         // For Edge and Chrome, we use Chromium with a channel
         var launchOptions = new BrowserTypeLaunchOptions
         {
-            Headless = IsHeadless,
-            Channel = BrowserType switch
+            Headless = cachedHeadless,
+            Channel = cachedBrowserType switch
             {
                 "msedge" => "msedge",
                 "chrome" => "chrome",
                 _ => null // Use default Chromium
-            },
-            Args = ciArgs
+            }
         };
 
-        return BrowserType switch
+        return cachedBrowserType switch
         {
-            "firefox" => await playwright!.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
-            {
-                Headless = IsHeadless,
-                Args = ciArgs
-            }),
-            "webkit" => await playwright!.Webkit.LaunchAsync(new BrowserTypeLaunchOptions
-            {
-                Headless = IsHeadless
-            }),
+            "firefox" => await playwright!.Firefox.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = cachedHeadless }),
+            "webkit" => await playwright!.Webkit.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = cachedHeadless }),
             _ => await playwright!.Chromium
                 .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
         };
     }
 
     /// <summary>
-    ///     Checks whether the shared browser instance is still alive and accepting commands.
-    /// </summary>
-    /// <returns>True if the browser is connected; false if it has crashed or been closed.</returns>
-    private static async Task<bool> IsBrowserAliveAsync()
-    {
-        if (browser is null) return false;
-
-        try
-        {
-            // Probe the browser by checking its connected state.
-            // If the process has died, IsConnected returns false.
-            if (!browser.IsConnected) return false;
-
-            // Double-check by attempting to create and immediately close a context.
-            var ctx = await browser.NewContextAsync();
-            await ctx.CloseAsync();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    ///     Creates a new page before each scenario.
-    ///     Includes browser health check with retry logic to recover from mid-run crashes
-    ///     (e.g. msedge D-Bus failures on Linux CI). Retries up to 3 times with exponential
-    ///     backoff if the browser dies immediately after re-launch.
+    ///     Creates a new browser context and page before each scenario.
+    ///     Includes automatic browser recovery if the browser process has crashed
+    ///     (common in headless CI environments due to GPU/dbus transient failures).
     /// </summary>
     [BeforeScenario]
     public async Task BeforeScenario()
     {
-        const int maxRetries = 3;
+        IBrowserContext context;
+        IPage page;
 
-        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        try
         {
+            context = await browser!.NewContextAsync(new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+            });
+            page = await context.NewPageAsync();
+        }
+        catch (PlaywrightException ex) when (ex.Message.Contains("Target page, context or browser has been closed") ||
+                                                ex.Message.Contains("Target closed") ||
+                                                ex.Message.Contains("Browser has been closed"))
+        {
+            // Browser process crashed (e.g., GPU transient failure on headless Linux CI).
+            // Re-launch the browser and retry creating the context/page.
+            Console.WriteLine("?? Browser crashed — re-launching for scenario recovery...");
+
             try
             {
-                // Recover from browser crash (e.g. msedge dies from D-Bus issues on Linux CI)
-                if (!await IsBrowserAliveAsync())
+                if (browser != null)
                 {
-                    Console.WriteLine(
-                        $"[BeforeScenario] Browser is not alive — re-launching (attempt {attempt}/{maxRetries}).");
-                    browser = await LaunchBrowserAsync();
-
-                    // Give the browser process time to stabilise after launch
-                    await Task.Delay(500);
+                    await browser.DisposeAsync();
                 }
-
-                var context = await browser!.NewContextAsync(new BrowserNewContextOptions
-                {
-                    ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
-                });
-                var page = await context.NewPageAsync();
-
-                scenarioContext.Set(context, "BrowserContext");
-                scenarioContext.Set(page, "Page");
-                return; // Success — exit retry loop
             }
-            catch (PlaywrightException ex) when (attempt < maxRetries
-                                                     && ex.Message.Contains("Target", StringComparison.OrdinalIgnoreCase))
+            catch
             {
-                Console.WriteLine(
-                    $"[BeforeScenario] Browser closed on attempt {attempt}: {ex.Message}");
-
-                // Force-close the dead browser so the next iteration re-launches a fresh one
-                try
-                {
-                    if (browser is not null) await browser.CloseAsync();
-                }
-                catch
-                {
-                    // Ignore — browser may already be dead
-                }
-
-                browser = null;
-                await Task.Delay(1000 * attempt); // Exponential backoff
+                // Ignore disposal errors on a dead browser
             }
+
+            browser = await LaunchBrowserAsync();
+
+            context = await browser.NewContextAsync(new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+            });
+            page = await context.NewPageAsync();
+
+            Console.WriteLine("?? Browser re-launched successfully.");
         }
+
+        scenarioContext.Set(context, "BrowserContext");
+        scenarioContext.Set(page, "Page");
     }
 
     /// <summary>
     ///     Closes the page and context after each scenario.
-    ///     Uses defensive error handling to prevent cascading <see cref="TargetClosedException" />
-    ///     failures when the browser, context, or page has already been closed.
+    ///     Captures a screenshot on failure if the browser is still alive.
     /// </summary>
     [AfterScenario]
     public async Task AfterScenario()
     {
-        if (scenarioContext.TryGetValue<IPage>("Page", out var page))
+        try
         {
-            try
+            if (scenarioContext.TryGetValue<IPage>("Page", out var page))
             {
+                // Take screenshot on failure
                 if (scenarioContext.TestError != null)
                 {
                     try
@@ -236,35 +187,39 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
                         Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
                         await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
                     }
-                    catch (Exception ex)
+                    catch (PlaywrightException)
                     {
-                        Console.WriteLine($"[AfterScenario] Failed to capture screenshot: {ex.Message}");
+                        // Browser already crashed — screenshot not possible
+                        Console.WriteLine("?? Could not capture failure screenshot — browser crashed.");
                     }
                 }
-            }
-            finally
-            {
+
                 try
                 {
                     await page.CloseAsync();
                 }
-                catch (Exception ex)
+                catch (PlaywrightException)
                 {
-                    Console.WriteLine($"[AfterScenario] Failed to close page: {ex.Message}");
+                    // Already closed
+                }
+            }
+
+            if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context))
+            {
+                try
+                {
+                    await context.CloseAsync();
+                }
+                catch (PlaywrightException)
+                {
+                    // Already closed
                 }
             }
         }
-
-        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context))
+        catch (PlaywrightException)
         {
-            try
-            {
-                await context.CloseAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AfterScenario] Failed to close context: {ex.Message}");
-            }
+            // Browser process died — nothing to clean up
+            Console.WriteLine("?? Browser process died during scenario cleanup.");
         }
     }
 
@@ -276,7 +231,15 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     {
         if (browser != null)
         {
-            await browser.CloseAsync();
+            try
+            {
+                await browser.CloseAsync();
+            }
+            catch (PlaywrightException)
+            {
+                // Browser already crashed — nothing to close
+            }
+
             await browser.DisposeAsync();
         }
 
