@@ -36,7 +36,7 @@
     <ProjectReference Include="..\..\src\Shared\RajFinancial.Shared.csproj" />
   </ItemGroup>
 
-  <!-- Copy appsettings files to output directory -->
+  <!-- Copy config files to output directory -->
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -44,6 +44,9 @@
     <None Update="appsettings.local.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
