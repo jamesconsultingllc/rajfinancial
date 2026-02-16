@@ -21,6 +21,16 @@ on:
       - 'tests/Api.Tests/**'
       - 'tests/IntegrationTests/**'
       - '.github/workflows/azure-functions.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/Api/**'
+      - 'src/Shared/**'
+      - 'tests/Api.Tests/**'
+      - 'tests/IntegrationTests/**'
+      - '.github/workflows/azure-functions.yml'
 
 permissions:
   id-token: write

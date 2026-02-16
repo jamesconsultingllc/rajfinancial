@@ -14,14 +14,14 @@ public class FunctionsHostFixture
 
     public FunctionsHostFixture()
     {
-        var config = new ConfigurationBuilder()
+        Configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false)
             .AddJsonFile("appsettings.local.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
-        baseUrl = config["FunctionsHost:BaseUrl"] ?? "https://localhost:7071";
+        baseUrl = Configuration["FunctionsHost:BaseUrl"] ?? "http://localhost:7071";
 
         // Accept self-signed certificates issued by Azure Functions Core Tools (func start --useHttps).
         // This is scoped to localhost only — remote endpoints use real certificates.
@@ -39,6 +39,11 @@ public class FunctionsHostFixture
     /// Pre-configured HttpClient pointing at the Functions host.
     /// </summary>
     public HttpClient Client { get; }
+
+    /// <summary>
+    /// Application configuration (appsettings.json + environment).
+    /// </summary>
+    public IConfiguration Configuration { get; }
 
     /// <summary>
     /// The base URL of the running Functions host.
