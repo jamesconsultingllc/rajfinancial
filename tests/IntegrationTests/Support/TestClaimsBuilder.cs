@@ -142,8 +142,14 @@ internal class TestClaimsBuilder
     /// <c>(TenantId, Email)</c> when the <c>UserProfileProvisioningMiddleware</c>
     /// JIT-provisions profiles against a real database.
     /// </summary>
+    /// <remarks>
+    /// <b>Test-only.</b> MD5 is not cryptographically secure and must not be copied
+    /// into production code. It is used here solely for deterministic ID generation
+    /// where collision resistance and security are irrelevant.
+    /// </remarks>
     internal static string DeterministicUserId(string email)
     {
+        // WARNING: MD5 is used for deterministic test IDs only — not for security.
         var hash = MD5.HashData(Encoding.UTF8.GetBytes(email.ToLowerInvariant()));
         return new Guid(hash).ToString();
     }

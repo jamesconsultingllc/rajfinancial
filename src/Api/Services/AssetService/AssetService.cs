@@ -137,17 +137,32 @@ public class AssetService(
         // If the asset type is changing between depreciable and non-depreciable,
         // we need to delete and recreate due to TPH discriminator constraints.
         // Wrapped in a transaction to ensure atomicity of remove+add.
+        // DbUpdateException is caught to handle concurrent type-switch race conditions
+        // (e.g., two requests both attempting to switch the same asset's type simultaneously).
         if (nowIsDepreciable != wasDepreciable)
         {
             var newAsset = RecreateAssetWithNewType(asset, request, nowIsDepreciable);
 
-            await using var transaction = await db.Database.BeginTransactionAsync();
-            db.Assets.Remove(asset);
-            await db.SaveChangesAsync();
+            try
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync();
+                db.Assets.Remove(asset);
+                await db.SaveChangesAsync();
 
-            db.Assets.Add(newAsset);
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
+                db.Assets.Add(newAsset);
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                logger.LogWarning(ex,
+                    "Concurrent type-switch conflict for asset {AssetId}. Client should retry.",
+                    assetId);
+
+                throw new BusinessRuleException(
+                    "ASSET_CONCURRENT_MODIFICATION",
+                    $"Asset '{assetId}' was modified by another request. Please retry.");
+            }
 
             logger.LogInformation("Asset {AssetId} type changed (depreciable={IsDepreciable}) for user {UserId}",
                 assetId, nowIsDepreciable, asset.UserId);
