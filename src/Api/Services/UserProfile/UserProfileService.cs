@@ -53,14 +53,32 @@ public class UserProfileService(
                 LastLoginAt = now
             };
 
-            dbContext.UserProfiles.Add(profile);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            try
+            {
+                dbContext.UserProfiles.Add(profile);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-            logger.LogInformation(
-                "JIT provisioned UserProfile for {UserId} ({Email}) with role {Role}",
-                userId, email, mappedRole);
+                logger.LogInformation(
+                    "JIT provisioned UserProfile for {UserId} ({Email}) with role {Role}",
+                    userId, email, mappedRole);
 
-            return profile;
+                return profile;
+            }
+            catch (DbUpdateException)
+            {
+                // Concurrent request already created this profile — detach and reload
+                logger.LogInformation(
+                    "Concurrent JIT provisioning detected for {UserId}; reloading existing profile",
+                    userId);
+
+                dbContext.Entry(profile).State = EntityState.Detached;
+                profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+
+                if (profile is null)
+                {
+                    throw; // Re-throw if reload also fails — something is truly wrong
+                }
+            }
         }
 
         // Returning user — sync mutable claim data
@@ -94,15 +112,24 @@ public class UserProfileService(
             changed = true;
         }
 
-        // Always stamp LastLoginAt
-        profile.LastLoginAt = now;
+        // Throttle LastLoginAt updates — only stamp if null or older than 5 minutes
+        var loginStale = profile.LastLoginAt is null
+            || now - profile.LastLoginAt.Value > TimeSpan.FromMinutes(5);
+
+        if (loginStale)
+        {
+            profile.LastLoginAt = now;
+        }
 
         if (changed)
         {
             profile.UpdatedAt = now;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (changed || loginStale)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         return profile;
     }

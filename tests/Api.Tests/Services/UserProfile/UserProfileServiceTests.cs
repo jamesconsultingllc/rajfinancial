@@ -287,7 +287,28 @@ public class UserProfileServiceTests : IDisposable
     // =========================================================================
 
     [Fact]
-    public async Task EnsureProfileExists_ReturningUser_UpdatesLastLoginAt()
+    public async Task EnsureProfileExists_ReturningUser_UpdatesLastLoginAt_WhenStale()
+    {
+        // Arrange
+        var service = CreateService();
+        var initialProfile = await service.EnsureProfileExistsAsync(
+            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+
+        // Simulate stale LastLoginAt (>5 minutes ago)
+        initialProfile.LastLoginAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await dbContext.SaveChangesAsync();
+
+        // Act
+        var updatedProfile = await service.EnsureProfileExistsAsync(
+            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+
+        // Assert
+        updatedProfile.LastLoginAt.Should().BeCloseTo(
+            DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task EnsureProfileExists_ReturningUser_SkipsLastLoginAtUpdate_WhenRecent()
     {
         // Arrange
         var service = CreateService();
@@ -295,15 +316,12 @@ public class UserProfileServiceTests : IDisposable
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
         var originalLastLogin = initialProfile.LastLoginAt;
 
-        // Small delay to ensure timestamp difference
-        await Task.Delay(10);
-
-        // Act
+        // Act — called again immediately (within 5-minute window)
         var updatedProfile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
-        // Assert
-        updatedProfile.LastLoginAt.Should().BeAfter(originalLastLogin!.Value);
+        // Assert — LastLoginAt should NOT have changed
+        updatedProfile.LastLoginAt.Should().Be(originalLastLogin);
     }
 
     [Fact]

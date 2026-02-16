@@ -3,6 +3,8 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using SysException = System.Exception;
+
 namespace RajFinancial.Api.Middleware;
 
 /// <summary>
@@ -46,26 +48,17 @@ public class UserProfileProvisioningMiddleware(
                     var roles = context.GetUserRoles();
 
                     var profileService = context.InstanceServices
-                        .GetService<Services.UserProfiles.IUserProfileService>();
+                        .GetRequiredService<Services.UserProfiles.IUserProfileService>();
 
-                    if (profileService is not null)
-                    {
-                        await profileService.EnsureProfileExistsAsync(
-                            userIdGuid.Value,
-                            email,
-                            displayName,
-                            roles);
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "IUserProfileService not registered; skipping provisioning for {UserId}",
-                            userIdGuid.Value);
-                    }
+                    await profileService.EnsureProfileExistsAsync(
+                        userIdGuid.Value,
+                        email,
+                        displayName,
+                        roles);
                 }
             }
         }
-        catch (System.Exception ex)
+        catch (SysException ex)
         {
             logger.LogWarning(
                 ex,
