@@ -7,13 +7,15 @@ on:
       - main
       - develop
       - 'release/**'
+      - 'feature/**'
+      - 'hotfix/**'
     paths:
       - 'src/**'
       - 'tests/**'
       - '*.sln'
       - '.github/workflows/**'
   pull_request:
-    types: [ opened, synchronize, reopened, closed ]
+    types: [ closed ]
     branches:
       - main
       - develop
@@ -22,11 +24,10 @@ on:
 permissions:
   id-token: write
   contents: read
-  pull-requests: read
 
 jobs:
   detect_changes:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     name: Detect Changes
     outputs:
@@ -44,7 +45,7 @@ jobs:
               - 'src/**'
 
   unit_tests_job:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     name: Unit Tests
     steps:
@@ -67,7 +68,7 @@ jobs:
   build_and_deploy_job:
     # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
     if: |
-      (github.event_name != 'pull_request' || github.event.action != 'closed') &&
+      github.event_name != 'pull_request' &&
       (needs.detect_changes.outputs.src_changed == 'true' ||
        startsWith(github.ref, 'refs/heads/feature/') ||
        startsWith(github.ref, 'refs/heads/hotfix/'))
@@ -175,7 +176,7 @@ jobs:
 
   e2e_tests_job:
     if: |
-      (github.event_name != 'pull_request' || github.event.action != 'closed') &&
+      github.event_name != 'pull_request' &&
       always() &&
       needs.unit_tests_job.result == 'success' &&
       (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
