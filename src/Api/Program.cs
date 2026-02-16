@@ -10,6 +10,7 @@ using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
+using RajFinancial.Api.Services.UserProfiles;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -35,12 +36,14 @@ builder.ConfigureFunctionsWebApplication();
 // ============================================================================
 // 1. Exception handling - catches all errors and formats responses
 // 2. Authentication - extracts user context from JWT
-// 3. Authorization - enforces [RequireAuthentication] and [RequireRole] attributes
-// 4. Content negotiation - handles JSON/MemoryPack serialization
-// 5. Validation - validates request bodies
+// 3. UserProfile provisioning - JIT creates/syncs local DB shadow of Entra user
+// 4. Authorization - enforces [RequireAuthentication] and [RequireRole] attributes
+// 5. Content negotiation - handles JSON/MemoryPack serialization
+// 6. Validation - validates request bodies
 // ============================================================================
 builder.UseMiddleware<ExceptionMiddleware>();
 builder.UseMiddleware<AuthenticationMiddleware>();
+builder.UseMiddleware<UserProfileProvisioningMiddleware>();
 builder.UseMiddleware<AuthorizationMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();
@@ -140,6 +143,9 @@ else
 // ============================================================================
 // Application Services
 // ============================================================================
+
+// JIT user profile provisioning (creates/syncs local shadow of Entra user)
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
 // Resource-level authorization (three-tier: owner → grant → admin)
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
