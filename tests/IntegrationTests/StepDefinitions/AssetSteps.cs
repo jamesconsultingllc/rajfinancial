@@ -20,6 +20,7 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 ///     Tests hit real HTTP endpoints via the Azure Functions host.
 /// </summary>
 [Binding]
+[Scope(Tag = "assets")]
 public class AssetSteps
 {
     private static readonly JsonSerializerOptions JsonOptions = new()

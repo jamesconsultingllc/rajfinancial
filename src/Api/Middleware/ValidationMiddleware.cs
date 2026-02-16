@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
@@ -38,34 +39,19 @@ namespace RajFinancial.Api.Middleware;
 /// </remarks>
 public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
-    private static readonly string get = HttpMethod.Get.ToString();
-
-    public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
+    public Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        var httpRequest = await context.GetHttpRequestDataAsync();
-        
-        // Only process requests with a body
-        if (httpRequest is not null && !string.Equals(httpRequest.Method, get, StringComparison.OrdinalIgnoreCase) && httpRequest.Body.CanRead)
+        // ContentNegotiationMiddleware runs before this and stores the raw body bytes
+        // in context.Items["RequestBodyBytes"]. Re-use those instead of re-reading
+        // the (potentially non-seekable) body stream.
+        if (context.Items.TryGetValue("RequestBodyBytes", out var bytesObj) &&
+            bytesObj is byte[] bodyBytes &&
+            bodyBytes.Length > 0)
         {
-            try
-            {
-                // Read and store the body for later use
-                httpRequest.Body.Position = 0;
-                using var reader = new StreamReader(httpRequest.Body, leaveOpen: true);
-                var bodyString = await reader.ReadToEndAsync();
-                httpRequest.Body.Position = 0; // Reset for potential re-reading
-
-                // Store raw body in context
-                context.Items["RequestBody"] = bodyString;
-
-                logger.LogDebug("Request body captured for validation");
-            }
-            catch (System.Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to read request body for validation");
-            }
+            context.Items["RequestBody"] = Encoding.UTF8.GetString(bodyBytes);
+            logger.LogDebug("Request body captured for validation");
         }
 
-        await next(context);
+        return next(context);
     }
 }
