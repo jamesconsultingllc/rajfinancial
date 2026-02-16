@@ -38,45 +38,26 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static string BaseUrl => TestConfiguration.Instance.BaseUrl;
 
     /// <summary>
+    ///     Gets the configured browser type name.
+    /// </summary>
+    private static string BrowserType =>
+        Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
+
+    /// <summary>
+    ///     Gets whether headless mode is enabled.
+    /// </summary>
+    private static bool IsHeadless => Environment.GetEnvironmentVariable("HEADED") != "true";
+
+    /// <summary>
     ///     Initializes Playwright before all tests.
     /// </summary>
     [BeforeTestRun]
     public static async Task BeforeTestRun()
     {
         playwright = await Playwright.CreateAsync();
+        browser = await LaunchBrowserAsync();
 
-        // Get browser type from environment variable (default: chromium)
-        // Options: chromium, firefox, webkit, msedge, chrome
-        var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
-        var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
-
-        // Stability flags for headless CI runners (prevents crashes from shared memory and GPU issues)
-        var ciArgs = headless
-            ? new[] { "--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox" }
-            : Array.Empty<string>();
-
-        // For Edge and Chrome, we use Chromium with a channel
-        var launchOptions = new BrowserTypeLaunchOptions
-        {
-            Headless = headless,
-            Channel = browserType switch
-            {
-                "msedge" => "msedge",
-                "chrome" => "chrome",
-                _ => null // Use default Chromium
-            },
-            Args = ciArgs
-        };
-
-        browser = browserType switch
-        {
-            "firefox" => await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            "webkit" => await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            _ => await playwright.Chromium
-                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
-        };
-
-        Console.WriteLine($"?? Browser: {browserType}, Headless: {headless}");
+        Console.WriteLine($"Browser: {BrowserType}, Headless: {IsHeadless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
@@ -87,16 +68,107 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
             if (!testUserEmails.TryGetValue(role, out var email)) continue;
 
-            await EnsureStorageStateAsync(role, email, storagePath);
+            try
+            {
+                await EnsureStorageStateAsync(role, email, storagePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BeforeTestRun] Storage state generation failed for {role}: {ex.Message}");
+
+                // Re-launch browser if it crashed during auth flow
+                if (!await IsBrowserAliveAsync())
+                {
+                    Console.WriteLine("[BeforeTestRun] Browser crashed during auth — re-launching.");
+                    browser = await LaunchBrowserAsync();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Launches the Playwright browser using the configured type and stability flags.
+    /// </summary>
+    /// <returns>The launched browser instance.</returns>
+    private static async Task<IBrowser> LaunchBrowserAsync()
+    {
+        // Stability flags for headless CI runners.
+        // --disable-gpu / --disable-dev-shm-usage / --no-sandbox: prevent crashes from shared memory and GPU.
+        // --disable-dbus: prevents Edge/Chrome from connecting to missing D-Bus services on Linux CI
+        //   (UPower, theme sync, etc.) which cause TargetClosedException on long-lived instances.
+        var ciArgs = IsHeadless
+            ? new[] { "--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox", "--disable-dbus" }
+            : Array.Empty<string>();
+
+        // For Edge and Chrome, we use Chromium with a channel
+        var launchOptions = new BrowserTypeLaunchOptions
+        {
+            Headless = IsHeadless,
+            Channel = BrowserType switch
+            {
+                "msedge" => "msedge",
+                "chrome" => "chrome",
+                _ => null // Use default Chromium
+            },
+            Args = ciArgs
+        };
+
+        return BrowserType switch
+        {
+            "firefox" => await playwright!.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = IsHeadless,
+                Args = ciArgs
+            }),
+            "webkit" => await playwright!.Webkit.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = IsHeadless
+            }),
+            _ => await playwright!.Chromium
+                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
+        };
+    }
+
+    /// <summary>
+    ///     Checks whether the shared browser instance is still alive and accepting commands.
+    /// </summary>
+    /// <returns>True if the browser is connected; false if it has crashed or been closed.</returns>
+    private static async Task<bool> IsBrowserAliveAsync()
+    {
+        if (browser is null) return false;
+
+        try
+        {
+            // Probe the browser by checking its connected state.
+            // If the process has died, IsConnected returns false.
+            if (!browser.IsConnected) return false;
+
+            // Double-check by attempting to create and immediately close a context.
+            var ctx = await browser.NewContextAsync();
+            await ctx.CloseAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
     /// <summary>
     ///     Creates a new page before each scenario.
+    ///     Includes browser health check to recover from mid-run crashes
+    ///     (e.g. msedge D-Bus failures on Linux CI).
     /// </summary>
     [BeforeScenario]
     public async Task BeforeScenario()
     {
+        // Recover from browser crash (e.g. msedge dies from D-Bus issues on Linux CI)
+        if (!await IsBrowserAliveAsync())
+        {
+            Console.WriteLine("[BeforeScenario] Browser is not alive — re-launching.");
+            browser = await LaunchBrowserAsync();
+        }
+
         var context = await browser!.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
