@@ -28,8 +28,8 @@ namespace RajFinancial.AcceptanceTests.Features
                 "admin",
                 "dashboard"};
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Admin Dashboard", "    As an administrator\r\n    I want to view system statistics and quick actions\r\n" +
-                "    So that I can monitor and manage the platform effectively", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Admin Dashboard", "    As an administrator\n    I want to view system statistics and quick actions\n  " +
+                "  So that I can monitor and manage the platform effectively", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

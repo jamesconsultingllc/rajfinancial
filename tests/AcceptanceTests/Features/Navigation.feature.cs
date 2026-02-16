@@ -28,8 +28,8 @@ namespace RajFinancial.AcceptanceTests.Features
                 "navigation",
                 "authorization"};
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Navigation Menu", "    As a user of RAJ Financial\r\n    I want to see navigation options based on my " +
-                "role\r\n    So that I can access the features available to me", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Navigation Menu", "    As a user of RAJ Financial\n    I want to see navigation options based on my r" +
+                "ole\n    So that I can access the features available to me", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

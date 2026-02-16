@@ -26,8 +26,8 @@ namespace RajFinancial.AcceptanceTests.Features
         private static string[] featureTags = new string[] {
                 "homepage"};
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Home Page", "    As a visitor to RAJ Financial\r\n    I want to see an informative landing page\r" +
-                "\n    So that I can learn about the platform and get started", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Home Page", "    As a visitor to RAJ Financial\n    I want to see an informative landing page\n " +
+                "   So that I can learn about the platform and get started", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

@@ -17,6 +17,8 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 {
     private static IPlaywright? playwright;
     private static IBrowser? browser;
+    private static string currentBrowserType = "chromium";
+    private static bool currentHeadless = true;
 
     private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -50,27 +52,12 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
         var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
 
-        // For Edge and Chrome, we use Chromium with a channel
-        var launchOptions = new BrowserTypeLaunchOptions
-        {
-            Headless = headless,
-            Channel = browserType switch
-            {
-                "msedge" => "msedge",
-                "chrome" => "chrome",
-                _ => null // Use default Chromium
-            }
-        };
+        currentBrowserType = browserType;
+        currentHeadless = headless;
 
-        browser = browserType switch
-        {
-            "firefox" => await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            "webkit" => await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            _ => await playwright.Chromium
-                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
-        };
+        await LaunchBrowserCoreAsync();
 
-        Console.WriteLine($"?? Browser: {browserType}, Headless: {headless}");
+        Console.WriteLine($"🚀 Browser: {browserType}, Headless: {headless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
@@ -91,6 +78,13 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     [BeforeScenario]
     public async Task BeforeScenario()
     {
+        // Recover from browser crash (e.g., msedge crashpad failures on CI Linux runners)
+        if (browser is not { IsConnected: true })
+        {
+            Console.WriteLine($"⚠️ Browser disconnected, relaunching {currentBrowserType}...");
+            await RelaunchBrowserAsync();
+        }
+
         var context = await browser!.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
@@ -109,22 +103,90 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     {
         if (scenarioContext.TryGetValue<IPage>("Page", out var page))
         {
-            // Take screenshot on failure
-            if (scenarioContext.TestError != null)
+            try
             {
-                var screenshotPath = Path.Combine(
-                    "TestResults",
-                    "Screenshots",
-                    $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                // Take screenshot on failure
+                if (scenarioContext.TestError != null)
+                {
+                    var screenshotPath = Path.Combine(
+                        "TestResults",
+                        "Screenshots",
+                        $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-                await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                    Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
+                    await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                }
+
+                await page.CloseAsync();
             }
-
-            await page.CloseAsync();
+            catch (PlaywrightException)
+            {
+                // Browser crashed during or after scenario - recovery happens in BeforeScenario
+            }
         }
 
-        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context)) await context.CloseAsync();
+        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context))
+            try
+            {
+                await context.CloseAsync();
+            }
+            catch (PlaywrightException)
+            {
+                // Browser crashed - context already gone
+            }
+    }
+
+    /// <summary>
+    ///     Core browser launch logic shared by initial launch and crash recovery.
+    /// </summary>
+    private static async Task LaunchBrowserCoreAsync()
+    {
+        // For Edge and Chrome, we use Chromium with a channel
+        var launchOptions = new BrowserTypeLaunchOptions
+        {
+            Headless = currentHeadless,
+            Channel = currentBrowserType switch
+            {
+                "msedge" => "msedge",
+                "chrome" => "chrome",
+                _ => null // Use default Chromium
+            },
+            // Stabilize msedge on CI: disable crashpad/breakpad, GPU sandbox, and /dev/shm usage
+            // to prevent TargetClosedException from missing CPU freq scaling files on Linux runners
+            Args = currentBrowserType == "msedge"
+                ? ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
+                    "--disable-breakpad"]
+                : null
+        };
+
+        browser = currentBrowserType switch
+        {
+            "firefox" => await playwright!.Firefox.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = currentHeadless }),
+            "webkit" => await playwright!.Webkit.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = currentHeadless }),
+            _ => await playwright!.Chromium
+                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
+        };
+    }
+
+    /// <summary>
+    ///     Relaunches the browser after a crash or disconnection.
+    /// </summary>
+    private static async Task RelaunchBrowserAsync()
+    {
+        if (browser != null)
+            try
+            {
+                await browser.DisposeAsync();
+            }
+            catch
+            {
+                // Already disposed or crashed - ignore
+            }
+
+        await LaunchBrowserCoreAsync();
+        Console.WriteLine($"🔄 Browser relaunched: {currentBrowserType}");
     }
 
     /// <summary>

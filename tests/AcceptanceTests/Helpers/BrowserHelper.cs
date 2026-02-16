@@ -37,7 +37,11 @@ public static class BrowserHelper
             "msedge" => await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
                 Headless = isHeadless,
-                Channel = "msedge"
+                Channel = "msedge",
+                // Stabilize msedge on CI: disable crashpad/breakpad, GPU sandbox, and /dev/shm usage
+                // to prevent TargetClosedException from missing CPU freq scaling files on Linux runners
+                Args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
+                    "--disable-breakpad"]
             }),
             _ => await playwright.Chromium.LaunchAsync(launchOptions) // chromium is default
         };
