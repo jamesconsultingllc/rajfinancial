@@ -50,6 +50,11 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
         var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
 
+        // Stability flags for headless CI runners (prevents crashes from shared memory and GPU issues)
+        var ciArgs = headless
+            ? new[] { "--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox" }
+            : Array.Empty<string>();
+
         // For Edge and Chrome, we use Chromium with a channel
         var launchOptions = new BrowserTypeLaunchOptions
         {
@@ -59,7 +64,8 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
                 "msedge" => "msedge",
                 "chrome" => "chrome",
                 _ => null // Use default Chromium
-            }
+            },
+            Args = ciArgs
         };
 
         browser = browserType switch
@@ -102,29 +108,59 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    ///     Closes the page after each scenario.
+    ///     Closes the page and context after each scenario.
+    ///     Uses defensive error handling to prevent cascading <see cref="TargetClosedException" />
+    ///     failures when the browser, context, or page has already been closed.
     /// </summary>
     [AfterScenario]
     public async Task AfterScenario()
     {
         if (scenarioContext.TryGetValue<IPage>("Page", out var page))
         {
-            // Take screenshot on failure
-            if (scenarioContext.TestError != null)
+            try
             {
-                var screenshotPath = Path.Combine(
-                    "TestResults",
-                    "Screenshots",
-                    $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                if (scenarioContext.TestError != null)
+                {
+                    try
+                    {
+                        var screenshotPath = Path.Combine(
+                            "TestResults",
+                            "Screenshots",
+                            $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-                await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                        Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
+                        await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AfterScenario] Failed to capture screenshot: {ex.Message}");
+                    }
+                }
             }
-
-            await page.CloseAsync();
+            finally
+            {
+                try
+                {
+                    await page.CloseAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AfterScenario] Failed to close page: {ex.Message}");
+                }
+            }
         }
 
-        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context)) await context.CloseAsync();
+        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context))
+        {
+            try
+            {
+                await context.CloseAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AfterScenario] Failed to close context: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>
