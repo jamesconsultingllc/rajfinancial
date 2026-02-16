@@ -26,8 +26,8 @@ namespace RajFinancial.AcceptanceTests.Features
         private static string[] featureTags = new string[] {
                 "authentication"};
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Authentication Flow", "    As a new user\n    I want to create an account and sign in\n    So that I can a" +
-                "ccess the RAJ Financial platform", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Authentication Flow", "    As a new user\r\n    I want to create an account and sign in\r\n    So that I can" +
+                " access the RAJ Financial platform", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
