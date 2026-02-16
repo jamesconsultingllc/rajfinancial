@@ -221,52 +221,63 @@ jobs:
         id: fetch-passwords
         run: |
           target_env="${{ steps.resolve-env.outputs.target-environment }}"
-          echo "Fetching app settings for environment: $target_env"
-          
-          # Get app settings from SWA
-          settings=$(az staticwebapp appsettings list \
-            --name rajfinancial \
-            --resource-group rajfinancial \
-            --environment-name "$target_env" \
-            --query "properties" -o json 2>/dev/null || echo "{}")
-          
-          # Extract test passwords for all roles
-          admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+          source_env="${{ steps.resolve-env.outputs.source-environment }}"
+
+          # Test passwords are Entra credentials shared across all environments.
+          # Try the target environment first; fall back to the source (development)
+          # so that PR preview slots (which may not have settings synced yet) still work.
+          for env in "$target_env" "$source_env"; do
+            echo "Trying environment: $env"
+            settings=$(az staticwebapp appsettings list \
+              --name rajfinancial \
+              --resource-group rajfinancial \
+              --environment-name "$env" \
+              --query "properties" -o json 2>/dev/null || echo "{}")
+
+            admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+            if [[ -n "$admin_password" ]]; then
+              echo "Found test passwords in environment: $env"
+              break
+            fi
+            echo "Test passwords not found in $env, trying next..."
+          done
+
+          # Extract all role passwords from whichever environment succeeded
           advisor_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADVISOR // empty')
           client_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_CLIENT // empty')
           viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
-          
+
           # Set as masked environment variables for subsequent steps
           if [[ -n "$admin_password" ]]; then
             echo "::add-mask::$admin_password"
             echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
           else
-            echo "Warning: DEVELOPMENT_TEST_ADMINISTRATOR not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_ADMINISTRATOR not found in any SWA environment"
           fi
-          
+
           if [[ -n "$advisor_password" ]]; then
             echo "::add-mask::$advisor_password"
             echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_ADVISOR password"
           else
-            echo "Warning: DEVELOPMENT_TEST_ADVISOR not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_ADVISOR not found in any SWA environment"
           fi
-          
+
           if [[ -n "$client_password" ]]; then
             echo "::add-mask::$client_password"
             echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_CLIENT password"
           else
-            echo "Warning: DEVELOPMENT_TEST_CLIENT not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_CLIENT not found in any SWA environment"
           fi
-          
+
           if [[ -n "$viewer_password" ]]; then
             echo "::add-mask::$viewer_password"
             echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_VIEWER password"
           else
-            echo "Warning: DEVELOPMENT_TEST_VIEWER not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_VIEWER not found in any SWA environment"
           fi
 
       - name: Setup .NET
