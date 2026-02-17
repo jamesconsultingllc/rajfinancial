@@ -121,9 +121,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Apply migration to dev database
+        shell: pwsh
         run: |
-          sqlcmd -S rajfinancial-dev.database.windows.net -d rajfinancial --authentication-method ActiveDirectoryDefault -i migrations.sql
-          echo "Migration applied successfully to dev database"
+          Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser
+          $token = az account get-access-token --resource "https://database.windows.net/" --query accessToken -o tsv
+          Invoke-Sqlcmd -ServerInstance "rajfinancial-dev.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql
+          Write-Host "Migration applied successfully to dev database"
 
   deploy-dev:
     runs-on: ubuntu-latest
@@ -212,9 +215,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Apply migration to prod database
+        shell: pwsh
         run: |
-          sqlcmd -S rajfinancial.database.windows.net -d rajfinancial --authentication-method ActiveDirectoryDefault -i migrations.sql
-          echo "Migration applied successfully to prod database"
+          Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser
+          $token = az account get-access-token --resource "https://database.windows.net/" --query accessToken -o tsv
+          Invoke-Sqlcmd -ServerInstance "rajfinancial.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql
+          Write-Host "Migration applied successfully to prod database"
 
   deploy-prod:
     runs-on: ubuntu-latest
