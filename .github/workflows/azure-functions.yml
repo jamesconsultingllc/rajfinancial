@@ -80,7 +80,7 @@ jobs:
 
       - name: Generate idempotent migration script
         if: steps.changes.outputs.migrations == 'true'
-        run: dotnet ef migrations script --idempotent --project ${{ env.API_PROJECT_PATH }} --output migrations.sql
+        run: dotnet ef migrations script --idempotent --project ${{ env.API_PROJECT_PATH }} --configuration Release --no-build --output migrations.sql
 
       - name: Upload migration script
         if: steps.changes.outputs.migrations == 'true'
