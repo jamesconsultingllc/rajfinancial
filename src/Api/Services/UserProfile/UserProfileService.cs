@@ -141,16 +141,11 @@ public class UserProfileService(
     private static UserRole MapHighestPriorityRole(IReadOnlyList<string> roles)
     {
         // Lower enum value = higher priority
-        var bestRole = UserRole.Client;
-
-        foreach (var role in roles)
-        {
-            if (Enum.TryParse<UserRole>(role, ignoreCase: true, out var parsed) && parsed < bestRole)
-            {
-                bestRole = parsed;
-            }
-        }
-
-        return bestRole;
+        return roles
+            .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var parsed) ? parsed : (UserRole?)null)
+            .Where(r => r.HasValue)
+            .Select(r => r!.Value)
+            .DefaultIfEmpty(UserRole.Client)
+            .Min();
     }
 }

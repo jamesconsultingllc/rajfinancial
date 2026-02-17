@@ -128,7 +128,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
             return targetType?.GetMethod(methodName,
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
         }
-        catch (System.Exception ex)
+        catch (System.Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException or TypeLoadException)
         {
             logger.LogWarning(ex, "Failed to resolve target method for entry point: {EntryPoint}", entryPoint);
             return null;

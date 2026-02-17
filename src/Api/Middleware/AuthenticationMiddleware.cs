@@ -4,6 +4,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -144,7 +145,7 @@ public class AuthenticationMiddleware(
             var identity = new ClaimsIdentity(jwtToken.Claims, "Bearer");
             return new ClaimsPrincipal(identity);
         }
-        catch (System.Exception ex)
+        catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
         {
             logger.LogWarning(ex, "Failed to parse JWT token from Authorization header");
             return null;

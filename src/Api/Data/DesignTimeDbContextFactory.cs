@@ -76,7 +76,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Applicatio
             var builder = new SqlConnectionStringBuilder(connectionString);
             return $"{builder.DataSource}/{builder.InitialCatalog}";
         }
-        catch
+        catch (ArgumentException)
         {
             return "(unknown)";
         }

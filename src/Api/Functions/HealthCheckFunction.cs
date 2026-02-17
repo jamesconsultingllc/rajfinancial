@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Data.Common;
+using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -30,7 +31,7 @@ public class HealthCheckFunction(ILoggerFactory loggerFactory, ApplicationDbCont
         {
             dbHealthy = await context.Database.CanConnectAsync();
         }
-        catch (Exception ex)
+        catch (DbException ex)
         {
             logger.LogWarning(ex, "Database connectivity check failed");
         }

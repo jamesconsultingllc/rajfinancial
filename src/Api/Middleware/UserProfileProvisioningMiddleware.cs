@@ -58,6 +58,10 @@ public class UserProfileProvisioningMiddleware(
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw; // Let cancellations propagate
+        }
         catch (SysException ex)
         {
             logger.LogWarning(

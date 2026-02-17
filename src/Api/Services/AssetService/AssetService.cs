@@ -68,11 +68,8 @@ public class AssetService(
         var isDepreciable = request.DepreciationMethod.HasValue
                             && request.DepreciationMethod != DepreciationMethod.None;
 
-        Asset asset;
-
-        if (isDepreciable)
-        {
-            asset = new DepreciableAsset
+        Asset asset = isDepreciable
+            ? new DepreciableAsset
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
@@ -92,11 +89,8 @@ public class AssetService(
                 SalvageValue = request.SalvageValue,
                 UsefulLifeMonths = request.UsefulLifeMonths,
                 InServiceDate = request.InServiceDate
-            };
-        }
-        else
-        {
-            asset = new Asset
+            }
+            : new Asset
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
@@ -113,7 +107,6 @@ public class AssetService(
                 LastValuationDate = request.LastValuationDate,
                 CreatedAt = DateTimeOffset.UtcNow
             };
-        }
 
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
@@ -315,22 +308,15 @@ public class AssetService(
 
     private static Asset RecreateAssetWithNewType(Asset existing, UpdateAssetRequest request, bool nowIsDepreciable)
     {
-        Asset newAsset;
-
-        if (nowIsDepreciable)
-        {
-            newAsset = new DepreciableAsset
+        Asset newAsset = nowIsDepreciable
+            ? new DepreciableAsset
             {
                 DepreciationMethod = request.DepreciationMethod!.Value,
                 SalvageValue = request.SalvageValue,
                 UsefulLifeMonths = request.UsefulLifeMonths,
                 InServiceDate = request.InServiceDate
-            };
-        }
-        else
-        {
-            newAsset = new Asset();
-        }
+            }
+            : new Asset();
 
         // Preserve identity and audit fields
         newAsset.Id = existing.Id;
