@@ -66,8 +66,8 @@ public class ClientManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Client assigned: Grant {GrantId} from {GrantorId} to {ClientEmail} ({AccessType})",
-            grant.Id, grantorUserId, request.ClientEmail, accessType);
+            "Client assigned: Grant {GrantId} from {GrantorId} ({AccessType})",
+            grant.Id, grantorUserId, accessType);
 
         return grant;
     }
@@ -131,7 +131,7 @@ public class ClientManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Client access revoked: Grant {GrantId} (was {ClientEmail})",
-            grantId, grant.GranteeEmail);
+            "Client access revoked: Grant {GrantId}",
+            grantId);
     }
 }

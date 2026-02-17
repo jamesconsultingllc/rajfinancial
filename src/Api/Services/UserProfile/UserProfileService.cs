@@ -59,8 +59,8 @@ public class UserProfileService(
                 await dbContext.SaveChangesAsync(cancellationToken);
 
                 logger.LogInformation(
-                    "JIT provisioned UserProfile for {UserId} ({Email}) with role {Role}",
-                    userId, email, mappedRole);
+                    "JIT provisioned UserProfile for {UserId} with role {Role}",
+                    userId, mappedRole);
 
                 return profile;
             }
@@ -87,8 +87,8 @@ public class UserProfileService(
         if (!string.Equals(profile.Email, email, StringComparison.Ordinal))
         {
             logger.LogInformation(
-                "Syncing email for {UserId}: {OldEmail} → {NewEmail}",
-                userId, profile.Email, email);
+                "Syncing email for {UserId}",
+                userId);
             profile.Email = email;
             changed = true;
         }

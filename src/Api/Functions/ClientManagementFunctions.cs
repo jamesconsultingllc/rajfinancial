@@ -120,8 +120,8 @@ public class ClientManagementFunctions(
         var responseDto = MapToResponse(grant);
 
         logger.LogInformation(
-            "Client assigned: Grant {GrantId} from {UserId} to {ClientEmail}",
-            grant.Id, userIdGuid.Value, grant.GranteeEmail);
+            "Client assigned: Grant {GrantId} from {UserId}",
+            grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
