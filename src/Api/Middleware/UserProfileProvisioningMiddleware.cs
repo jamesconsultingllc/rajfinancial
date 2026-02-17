@@ -58,12 +58,13 @@ public class UserProfileProvisioningMiddleware(
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            throw; // Let cancellations propagate
-        }
         catch (SysException ex)
         {
+            if (IsCriticalException(ex))
+            {
+                throw;
+            }
+
             logger.LogWarning(
                 ex,
                 "UserProfile provisioning failed for request {InvocationId}; continuing pipeline",
@@ -71,5 +72,19 @@ public class UserProfileProvisioningMiddleware(
         }
 
         await next(context);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> for fatal/system exceptions that must never be swallowed.
+    /// </summary>
+    private static bool IsCriticalException(SysException ex)
+    {
+        return ex is OutOfMemoryException
+            or StackOverflowException
+            or OperationCanceledException
+            or ThreadAbortException
+            or CannotUnloadAppDomainException
+            or ThreadInterruptedException
+            or ThreadStartException;
     }
 }
