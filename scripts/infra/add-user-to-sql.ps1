@@ -16,6 +16,7 @@ param(
     [string]$Database = "rajfinancial",
 
     [Parameter()]
+    [ValidateSet("db_datareader", "db_datawriter", "db_ddladmin", "db_owner")]
     [string[]]$Roles = @("db_datareader", "db_datawriter", "db_ddladmin")
 )
 
@@ -51,6 +52,12 @@ elseif ($PrincipalType -eq "ServicePrincipal") {
 }
 else {
     $displayName = $PrincipalName
+}
+
+# Validate principal name against SQL injection (only allow safe characters)
+if ($PrincipalName -notmatch '^[a-zA-Z0-9._@#\-\s]+$') {
+    Write-Error "Invalid principal name '$PrincipalName'. Only alphanumeric, dot, underscore, @, #, hyphen, and space are allowed."
+    exit 1
 }
 
 Write-Host "Adding principal: $displayName ($PrincipalName)" -ForegroundColor Cyan
