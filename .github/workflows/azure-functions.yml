@@ -120,24 +120,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install sqlcmd
-        run: |
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
-          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
-
-      - name: Get access token for Azure SQL
-        id: token
-        run: |
-          TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "sql_token=$TOKEN" >> $GITHUB_OUTPUT
-
       - name: Apply migration to dev database
         run: |
-          sqlcmd -S rajfinancial-dev.database.windows.net -d rajfinancial -N --authentication-method=ActiveDirectoryAccessToken -P "${{ steps.token.outputs.sql_token }}" -i migrations.sql
+          sqlcmd -S rajfinancial-dev.database.windows.net -d rajfinancial --authentication-method ActiveDirectoryDefault -i migrations.sql
           echo "Migration applied successfully to dev database"
 
   deploy-dev:
@@ -226,24 +211,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install sqlcmd
-        run: |
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
-          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
-
-      - name: Get access token for Azure SQL
-        id: token
-        run: |
-          TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "sql_token=$TOKEN" >> $GITHUB_OUTPUT
-
       - name: Apply migration to prod database
         run: |
-          sqlcmd -S rajfinancial-prod.database.windows.net -d rajfinancial -N --authentication-method=ActiveDirectoryAccessToken -P "${{ steps.token.outputs.sql_token }}" -i migrations.sql
+          sqlcmd -S rajfinancial.database.windows.net -d rajfinancial --authentication-method ActiveDirectoryDefault -i migrations.sql
           echo "Migration applied successfully to prod database"
 
   deploy-prod:
