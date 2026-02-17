@@ -18,6 +18,7 @@ param entraExternalIdClientId = '211438af-9f00-47be-a367-796dd7770113'
 // App Roles (defined in API app registration)
 param appRoleClient = 'bc34bd6c-38b8-46a6-9d4c-d338afeea81f'
 param appRoleAdministrator = '2202014c-e4b9-4ab9-9e6a-4cc53e13598f'
+param appRoleAdvisor = '4e553302-8f00-43ff-a903-359adb9de807'
 
 // Entra Service Principal ID (API app's enterprise application Object ID)
 param entraServicePrincipalId = '36d45037-7129-43d5-928b-9daab4862ff1'

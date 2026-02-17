@@ -14,11 +14,6 @@ param keyVaultName string
 @description('The name of the Storage Account')
 param storageAccountName string
 
-// Note: sqlServerName parameter kept for future use when SQL RBAC is needed
-#disable-next-line no-unused-params
-@description('The name of the SQL Server')
-param sqlServerName string
-
 // ============================================================================
 // Role Definition IDs (Built-in Azure RBAC Roles)
 // ============================================================================
