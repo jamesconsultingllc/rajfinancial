@@ -287,14 +287,14 @@ public class UserProfileServiceTests : IDisposable
     // =========================================================================
 
     [Fact]
-    public async Task EnsureProfileExists_ReturningUser_UpdatesLastLoginAt_WhenStale()
+    public async Task EnsureProfileExists_ReturningUser_UpdatesLastLoginAt()
     {
         // Arrange
         var service = CreateService();
         var initialProfile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
-        // Simulate stale LastLoginAt (>5 minutes ago)
+        // Set LastLoginAt to a known past time
         initialProfile.LastLoginAt = DateTimeOffset.UtcNow.AddMinutes(-10);
         await dbContext.SaveChangesAsync();
 
@@ -308,20 +308,26 @@ public class UserProfileServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EnsureProfileExists_ReturningUser_SkipsLastLoginAtUpdate_WhenRecent()
+    public async Task EnsureProfileExists_ReturningUser_AlwaysUpdatesLastLoginAt()
     {
         // Arrange
         var service = CreateService();
         var initialProfile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
-        var originalLastLogin = initialProfile.LastLoginAt;
 
-        // Act — called again immediately (within 5-minute window)
+        // Set LastLoginAt to a known past time so the update is detectable
+        initialProfile.LastLoginAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await dbContext.SaveChangesAsync();
+        var previousLastLogin = initialProfile.LastLoginAt;
+
+        // Act — called again; LastLoginAt should always be refreshed
         var updatedProfile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
-        // Assert — LastLoginAt should NOT have changed
-        updatedProfile.LastLoginAt.Should().Be(originalLastLogin);
+        // Assert — LastLoginAt should have been updated to now
+        updatedProfile.LastLoginAt.Should().BeAfter(previousLastLogin!.Value);
+        updatedProfile.LastLoginAt.Should().BeCloseTo(
+            DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]

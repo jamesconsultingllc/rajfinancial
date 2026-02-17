@@ -18,7 +18,7 @@ namespace RajFinancial.Api.Functions;
 ///     <para>
 ///         <b>Endpoints:</b>
 ///         <list type="bullet">
-///             <item><c>GET /api/auth/me</c> - Returns current user info (requires authentication)</item>
+///             <item><c>GET /api/auth/status</c> - Returns current user info (requires authentication)</item>
 ///             <item><c>GET /api/auth/client</c> - Accessible by any authenticated user (implicit Client role)</item>
 ///             <item><c>GET /api/auth/admin</c> - Requires explicit Administrator role</item>
 ///             <item><c>GET /api/auth/public</c> - No authentication required</item>
@@ -32,13 +32,18 @@ public class AuthTestFunctions(
     private readonly AppRoleOptions appRoles = appRoleOptions.Value;
 
     /// <summary>
-    ///     Returns information about the currently authenticated user.
-    ///     Requires authentication but no specific role.
+    ///     Returns basic authentication status for the currently authenticated user.
+    ///     Requires authentication but no specific role. Used for integration test
+    ///     validation of the auth middleware pipeline.
     /// </summary>
+    /// <remarks>
+    ///     The production user profile endpoint is <c>GET /api/auth/me</c>
+    ///     (see <see cref="AuthFunctions.GetMe"/>).
+    /// </remarks>
     [RequireAuthentication]
-    [Function("AuthMe")]
-    public async Task<HttpResponseData> GetMe(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/me")]
+    [Function("AuthStatus")]
+    public async Task<HttpResponseData> GetAuthStatus(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/status")]
         HttpRequestData req,
         FunctionContext context)
     {

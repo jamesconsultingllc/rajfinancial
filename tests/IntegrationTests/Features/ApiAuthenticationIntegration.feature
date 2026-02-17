@@ -25,7 +25,7 @@ Feature: API Authentication Integration
 
     @security @A07
     Scenario: Protected endpoint returns 401 without authentication
-        When I send a GET request to "/api/auth/me" without authentication
+        When I send a GET request to "/api/auth/status" without authentication
         Then the HTTP response status should be 401
 
     @security @A07
@@ -47,7 +47,7 @@ Feature: API Authentication Integration
 
     @security @A07 @devOnly
     Scenario: Authenticated user can access protected endpoint
-        When I send a GET request to "/api/auth/me" with a valid user token
+        When I send a GET request to "/api/auth/status" with a valid user token
         Then the HTTP response status should be 200
         And the response body should contain "authenticated"
 

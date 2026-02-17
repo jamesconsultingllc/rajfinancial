@@ -59,8 +59,8 @@ public class UserProfileService(
                 await dbContext.SaveChangesAsync(cancellationToken);
 
                 logger.LogInformation(
-                    "JIT provisioned UserProfile for {UserId} ({Email}) with role {Role}",
-                    userId, email, mappedRole);
+                    "JIT provisioned UserProfile for {UserId} with role {Role}",
+                    userId, mappedRole);
 
                 return profile;
             }
@@ -87,8 +87,8 @@ public class UserProfileService(
         if (!string.Equals(profile.Email, email, StringComparison.Ordinal))
         {
             logger.LogInformation(
-                "Syncing email for {UserId}: {OldEmail} → {NewEmail}",
-                userId, profile.Email, email);
+                "Syncing email for {UserId}",
+                userId);
             profile.Email = email;
             changed = true;
         }
@@ -112,24 +112,15 @@ public class UserProfileService(
             changed = true;
         }
 
-        // Throttle LastLoginAt updates — only stamp if null or older than 5 minutes
-        var loginStale = profile.LastLoginAt is null
-            || now - profile.LastLoginAt.Value > TimeSpan.FromMinutes(5);
-
-        if (loginStale)
-        {
-            profile.LastLoginAt = now;
-        }
+        // Always stamp LastLoginAt on every authenticated request
+        profile.LastLoginAt = now;
 
         if (changed)
         {
             profile.UpdatedAt = now;
         }
 
-        if (changed || loginStale)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return profile;
     }

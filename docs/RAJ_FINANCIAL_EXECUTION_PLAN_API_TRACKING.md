@@ -175,13 +175,24 @@ This document contains the API implementation tracking tables extracted from [RA
 |----------|----------|--------|----------|
 | POST /api/plaid/webhook | PlaidWebhook | ⬜ Not Started | P1 |
 
-#### Auth Functions
-| Endpoint | Function | Status | Priority |
-|----------|----------|--------|----------|
-| GET /api/auth/me | GetCurrentUser | ⬜ Not Started | P0 |
-| GET /api/auth/roles | GetUserRoles | ⬜ Not Started | P0 |
-| POST /api/auth/clients | AssignClient | ⬜ Not Started | P1 |
-| GET /api/auth/clients | GetAssignedClients | ⬜ Not Started | P1 |
-| DELETE /api/auth/clients/{id} | RemoveClientAccess | ⬜ Not Started | P1 |
+#### Auth Functions (Feature #485)
+| Endpoint | Function | Status | Priority | BDD | Unit Tests | ADO Task |
+|----------|----------|--------|----------|-----|------------|----------|
+| GET /api/auth/me | AuthMe | ✅ Complete | P0 | ✅ 11 scenarios | ✅ 19 tests | #489 |
+| GET /api/auth/roles | AuthRoles | ✅ Complete | P0 | ✅ 11 scenarios | ✅ 8 tests | #489 |
+| POST /api/auth/clients | AssignClient | ✅ Complete | P1 | ✅ 18 scenarios | ✅ 14 tests | #492 |
+| GET /api/auth/clients | GetAssignedClients | ✅ Complete | P1 | ✅ 18 scenarios | ✅ 10 tests | #492 |
+| DELETE /api/auth/clients/{id} | RemoveClientAccess | ✅ Complete | P1 | ✅ 18 scenarios | ✅ 16 tests | #492 |
+
+**Branch**: `feature/485-auth-functions` | **Feature**: [#485](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/485)
+
+**Child Tasks**:
+- #486 BDD Feature Files (✅ Done) — 29 scenarios across AuthUserProfile.feature + ClientManagement.feature
+- #487 Auth DTOs & Contracts (✅ Done) — UserProfileResponse, UserRolesResponse, AssignClientRequest, ClientAssignmentResponse, AssignClientRequestValidator
+- #488 Auth Unit Tests – Security-First TDD (✅ Done) — 27 tests in AuthFunctionsTests.cs, all passing
+- #489 Auth Functions Implementation (✅ Done) — AuthFunctions.cs with GetMe + GetRoles endpoints
+- #490 Client Management Unit Tests (✅ Done) — 40 tests in ClientManagementFunctionsTests.cs, all passing
+- #491 IClientManagementService + Implementation (✅ Done) — IClientManagementService interface + ClientManagementService EF Core implementation
+- #492 Client Management Functions (✅ Done) — ClientManagementFunctions.cs with AssignClient + GetClients + RemoveClient endpoints
 
 > **Note**: Registration, login, password reset, and MFA are handled by Microsoft Entra External ID. These Auth Functions manage user profile and professional relationships within the application.

@@ -12,9 +12,11 @@ using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
+using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Assets;
+using RajFinancial.Shared.Contracts.Auth;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -154,6 +156,9 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 // Resource-level authorization (three-tier: owner → grant → admin)
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 
+// Advisor–client data-access grant management
+builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
+
 // Asset management
 builder.Services.AddScoped<IAssetService, AssetService>();
 
@@ -167,6 +172,7 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 
 builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
+builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
 
 // Register validators as they are implemented:
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();
