@@ -1,0 +1,176 @@
+name: Azure Functions CI/CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+      - 'feature/**'
+      - 'hotfix/**'
+    paths:
+      - 'src/Api/**'
+      - 'src/Shared/**'
+      - 'tests/IntegrationTests/**'
+      - '.github/workflows/azure-functions.yml'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    branches:
+      - main
+      - develop
+      - 'release/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Azure Functions
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build
+        run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
+
+      - name: Publish API
+        run: dotnet publish src/Api/RajFinancial.Api.csproj --configuration Release --output ./publish
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: api-build
+          path: ./publish
+          retention-days: 1
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    name: Deploy to Development
+    needs: build
+    environment: development
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: api-build
+          path: ./publish
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions (Dev)
+        uses: Azure/functions-action@fd80521afbba9a2a76a99ba1acc07aff8d733d11 # v1.5.2
+        with:
+          app-name: func-rajfinancial-dev
+          package: ./publish
+
+  integration-test-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    name: Integration Tests (Dev)
+    needs: deploy-dev
+    environment: development
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build test project
+        run: dotnet build tests/IntegrationTests/RajFinancial.IntegrationTests.csproj --configuration Release
+
+      - name: Run integration tests against dev
+        run: dotnet test tests/IntegrationTests/RajFinancial.IntegrationTests.csproj --configuration Release --verbosity normal --logger trx
+        env:
+          FunctionsHost__BaseUrl: https://func-rajfinancial-dev.azurewebsites.net
+          SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: integration-test-results-dev
+          path: tests/IntegrationTests/TestResults/
+          if-no-files-found: warn
+          retention-days: 7
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: build
+    environment: production
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: api-build
+          path: ./publish
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions (Prod)
+        uses: Azure/functions-action@fd80521afbba9a2a76a99ba1acc07aff8d733d11 # v1.5.2
+        with:
+          app-name: func-rajfinancial-prod
+          package: ./publish
+
+  integration-test-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Integration Tests (Prod)
+    needs: deploy-prod
+    environment: production
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RajFinancial.sln
+
+      - name: Build test project
+        run: dotnet build tests/IntegrationTests/RajFinancial.IntegrationTests.csproj --configuration Release
+
+      - name: Run integration tests against prod
+        run: dotnet test tests/IntegrationTests/RajFinancial.IntegrationTests.csproj --configuration Release --verbosity normal --logger trx
+        env:
+          FunctionsHost__BaseUrl: https://func-rajfinancial-prod.azurewebsites.net
+          SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: integration-test-results-prod
+          path: tests/IntegrationTests/TestResults/
+          if-no-files-found: warn
+          retention-days: 7
