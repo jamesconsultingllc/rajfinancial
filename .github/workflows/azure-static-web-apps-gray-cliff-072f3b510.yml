@@ -177,6 +177,7 @@ jobs:
   e2e_tests_job:
     if: |
       github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
       always() &&
       needs.unit_tests_job.result == 'success' &&
       (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
