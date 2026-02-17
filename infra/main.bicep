@@ -40,6 +40,9 @@ param appRoleClient string
 @description('Administrator App Role GUID')
 param appRoleAdministrator string
 
+@description('Advisor App Role GUID')
+param appRoleAdvisor string
+
 @description('Entra External ID Service Principal ID (stored in Key Vault)')
 @secure()
 param entraServicePrincipalId string = ''
@@ -190,6 +193,7 @@ module functions 'modules/functions.bicep' = {
     entraExternalIdClientId: entraExternalIdClientId
     appRoleClient: appRoleClient
     appRoleAdministrator: appRoleAdministrator
+    appRoleAdvisor: appRoleAdvisor
     environment: environment
     tags: tags
   }
@@ -214,7 +218,6 @@ module identity 'modules/identity.bicep' = {
     functionAppPrincipalId: functions.outputs.functionAppPrincipalId
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
-    sqlServerName: sql.outputs.sqlServerName
   }
 }
 

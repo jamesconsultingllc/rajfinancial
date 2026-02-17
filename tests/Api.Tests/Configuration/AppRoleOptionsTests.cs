@@ -11,13 +11,15 @@ public class AppRoleOptionsTests
     private readonly AppRoleOptions sut;
     private readonly Guid clientRoleId = Guid.NewGuid();
     private readonly Guid administratorRoleId = Guid.NewGuid();
+    private readonly Guid advisorRoleId = Guid.NewGuid();
 
     public AppRoleOptionsTests()
     {
         sut = new AppRoleOptions
         {
             Client = clientRoleId,
-            Administrator = administratorRoleId
+            Administrator = administratorRoleId,
+            Advisor = advisorRoleId
         };
     }
 
@@ -57,6 +59,20 @@ public class AppRoleOptionsTests
     }
 
     [Theory]
+    [InlineData("Advisor")]
+    [InlineData("ADVISOR")]
+    [InlineData("advisor")]
+    [InlineData("AdViSoR")]
+    public void GetRoleId_WithAdvisorRole_ReturnsAdvisorGuid(string roleName)
+    {
+        // Act
+        var result = sut.GetRoleId(roleName);
+
+        // Assert
+        result.Should().Be(advisorRoleId);
+    }
+
+    [Theory]
     [InlineData("Unknown")]
     [InlineData("")]
     [InlineData("SuperAdmin")]
@@ -73,6 +89,8 @@ public class AppRoleOptionsTests
     [Theory]
     [InlineData("Client", true)]
     [InlineData("Administrator", true)]
+    [InlineData("Advisor", true)]
+    [InlineData("ADVISOR", true)]
     [InlineData("Unknown", false)]
     [InlineData("", false)]
     public void IsValidRole_ReturnsExpectedResult(string roleName, bool expected)

@@ -46,6 +46,9 @@ param appRoleClient string
 @description('Administrator App Role GUID')
 param appRoleAdministrator string
 
+@description('Advisor App Role GUID')
+param appRoleAdvisor string
+
 @description('The environment (dev or prod)')
 @allowed(['dev', 'prod'])
 param environment string
@@ -175,6 +178,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AppRoles__Administrator'
           value: appRoleAdministrator
+        }
+        {
+          name: 'AppRoles__Advisor'
+          value: appRoleAdvisor
         }
       ]
     }

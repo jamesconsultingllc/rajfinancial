@@ -73,6 +73,16 @@ public class AppRoleOptions
     /// </remarks>
     public Guid Administrator { get; set; }
 
+    /// <summary>
+    /// Gets or sets the GUID for the Advisor role.
+    /// </summary>
+    /// <remarks>
+    /// This role REQUIRES explicit assignment in Azure Portal.
+    /// Advisors are professionals (CPAs, attorneys, financial advisors) who
+    /// manage data on behalf of clients via DataAccessGrant.
+    /// </remarks>
+    public Guid Advisor { get; set; }
+
     // =========================================================================
     // FUTURE EXTENSION: Uncomment when professional/organization roles are needed
     // =========================================================================
@@ -100,6 +110,7 @@ public class AppRoleOptions
         {
             "CLIENT" => Client,
             "ADMINISTRATOR" => Administrator,
+            "ADVISOR" => Advisor,
             // FUTURE: Add new roles here
             // "PROFESSIONAL" => Professional,
             // "ORGANIZATIONADMIN" => OrganizationAdmin,
