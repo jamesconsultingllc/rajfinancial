@@ -47,6 +47,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build and Test
+    outputs:
+      migrations_changed: ${{ steps.changes.outputs.migrations }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -64,6 +66,30 @@ jobs:
       - name: Run unit tests
         run: dotnet test ${{ env.UNIT_TEST_PROJECT }} --configuration Release --verbosity normal
 
+      - name: Check for migration changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: changes
+        with:
+          filters: |
+            migrations:
+              - 'src/Api/Data/Migrations/**'
+
+      - name: Install EF Core tools
+        if: steps.changes.outputs.migrations == 'true'
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Generate idempotent migration script
+        if: steps.changes.outputs.migrations == 'true'
+        run: dotnet ef migrations script --idempotent --project ${{ env.API_PROJECT_PATH }} --output migrations.sql
+
+      - name: Upload migration script
+        if: steps.changes.outputs.migrations == 'true'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: ef-migration-script
+          path: migrations.sql
+          retention-days: 30
+
       - name: Publish
         run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --output ./publish
 
@@ -75,11 +101,50 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
+  migrate-dev:
+    if: (github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')) && needs.build.outputs.migrations_changed == 'true'
+    runs-on: ubuntu-latest
+    name: Migrate Dev DB
+    needs: build
+    environment: development
+    steps:
+      - name: Download migration script
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ef-migration-script
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list)"
+          sudo apt-get update
+          sudo apt-get install -y mssql-tools18 unixodbc-dev
+          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      - name: Get access token for Azure SQL
+        id: token
+        run: |
+          TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "sql_token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Apply migration to dev database
+        run: |
+          sqlcmd -S rajfinancial-dev.database.windows.net -d rajfinancial -N --authentication-method=ActiveDirectoryAccessToken -P "${{ steps.token.outputs.sql_token }}" -i migrations.sql
+          echo "Migration applied successfully to dev database"
+
   deploy-dev:
-    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     runs-on: ubuntu-latest
     name: Deploy to Dev
-    needs: build
+    needs: [build, migrate-dev]
+    if: ${{ always() && (github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')) && needs.build.result == 'success' && (needs.migrate-dev.result == 'success' || needs.migrate-dev.result == 'skipped') }}
     environment: development
     steps:
       - name: Download artifact
@@ -105,11 +170,19 @@ jobs:
       - name: Health check
         run: |
           echo "Waiting for deployment to stabilize..."
-          sleep 30
-          curl -sf --max-time 30 https://func-rajfinancial-dev.azurewebsites.net/api/health || echo "Health check returned non-200"
+          for i in 1 2 3 4 5 6; do
+            echo "Attempt $i/6..."
+            if curl -sf --max-time 10 https://func-rajfinancial-dev.azurewebsites.net/api/health; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Health check failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed after 6 attempts"
+          exit 1
 
   integration-test-dev:
-    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     runs-on: ubuntu-latest
     name: Integration Tests (Dev)
     needs: deploy-dev
@@ -121,16 +194,63 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Run integration tests against dev
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-dev.azurewebsites.net
+          SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
         run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal
 
+  migrate-prod:
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')) && needs.build.outputs.migrations_changed == 'true'
+    runs-on: ubuntu-latest
+    name: Migrate Prod DB
+    needs: build
+    environment: production
+    steps:
+      - name: Download migration script
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ef-migration-script
+
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list)"
+          sudo apt-get update
+          sudo apt-get install -y mssql-tools18 unixodbc-dev
+          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      - name: Get access token for Azure SQL
+        id: token
+        run: |
+          TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "sql_token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Apply migration to prod database
+        run: |
+          sqlcmd -S rajfinancial-prod.database.windows.net -d rajfinancial -N --authentication-method=ActiveDirectoryAccessToken -P "${{ steps.token.outputs.sql_token }}" -i migrations.sql
+          echo "Migration applied successfully to prod database"
+
   deploy-prod:
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
     runs-on: ubuntu-latest
     name: Deploy to Prod
-    needs: build
+    needs: [build, migrate-prod]
+    if: ${{ always() && (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')) && needs.build.result == 'success' && (needs.migrate-prod.result == 'success' || needs.migrate-prod.result == 'skipped') }}
     environment: production
     steps:
       - name: Download artifact
@@ -156,11 +276,19 @@ jobs:
       - name: Health check
         run: |
           echo "Waiting for deployment to stabilize..."
-          sleep 30
-          curl -sf --max-time 30 https://func-rajfinancial-prod.azurewebsites.net/api/health || echo "Health check returned non-200"
+          for i in 1 2 3 4 5 6; do
+            echo "Attempt $i/6..."
+            if curl -sf --max-time 10 https://func-rajfinancial-prod.azurewebsites.net/api/health; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Health check failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed after 6 attempts"
+          exit 1
 
   integration-test-prod:
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
     runs-on: ubuntu-latest
     name: Integration Tests (Prod)
     needs: deploy-prod
@@ -172,7 +300,15 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Azure Login with OIDC
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Run integration tests against prod
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-prod.azurewebsites.net
+          SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
         run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal --filter "Category!=devOnly"

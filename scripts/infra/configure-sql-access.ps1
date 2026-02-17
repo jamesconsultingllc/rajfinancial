@@ -141,7 +141,27 @@ ALTER ROLE db_datawriter ADD MEMBER [$($envConfig.FunctionAppName)];
 -- In prod, migrations should be run separately with elevated privileges
 $(if ($Environment -eq 'dev') { "ALTER ROLE db_ddladmin ADD MEMBER [$($envConfig.FunctionAppName)];" } else { "-- DDL admin skipped for production" })
 
-PRINT 'Roles assigned successfully';
+PRINT 'Function App roles assigned successfully';
+
+-- ====================================================================
+-- CI/CD Service Principal (github-actions)
+-- Used by GitHub Actions for EF Core migration apply via sqlcmd
+-- ====================================================================
+IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = N'github-actions')
+BEGIN
+    CREATE USER [github-actions] FROM EXTERNAL PROVIDER;
+    PRINT 'Created user: github-actions';
+END
+ELSE
+BEGIN
+    PRINT 'User already exists: github-actions';
+END
+
+ALTER ROLE db_datareader ADD MEMBER [github-actions];
+ALTER ROLE db_datawriter ADD MEMBER [github-actions];
+ALTER ROLE db_ddladmin ADD MEMBER [github-actions];
+
+PRINT 'CI/CD SP roles assigned successfully';
 "@
 
 # Save SQL to temp file
