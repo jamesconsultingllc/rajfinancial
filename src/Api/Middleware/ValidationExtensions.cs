@@ -3,12 +3,21 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.Api.Middleware;
 
 /// <summary>
-/// Extension methods for validation in Azure Functions.
+/// Extension methods for request body deserialization and validation in Azure Functions.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Supports both JSON and MemoryPack request bodies via content-type-aware deserialization.
+/// JSON bodies are deserialized from <c>Items["RequestBody"]</c> (UTF-8 string);
+/// MemoryPack bodies are deserialized from <c>Items["RequestBodyBytes"]</c> (raw bytes)
+/// using <see cref="ISerializationFactory"/> resolved from DI.
+/// </para>
+/// </remarks>
 public static class ValidationExtensions
 {
     private static readonly JsonSerializerOptions jsonOptions = new()
@@ -20,14 +29,15 @@ public static class ValidationExtensions
 
     /// <summary>
     /// Gets and validates the request body using the registered FluentValidation validator.
+    /// Supports both JSON and MemoryPack content types.
     /// </summary>
     /// <typeparam name="T">The type to deserialize and validate.</typeparam>
     /// <param name="context">The function context.</param>
     /// <returns>The validated request body.</returns>
-    /// <exception cref="ValidationException">Thrown when validation fails.</exception>
+    /// <exception cref="ValidationException">Thrown when validation fails or body is missing.</exception>
     public static async Task<T> GetValidatedBodyAsync<T>(this FunctionContext context) where T : class
     {
-        var body = context.GetBody<T>();
+        var body = await context.GetBodyAsync<T>();
         if (body == null)
         {
             throw new ValidationException("Request body is required");
@@ -58,7 +68,54 @@ public static class ValidationExtensions
     }
 
     /// <summary>
-    /// Gets the request body without validation.
+    /// Gets the request body, deserializing from the appropriate format based on content type.
+    /// Uses <see cref="ISerializationFactory"/> for MemoryPack payloads and falls back to
+    /// JSON string deserialization for JSON payloads.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize.</typeparam>
+    /// <param name="context">The function context.</param>
+    /// <returns>The deserialized request body, or null if not available.</returns>
+    public static async Task<T?> GetBodyAsync<T>(this FunctionContext context) where T : class
+    {
+        // Try raw bytes + content type first (supports both JSON and MemoryPack)
+        if (context.Items.TryGetValue("RequestBodyBytes", out var bytesObj) &&
+            bytesObj is byte[] bodyBytes &&
+            bodyBytes.Length > 0)
+        {
+            var contentType = context.Items.TryGetValue("RequestContentType", out var ctObj)
+                ? ctObj as string ?? SerializationFactory.JsonContentType
+                : SerializationFactory.JsonContentType;
+
+            // For non-JSON content types (e.g. MemoryPack), use ISerializationFactory
+            if (!contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                var factory = context.InstanceServices.GetService<ISerializationFactory>();
+                if (factory != null)
+                {
+                    return await factory.DeserializeAsync<T>(bodyBytes, contentType);
+                }
+            }
+        }
+
+        // Fall back to JSON string deserialization (set by ValidationMiddleware for JSON requests)
+        if (context.Items.TryGetValue("RequestBody", out var bodyObj) && bodyObj is string bodyString)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the request body without validation (synchronous JSON-only fallback).
+    /// Prefer <see cref="GetBodyAsync{T}"/> for full content-type support.
     /// </summary>
     /// <typeparam name="T">The type to deserialize.</typeparam>
     /// <param name="context">The function context.</param>

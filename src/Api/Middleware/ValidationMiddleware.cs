@@ -2,39 +2,25 @@ using System.Text;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Middleware.Content;
 
 namespace RajFinancial.Api.Middleware;
 
 /// <summary>
-/// Middleware that automatically validates request bodies using FluentValidation.
+/// Middleware that prepares request body data for downstream validation and deserialization.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This middleware intercepts HTTP requests, deserializes the body, and validates
-/// it using the appropriate FluentValidation validator if one is registered.
-/// </para>
-/// <para>
-/// <b>How it works:</b>
-/// <list type="number">
-///   <item>Reads the request body</item>
-///   <item>Stores the body in context for later use by the function</item>
-///   <item>If a validator is registered for the request type, validates the body</item>
-///   <item>If validation fails, returns 400 Bad Request with error details</item>
-/// </list>
+/// <b>Content-Aware Body Handling:</b> Only converts request body bytes to a UTF-8 string
+/// (stored as <c>Items["RequestBody"]</c>) when the request Content-Type is JSON.
+/// For binary formats like MemoryPack, the raw bytes in <c>Items["RequestBodyBytes"]</c>
+/// are preserved and deserialized directly by <see cref="ValidationExtensions.GetBody{T}"/>.
 /// </para>
 /// <para>
 /// <b>Usage in Functions:</b>
 /// <code>
-/// // Get validated request body from context
-/// var request = context.GetValidatedBody&lt;CreateAssetRequest&gt;();
+/// var request = await context.GetValidatedBodyAsync&lt;CreateAssetRequest&gt;();
 /// </code>
-/// </para>
-/// <para>
-/// <b>Extension Points:</b>
-/// <list type="bullet">
-///   <item>Add custom validation error formatting</item>
-///   <item>Add validation caching for performance</item>
-/// </list>
 /// </para>
 /// </remarks>
 public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
@@ -42,14 +28,22 @@ public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunct
     public Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         // ContentNegotiationMiddleware runs before this and stores the raw body bytes
-        // in context.Items["RequestBodyBytes"]. Re-use those instead of re-reading
-        // the (potentially non-seekable) body stream.
+        // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
+        // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
         if (context.Items.TryGetValue("RequestBodyBytes", out var bytesObj) &&
             bytesObj is byte[] bodyBytes &&
             bodyBytes.Length > 0)
         {
-            context.Items["RequestBody"] = Encoding.UTF8.GetString(bodyBytes);
-            logger.LogDebug("Request body captured for validation");
+            var contentType = context.Items.TryGetValue("RequestContentType", out var ctObj)
+                ? ctObj as string ?? SerializationFactory.JsonContentType
+                : SerializationFactory.JsonContentType;
+
+            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Items["RequestBody"] = Encoding.UTF8.GetString(bodyBytes);
+            }
+
+            logger.LogDebug("Request body captured for validation ({ContentType})", contentType);
         }
 
         return next(context);
