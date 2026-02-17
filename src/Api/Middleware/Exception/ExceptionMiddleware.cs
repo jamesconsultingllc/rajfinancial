@@ -67,6 +67,10 @@ public class ExceptionMiddleware(
             logger.LogError(ex, "Configuration error: {Message}", ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "CONFIGURATION_ERROR", "Service configuration error");
         }
+        catch (OperationCanceledException)
+        {
+            throw; // Let cancellations propagate to the host
+        }
         catch (System.Exception ex)
         {
             logger.LogError(ex, "Unhandled exception in {FunctionName}: {Message}",
