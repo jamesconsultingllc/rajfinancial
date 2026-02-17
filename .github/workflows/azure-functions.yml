@@ -125,7 +125,7 @@ jobs:
         run: |
           Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser
           $token = az account get-access-token --resource "https://database.windows.net/" --query accessToken -o tsv
-          Invoke-Sqlcmd -ServerInstance "rajfinancial-dev.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql
+          Invoke-Sqlcmd -ServerInstance "rajfinancial-dev.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql -ErrorAction Stop
           Write-Host "Migration applied successfully to dev database"
 
   deploy-dev:
@@ -155,14 +155,30 @@ jobs:
           package: ./publish
           respect-funcignore: true
 
-      - name: Health check
+      - name: Health check and warmup
         run: |
+          BASE_URL="https://func-rajfinancial-dev.azurewebsites.net"
           echo "Waiting for deployment to stabilize..."
           for i in 1 2 3 4 5 6; do
-            echo "Attempt $i/6..."
-            if curl -sf --max-time 10 https://func-rajfinancial-dev.azurewebsites.net/api/health; then
+            echo "Health check attempt $i/6..."
+            if curl -sf --max-time 10 "$BASE_URL/api/health"; then
+              echo ""
               echo "Health check passed!"
-              exit 0
+              # Warm up auth middleware by hitting a protected endpoint
+              # Accept any non-503 response (401 = middleware loaded)
+              echo "Warming up auth middleware..."
+              for j in 1 2 3 4 5 6; do
+                echo "Warmup attempt $j/6..."
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
+                if [ "$STATUS" != "503" ] && [ "$STATUS" != "000" ]; then
+                  echo "Auth middleware ready (HTTP $STATUS)"
+                  exit 0
+                fi
+                echo "Auth middleware not ready (HTTP $STATUS), retrying in 10s..."
+                sleep 10
+              done
+              echo "Auth middleware warmup failed after 6 attempts"
+              exit 1
             fi
             echo "Health check failed, retrying in 10s..."
             sleep 10
@@ -220,7 +236,7 @@ jobs:
         run: |
           Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser
           $token = az account get-access-token --resource "https://database.windows.net/" --query accessToken -o tsv
-          Invoke-Sqlcmd -ServerInstance "rajfinancial.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql
+          Invoke-Sqlcmd -ServerInstance "rajfinancial.database.windows.net" -Database "rajfinancial" -AccessToken $token -InputFile migrations.sql -ErrorAction Stop
           Write-Host "Migration applied successfully to prod database"
 
   deploy-prod:
@@ -250,14 +266,30 @@ jobs:
           package: ./publish
           respect-funcignore: true
 
-      - name: Health check
+      - name: Health check and warmup
         run: |
+          BASE_URL="https://func-rajfinancial-prod.azurewebsites.net"
           echo "Waiting for deployment to stabilize..."
           for i in 1 2 3 4 5 6; do
-            echo "Attempt $i/6..."
-            if curl -sf --max-time 10 https://func-rajfinancial-prod.azurewebsites.net/api/health; then
+            echo "Health check attempt $i/6..."
+            if curl -sf --max-time 10 "$BASE_URL/api/health"; then
+              echo ""
               echo "Health check passed!"
-              exit 0
+              # Warm up auth middleware by hitting a protected endpoint
+              # Accept any non-503 response (401 = middleware loaded)
+              echo "Warming up auth middleware..."
+              for j in 1 2 3 4 5 6; do
+                echo "Warmup attempt $j/6..."
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
+                if [ "$STATUS" != "503" ] && [ "$STATUS" != "000" ]; then
+                  echo "Auth middleware ready (HTTP $STATUS)"
+                  exit 0
+                fi
+                echo "Auth middleware not ready (HTTP $STATUS), retrying in 10s..."
+                sleep 10
+              done
+              echo "Auth middleware warmup failed after 6 attempts"
+              exit 1
             fi
             echo "Health check failed, retrying in 10s..."
             sleep 10
