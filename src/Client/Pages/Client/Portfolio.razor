@@ -14,7 +14,6 @@
 *@
 
 @page "/portfolio"
-@using Microsoft.Extensions.Localization
 @attribute [Authorize(Policy = "RequireClient")]
 @inject IStringLocalizer<Portfolio> L
 
@@ -218,24 +217,24 @@
     /// <summary>
     ///     Portfolio holdings.
     /// </summary>
-    private List<HoldingViewModel> Holdings { get; } = new()
-    {
+    private List<HoldingViewModel> Holdings { get; } =
+    [
         new HoldingViewModel { Symbol = "AAPL", Name = "Apple Inc.", Shares = 50, CurrentPrice = 178.50m, CostBasis = 150.00m },
         new HoldingViewModel { Symbol = "MSFT", Name = "Microsoft Corp.", Shares = 30, CurrentPrice = 378.25m, CostBasis = 320.00m },
         new HoldingViewModel { Symbol = "GOOGL", Name = "Alphabet Inc.", Shares = 15, CurrentPrice = 141.80m, CostBasis = 125.00m },
         new HoldingViewModel { Symbol = "AMZN", Name = "Amazon.com Inc.", Shares = 25, CurrentPrice = 178.50m, CostBasis = 165.00m },
         new HoldingViewModel { Symbol = "VOO", Name = "Vanguard S&P 500 ETF", Shares = 100, CurrentPrice = 436.25m, CostBasis = 380.00m }
-    };
+    ];
 
     /// <summary>
     ///     Recent transactions.
     /// </summary>
-    private List<TransactionViewModel> RecentTransactions { get; } = new()
-    {
+    private List<TransactionViewModel> RecentTransactions { get; } =
+    [
         new TransactionViewModel { Type = "Buy", Symbol = "AAPL", Shares = 10, Price = 175.00m, Date = DateTime.Now.AddDays(-2) },
         new TransactionViewModel { Type = "Sell", Symbol = "TSLA", Shares = 5, Price = 245.00m, Date = DateTime.Now.AddDays(-5) },
         new TransactionViewModel { Type = "Buy", Symbol = "VOO", Shares = 20, Price = 432.50m, Date = DateTime.Now.AddDays(-10) }
-    };
+    ];
 
     /// <summary>
     ///     Shows the trade modal dialog.

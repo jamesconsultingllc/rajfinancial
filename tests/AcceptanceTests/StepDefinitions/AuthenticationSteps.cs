@@ -20,7 +20,7 @@ namespace RajFinancial.AcceptanceTests.StepDefinitions;
 public class AuthenticationSteps(ScenarioContext scenarioContext)
 {
     // Track test users created during tests for cleanup
-    private static readonly List<string> testUsersToCleanup = new();
+    private static readonly List<string> testUsersToCleanup = [];
     private IPage Page => scenarioContext.GetPage();
 
     [Then(@"I should be redirected to the Entra External ID login page")]
@@ -177,9 +177,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Fill in email field - optimized based on test logs
         var emailSelectors = new[]
         {
-            "input[type='email']", // ✓ Works - tested 2024-12-26
-            "input[name='email']", // Fallback
-            "input#email" // Fallback
+            "input[name='username']",  // Entra External ID (CIAM) - type="text"
+            "input[type='email']",
+            "input[name='email']",
+            "input#email"
         };
 
         var emailField = await FindFirstVisibleInput(emailSelectors);
@@ -210,37 +211,38 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         // Add specific selectors based on button text - optimized
         if (buttonText.Equals("Next", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
-                "#idSIButton9", // ✓ Works - tested 2024-12-26
-                EntraSelectors.NEXT_BUTTON, // ✓ Works - button[name='idSIButton9']
-                "input[type='submit']" // Fallback
-            });
+            buttonSelectors.AddRange([
+                "button[data-testid='usernamePrimaryButton']", // Entra External ID (CIAM)
+                "button[type='submit']",                       // Generic submit button
+                "#idSIButton9",                                // Entra ID (B2B/workforce)
+                EntraSelectors.NextButton,                     // button[name='idSIButton9']
+                "input[type='submit']"                         // Fallback
+            ]);
         else if (buttonText.Equals("Verify", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 "[data-testid='verifyButton']",
                 "#verifyButton",
                 "#verify",
                 "button:has-text('Verify')",
-                EntraSelectors.SUBMIT_BUTTON
-            });
+                "button[type='submit']",
+                EntraSelectors.SubmitButton
+            ]);
         else if (buttonText.Equals("Accept", StringComparison.OrdinalIgnoreCase))
-            buttonSelectors.AddRange(new[]
-            {
-                "input[type='submit'][value='Accept']", // ✓ Works - tested 2024-12-26
-                "button:has-text('Accept')", // Fallback
-                EntraSelectors.SUBMIT_BUTTON // Fallback
-            });
+            buttonSelectors.AddRange([
+                "input[type='submit'][value='Accept']",
+                "button:has-text('Accept')",
+                "button[type='submit']",
+                EntraSelectors.SubmitButton
+            ]);
         else
             // Generic button selectors
-            buttonSelectors.AddRange(new[]
-            {
+            buttonSelectors.AddRange([
                 $"button:has-text('{buttonText}')",
+                $"button[type='submit']",
                 $"input[type='submit'][value*='{buttonText}' i]",
                 $"input[type='button'][value*='{buttonText}' i]",
                 $"a:has-text('{buttonText}')"
-            });
+            ]);
 
         var clicked = false;
         foreach (var selector in buttonSelectors)
@@ -261,13 +263,20 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
 
         if (!clicked)
         {
-            await Page.ScreenshotAsync(new PageScreenshotOptions
-            {
-                Path =
-                    $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{DateTime.Now:yyyyMMddHHmmss}.png",
-                FullPage = true
-            });
-            throw new Exception($"Could not find '{buttonText}' button on Entra page. Screenshot saved.");
+            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var screenshotPath = $"TestResults/Screenshots/entra-button-{buttonText.Replace(" ", "-")}-{timestamp}.png";
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"entra-button-{buttonText.Replace(" ", "-")}-{timestamp}.html");
+
+            Directory.CreateDirectory("TestResults/Screenshots");
+            await Page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
+            var pageHtml = await Page.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Debug screenshot: {screenshotPath}");
+            Console.WriteLine($"Debug HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {Page.Url}");
+
+            throw new Exception($"Could not find '{buttonText}' button on Entra page. Screenshot: {screenshotPath}, HTML: {htmlPath}");
         }
 
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
@@ -330,7 +339,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Check for Entra attribute collection form or password fields - optimized
         var passwordFieldSelectors = new[]
         {
-            EntraSelectors.PASSWORD_INPUT, // ✓ Works - [data-testid='ipasswordInput']
+            EntraSelectors.PasswordInput, // ✓ Works - [data-testid='ipasswordInput']
             "input[type='password']" // Fallback
         };
 
@@ -407,7 +416,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized password selectors based on test logs
         var passwordSelectors = new[]
         {
-            EntraSelectors.PASSWORD_INPUT, // ✓ Works - [data-testid='ipasswordInput']
+            EntraSelectors.PasswordInput, // ✓ Works - [data-testid='ipasswordInput']
             "input[type='password']:first-of-type" // Fallback
         };
 
@@ -456,7 +465,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized password confirmation selectors based on test logs
         var confirmSelectors = new[]
         {
-            EntraSelectors.PASSWORD_CONFIRMATION_INPUT, // ✓ Works - [data-testid='ipasswordConfirmationInput']
+            EntraSelectors.PasswordConfirmationInput, // ✓ Works - [data-testid='ipasswordConfirmationInput']
             "input#reenterPassword" // Fallback
         };
 
@@ -486,10 +495,10 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Check for Entra attribute collection form with profile fields
         var profileFieldSelectors = new[]
         {
-            EntraSelectors.GIVEN_NAME_INPUT, // [data-testid='igivenNameInput']
-            EntraSelectors.SURNAME_INPUT, // [data-testid='isurnameInput']
-            EntraSelectors.USERNAME_INPUT, // [data-testid='iusernameInput']
-            EntraSelectors.ATTRIBUTE_COLLECTION_FORM
+            EntraSelectors.GivenNameInput, // [data-testid='igivenNameInput']
+            EntraSelectors.SurnameInput, // [data-testid='isurnameInput']
+            EntraSelectors.UsernameInput, // [data-testid='iusernameInput']
+            EntraSelectors.AttributeCollectionForm
         };
 
         var foundProfileForm = false;
@@ -541,32 +550,29 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Add data-testid selectors based on field name - optimized
         if (fieldName.Contains("Given", StringComparison.OrdinalIgnoreCase))
         {
-            fieldSelectors.AddRange(new[]
-            {
-                EntraSelectors.GIVEN_NAME_INPUT, // ✓ Works - [data-testid='igivenNameInput']
+            fieldSelectors.AddRange([
+                EntraSelectors.GivenNameInput, // ✓ Works - [data-testid='igivenNameInput']
                 "input[name='givenName']" // Fallback
-            });
+            ]);
         }
         else if (fieldName.Contains("Surname", StringComparison.OrdinalIgnoreCase))
         {
-            fieldSelectors.AddRange(new[]
-            {
-                EntraSelectors.SURNAME_INPUT, // ✓ Works - [data-testid='isurnameInput']
+            fieldSelectors.AddRange([
+                EntraSelectors.SurnameInput, // ✓ Works - [data-testid='isurnameInput']
                 "input[name='surname']" // Fallback
-            });
+            ]);
         }
         else
         {
             // Generic selectors for other field names
             var fieldNameLower = fieldName.ToLowerInvariant().Replace(" ", "");
-            fieldSelectors.AddRange(new[]
-            {
+            fieldSelectors.AddRange([
                 $"[data-testid='i{fieldNameLower}Input']",
                 $"input[name*='{fieldNameLower}' i]",
                 $"input[id*='{fieldNameLower}' i]",
                 $"input[placeholder*='{fieldName}' i]",
                 $"input[aria-label*='{fieldName}' i]"
-            });
+            ]);
         }
 
         var field = await FindFirstVisibleInput(fieldSelectors.ToArray(), fieldName);
@@ -608,7 +614,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized username selectors based on test logs
         var usernameSelectors = new[]
         {
-            EntraSelectors.USERNAME_INPUT, // ✓ Works - [data-testid='iusernameInput']
+            EntraSelectors.UsernameInput, // ✓ Works - [data-testid='iusernameInput']
             "input[name='displayName']", // Fallback
             "input[name='username']" // Fallback
         };
@@ -1039,8 +1045,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         }
         
         // Add generic account picker selectors as fallback
-        accountSelectors.AddRange(new[]
-        {
+        accountSelectors.AddRange([
             "[data-test-id='account-picker-account']",
             "#tilesHolder .tile",
             ".table-row.tile",
@@ -1050,7 +1055,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
             ".signOutCard",
             "button:has-text('Sign out')",
             "button:has-text('Continue')"
-        });
+        ]);
 
         // Try to find and click an account element (with shorter timeout per selector)
         foreach (var selector in accountSelectors)
@@ -1178,20 +1183,30 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         var content = await Page.ContentAsync();
         var url = Page.Url;
 
-        // Check if either condition is met:
+        // Check if any of these conditions are met:
         // 1. Access denied message is shown
         // 2. Redirected to home page
+        // 3. Redirected to login page (auth challenge — browser-specific behavior)
         var hasAccessDeniedMessage = content.Contains(expectedMessage, StringComparison.OrdinalIgnoreCase) ||
-                                     content.Contains("not authorized", StringComparison.OrdinalIgnoreCase);
+                                     content.Contains("not authorized", StringComparison.OrdinalIgnoreCase) ||
+                                     content.Contains("access denied", StringComparison.OrdinalIgnoreCase);
 
         var isOnHomePage = url == PlaywrightHooks.BaseUrl ||
                            url == PlaywrightHooks.BaseUrl + "/" ||
                            url.EndsWith("/#");
 
+        var isOnLoginPage = url.Contains("/authentication/login", StringComparison.OrdinalIgnoreCase);
+
+        // Also verify admin content is NOT visible (the real business assertion)
+        var hasAdminContent = content.Contains("Administrator Dashboard", StringComparison.OrdinalIgnoreCase);
+
         Assert.True(
-            hasAccessDeniedMessage || isOnHomePage,
-            $"Expected either '{expectedMessage}' message or redirect to home page. " +
+            hasAccessDeniedMessage || isOnHomePage || isOnLoginPage,
+            $"Expected '{expectedMessage}', redirect to home, or redirect to login. " +
             $"Current URL: {url}, Content contains '{expectedMessage}': {hasAccessDeniedMessage}");
+
+        Assert.False(hasAdminContent,
+            "Admin dashboard content should not be visible to a Client user");
     }
 
     /// <summary>
@@ -1206,7 +1221,7 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         // Optimized verification code input selectors based on test logs
         var codeInputSelectors = new[]
         {
-            EntraSelectors.VERIFICATION_CODE_INPUT, // ✓ Works - input#idTxtBx_OTC_Password
+            EntraSelectors.VerificationCodeInput, // ✓ Works - input#idTxtBx_OTC_Password
             "input[name='otc']", // Fallback
             "input[type='tel']" // Fallback
         };
@@ -1252,8 +1267,8 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
         var submitSelectors = new[]
         {
             "input[type='submit']", // ✓ Works - tested 2024-12-26
-            EntraSelectors.SUBMIT_BUTTON, // Fallback - button[type='submit']
-            EntraSelectors.NEXT_BUTTON // Fallback - button[name='idSIButton9']
+            EntraSelectors.SubmitButton, // Fallback - button[type='submit']
+            EntraSelectors.NextButton // Fallback - button[name='idSIButton9']
         };
 
         var submitted = false;
@@ -1391,24 +1406,22 @@ public class AuthenticationSteps(ScenarioContext scenarioContext)
     private static class EntraSelectors
     {
         // Form
-        public const string ATTRIBUTE_COLLECTION_FORM = "[data-testid='attribute-collection-form']";
+        public const string AttributeCollectionForm = "[data-testid='attribute-collection-form']";
 
         // Password fields
-        public const string PASSWORD_INPUT = "input[data-testid='ipasswordInput']";
-        public const string PASSWORD_CONFIRMATION_INPUT = "input[data-testid='ipasswordConfirmationInput']";
+        public const string PasswordInput = "input[data-testid='ipasswordInput']";
+        public const string PasswordConfirmationInput = "input[data-testid='ipasswordConfirmationInput']";
 
         // Profile fields
-        public const string GIVEN_NAME_INPUT = "input[data-testid='igivenNameInput']";
-        public const string SURNAME_INPUT = "input[data-testid='isurnameInput']";
-        public const string USERNAME_INPUT = "input[data-testid='iusernameInput']";
+        public const string GivenNameInput = "input[data-testid='igivenNameInput']";
+        public const string SurnameInput = "input[data-testid='isurnameInput']";
+        public const string UsernameInput = "input[data-testid='iusernameInput']";
 
         // Verification code input
-        public const string VERIFICATION_CODE_INPUT = "input#idTxtBx_OTC_Password";
+        public const string VerificationCodeInput = "input#idTxtBx_OTC_Password";
 
         // Buttons
-        public const string NEXT_BUTTON = "button[name='idSIButton9']";
-        public const string SUBMIT_BUTTON = "button[type='submit']";
-        public const string CANCEL_BUTTON = "button.ext-secondary";
-        public const string VERIFY_BUTTON = "input#idSubmit_SAOTCC_Continue";
+        public const string NextButton = "button[name='idSIButton9']";
+        public const string SubmitButton = "button[type='submit']";
     }
 }

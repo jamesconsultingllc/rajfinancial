@@ -1,4 +1,4 @@
-﻿# .NET build artifacts
+# .NET build artifacts
 bin/
 obj/
 *.user
@@ -7,6 +7,9 @@ obj/
 *.dll
 *.pdb
 *.exe
+
+# Auto-generated (Reqnroll/SpecFlow)
+*.feature.cs
 
 # IDE
 .idea/
@@ -37,3 +40,20 @@ appsettings.local.json
 /tests/AcceptanceTests/appsettings.local.json
 /src/Api/local.settings.json
 /themes
+
+# Local HTTPS certificate
+certificate.pfx
+
+# Debug/test artifacts
+test-publish/
+func-logs/
+func-logs2/
+
+# Review artifacts
+review.md
+func-logs*.zip
+session.md
+docs/session.md
+
+# Insomnia exports may contain tokens after use
+# tools/insomnia/

@@ -60,7 +60,7 @@ public class AccessibilityTests : IAsyncLifetime
                 RunOnly = new RunOnlyOptions
                 {
                     Type = "tag",
-                    Values = new List<string> { "wcag2a", "wcag2aa" }
+                    Values = ["wcag2a", "wcag2aa"]
                 }
             });
 
@@ -205,7 +205,7 @@ public class AccessibilityTests : IAsyncLifetime
                 RunOnly = new RunOnlyOptions
                 {
                     Type = "rule",
-                    Values = new List<string> { "color-contrast" }
+                    Values = ["color-contrast"]
                 }
             });
 

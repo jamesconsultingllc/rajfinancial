@@ -11,12 +11,24 @@ namespace RajFinancial.AcceptanceTests.Hooks;
 
 /// <summary>
 ///     Hooks for managing Playwright browser and page lifecycle.
+///     Includes automatic browser recovery for headless CI environments
+///     where the browser process may crash due to GPU/dbus issues.
 /// </summary>
 [Binding]
 public class PlaywrightHooks(ScenarioContext scenarioContext)
 {
     private static IPlaywright? playwright;
     private static IBrowser? browser;
+
+    /// <summary>
+    ///     Cached browser type for re-launching after crash recovery.
+    /// </summary>
+    private static string cachedBrowserType = "chromium";
+
+    /// <summary>
+    ///     Cached headless flag for re-launching after crash recovery.
+    /// </summary>
+    private static bool cachedHeadless = true;
 
     private static readonly Dictionary<string, string> testUserEmails = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -47,30 +59,12 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         // Get browser type from environment variable (default: chromium)
         // Options: chromium, firefox, webkit, msedge, chrome
-        var browserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
-        var headless = Environment.GetEnvironmentVariable("HEADED") != "true";
+        cachedBrowserType = Environment.GetEnvironmentVariable("BROWSER")?.ToLowerInvariant() ?? "chromium";
+        cachedHeadless = Environment.GetEnvironmentVariable("HEADED") != "true";
 
-        // For Edge and Chrome, we use Chromium with a channel
-        var launchOptions = new BrowserTypeLaunchOptions
-        {
-            Headless = headless,
-            Channel = browserType switch
-            {
-                "msedge" => "msedge",
-                "chrome" => "chrome",
-                _ => null // Use default Chromium
-            }
-        };
+        browser = await LaunchBrowserAsync();
 
-        browser = browserType switch
-        {
-            "firefox" => await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            "webkit" => await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = headless }),
-            _ => await playwright.Chromium
-                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
-        };
-
-        Console.WriteLine($"?? Browser: {browserType}, Headless: {headless}");
+        Console.WriteLine($"?? Browser: {cachedBrowserType}, Headless: {cachedHeadless}");
 
         // Pre-generate storage state files locally when paths are configured
         foreach (var kvp in TestConfiguration.Instance.TestUsers)
@@ -86,45 +80,147 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     }
 
     /// <summary>
-    ///     Creates a new page before each scenario.
+    ///     Launches (or re-launches) the browser using the cached configuration.
+    ///     Used during initial setup and for crash recovery in headless CI environments.
+    /// </summary>
+    /// <returns>The launched browser instance.</returns>
+    private static async Task<IBrowser> LaunchBrowserAsync()
+    {
+        // For Edge and Chrome, we use Chromium with a channel
+        var launchOptions = new BrowserTypeLaunchOptions
+        {
+            Headless = cachedHeadless,
+            Channel = cachedBrowserType switch
+            {
+                "msedge" => "msedge",
+                "chrome" => "chrome",
+                _ => null // Use default Chromium
+            }
+        };
+
+        return cachedBrowserType switch
+        {
+            "firefox" => await playwright!.Firefox.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = cachedHeadless }),
+            "webkit" => await playwright!.Webkit.LaunchAsync(
+                new BrowserTypeLaunchOptions { Headless = cachedHeadless }),
+            _ => await playwright!.Chromium
+                .LaunchAsync(launchOptions) // chromium, msedge, chrome all use Chromium engine
+        };
+    }
+
+    /// <summary>
+    ///     Creates a new browser context and page before each scenario.
+    ///     Includes automatic browser recovery if the browser process has crashed
+    ///     (common in headless CI environments due to GPU/dbus transient failures).
     /// </summary>
     [BeforeScenario]
     public async Task BeforeScenario()
     {
-        var context = await browser!.NewContextAsync(new BrowserNewContextOptions
+        IBrowserContext context;
+        IPage page;
+
+        try
         {
-            ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
-        });
-        var page = await context.NewPageAsync();
+            context = await browser!.NewContextAsync(new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+            });
+            page = await context.NewPageAsync();
+        }
+        catch (PlaywrightException ex) when (ex.Message.Contains("Target page, context or browser has been closed") ||
+                                                ex.Message.Contains("Target closed") ||
+                                                ex.Message.Contains("Browser has been closed"))
+        {
+            // Browser process crashed (e.g., GPU transient failure on headless Linux CI).
+            // Re-launch the browser and retry creating the context/page.
+            Console.WriteLine("?? Browser crashed — re-launching for scenario recovery...");
+
+            try
+            {
+                if (browser != null)
+                {
+                    await browser.DisposeAsync();
+                }
+            }
+            catch
+            {
+                // Ignore disposal errors on a dead browser
+            }
+
+            browser = await LaunchBrowserAsync();
+
+            context = await browser.NewContextAsync(new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
+            });
+            page = await context.NewPageAsync();
+
+            Console.WriteLine("?? Browser re-launched successfully.");
+        }
 
         scenarioContext.Set(context, "BrowserContext");
         scenarioContext.Set(page, "Page");
     }
 
     /// <summary>
-    ///     Closes the page after each scenario.
+    ///     Closes the page and context after each scenario.
+    ///     Captures a screenshot on failure if the browser is still alive.
     /// </summary>
     [AfterScenario]
     public async Task AfterScenario()
     {
-        if (scenarioContext.TryGetValue<IPage>("Page", out var page))
+        try
         {
-            // Take screenshot on failure
-            if (scenarioContext.TestError != null)
+            if (scenarioContext.TryGetValue<IPage>("Page", out var page))
             {
-                var screenshotPath = Path.Combine(
-                    "TestResults",
-                    "Screenshots",
-                    $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                // Take screenshot on failure
+                if (scenarioContext.TestError != null)
+                {
+                    try
+                    {
+                        var screenshotPath = Path.Combine(
+                            "TestResults",
+                            "Screenshots",
+                            $"{scenarioContext.ScenarioInfo.Title.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
-                await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                        Directory.CreateDirectory(Path.GetDirectoryName(screenshotPath)!);
+                        await page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                    }
+                    catch (PlaywrightException)
+                    {
+                        // Browser already crashed — screenshot not possible
+                        Console.WriteLine("?? Could not capture failure screenshot — browser crashed.");
+                    }
+                }
+
+                try
+                {
+                    await page.CloseAsync();
+                }
+                catch (PlaywrightException)
+                {
+                    // Already closed
+                }
             }
 
-            await page.CloseAsync();
+            if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context))
+            {
+                try
+                {
+                    await context.CloseAsync();
+                }
+                catch (PlaywrightException)
+                {
+                    // Already closed
+                }
+            }
         }
-
-        if (scenarioContext.TryGetValue<IBrowserContext>("BrowserContext", out var context)) await context.CloseAsync();
+        catch (PlaywrightException)
+        {
+            // Browser process died — nothing to clean up
+            Console.WriteLine("?? Browser process died during scenario cleanup.");
+        }
     }
 
     /// <summary>
@@ -135,7 +231,15 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     {
         if (browser != null)
         {
-            await browser.CloseAsync();
+            try
+            {
+                await browser.CloseAsync();
+            }
+            catch (PlaywrightException)
+            {
+                // Browser already crashed — nothing to close
+            }
+
             await browser.DisposeAsync();
         }
 
@@ -270,10 +374,18 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
 
         if (!authenticated)
         {
-            // Take a debug screenshot
-            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            // Capture debug screenshot and page HTML
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var debugPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"auth-failed-{role}-{timestamp}.html");
+
             await page.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath, FullPage = true });
-            Console.WriteLine($"Auth failed for {role}. Debug screenshot: {debugPath}");
+            var pageHtml = await page.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Auth failed for {role}. Screenshot: {debugPath}, HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {page.Url}");
+            Console.WriteLine($"Page title: {await page.TitleAsync()}");
             await context.CloseAsync();
             return false;
         }
@@ -281,7 +393,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         // With MSAL configured to use localStorage, Playwright's native storage state captures tokens.
         // Debug: Check localStorage
         var localStorageKeys = await page.EvaluateAsync<string[]>("() => Object.keys(localStorage)");
-        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys?.Length ?? 0}");
+        Console.WriteLine($"[{role}] localStorage keys: {localStorageKeys.Length}");
         Console.WriteLine($"[{role}] Current URL: {page.Url}");
 
         // Save storage state using Playwright's native method
@@ -302,21 +414,78 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
     public static async Task HandleEntraLoginPage(IPage loginPage, string email, string password)
     {
         await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await loginPage.WaitForTimeoutAsync(500);
+        await loginPage.WaitForTimeoutAsync(1000);
 
-        var emailInput = loginPage.Locator("input[type='email'], input[name='loginfmt']");
-        if (await emailInput.IsVisibleAsync())
+        // Entra External ID (CIAM) may show email and password on the same page,
+        // or may have a two-step flow. Handle both cases.
+        
+        // Step 1: Look for email input field
+        var emailSelectors = new[]
+        {
+            "input[name='username']",               // Entra External ID (CIAM) - type="text"
+            "input[data-testid='iusernameInput']",  // Entra External ID (older)
+            "input[type='email']",
+            "input[name='loginfmt']",               // Entra ID (B2B/workforce)
+            "input[name='email']"
+        };
+
+        var emailInput = await FindVisibleLocatorAsync(loginPage, emailSelectors, 3000);
+
+        if (emailInput != null)
         {
             await emailInput.FillAsync(email);
-            await loginPage.ClickAsync("input[type='submit'], button[type='submit']");
+            
+            // Check if password field is already visible (same-page flow)
+            var passwordVisible = await loginPage.Locator("input[data-testid='ipasswordInput'], input[type='password']")
+                .First.IsVisibleAsync();
+            
+            if (!passwordVisible)
+            {
+                // Two-step flow: click Next to proceed to password
+                var nextButton = loginPage.Locator("input[type='submit'], button[type='submit'], button[name='idSIButton9']").First;
+                await nextButton.ClickAsync();
+                await loginPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                await loginPage.WaitForTimeoutAsync(1000);
+            }
         }
 
-        await loginPage.WaitForSelectorAsync("input[type='password']",
-            new PageWaitForSelectorOptions { Timeout = 15000, State = WaitForSelectorState.Visible });
-        await loginPage.FillAsync("input[type='password']", password);
-        var submitButton =
-            loginPage.Locator(
-                "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button:has-text('Next')");
+        // Step 2: Wait for and fill password field
+        var passwordSelectors = new[]
+        {
+            "input[name='password']",               // Entra External ID (CIAM)
+            "input[data-testid='ipasswordInput']",  // Entra External ID (older)
+            "input[type='password']",
+            "input[name='passwd']"                   // Entra ID (B2B/workforce)
+        };
+
+        var passwordInput = await FindVisibleLocatorAsync(loginPage, passwordSelectors, 10000);
+
+        if (passwordInput == null)
+        {
+            // Capture debug screenshot and page HTML for diagnostics
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var screenshotPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.png");
+            var htmlPath = Path.Combine(Path.GetTempPath(), $"entra-login-debug-{timestamp}.html");
+
+            await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath, FullPage = true });
+
+            var pageHtml = await loginPage.ContentAsync();
+            await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+            Console.WriteLine($"Debug screenshot: {screenshotPath}");
+            Console.WriteLine($"Debug HTML: {htmlPath}");
+            Console.WriteLine($"Current URL: {loginPage.Url}");
+            Console.WriteLine($"Page title: {await loginPage.TitleAsync()}");
+
+            throw new TimeoutException(
+                $"Password field not found. Screenshot: {screenshotPath}, HTML: {htmlPath}. Current URL: {loginPage.Url}");
+        }
+
+        await passwordInput.FillAsync(password);
+        
+        // Step 3: Submit the form
+        var submitButton = loginPage.Locator(
+            "input[type='submit'], button[type='submit'], button:has-text('Sign in'), button[name='idSIButton9']").First;
         await submitButton.ClickAsync();
 
         // Handle "Stay signed in?" or "Keep me signed in" prompt
@@ -334,7 +503,7 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
             // Prompt not shown - may auto-redirect or use different flow
         }
 
-        // For redirect flow: wait for redirect back to the app
+        // Step 4: For redirect flow: wait for redirect back to the app
         // For popup flow: the popup will close automatically
         try
         {
@@ -346,19 +515,55 @@ public class PlaywrightHooks(ScenarioContext scenarioContext)
         }
         catch
         {
-            // URL check failed - take debug screenshot
+            // URL check failed - capture debug screenshot and HTML
             Console.WriteLine("Warning: Login redirect did not complete within 30s.");
             try
             {
+                var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
                 var debugPath = Path.Combine(Path.GetTempPath(),
-                    $"login-redirect-timeout-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                    $"login-redirect-timeout-{timestamp}.png");
+                var htmlPath = Path.Combine(Path.GetTempPath(),
+                    $"login-redirect-timeout-{timestamp}.html");
+
                 await loginPage.ScreenshotAsync(new PageScreenshotOptions { Path = debugPath });
-                Console.WriteLine($"Debug screenshot saved to: {debugPath}");
+                var pageHtml = await loginPage.ContentAsync();
+                await File.WriteAllTextAsync(htmlPath, pageHtml);
+
+                Console.WriteLine($"Debug screenshot: {debugPath}");
+                Console.WriteLine($"Debug HTML: {htmlPath}");
+                Console.WriteLine($"Current URL: {loginPage.Url}");
             }
             catch
             {
-                /* Ignore screenshot errors */
+                /* Ignore screenshot/HTML capture errors */
             }
         }
+    }
+
+    /// <summary>
+    ///     Finds the first visible locator from a list of CSS selectors.
+    /// </summary>
+    /// <param name="page">The page to search.</param>
+    /// <param name="selectors">CSS selectors to try in order.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds for each selector.</param>
+    /// <returns>The first visible locator, or null if none found.</returns>
+    private static async Task<ILocator?> FindVisibleLocatorAsync(IPage page, string[] selectors, int timeoutMs)
+    {
+        foreach (var selector in selectors)
+        {
+            var locator = page.Locator(selector).First;
+            try
+            {
+                await locator.WaitForAsync(new LocatorWaitForOptions
+                    { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+                return locator;
+            }
+            catch
+            {
+                // Try next selector
+            }
+        }
+
+        return null;
     }
 }

@@ -19,8 +19,8 @@
     <!-- Test result settings -->
     <ResultsDirectory>.\TestResults</ResultsDirectory>
     
-    <!-- Timeout for individual tests (in milliseconds) - 5 minutes for E2E tests -->
-    <TestSessionTimeout>300000</TestSessionTimeout>
+    <!-- Timeout for entire test session (in milliseconds) - 20 minutes for full E2E suite -->
+    <TestSessionTimeout>1200000</TestSessionTimeout>
     <EnvironmentVariables>
       <!-- Azure Entra External ID Configuration -->
       <AZURE_CLIENT_ID>2d6a08c7-b142-4d53-a307-9ac75bae75eb</AZURE_CLIENT_ID>
@@ -66,7 +66,7 @@
       <DataCollector friendlyName="blame" enabled="true">
         <Configuration>
           <CollectDump DumpType="Full" />
-          <CollectDumpOnTestSessionHang TestTimeout="300000" HangDumpType="Full" />
+          <CollectDumpOnTestSessionHang TestTimeout="1200000" HangDumpType="Full" />
         </Configuration>
       </DataCollector>
     </DataCollectors>

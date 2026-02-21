@@ -1,0 +1,83 @@
+using MemoryPack;
+using RajFinancial.Shared.Entities;
+
+namespace RajFinancial.Shared.Contracts.Assets;
+
+/// <summary>
+///     Request body for updating an existing asset.
+/// </summary>
+/// <remarks>
+///     Used by <c>PUT /api/assets/{id}</c>. All fields are required for a full update.
+///     The service validates user ownership before applying changes.
+/// </remarks>
+[MemoryPackable(GenerateType.VersionTolerant)]
+public sealed partial record UpdateAssetRequest
+{
+    /// <summary>Display name of the asset (required, max 200 characters).</summary>
+    [MemoryPackOrder(0)]
+    public required string Name { get; init; }
+
+    /// <summary>Classification of the asset (required).</summary>
+    [MemoryPackOrder(1)]
+    public required AssetType Type { get; init; }
+
+    /// <summary>Current value of the asset (required, must be >= 0).</summary>
+    [MemoryPackOrder(2)]
+    public required decimal CurrentValue { get; init; }
+
+    /// <summary>Original purchase price (cost basis).</summary>
+    [MemoryPackOrder(3)]
+    public decimal? PurchasePrice { get; init; }
+
+    /// <summary>Date the asset was purchased.</summary>
+    [MemoryPackOrder(4)]
+    public DateTimeOffset? PurchaseDate { get; init; }
+
+    /// <summary>Optional description or notes (max 2000 characters).</summary>
+    [MemoryPackOrder(5)]
+    public string? Description { get; init; }
+
+    /// <summary>Physical location of the asset (max 500 characters).</summary>
+    [MemoryPackOrder(6)]
+    public string? Location { get; init; }
+
+    /// <summary>Account or policy number (max 100 characters).</summary>
+    [MemoryPackOrder(7)]
+    public string? AccountNumber { get; init; }
+
+    /// <summary>Financial institution holding the asset (max 200 characters).</summary>
+    [MemoryPackOrder(8)]
+    public string? InstitutionName { get; init; }
+
+    // =========================================================================
+    // Depreciation (optional)
+    // =========================================================================
+
+    /// <summary>Depreciation method to apply.</summary>
+    [MemoryPackOrder(9)]
+    public DepreciationMethod? DepreciationMethod { get; init; }
+
+    /// <summary>Estimated residual value at end of useful life (must be >= 0).</summary>
+    [MemoryPackOrder(10)]
+    public decimal? SalvageValue { get; init; }
+
+    /// <summary>Expected useful life in months (must be > 0).</summary>
+    [MemoryPackOrder(11)]
+    public int? UsefulLifeMonths { get; init; }
+
+    /// <summary>Date the asset was placed in service.</summary>
+    [MemoryPackOrder(12)]
+    public DateTimeOffset? InServiceDate { get; init; }
+
+    // =========================================================================
+    // Valuation (optional)
+    // =========================================================================
+
+    /// <summary>Current fair market value (appraisal or market data).</summary>
+    [MemoryPackOrder(13)]
+    public decimal? MarketValue { get; init; }
+
+    /// <summary>Date when MarketValue was last updated.</summary>
+    [MemoryPackOrder(14)]
+    public DateTimeOffset? LastValuationDate { get; init; }
+}

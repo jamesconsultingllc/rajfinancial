@@ -1,7 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -29,28 +32,31 @@ namespace RajFinancial.Api.Middleware;
 ///   <item><c>ClaimsPrincipal</c> - The full claims principal for advanced scenarios</item>
 /// </list>
 /// </para>
+/// <para>
+/// <b>Authentication Flow:</b>
+/// <list type="number">
+///   <item>In Azure (App Service): ClaimsPrincipal is populated by the runtime via EasyAuth.</item>
+///   <item>Locally / without EasyAuth: The JWT Bearer token is parsed from the Authorization header.</item>
+/// </list>
+/// </para>
 /// </remarks>
-public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
+// ReSharper disable once ClassNeverInstantiated.Global
+public class AuthenticationMiddleware(
+    ILogger<AuthenticationMiddleware> logger,
+    IHostEnvironment environment) : IFunctionsWorkerMiddleware
 {
-    private readonly ILogger<AuthenticationMiddleware> _logger;
-
     // Standard claim types for Entra External ID
-    private const string ObjectIdClaim = "http://schemas.microsoft.com/identity/claims/objectidentifier";
-    private const string ObjectIdClaimAlt = "oid";
-    private const string EmailClaim = "emails";
-    private const string EmailClaimAlt = "email";
-    private const string RolesClaim = "roles";
-    private const string NameClaim = "name";
-
-    public AuthenticationMiddleware(ILogger<AuthenticationMiddleware> logger)
-    {
-        _logger = logger;
-    }
+    private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
+    private const string OBJECT_ID_CLAIM_ALT = "oid";
+    private const string EMAIL_CLAIM = "emails";
+    private const string EMAIL_CLAIM_ALT = "email";
+    private const string ROLES_CLAIM = "roles";
+    private const string NAME_CLAIM = "name";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         // Extract ClaimsPrincipal from the function context
-        var principal = GetClaimsPrincipal(context);
+        var principal = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
@@ -62,16 +68,19 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
             if (!string.IsNullOrEmpty(userId))
             {
                 // Store user context for use by functions
+                // UserId is stored as both string (backward compat) and Guid (for IAuthorizationService)
                 context.Items["UserId"] = userId;
+                if (Guid.TryParse(userId, out var userGuid))
+                    context.Items["UserIdGuid"] = userGuid;
                 context.Items["UserEmail"] = email ?? string.Empty;
                 context.Items["UserName"] = name ?? string.Empty;
                 context.Items["UserRoles"] = roles;
                 context.Items["ClaimsPrincipal"] = principal;
                 context.Items["IsAuthenticated"] = true;
 
-                _logger.LogDebug(
-                    "Authenticated user: {UserId}, Email: {Email}, Roles: {Roles}",
-                    userId, email, string.Join(", ", roles));
+                logger.LogDebug(
+                    "Authenticated user: {UserId}, Roles: {Roles}",
+                    userId, string.Join(", ", roles));
             }
         }
         else
@@ -82,197 +91,100 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
         await next(context);
     }
 
-    private static ClaimsPrincipal? GetClaimsPrincipal(FunctionContext context)
+    private async Task<ClaimsPrincipal?> GetClaimsPrincipalAsync(FunctionContext context)
     {
-        // In Azure Functions isolated worker, claims are available through
-        // the FunctionContext.Features collection
-        if (context.Features.Get<IFunctionBindingsFeature>() is not null)
-        {
-            // For HTTP triggers, the ClaimsPrincipal is typically available
-            // through the invocation features
-        }
-
-        // Alternative: Check if ClaimsPrincipal was set by authentication middleware
+        // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
         if (context.Items.TryGetValue("ClaimsPrincipal", out var existingPrincipal) &&
             existingPrincipal is ClaimsPrincipal principal)
         {
             return principal;
         }
 
-        return null;
+        // Extract JWT from Authorization header for local development / standalone hosting
+        var httpRequestData = await context.GetHttpRequestDataAsync();
+        if (httpRequestData is null)
+        {
+            return null;
+        }
+
+        if (!httpRequestData.Headers.TryGetValues("Authorization", out var authValues))
+        {
+            return null;
+        }
+
+        var authHeader = authValues.FirstOrDefault();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        if (string.IsNullOrEmpty(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            // SECURITY: Only parse JWTs without signature validation in Development.
+            // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
+            // directly — if we reach this point in production, the token was not validated by EasyAuth
+            // and must be rejected to prevent forged JWT attacks.
+            if (!environment.IsDevelopment())
+            {
+                logger.LogWarning(
+                    "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
+                    "Rejecting unvalidated token in {Environment} environment",
+                    environment.EnvironmentName);
+                return null;
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+
+            var identity = new ClaimsIdentity(jwtToken.Claims, "Bearer");
+            return new ClaimsPrincipal(identity);
+        }
+        catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
+        {
+            logger.LogWarning(ex, "Failed to parse JWT token from Authorization header");
+            return null;
+        }
     }
 
     private static string? GetUserId(ClaimsPrincipal principal)
     {
         // Try standard Entra claim first, then alternative
-        return principal.FindFirst(ObjectIdClaim)?.Value ??
-               principal.FindFirst(ObjectIdClaimAlt)?.Value;
+        return principal.FindFirst(OBJECT_ID_CLAIM)?.Value ??
+               principal.FindFirst(OBJECT_ID_CLAIM_ALT)?.Value;
     }
 
     private static string? GetEmail(ClaimsPrincipal principal)
     {
         // Entra External ID uses "emails" claim (array), we take first
-        var emailsClaim = principal.FindFirst(EmailClaim)?.Value;
+        var emailsClaim = principal.FindFirst(EMAIL_CLAIM)?.Value;
         if (!string.IsNullOrEmpty(emailsClaim))
         {
             return emailsClaim;
         }
 
-        return principal.FindFirst(EmailClaimAlt)?.Value ??
+        return principal.FindFirst(EMAIL_CLAIM_ALT)?.Value ??
                principal.FindFirst(ClaimTypes.Email)?.Value;
     }
 
     private static string? GetName(ClaimsPrincipal principal)
     {
-        return principal.FindFirst(NameClaim)?.Value ??
+        return principal.FindFirst(NAME_CLAIM)?.Value ??
                principal.FindFirst(ClaimTypes.Name)?.Value;
     }
 
     private static IReadOnlyList<string> GetRoles(ClaimsPrincipal principal)
     {
         // Collect all role claims
-        return principal.FindAll(RolesClaim)
+        return principal.FindAll(ROLES_CLAIM)
             .Select(c => c.Value)
             .Concat(principal.FindAll(ClaimTypes.Role).Select(c => c.Value))
             .Distinct()
             .ToList();
     }
 }
-
-/// <summary>
-/// Extension methods for accessing user context from FunctionContext.
-/// </summary>
-public static class FunctionContextExtensions
-{
-    /// <summary>
-    /// Gets the authenticated user's ID from the function context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The user ID, or null if not authenticated.</returns>
-    public static string? GetUserId(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("UserId", out var userId) ? userId as string : null;
-    }
-
-    /// <summary>
-    /// Gets the authenticated user's email from the function context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The user email, or null if not authenticated.</returns>
-    public static string? GetUserEmail(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("UserEmail", out var email) ? email as string : null;
-    }
-
-    /// <summary>
-    /// Gets the authenticated user's display name from the function context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The user name, or null if not authenticated.</returns>
-    public static string? GetUserName(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("UserName", out var name) ? name as string : null;
-    }
-
-    /// <summary>
-    /// Gets the authenticated user's roles from the function context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The user's roles, or an empty collection if not authenticated.</returns>
-    public static IReadOnlyList<string> GetUserRoles(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("UserRoles", out var roles)
-            ? roles as IReadOnlyList<string> ?? []
-            : [];
-    }
-
-    /// <summary>
-    /// Checks if the current request is authenticated.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>True if authenticated, false otherwise.</returns>
-    public static bool IsAuthenticated(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("IsAuthenticated", out var isAuth) &&
-               isAuth is true;
-    }
-
-    /// <summary>
-    /// Checks if the authenticated user has a specific role.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <param name="role">The role to check.</param>
-    /// <returns>True if the user has the role, false otherwise.</returns>
-    public static bool HasRole(this FunctionContext context, string role)
-    {
-        return GetUserRoles(context).Contains(role, StringComparer.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Checks if the authenticated user is an administrator.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>True if the user is an administrator, false otherwise.</returns>
-    public static bool IsAdministrator(this FunctionContext context)
-    {
-        return HasRole(context, "Administrator");
-    }
-
-    /// <summary>
-    /// Gets the ClaimsPrincipal from the function context.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <returns>The ClaimsPrincipal, or null if not authenticated.</returns>
-    public static ClaimsPrincipal? GetClaimsPrincipal(this FunctionContext context)
-    {
-        return context.Items.TryGetValue("ClaimsPrincipal", out var principal)
-            ? principal as ClaimsPrincipal
-            : null;
-    }
-
-    /// <summary>
-    /// Requires authentication. Throws UnauthorizedException if not authenticated.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    public static void RequireAuthentication(this FunctionContext context)
-    {
-        if (!context.IsAuthenticated())
-        {
-            throw new UnauthorizedException("Authentication required");
-        }
-    }
-
-    /// <summary>
-    /// Requires a specific role. Throws ForbiddenException if role is missing.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <param name="role">The required role.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    /// <exception cref="ForbiddenException">Thrown when role is missing.</exception>
-    public static void RequireRole(this FunctionContext context, string role)
-    {
-        context.RequireAuthentication();
-
-        if (!context.HasRole(role))
-        {
-            throw new ForbiddenException($"Role '{role}' is required");
-        }
-    }
-
-    /// <summary>
-    /// Requires administrator role. Throws ForbiddenException if not an admin.
-    /// </summary>
-    /// <param name="context">The function context.</param>
-    /// <exception cref="UnauthorizedException">Thrown when not authenticated.</exception>
-    /// <exception cref="ForbiddenException">Thrown when not an administrator.</exception>
-    public static void RequireAdministrator(this FunctionContext context)
-    {
-        RequireRole(context, "Administrator");
-    }
-}
-
-/// <summary>
-/// Marker interface for function bindings feature.
-/// </summary>
-internal interface IFunctionBindingsFeature { }

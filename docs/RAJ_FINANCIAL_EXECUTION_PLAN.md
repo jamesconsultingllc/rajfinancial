@@ -714,14 +714,21 @@ The API tracking tables are maintained in [RAJ_FINANCIAL_EXECUTION_PLAN_API_TRAC
 - [ ] Handle webhooks
 
 ### Sprint 4: Assets Management (Week 7-8)
-**Goal**: Manual asset CRUD
+**Goal**: Manual asset CRUD with depreciation & valuation support
 
-- [ ] Implement AssetService
-- [ ] Create asset endpoints (CRUD)
-- [ ] Build Assets page with grid/cards
-- [ ] Create AssetForm component
-- [ ] Implement filter tabs
-- [ ] Add delete confirmation
+- [ ] Create Asset entity, AssetType enum, DepreciationMethod enum
+- [ ] Create AssetDto, AssetDetailDto, CreateAssetRequest, UpdateAssetRequest DTOs
+- [ ] Define IAssetService interface
+- [ ] Implement AssetService with EF Core + authorization
+- [ ] Implement DepreciationCalculator (StraightLine, DecliningBalance, MACRS)
+- [ ] Create asset endpoints (GET list, GET by id, POST, PUT, DELETE)
+- [ ] Create FluentValidation validators
+- [ ] Add Asset DbSet to ApplicationDbContext + EF migration
+- [ ] Unit tests for AssetService + DepreciationCalculator (90%+ coverage)
+- [ ] Build Assets page with grid/cards (UI)
+- [ ] Create AssetForm component (UI)
+- [ ] Implement filter tabs (UI)
+- [ ] Add delete/dispose confirmation (UI)
 
 ### Sprint 5: Beneficiaries (Week 9-10)
 **Goal**: Beneficiary management

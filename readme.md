@@ -12,7 +12,7 @@ A modern financial application built with Blazor WebAssembly and deployed to Azu
 ### Local Development
 ```powershell
 # Clone the repository
-git clone https://github.com/your-org/rajfinancial.git
+git clone https://github.com/jamesconsultingllc/rajfinancial.git
 cd rajfinancial
 
 # Restore dependencies
@@ -30,17 +30,22 @@ dotnet run
 
 ```
 rajfinancial/
-├── .github/workflows/          # GitHub Actions workflows
+├── .github/
+│   ├── workflows/              # GitHub Actions CI/CD workflows
+│   └── actions/                # Custom reusable actions
 ├── src/
 │   ├── Client/                 # Blazor WebAssembly project
-│   ├── Server/                 # Azure Functions API
+│   ├── Api/                    # Azure Functions API
 │   ├── Shared/                 # Shared models and DTOs
 │   └── RajFinancial.sln        # Solution file
 ├── tests/
 │   ├── UnitTests/              # Unit tests (xUnit)
-│   ├── IntegrationTests/       # Integration tests
-│   └── AcceptanceTests/        # E2E tests (Playwright)
-└── docs/                       # Documentation
+│   └── AcceptanceTests/        # E2E tests (Playwright + Reqnroll)
+├── scripts/                    # Automation scripts
+│   ├── infra/                  # Infrastructure provisioning
+│   └── *.ps1                   # CI/CD and operational scripts
+├── docs/                       # Documentation
+└── themes/                     # Brand themes (Loveable)
 ```
 
 ## 🔧 GitHub Actions Workflow
@@ -49,54 +54,75 @@ This project uses a comprehensive CI/CD pipeline with:
 
 - ✅ **Unit Tests** - Run before deployment
 - ✅ **Environment-based Deployment** - Production, Development, and Preview environments
-- ✅ **Settings Synchronization** - Automatic config copying
-- ✅ **E2E Tests** - Playwright tests after deployment
+- ✅ **Settings Synchronization** - Automatic config copying between environments
+- ✅ **Entra Redirect URI Management** - Automatic redirect URI setup for preview environments
+- ✅ **E2E Tests** - Playwright tests after deployment (Chromium, Firefox, WebKit, Edge)
 - ✅ **Automatic Cleanup** - Preview environments cleaned up on PR merge
 
-### Setup Instructions
+### Branch Strategy
 
-1. **Azure Configuration**: Follow [QUICK_SETUP_GUIDE.md](./QUICK_SETUP_GUIDE.md)
-2. **Workflow Details**: See [WORKFLOW_UPDATE_SUMMARY.md](./WORKFLOW_UPDATE_SUMMARY.md)
-3. **Visual Guide**: See [WORKFLOW_VISUAL_GUIDE.md](./WORKFLOW_VISUAL_GUIDE.md)
+| Branch Pattern | Environment | URL |
+|----------------|-------------|-----|
+| `main` | Production | `https://gray-cliff-072f3b510.azurestaticapps.net` |
+| `develop` | Development | `https://gray-cliff-072f3b510-develop.centralus.azurestaticapps.net` |
+| `feature/*` | Preview | Auto-generated preview URL |
+| `hotfix/*` | Preview | Auto-generated preview URL |
+| `release/*` | Preview | Auto-generated preview URL |
+
+## 🛠️ Scripts
+
+All automation scripts are in the [`scripts/`](./scripts/) directory:
+
+| Category | Scripts | Purpose |
+|----------|---------|---------|
+| **Infrastructure** | `infra/register-entra-apps.ps1` | Register SPA & API apps in Entra External ID |
+| **CI/CD Setup** | `setup-entra-oidc.ps1`, `add-entra-federated-credentials.ps1` | Configure GitHub Actions OIDC authentication |
+| **Configuration** | `configure-entra-app-roles.ps1`, `configure-user-flows.ps1` | App roles and MFA configuration |
+
+See [`scripts/README.md`](./scripts/README.md) for detailed documentation.
 
 ## 🧪 Testing
 
 ```powershell
 # Run unit tests
-dotnet test tests/UnitTests/UnitTests.csproj
-
-# Run integration tests
-dotnet test tests/IntegrationTests/IntegrationTests.csproj
+dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj
 
 # Run E2E tests (requires app to be running)
 $env:BASE_URL = "http://localhost:5000"
-dotnet test tests/AcceptanceTests/AcceptanceTests.csproj
+$env:BROWSER = "chromium"
+dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj
 ```
-
-For more details, see [tests/README.md](./tests/README.md)
 
 ## 🌍 Environments
 
+### Azure Static Web Apps
+
 - **Production**: https://gray-cliff-072f3b510.azurestaticapps.net (main branch)
-- **Development**: https://development.gray-cliff-072f3b510.azurestaticapps.net (develop branch)
+- **Development**: https://gray-cliff-072f3b510-develop.centralus.azurestaticapps.net (develop branch)
 - **Preview**: Auto-generated for feature/hotfix/release branches
+
+### Entra External ID Tenants
+
+| Environment | Tenant Domain | MFA |
+|-------------|---------------|-----|
+| Development | `rajfinancialdev.onmicrosoft.com` | Disabled |
+| Production | `rajfinancialprod.onmicrosoft.com` | Enabled |
 
 ## 📚 Documentation
 
-- [Quick Setup Guide](./QUICK_SETUP_GUIDE.md) - Get started with Azure and GitHub setup
-- [Azure Federated Credentials](./AZURE_FEDERATED_CREDENTIALS_SETUP.md) - Detailed Azure configuration
-- [Workflow Comparison](./WORKFLOW_COMPARISON.md) - Compare with texas-build-pros
-- [Workflow Visual Guide](./WORKFLOW_VISUAL_GUIDE.md) - Visual workflow documentation
-- [Implementation Complete](./IMPLEMENTATION_COMPLETE.md) - Setup completion checklist
-- [Test Guide](./tests/README.md) - Testing best practices
+- [Scripts Documentation](./scripts/README.md) - Automation scripts guide
+- [UI Design](./docs/RAJ_FINANCIAL_UI.md) - UI component specifications
+- [Execution Plan](./docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) - Development roadmap
+- [Copilot Instructions](./.github/copilot-instructions.md) - AI coding guidelines
 
 ## 🔐 Security
 
 This project uses:
-- OIDC federated credentials (no long-lived secrets)
-- Pinned GitHub Actions versions
-- Environment-based approvals for production
-- Minimal workflow permissions
+- **OIDC federated credentials** - No long-lived secrets for Azure/Entra authentication
+- **Pinned GitHub Actions versions** - Prevent supply chain attacks
+- **Environment-based approvals** - Required for production deployments
+- **Minimal workflow permissions** - Least privilege principle
+- **OWASP compliance** - Following Top 10:2025 security guidelines
 
 ## 🤝 Contributing
 
@@ -108,23 +134,24 @@ This project uses:
 The workflow will automatically:
 - Run unit tests
 - Deploy to a preview environment
-- Run E2E tests
+- Configure Entra redirect URIs
+- Run E2E tests across multiple browsers
 - Clean up the preview when the PR is merged
 
 ## 📝 License
 
-[Your License Here]
+Proprietary - RAJ Financial Software
 
 ## 🆘 Support
 
 For issues or questions:
-1. Check the [troubleshooting guide](./IMPLEMENTATION_COMPLETE.md#troubleshooting-guide)
-2. Review [workflow documentation](./WORKFLOW_VISUAL_GUIDE.md)
+1. Check the [scripts documentation](./scripts/README.md)
+2. Review GitHub Actions workflow logs
 3. Open an issue in GitHub
 
 ## 🔗 Resources
 
 - [Azure Static Web Apps](https://docs.microsoft.com/azure/static-web-apps/)
 - [Blazor Documentation](https://docs.microsoft.com/aspnet/core/blazor/)
-- [xUnit Documentation](https://xunit.net/)
+- [Entra External ID](https://learn.microsoft.com/entra/external-id/)
 - [Playwright for .NET](https://playwright.dev/dotnet/)

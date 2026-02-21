@@ -13,12 +13,12 @@ namespace RajFinancial.AcceptanceTests;
 /// </summary>
 public class TestConfiguration
 {
-    private static readonly Lazy<TestConfiguration> instance = new(Load);
+    private static readonly Lazy<TestConfiguration> lazyInstance = new(Load);
 
     /// <summary>
     ///     Gets the singleton instance of the test configuration.
     /// </summary>
-    public static TestConfiguration Instance => instance.Value;
+    public static TestConfiguration Instance => lazyInstance.Value;
 
     /// <summary>
     ///     Base URL for the application under test.

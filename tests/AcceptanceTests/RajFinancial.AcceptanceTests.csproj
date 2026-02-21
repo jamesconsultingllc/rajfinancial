@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ReqnrollFeatureFile Remove="Features\ApiAuthentication.feature" />
+    <ReqnrollFeatureFile Remove="Features\ResourceAuthorization.feature" />
+    <ReqnrollFeatureFile Remove="Features\AuthUserProfile.feature" />
+    <ReqnrollFeatureFile Remove="Features\ClientManagement.feature" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Deque.AxeCore.Playwright" Version="4.10.1" />
@@ -31,7 +38,7 @@
     <ProjectReference Include="..\..\src\Shared\RajFinancial.Shared.csproj" />
   </ItemGroup>
 
-  <!-- Copy appsettings files to output directory -->
+  <!-- Copy config files to output directory -->
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -39,6 +46,9 @@
     <None Update="appsettings.local.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

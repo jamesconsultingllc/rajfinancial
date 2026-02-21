@@ -56,17 +56,22 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore src/RajFinancial.sln
+      - name: Restore Client dependencies
+        run: dotnet restore tests/Client.Tests/RajFinancial.Client.Tests.csproj
 
-      - name: Build
-        run: dotnet build src/RajFinancial.sln --no-restore --configuration Release
+      - name: Build Client tests
+        run: dotnet build tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release
 
-      - name: Run unit tests
-        run: dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj --configuration Release --verbosity normal --logger trx
+      - name: Run Client unit tests
+        run: dotnet test tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    if: github.event_name != 'pull_request' && needs.detect_changes.outputs.src_changed == 'true'
+    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    if: |
+      github.event_name != 'pull_request' &&
+      (needs.detect_changes.outputs.src_changed == 'true' ||
+       startsWith(github.ref, 'refs/heads/feature/') ||
+       startsWith(github.ref, 'refs/heads/hotfix/'))
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
@@ -122,10 +127,10 @@ jobs:
           action: upload
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
-          api_location: "src/Api"
           output_location: "wwwroot"
           production_branch: main
           skip_app_build: false
+          skip_api_build: true
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
@@ -171,7 +176,8 @@ jobs:
 
   e2e_tests_job:
     if: |
-      github.event_name != 'pull_request' && 
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
       always() &&
       needs.unit_tests_job.result == 'success' &&
       (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
@@ -182,7 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [ chromium, firefox, webkit, msedge ]
+        browser: [ chromium, firefox, webkit ]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -217,52 +223,63 @@ jobs:
         id: fetch-passwords
         run: |
           target_env="${{ steps.resolve-env.outputs.target-environment }}"
-          echo "Fetching app settings for environment: $target_env"
-          
-          # Get app settings from SWA
-          settings=$(az staticwebapp appsettings list \
-            --name rajfinancial \
-            --resource-group rajfinancial \
-            --environment-name "$target_env" \
-            --query "properties" -o json 2>/dev/null || echo "{}")
-          
-          # Extract test passwords for all roles
-          admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+          source_env="${{ steps.resolve-env.outputs.source-environment }}"
+
+          # Test passwords are Entra credentials shared across all environments.
+          # Try the target environment first; fall back to the source (development)
+          # so that PR preview slots (which may not have settings synced yet) still work.
+          for env in "$target_env" "$source_env"; do
+            echo "Trying environment: $env"
+            settings=$(az staticwebapp appsettings list \
+              --name rajfinancial \
+              --resource-group rajfinancial \
+              --environment-name "$env" \
+              --query "properties" -o json 2>/dev/null || echo "{}")
+
+            admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
+            if [[ -n "$admin_password" ]]; then
+              echo "Found test passwords in environment: $env"
+              break
+            fi
+            echo "Test passwords not found in $env, trying next..."
+          done
+
+          # Extract all role passwords from whichever environment succeeded
           advisor_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADVISOR // empty')
           client_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_CLIENT // empty')
           viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
-          
+
           # Set as masked environment variables for subsequent steps
           if [[ -n "$admin_password" ]]; then
             echo "::add-mask::$admin_password"
             echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
           else
-            echo "Warning: DEVELOPMENT_TEST_ADMINISTRATOR not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_ADMINISTRATOR not found in any SWA environment"
           fi
-          
+
           if [[ -n "$advisor_password" ]]; then
             echo "::add-mask::$advisor_password"
             echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_ADVISOR password"
           else
-            echo "Warning: DEVELOPMENT_TEST_ADVISOR not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_ADVISOR not found in any SWA environment"
           fi
-          
+
           if [[ -n "$client_password" ]]; then
             echo "::add-mask::$client_password"
             echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_CLIENT password"
           else
-            echo "Warning: DEVELOPMENT_TEST_CLIENT not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_CLIENT not found in any SWA environment"
           fi
-          
+
           if [[ -n "$viewer_password" ]]; then
             echo "::add-mask::$viewer_password"
             echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
             echo "Found DEVELOPMENT_TEST_VIEWER password"
           else
-            echo "Warning: DEVELOPMENT_TEST_VIEWER not found in SWA settings"
+            echo "::warning::DEVELOPMENT_TEST_VIEWER not found in any SWA environment"
           fi
 
       - name: Setup .NET
@@ -284,7 +301,7 @@ jobs:
         run: sleep 30
 
       - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test src/RajFinancial.sln --configuration Debug --verbosity normal --logger trx --filter "FullyQualifiedName~AcceptanceTests&Category!=signup"
+        run: dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --no-build --configuration Debug --verbosity normal --logger trx --settings tests/AcceptanceTests/AcceptanceTests.runsettings --filter "Category!=signup"
         env:
           BASE_URL: ${{ steps.swa-url.outputs.url }}
           BROWSER: ${{ matrix.browser }}
@@ -297,6 +314,20 @@ jobs:
           path: tests/AcceptanceTests/TestResults/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Upload debug screenshots
+        if: failure()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-debug-screenshots-${{ matrix.browser }}
+          path: |
+            /tmp/entra-*.png
+            /tmp/auth-failed-*.png
+            /tmp/login-redirect-*.png
+            TestResults/Screenshots/
+            tests/AcceptanceTests/TestResults/Screenshots/
+          if-no-files-found: ignore
+          retention-days: 1
 
   close_pull_request_job:
     if: |

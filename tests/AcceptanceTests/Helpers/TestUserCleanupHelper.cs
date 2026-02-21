@@ -175,7 +175,7 @@ public class TestUserCleanupHelper
     /// </summary>
     private async Task<string> GetAccessToken()
     {
-        var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
+        var tokenRequestContext = new TokenRequestContext(["https://graph.microsoft.com/.default"]);
         TokenCredential credential;
 
         // Check for explicit client secret first (most common for local dev)
