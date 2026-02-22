@@ -336,10 +336,16 @@ Write-Host "Step 2: Registering SPA Application ($($envConfig.SpaName))..." -For
 # Get the user_impersonation scope ID from the API app
 $userImpersonationScope = ($apiApp.api.oauth2PermissionScopes | Where-Object { $_.value -eq "user_impersonation" }).id
 
-# Create SPA app registration
-$spaRedirectUrisJson = $envConfig.SpaRedirectUris | ConvertTo-Json -Compress
+# Check if SPA app already exists
+$existingSpaApps = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$($envConfig.SpaName)'" `
+    2>$null | ConvertFrom-Json
 
-$spaAppJson = @{
+$spaAppExists = $existingSpaApps.value.Count -gt 0
+
+# Define the SPA app body (used for both create and update)
+$spaAppBody = @{
     displayName = $envConfig.SpaName
     signInAudience = "AzureADMyOrg"
     spa = @{
@@ -368,36 +374,45 @@ $spaAppJson = @{
     )
 } | ConvertTo-Json -Depth 10
 
-# Write to temp file to avoid PowerShell JSON escaping issues with az rest --body
-$spaTempFile = [System.IO.Path]::GetTempFileName()
-[System.IO.File]::WriteAllText($spaTempFile, $spaAppJson)
+if ($spaAppExists) {
+    # Update existing app
+    $spaApp = $existingSpaApps.value[0]
+    Write-Host "Found existing SPA app: $($spaApp.appId)" -ForegroundColor Green
+    Write-Host "Updating SPA app configuration..." -ForegroundColor Yellow
 
-try {
-    $spaApp = az rest `
-        --method POST `
-        --uri "https://graph.microsoft.com/v1.0/applications" `
-        --headers "Content-Type=application/json" `
-        --body "@$spaTempFile" 2>$null | ConvertFrom-Json
-} finally {
-    Remove-Item $spaTempFile -ErrorAction SilentlyContinue
-}
+    $spaUpdateFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($spaUpdateFile, $spaAppBody)
 
-if (-not $spaApp) {
-    # App might already exist, try to find it
-    Write-Host "SPA app may already exist, searching..." -ForegroundColor Yellow
-    $existingApps = az rest `
-        --method GET `
-        --uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$($envConfig.SpaName)'" `
-        2>$null | ConvertFrom-Json
-    
-    if ($existingApps.value.Count -gt 0) {
-        $spaApp = $existingApps.value[0]
-        Write-Host "Found existing SPA app: $($spaApp.appId)" -ForegroundColor Green
-    } else {
-        Write-Error "Failed to create or find SPA application"
+    try {
+        az rest `
+            --method PATCH `
+            --uri "https://graph.microsoft.com/v1.0/applications/$($spaApp.id)" `
+            --headers "Content-Type=application/json" `
+            --body "@$spaUpdateFile" 2>$null
+    } finally {
+        Remove-Item $spaUpdateFile -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "SPA app configuration updated" -ForegroundColor Green
+} else {
+    # Create new app
+    $spaCreateFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($spaCreateFile, $spaAppBody)
+
+    try {
+        $spaApp = az rest `
+            --method POST `
+            --uri "https://graph.microsoft.com/v1.0/applications" `
+            --headers "Content-Type=application/json" `
+            --body "@$spaCreateFile" 2>$null | ConvertFrom-Json
+    } finally {
+        Remove-Item $spaCreateFile -ErrorAction SilentlyContinue
+    }
+
+    if (-not $spaApp) {
+        Write-Error "Failed to create SPA application"
         exit 1
     }
-} else {
     Write-Host "Created SPA app: $($spaApp.appId)" -ForegroundColor Green
 }
 
