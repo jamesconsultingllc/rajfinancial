@@ -937,8 +937,7 @@
                       "https://localhost:5001",
                       "https://localhost:7001",
                       "https://*.azurestaticapps.net",
-                      "https://app.rajfinancial.net",
-                      "https://rajfinancial.com"
+                      "https://app.rajfinancial.net"
                     ],
                     "supportCredentials": true
                   },
