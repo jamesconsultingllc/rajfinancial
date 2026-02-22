@@ -27,13 +27,23 @@ public class RopcTokenProvider
         apiScope = configuration["Entra:ApiScope"];
 
         // Thread-safe lazy initialization of the MSAL public client application.
+        // The factory validates config on first access rather than relying on null-forgiving operators.
         app = new Lazy<IPublicClientApplication>(() =>
-            PublicClientApplicationBuilder
+        {
+            if (!IsConfigured)
+            {
+                throw new InvalidOperationException(
+                    "ROPC is not configured. Set Entra:TenantId, Entra:RopcClientId, and Entra:ApiScope " +
+                    "in appsettings.json (or Entra__TenantId, Entra__RopcClientId, Entra__ApiScope as environment variables).");
+            }
+
+            return PublicClientApplicationBuilder
                 .Create(clientId!)
                 // Entra External ID tenants use the {tenantSubdomain}.ciamlogin.com authority.
                 // The TenantId value should be the tenant subdomain (e.g., "contoso"), not a GUID.
                 .WithAuthority($"https://{tenantId!}.ciamlogin.com/")
-                .Build());
+                .Build();
+        });
     }
 
     /// <summary>
