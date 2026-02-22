@@ -71,6 +71,7 @@ $config = @{
         )
         SpaLogoutUri = "https://localhost:5001/authentication/logout-callback"
         ApiAppIdUri = "api://rajfinancial-api-dev"
+        UserFlowName = "SignUp_SignIn"
         RoleGuids = $roleGuids.dev
     }
     prod = @{
@@ -84,6 +85,7 @@ $config = @{
         )
         SpaLogoutUri = "https://app.rajfinancial.net/authentication/logout-callback"
         ApiAppIdUri = "api://rajfinancial-api"
+        UserFlowName = "SignUp_SignIn"
         RoleGuids = $roleGuids.prod
     }
 }
@@ -404,6 +406,70 @@ if ($spaSpExists.value.Count -eq 0) {
         --headers "Content-Type=application/json" `
         --body "{`"appId`": `"$($spaApp.appId)`"}" 2>$null
     Write-Host "Created Service Principal for SPA app" -ForegroundColor Green
+}
+
+Write-Host ""
+
+# ============================================================================
+# Step 2.5: Link SPA Application to User Flow
+# ============================================================================
+# The SPA app must be explicitly added to the user flow's includeApplications
+# list. Without this, users get AADSTS7500529 when attempting sign-in.
+# Redirect URIs on the app registration alone are NOT sufficient.
+# ============================================================================
+
+Write-Host "Step 2.5: Linking SPA app to user flow ($($envConfig.UserFlowName))..." -ForegroundColor Yellow
+
+# Find the user flow by display name
+$userFlows = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/beta/identity/authenticationEventsFlows" `
+    2>$null | ConvertFrom-Json
+
+$targetFlow = $userFlows.value | Where-Object { $_.displayName -eq $envConfig.UserFlowName }
+
+if (-not $targetFlow) {
+    Write-Host "WARNING: User flow '$($envConfig.UserFlowName)' not found. Create it in the Entra portal first, then re-run this script." -ForegroundColor Red
+    Write-Host "Sign-in will NOT work until the SPA app is linked to a user flow." -ForegroundColor Red
+} else {
+    $flowId = $targetFlow.id
+    Write-Host "Found user flow: $($targetFlow.displayName) (ID: $flowId)" -ForegroundColor Green
+
+    # Check if SPA app is already linked
+    $linkedApps = az rest `
+        --method GET `
+        --uri "https://graph.microsoft.com/beta/identity/authenticationEventsFlows/$flowId/conditions/applications/includeApplications" `
+        2>$null | ConvertFrom-Json
+
+    $alreadyLinked = $linkedApps.value | Where-Object { $_.appId -eq $spaApp.appId }
+
+    if ($alreadyLinked) {
+        Write-Host "SPA app is already linked to user flow '$($envConfig.UserFlowName)'" -ForegroundColor Green
+    } else {
+        Write-Host "Adding SPA app ($($spaApp.appId)) to user flow..." -ForegroundColor Yellow
+
+        $linkBody = @{
+            "@odata.type" = "#microsoft.graph.authenticationConditionApplication"
+            appId = $spaApp.appId
+        } | ConvertTo-Json -Compress
+        $linkTempFile = [System.IO.Path]::GetTempFileName()
+        [System.IO.File]::WriteAllText($linkTempFile, $linkBody)
+
+        try {
+            az rest `
+                --method POST `
+                --uri "https://graph.microsoft.com/beta/identity/authenticationEventsFlows/$flowId/conditions/applications/includeApplications" `
+                --headers "Content-Type=application/json" `
+                --body "@$linkTempFile" 2>$null | Out-Null
+
+            Write-Host "Successfully linked SPA app to user flow '$($envConfig.UserFlowName)'" -ForegroundColor Green
+        } catch {
+            Write-Host "ERROR: Failed to link SPA app to user flow: $_" -ForegroundColor Red
+            Write-Host "You may need to link the app manually in the Entra portal." -ForegroundColor Red
+        } finally {
+            Remove-Item $linkTempFile -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 Write-Host ""
