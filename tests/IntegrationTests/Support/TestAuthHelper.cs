@@ -47,8 +47,12 @@ public class TestAuthHelper
     /// <param name="email">The email to embed in the token when running in local mode
     /// (unsigned JWTs). When targeting remote endpoints, the actual Entra user email is
     /// resolved from configuration (<c>Entra:TestUsers:{role}</c>) and this parameter is ignored.</param>
-    /// <param name="role">The role to assign (e.g., "Client", "Administrator", "Advisor").</param>
-    /// <param name="userId">Optional explicit user ID for the token's <c>oid</c> claim. When null, a deterministic ID is derived from the email.</param>
+    /// <param name="role">The role to assign (e.g., "Client", "Administrator", "Advisor").
+    /// Role names are matched case-insensitively.</param>
+    /// <param name="userId">Optional explicit user ID for the token's <c>oid</c> claim.
+    /// When null, a deterministic ID is derived from the email.
+    /// <b>Note:</b> This parameter only takes effect in local mode (unsigned JWTs).
+    /// In remote mode, the token's <c>oid</c> is determined by the actual Entra user account.</param>
     /// <returns>A Bearer token string.</returns>
     /// <exception cref="InvalidOperationException">
     /// When targeting a remote endpoint but ROPC is not configured, or when the test user
