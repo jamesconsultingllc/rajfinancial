@@ -18,13 +18,22 @@ public class RopcTokenProvider
     private readonly string? clientId;
     private readonly string? apiScope;
     private readonly ConcurrentDictionary<string, AuthenticationResult> tokenCache = new();
-    private IPublicClientApplication? app;
+    private readonly Lazy<IPublicClientApplication> app;
 
     public RopcTokenProvider(IConfiguration configuration)
     {
         tenantId = configuration["Entra:TenantId"];
         clientId = configuration["Entra:RopcClientId"];
         apiScope = configuration["Entra:ApiScope"];
+
+        // Thread-safe lazy initialization of the MSAL public client application.
+        app = new Lazy<IPublicClientApplication>(() =>
+            PublicClientApplicationBuilder
+                .Create(clientId!)
+                // Entra External ID tenants use the {tenantSubdomain}.ciamlogin.com authority.
+                // The TenantId value should be the tenant subdomain (e.g., "contoso"), not a GUID.
+                .WithAuthority($"https://{tenantId!}.ciamlogin.com/")
+                .Build());
     }
 
     /// <summary>
@@ -53,18 +62,12 @@ public class RopcTokenProvider
                 "ROPC is not configured. Set Entra:TenantId, Entra:RopcClientId, and Entra:ApiScope " +
                 "in appsettings.json (or Entra__TenantId, Entra__RopcClientId, Entra__ApiScope as environment variables).");
 
-        // Return cached token if still valid
-        if (tokenCache.TryGetValue(username, out var cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
+        // Return cached token if still valid (10-minute buffer prevents edge-case expiry races)
+        if (tokenCache.TryGetValue(username, out var cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(10))
             return cached.AccessToken;
 
-        // Null-forgiveness safe: IsConfigured guard above ensures both are non-null.
-        app ??= PublicClientApplicationBuilder
-            .Create(clientId!)
-            .WithAuthority($"https://{tenantId!}.ciamlogin.com/")
-            .Build();
-
 #pragma warning disable CS0618 // ROPC is deprecated but required for headless CI test auth against Entra External ID
-        var result = await app.AcquireTokenByUsernamePassword(
+        var result = await app.Value.AcquireTokenByUsernamePassword(
             scopes ?? [apiScope!],
             username,
             password)

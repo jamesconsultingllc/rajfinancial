@@ -63,6 +63,7 @@ public class AssetSteps
     [Given("I am not authenticated")]
     public void GivenIAmNotAuthenticated()
     {
+        // Explicitly clear any previously acquired token so this scenario runs unauthenticated.
         authToken = null;
     }
 

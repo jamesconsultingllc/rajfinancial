@@ -44,7 +44,9 @@ public class TestAuthHelper
     /// Gets a Bearer token for the specified role.
     /// Uses unsigned JWT for localhost, ROPC for remote endpoints.
     /// </summary>
-    /// <param name="email">The email to embed in the token (used for unsigned JWTs).</param>
+    /// <param name="email">The email to embed in the token. In local mode, this is used for
+    /// unsigned JWTs. In remote mode, the actual Entra user email is resolved from configuration
+    /// (<c>Entra:TestUsers:{role}</c>), so this parameter is only used as a fallback identifier.</param>
     /// <param name="role">The role to assign (e.g., "Client", "Administrator", "Advisor").</param>
     /// <param name="userId">Optional explicit user ID for the token's <c>oid</c> claim. When null, a deterministic ID is derived from the email.</param>
     /// <returns>A Bearer token string.</returns>
@@ -66,11 +68,13 @@ public class TestAuthHelper
         if (string.IsNullOrWhiteSpace(entraEmail))
             throw new InvalidOperationException(
                 $"Entra test user email not configured for role '{role}'. " +
-                $"Set Entra:TestUsers:{role} in appsettings.json or the Entra__TestUsers__{role} environment variable.");
+                $"Set Entra:TestUsers:{role} in appsettings.json or Entra__TestUsers__{role} as an environment variable.");
 
         var passwordEnvVar = roleToPasswordEnvVar.GetValueOrDefault(role)
             ?? throw new InvalidOperationException($"No password env var mapped for role '{role}'");
 
+        // Passwords are read from CI environment variables that are masked by the workflow.
+        // These test user accounts should have minimal privileges and be rotated regularly.
         var password = Environment.GetEnvironmentVariable(passwordEnvVar)
             ?? throw new InvalidOperationException(
                 $"Environment variable '{passwordEnvVar}' is required for ROPC auth in production mode.");
@@ -98,5 +102,16 @@ public class TestAuthHelper
     public async Task<string> GetUserTokenAsync(string email = "user@example.com", string? userId = null)
     {
         return await GetTokenForRoleAsync(email, "Client", userId);
+    }
+
+    /// <summary>
+    /// Gets a Bearer token for an advisor.
+    /// </summary>
+    /// <param name="email">The email to embed in unsigned JWTs (local mode only).</param>
+    /// <param name="userId">Optional explicit user ID for the token's <c>oid</c> claim.</param>
+    /// <returns>A Bearer token string.</returns>
+    public async Task<string> GetAdvisorTokenAsync(string email = "advisor@example.com", string? userId = null)
+    {
+        return await GetTokenForRoleAsync(email, "Advisor", userId);
     }
 }
