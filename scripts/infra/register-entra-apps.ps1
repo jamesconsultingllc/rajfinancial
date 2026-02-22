@@ -129,7 +129,7 @@ Write-Host "Step 1: Registering API Application ($($envConfig.ApiName))..." -For
 # Check if API app already exists
 $existingApiApps = az rest `
     --method GET `
-    --uri "https://graph.microsoft.com/v1.0/applications?\`$filter=displayName eq '$($envConfig.ApiName)'" `
+    --uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$($envConfig.ApiName)'" `
     2>$null | ConvertFrom-Json
 
 $apiAppExists = $existingApiApps.value.Count -gt 0
@@ -237,13 +237,21 @@ if ($apiAppExists) {
             oauth2PermissionScopes = $apiOAuth2PermissionScopes | ConvertFrom-Json
             requestedAccessTokenVersion = 2
         }
-    } | ConvertTo-Json -Depth 10 -Compress
+    } | ConvertTo-Json -Depth 10
     
-    az rest `
-        --method PATCH `
-        --uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" `
-        --headers "Content-Type=application/json" `
-        --body $updateBody 2>$null
+    # Write to temp file to avoid PowerShell JSON escaping issues with az rest --body
+    $updateTempFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($updateTempFile, $updateBody)
+    
+    try {
+        az rest `
+            --method PATCH `
+            --uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" `
+            --headers "Content-Type=application/json" `
+            --body "@$updateTempFile" 2>$null
+    } finally {
+        Remove-Item $updateTempFile -ErrorAction SilentlyContinue
+    }
     
     Write-Host "App roles and OAuth2 scopes updated" -ForegroundColor Green
 } else {
@@ -258,11 +266,19 @@ if ($apiAppExists) {
         appRoles = $apiAppRoles | ConvertFrom-Json
     } | ConvertTo-Json -Depth 10
 
-    $apiApp = az rest `
-        --method POST `
-        --uri "https://graph.microsoft.com/v1.0/applications" `
-        --headers "Content-Type=application/json" `
-        --body $apiAppJson 2>$null | ConvertFrom-Json
+    # Write to temp file to avoid PowerShell JSON escaping issues with az rest --body
+    $createTempFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($createTempFile, $apiAppJson)
+    
+    try {
+        $apiApp = az rest `
+            --method POST `
+            --uri "https://graph.microsoft.com/v1.0/applications" `
+            --headers "Content-Type=application/json" `
+            --body "@$createTempFile" 2>$null | ConvertFrom-Json
+    } finally {
+        Remove-Item $createTempFile -ErrorAction SilentlyContinue
+    }
 
     if (-not $apiApp) {
         Write-Error "Failed to create API application"
@@ -284,7 +300,7 @@ Write-Host "Set API identifier URI: $apiIdentifierUri" -ForegroundColor Green
 # Create Service Principal for API app
 $apiSpExists = az rest `
     --method GET `
-    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?\`$filter=appId eq '$($apiApp.appId)'" `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$($apiApp.appId)'" `
     2>$null | ConvertFrom-Json
 
 if ($apiSpExists.value.Count -eq 0) {
@@ -342,18 +358,26 @@ $spaAppJson = @{
     )
 } | ConvertTo-Json -Depth 10
 
-$spaApp = az rest `
-    --method POST `
-    --uri "https://graph.microsoft.com/v1.0/applications" `
-    --headers "Content-Type=application/json" `
-    --body $spaAppJson 2>$null | ConvertFrom-Json
+# Write to temp file to avoid PowerShell JSON escaping issues with az rest --body
+$spaTempFile = [System.IO.Path]::GetTempFileName()
+[System.IO.File]::WriteAllText($spaTempFile, $spaAppJson)
+
+try {
+    $spaApp = az rest `
+        --method POST `
+        --uri "https://graph.microsoft.com/v1.0/applications" `
+        --headers "Content-Type=application/json" `
+        --body "@$spaTempFile" 2>$null | ConvertFrom-Json
+} finally {
+    Remove-Item $spaTempFile -ErrorAction SilentlyContinue
+}
 
 if (-not $spaApp) {
     # App might already exist, try to find it
     Write-Host "SPA app may already exist, searching..." -ForegroundColor Yellow
     $existingApps = az rest `
         --method GET `
-        --uri "https://graph.microsoft.com/v1.0/applications?\`$filter=displayName eq '$($envConfig.SpaName)'" `
+        --uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$($envConfig.SpaName)'" `
         2>$null | ConvertFrom-Json
     
     if ($existingApps.value.Count -gt 0) {
@@ -370,7 +394,7 @@ if (-not $spaApp) {
 # Create Service Principal for SPA app
 $spaSpExists = az rest `
     --method GET `
-    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?\`$filter=appId eq '$($spaApp.appId)'" `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$($spaApp.appId)'" `
     2>$null | ConvertFrom-Json
 
 if ($spaSpExists.value.Count -eq 0) {
@@ -492,7 +516,7 @@ Write-Host "Step 5: Getting Service Principal ID..." -ForegroundColor Yellow
 
 $apiServicePrincipal = az rest `
     --method GET `
-    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?\`$filter=appId eq '$($apiApp.appId)'" `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$($apiApp.appId)'" `
     2>$null | ConvertFrom-Json
 
 $servicePrincipalId = $apiServicePrincipal.value[0].id
