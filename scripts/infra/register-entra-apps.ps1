@@ -80,7 +80,6 @@ $config = @{
         SpaName = "rajfinancial-spa"
         ApiName = "rajfinancial-api"
         SpaRedirectUris = @(
-            "https://rajfinancial.com/authentication/login-callback",
             "https://app.rajfinancial.net/authentication/login-callback"
         )
         SpaLogoutUri = "https://app.rajfinancial.net/authentication/logout-callback"
@@ -345,6 +344,8 @@ $existingSpaApps = az rest `
 $spaAppExists = $existingSpaApps.value.Count -gt 0
 
 # Define the SPA app body (used for both create and update)
+# Note: isFallbackPublicClient is NOT set here — the SPA is NOT a public client.
+# ROPC flow uses the dedicated rajfinancial-test-ropc app (managed separately).
 $spaAppBody = @{
     displayName = $envConfig.SpaName
     signInAudience = "AzureADMyOrg"
@@ -495,6 +496,117 @@ if (-not $targetFlow) {
             Write-Host "You may need to link the app manually in the Entra portal." -ForegroundColor Red
         } finally {
             Remove-Item $linkTempFile -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Write-Host ""
+
+# ============================================================================
+# Step 2.6: Grant Admin Consent for API Permissions
+# ============================================================================
+# Creates oauth2PermissionGrants with consentType=AllPrincipals so users
+# don't see individual consent prompts. This is idempotent - existing
+# grants are preserved and only missing grants are created.
+#
+# Three grants are needed:
+#   1. SPA -> Graph: openid, profile, email, offline_access
+#   2. SPA -> API:   user_impersonation
+#   3. API -> Graph: User.Read
+# ============================================================================
+
+Write-Host "Step 2.6: Granting admin consent for API permissions..." -ForegroundColor Yellow
+
+# Look up service principal IDs (fresh lookup ensures accuracy)
+$spaSpLookup = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$($spaApp.appId)'" `
+    2>$null | ConvertFrom-Json
+$spaSpId = $spaSpLookup.value[0].id
+
+$apiSpLookup = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$($apiApp.appId)'" `
+    2>$null | ConvertFrom-Json
+$apiSpId = $apiSpLookup.value[0].id
+
+# Microsoft Graph well-known appId
+$graphSpLookup = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '00000003-0000-0000-c000-000000000000'" `
+    2>$null | ConvertFrom-Json
+$graphSpId = $graphSpLookup.value[0].id
+
+if (-not $spaSpId -or -not $apiSpId -or -not $graphSpId) {
+    Write-Host "WARNING: Could not resolve all service principal IDs. Skipping admin consent." -ForegroundColor Red
+    Write-Host "  SPA SP: $spaSpId, API SP: $apiSpId, Graph SP: $graphSpId" -ForegroundColor Red
+} else {
+    Write-Host "  SPA SP:   $spaSpId" -ForegroundColor Gray
+    Write-Host "  API SP:   $apiSpId" -ForegroundColor Gray
+    Write-Host "  Graph SP: $graphSpId" -ForegroundColor Gray
+
+    # Define the three admin consent grants needed
+    $consentGrants = @(
+        @{
+            Description = "SPA -> Graph (openid, profile, email, offline_access)"
+            ClientId    = $spaSpId
+            ResourceId  = $graphSpId
+            Scope       = "openid profile email offline_access"
+        },
+        @{
+            Description = "SPA -> API (user_impersonation)"
+            ClientId    = $spaSpId
+            ResourceId  = $apiSpId
+            Scope       = "user_impersonation"
+        },
+        @{
+            Description = "API -> Graph (User.Read)"
+            ClientId    = $apiSpId
+            ResourceId  = $graphSpId
+            Scope       = "User.Read"
+        }
+    )
+
+    foreach ($grant in $consentGrants) {
+        Write-Host "  Checking: $($grant.Description)..." -ForegroundColor Gray
+
+        # Check if admin consent grant already exists
+        $existingGrants = az rest `
+            --method GET `
+            --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?`$filter=clientId eq '$($grant.ClientId)' and resourceId eq '$($grant.ResourceId)' and consentType eq 'AllPrincipals'" `
+            2>$null | ConvertFrom-Json
+
+        if ($existingGrants.value.Count -gt 0) {
+            Write-Host "    Already granted: $($grant.Description)" -ForegroundColor Green
+        } else {
+            # Create the admin consent grant
+            $grantBody = @{
+                clientId    = $grant.ClientId
+                consentType = "AllPrincipals"
+                resourceId  = $grant.ResourceId
+                scope       = $grant.Scope
+            } | ConvertTo-Json -Compress
+
+            $grantTempFile = [System.IO.Path]::GetTempFileName()
+            [System.IO.File]::WriteAllText($grantTempFile, $grantBody)
+
+            try {
+                $grantResult = az rest `
+                    --method POST `
+                    --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" `
+                    --headers "Content-Type=application/json" `
+                    --body "@$grantTempFile" 2>$null | ConvertFrom-Json
+
+                if ($grantResult.id) {
+                    Write-Host "    Granted: $($grant.Description)" -ForegroundColor Green
+                } else {
+                    Write-Host "    WARNING: Grant may have failed for $($grant.Description)" -ForegroundColor Red
+                }
+            } catch {
+                Write-Host "    ERROR: Failed to grant $($grant.Description): $_" -ForegroundColor Red
+            } finally {
+                Remove-Item $grantTempFile -ErrorAction SilentlyContinue
+            }
         }
     }
 }
@@ -733,14 +845,13 @@ Write-Host "============================================" -ForegroundColor Yello
 Write-Host " Next Steps" -ForegroundColor Yellow
 Write-Host "============================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "1. Grant admin consent for API permissions:" -ForegroundColor White
-Write-Host "   az ad app permission admin-consent --id $($spaApp.appId)" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "2. Deploy infrastructure (if not already done):" -ForegroundColor White
+Write-Host "1. Deploy infrastructure (if not already done):" -ForegroundColor White
 Write-Host "   az deployment sub create --location southcentralus --template-file infra/main.bicep --parameters infra/parameters/$Environment.bicepparam" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "3. Deploy the Function App:" -ForegroundColor White
+Write-Host "2. Deploy the Function App:" -ForegroundColor White
 Write-Host "   Push to the '$( if ($Environment -eq 'dev') { 'develop' } else { 'main' })' branch or run the GitHub Action manually" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Note: Admin consent has been automatically granted (Step 2.6)." -ForegroundColor Green
 Write-Host ""
 Write-Host "App Roles:" -ForegroundColor Yellow
 Write-Host "  - Client: Standard users who own their financial data"
