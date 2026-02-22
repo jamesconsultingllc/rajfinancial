@@ -30,6 +30,7 @@ public class AssetSteps
     };
 
     private readonly FunctionsHostFixture fixture;
+    private readonly TestAuthHelper authHelper;
     private readonly HttpClient client;
     private HttpResponseMessage? response;
     private string? responseBody;
@@ -41,9 +42,11 @@ public class AssetSteps
     ///     Initializes a new instance of the <see cref="AssetSteps"/> class.
     /// </summary>
     /// <param name="fixture">The Functions host fixture providing the HTTP client.</param>
-    public AssetSteps(FunctionsHostFixture fixture)
+    /// <param name="authHelper">The dual-mode auth helper for token acquisition.</param>
+    public AssetSteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {
         this.fixture = fixture;
+        this.authHelper = authHelper;
         client = fixture.Client;
     }
 
@@ -60,13 +63,14 @@ public class AssetSteps
     [Given("I am not authenticated")]
     public void GivenIAmNotAuthenticated()
     {
+        // Explicitly clear any previously acquired token so this scenario runs unauthenticated.
         authToken = null;
     }
 
     [Given(@"I am authenticated as user ""(.*)"" with role ""(.*)""")]
-    public void GivenIAmAuthenticatedAsUserWithRole(string email, string role)
+    public async Task GivenIAmAuthenticatedAsUserWithRole(string email, string role)
     {
-        authToken = TestClaimsBuilder.JwtForUser(email, null, role);
+        authToken = await authHelper.GetTokenForRoleAsync(email, role);
     }
 
     [Given(@"I have created the following assets:")]

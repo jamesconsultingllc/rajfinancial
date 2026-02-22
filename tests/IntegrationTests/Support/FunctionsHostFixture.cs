@@ -74,6 +74,12 @@ public class FunctionsHostFixture
                 : "Ensure the target environment is deployed and accessible."));
     }
 
+    /// <summary>
+    /// Whether tests are running against a local Functions host (dev mode).
+    /// When true, unsigned test JWTs are accepted. When false, real Entra ROPC tokens are required.
+    /// </summary>
+    public bool IsLocal => IsLocalhost(baseUrl);
+
     private static bool IsLocalhost(string url)
     {
         var uri = new Uri(url);
