@@ -291,11 +291,15 @@ if ($apiAppExists) {
 
 # Set the Application ID URI
 $apiIdentifierUri = $envConfig.ApiAppIdUri
+$uriBody = @{ identifierUris = @($apiIdentifierUri) } | ConvertTo-Json -Compress
+$uriBodyFile = [System.IO.Path]::GetTempFileName()
+[System.IO.File]::WriteAllText($uriBodyFile, $uriBody)
 az rest `
     --method PATCH `
     --uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" `
     --headers "Content-Type=application/json" `
-    --body "{`"identifierUris`": [`"$apiIdentifierUri`"]}" 2>$null
+    --body "@$uriBodyFile" 2>$null
+Remove-Item $uriBodyFile -ErrorAction SilentlyContinue
 
 Write-Host "Set API identifier URI: $apiIdentifierUri" -ForegroundColor Green
 
@@ -306,11 +310,15 @@ $apiSpExists = az rest `
     2>$null | ConvertFrom-Json
 
 if ($apiSpExists.value.Count -eq 0) {
+    $apiSpBody = @{ appId = $apiApp.appId } | ConvertTo-Json -Compress
+    $apiSpBodyFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($apiSpBodyFile, $apiSpBody)
     $apiSp = az rest `
         --method POST `
         --uri "https://graph.microsoft.com/v1.0/servicePrincipals" `
         --headers "Content-Type=application/json" `
-        --body "{`"appId`": `"$($apiApp.appId)`"}" 2>$null | ConvertFrom-Json
+        --body "@$apiSpBodyFile" 2>$null | ConvertFrom-Json
+    Remove-Item $apiSpBodyFile -ErrorAction SilentlyContinue
     Write-Host "Created Service Principal for API app" -ForegroundColor Green
     Write-Host "  Service Principal ID: $($apiSp.id)" -ForegroundColor Gray
 } else {
@@ -400,11 +408,15 @@ $spaSpExists = az rest `
     2>$null | ConvertFrom-Json
 
 if ($spaSpExists.value.Count -eq 0) {
+    $spaSpBody = @{ appId = $spaApp.appId } | ConvertTo-Json -Compress
+    $spaSpBodyFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($spaSpBodyFile, $spaSpBody)
     az rest `
         --method POST `
         --uri "https://graph.microsoft.com/v1.0/servicePrincipals" `
         --headers "Content-Type=application/json" `
-        --body "{`"appId`": `"$($spaApp.appId)`"}" 2>$null
+        --body "@$spaSpBodyFile" 2>$null
+    Remove-Item $spaSpBodyFile -ErrorAction SilentlyContinue
     Write-Host "Created Service Principal for SPA app" -ForegroundColor Green
 }
 
