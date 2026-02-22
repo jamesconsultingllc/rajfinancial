@@ -1136,7 +1136,7 @@ var builder = new HostBuilder()
 |------|--------|-------|
 | Create Entra External ID tenant | ⬜ Not Started | Azure Portal → Create tenant |
 | Configure user flow (Sign up/Sign in) | ⬜ Not Started | Apply RAJ Financial branding |
-| Register SPA application | ⬜ Not Started | Redirect: `https://rajfinancial.com/authentication/login-callback` |
+| Register SPA application | ⬜ Not Started | Redirect: `https://app.rajfinancial.net/authentication/login-callback` |
 | Register API application | ⬜ Not Started | Expose `user_impersonation` scope |
 | Configure MFA policy | ⬜ Not Started | Require MFA for all users |
 | Configure session lifetime | ⬜ Not Started | 24-hour token lifetime |
