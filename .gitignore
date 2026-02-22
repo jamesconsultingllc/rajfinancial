@@ -49,6 +49,9 @@ test-publish/
 func-logs/
 func-logs2/
 
+# Agent prompt files
+.agents/
+
 # Review artifacts
 review.md
 func-logs*.zip
