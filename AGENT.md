@@ -17,6 +17,53 @@
 7. **Observability** - Structured logging, metrics, telemetry
 8. **SOLID Principles** - Clean architecture, dependency inversion
 9. **DRY** - Extract reusable components, services, and utilities
+10. **Script Everything** - Automate all infrastructure and environment setup
+
+---
+
+## Infrastructure & Environment: Script Everything
+
+**If it can be scripted, it MUST be scripted.** Never rely on manual portal clicks for repeatable infra or environment setup.
+
+### What Must Be Scripted
+
+- **Entra app registrations** - App creation, API permissions, role definitions, redirect URIs
+- **Test user provisioning** - User creation, password assignment, role assignment, MFA exclusions
+- **Service principal configuration** - SP creation, credential management
+- **User flow / policy linkage** - Linking apps to authentication flows
+- **GitHub environment secrets** - Documenting which secrets are needed (actual values set manually for security)
+- **Azure resource provisioning** - Bicep/ARM templates for all cloud resources
+- **Key Vault population** - Secrets, certificates, configuration values
+
+### Script Requirements
+
+- **Idempotent** - Safe to run multiple times without side effects (check-before-create pattern)
+- **Environment-aware** - Accept `-Environment dev|prod` parameter, load per-env config
+- **Self-documenting** - Include `Write-Host` progress messages for every step
+- **Error-handling** - Fail fast with clear error messages, don't silently continue
+- **Temp file pattern** - Use temp files for `az rest --body` payloads instead of inline JSON
+- **Located in `scripts/infra/`** - All infra scripts in one place
+
+### Script Naming Convention
+
+| Script | Purpose |
+|--------|---------|
+| `register-entra-apps.ps1` | App registrations, API permissions, user flow linkage |
+| `create-test-users.ps1` | Test user provisioning, role assignment, MFA exclusion |
+| `setup-entra-oidc.ps1` | OIDC federated credentials for GitHub Actions |
+| `entra-config-{env}.json` | Per-environment configuration (generated output) |
+
+### Anti-Patterns
+
+```
+❌ "Go to the portal and click..."
+❌ "Manually create the app registration..."
+❌ "Copy the client ID from the portal..."
+
+✅ Script it with `az rest` / `az ad` / `az cli`
+✅ Output config to JSON for downstream consumption
+✅ Include verification steps that confirm success
+```
 
 ---
 
