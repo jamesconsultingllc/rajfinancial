@@ -7,8 +7,6 @@ on:
       - main
       - develop
       - 'release/**'
-      - 'feature/**'
-      - 'hotfix/**'
     paths:
       - 'src/**'
       - 'tests/**'
@@ -66,12 +64,11 @@ jobs:
         run: dotnet test tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    # Deploy when src changed for main/develop/release branches
+    # Feature/hotfix branches are deployed manually via CLI
     if: |
       github.event_name != 'pull_request' &&
-      (needs.detect_changes.outputs.src_changed == 'true' ||
-       startsWith(github.ref, 'refs/heads/feature/') ||
-       startsWith(github.ref, 'refs/heads/hotfix/'))
+      needs.detect_changes.outputs.src_changed == 'true'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
