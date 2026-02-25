@@ -338,9 +338,14 @@ jobs:
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
       - name: Close Preview Environment
-        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
-          action: close
-          deployment_environment: ${{ steps.source-env.outputs.sanitized-branch }}
+        run: |
+          ENV_NAME="${{ steps.source-env.outputs.sanitized-branch }}"
+          echo "Closing SWA environment: $ENV_NAME"
+          
+          # Delete the preview environment using Azure CLI
+          az staticwebapp environment delete \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$ENV_NAME" \
+            --yes || echo "Environment $ENV_NAME may not exist or already deleted"
 
