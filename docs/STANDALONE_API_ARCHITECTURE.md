@@ -133,7 +133,7 @@ The standalone Functions app must allow requests from the Static Web App:
 1. Go to Function App → CORS
 2. Add allowed origins:
    - Dev: `https://your-dev-swa.azurestaticapps.net`
-   - Prod: `https://rajfinancial.com`
+   - Prod: `https://app.rajfinancial.net`
 
 ### 2. API Base URL in Blazor Client
 

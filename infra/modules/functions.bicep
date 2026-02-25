@@ -108,7 +108,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           'https://localhost:7001'
           'https://*.azurestaticapps.net'
           'https://app.rajfinancial.net'
-          'https://rajfinancial.com'
         ]
         supportCredentials: true
       }

@@ -52,6 +52,9 @@ func-logs2/
 # Agent prompt files
 .agents/
 
+# VS Code workspace files (user-specific multi-root configs)
+*.code-workspace
+
 # Review artifacts
 review.md
 func-logs*.zip

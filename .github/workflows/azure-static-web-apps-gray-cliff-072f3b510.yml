@@ -7,8 +7,6 @@ on:
       - main
       - develop
       - 'release/**'
-      - 'feature/**'
-      - 'hotfix/**'
     paths:
       - 'src/**'
       - 'tests/**'
@@ -66,12 +64,11 @@ jobs:
         run: dotnet test tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release --verbosity normal --logger trx
 
   build_and_deploy_job:
-    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    # Deploy when src changed for main/develop/release branches
+    # Feature/hotfix branches are deployed manually via CLI
     if: |
       github.event_name != 'pull_request' &&
-      (needs.detect_changes.outputs.src_changed == 'true' ||
-       startsWith(github.ref, 'refs/heads/feature/') ||
-       startsWith(github.ref, 'refs/heads/hotfix/'))
+      needs.detect_changes.outputs.src_changed == 'true'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
@@ -212,93 +209,11 @@ jobs:
           fi
           echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
 
-      - name: Azure Login with OIDC
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Fetch Test Passwords from SWA Settings
-        id: fetch-passwords
+      - name: Mask sensitive environment variables
         run: |
-          target_env="${{ steps.resolve-env.outputs.target-environment }}"
-          source_env="${{ steps.resolve-env.outputs.source-environment }}"
-
-          # Determine the correct app setting prefix based on target environment.
-          # Production SWA uses PRODUCTION_TEST_* keys; all others use DEVELOPMENT_TEST_*.
-          if [[ "$target_env" == "production" ]]; then
-            PASSWORD_PREFIX="PRODUCTION"
-          else
-            PASSWORD_PREFIX="DEVELOPMENT"
-          fi
-          echo "Using password prefix: ${PASSWORD_PREFIX}_TEST_*"
-
-          # Also determine fallback prefix for the source environment
-          if [[ "$source_env" == "production" ]]; then
-            FALLBACK_PREFIX="PRODUCTION"
-          else
-            FALLBACK_PREFIX="DEVELOPMENT"
-          fi
-
-          # Test passwords are Entra credentials stored in SWA app settings.
-          # Try the target environment first; fall back to the source (development)
-          # so that PR preview slots (which may not have settings synced yet) still work.
-          CURRENT_PREFIX="$PASSWORD_PREFIX"
-          for env in "$target_env" "$source_env"; do
-            echo "Trying environment: $env (prefix: ${CURRENT_PREFIX}_TEST_*)"
-            settings=$(az staticwebapp appsettings list \
-              --name rajfinancial \
-              --resource-group rajfinancial \
-              --environment-name "$env" \
-              --query "properties" -o json 2>/dev/null || echo "{}")
-
-            admin_password=$(echo "$settings" | jq -r ".${CURRENT_PREFIX}_TEST_ADMINISTRATOR // empty")
-            if [[ -n "$admin_password" ]]; then
-              echo "Found test passwords in environment: $env"
-              break
-            fi
-            echo "Test passwords not found in $env with prefix ${CURRENT_PREFIX}, trying next..."
-            CURRENT_PREFIX="$FALLBACK_PREFIX"
-          done
-
-          # Extract all role passwords from whichever environment succeeded
-          advisor_password=$(echo "$settings" | jq -r ".${CURRENT_PREFIX}_TEST_ADVISOR // empty")
-          client_password=$(echo "$settings" | jq -r ".${CURRENT_PREFIX}_TEST_CLIENT // empty")
-          viewer_password=$(echo "$settings" | jq -r ".${CURRENT_PREFIX}_TEST_VIEWER // empty")
-
-          # Set as masked environment variables for subsequent steps
-          if [[ -n "$admin_password" ]]; then
-            echo "::add-mask::$admin_password"
-            echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
-            echo "Found ${CURRENT_PREFIX}_TEST_ADMINISTRATOR password"
-          else
-            echo "::warning::${CURRENT_PREFIX}_TEST_ADMINISTRATOR not found in any SWA environment"
-          fi
-
-          if [[ -n "$advisor_password" ]]; then
-            echo "::add-mask::$advisor_password"
-            echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
-            echo "Found ${CURRENT_PREFIX}_TEST_ADVISOR password"
-          else
-            echo "::warning::${CURRENT_PREFIX}_TEST_ADVISOR not found in any SWA environment"
-          fi
-
-          if [[ -n "$client_password" ]]; then
-            echo "::add-mask::$client_password"
-            echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
-            echo "Found ${CURRENT_PREFIX}_TEST_CLIENT password"
-          else
-            echo "::warning::${CURRENT_PREFIX}_TEST_CLIENT not found in any SWA environment"
-          fi
-
-          if [[ -n "$viewer_password" ]]; then
-            echo "::add-mask::$viewer_password"
-            echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
-            echo "Found ${CURRENT_PREFIX}_TEST_VIEWER password"
-          else
-            echo "::warning::${CURRENT_PREFIX}_TEST_VIEWER not found in any SWA environment"
-          fi
+          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
@@ -323,6 +238,9 @@ jobs:
         env:
           BASE_URL: ${{ steps.swa-url.outputs.url }}
           BROWSER: ${{ matrix.browser }}
+          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+          TEST_ADVISOR_PASSWORD: ${{ secrets.TEST_ADVISOR_PASSWORD }}
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
 
       - name: Upload test results
         if: always()
@@ -417,9 +335,14 @@ jobs:
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
       - name: Close Preview Environment
-        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
-          action: close
-          deployment_environment: ${{ steps.source-env.outputs.sanitized-branch }}
+        run: |
+          ENV_NAME="${{ steps.source-env.outputs.sanitized-branch }}"
+          echo "Closing SWA environment: $ENV_NAME"
+          
+          # Delete the preview environment using Azure CLI
+          az staticwebapp environment delete \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$ENV_NAME" \
+            --yes || echo "Environment $ENV_NAME may not exist or already deleted"
 
