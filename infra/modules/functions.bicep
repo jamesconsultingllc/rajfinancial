@@ -62,18 +62,15 @@ param tags object
 
 var planName = 'asp-${functionAppName}'
 
-// Use Consumption (Y1) for dev - pay per execution, no VM quota needed
-// Use Elastic Premium EP1 for prod - scale-out, always warm, VNet support
+// Use Consumption (Y1) for both environments - pay per execution only
+// Upgrade to EP1 (Elastic Premium) if VNet integration or always-warm is needed
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
   tags: tags
-  sku: environment == 'dev' ? {
+  sku: {
     name: 'Y1'
     tier: 'Dynamic'
-  } : {
-    name: 'EP1'
-    tier: 'ElasticPremium'
   }
   properties: {
     reserved: false // Windows
