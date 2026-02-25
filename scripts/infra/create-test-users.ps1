@@ -146,23 +146,28 @@ function New-SecurePassword {
     $digits = "23456789"
     $special = "!@#$%&*"
 
-    # Ensure at least one of each category
+    # Ensure at least one of each category using a cryptographically secure RNG
     $password = ""
-    $password += $upper[(Get-Random -Maximum $upper.Length)]
-    $password += $lower[(Get-Random -Maximum $lower.Length)]
-    $password += $digits[(Get-Random -Maximum $digits.Length)]
-    $password += $special[(Get-Random -Maximum $special.Length)]
+    $password += $upper[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($upper.Length)]
+    $password += $lower[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($lower.Length)]
+    $password += $digits[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($digits.Length)]
+    $password += $special[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($special.Length)]
 
     # Fill remaining with random mix
     $allChars = $upper + $lower + $digits + $special
     for ($i = $password.Length; $i -lt $length; $i++) {
-        $password += $allChars[(Get-Random -Maximum $allChars.Length)]
+        $password += $allChars[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($allChars.Length)]
     }
 
-    # Shuffle the password characters
+    # Shuffle the password characters using a cryptographically secure Fisher-Yates shuffle
     $charArray = $password.ToCharArray()
-    $shuffled = $charArray | Get-Random -Count $charArray.Length
-    return -join $shuffled
+    for ($i = $charArray.Length - 1; $i -gt 0; $i--) {
+        $j = [System.Security.Cryptography.RandomNumberGenerator]::GetInt32($i + 1)
+        $temp = $charArray[$i]
+        $charArray[$i] = $charArray[$j]
+        $charArray[$j] = $temp
+    }
+    return -join $charArray
 }
 
 # ============================================================================
