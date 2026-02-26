@@ -75,7 +75,7 @@ param tags object = {
 // ============================================================================
 
 var resourceGroupName = resourceGroupNameOverride != '' ? resourceGroupNameOverride : 'rg-${baseName}-${environment}'
-var keyVaultName = 'kv-${baseName}-${environment}'
+// var keyVaultName = 'kv-${baseName}-${environment}'  // Key Vault removed
 // SQL naming: prod gets clean name (rajfinancial), dev gets suffix (rajfinancial-dev)
 var sqlServerName = environment == 'prod' ? baseName : '${baseName}-${environment}'
 var sqlDatabaseName = baseName
@@ -111,19 +111,18 @@ module monitoring 'modules/monitoring.bicep' = {
 }
 
 // ============================================================================
-// Key Vault
+// Key Vault (REMOVED - SP ID is not sensitive, stored directly in app settings)
 // ============================================================================
-
-module keyVault 'modules/keyvault.bicep' = {
-  name: 'keyvault-deployment'
-  scope: rg
-  params: {
-    location: location
-    keyVaultName: keyVaultName
-    tags: tags
-    entraServicePrincipalId: entraServicePrincipalId
-  }
-}
+// module keyVault 'modules/keyvault.bicep' = {
+//   name: 'keyvault-deployment'
+//   scope: rg
+//   params: {
+//     location: location
+//     keyVaultName: keyVaultName
+//     tags: tags
+//     entraServicePrincipalId: entraServicePrincipalId
+//   }
+// }
 
 // ============================================================================
 // Storage Account (for documents/blobs)
@@ -186,7 +185,7 @@ module functions 'modules/functions.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: monitoring.outputs.appInsightsInstrumentationKey
-    keyVaultName: keyVault.outputs.keyVaultName
+    entraServicePrincipalId: entraServicePrincipalId
     sqlServerFqdn: sql.outputs.sqlServerFqdn
     sqlDatabaseName: sqlDatabaseName
     entraExternalIdTenantId: entraExternalIdTenantId
@@ -216,7 +215,6 @@ module identity 'modules/identity.bicep' = {
   scope: rg
   params: {
     functionAppPrincipalId: functions.outputs.functionAppPrincipalId
-    keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
   }
 }
@@ -226,7 +224,6 @@ module identity 'modules/identity.bicep' = {
 // ============================================================================
 
 output resourceGroupName string = rg.name
-output keyVaultUri string = keyVault.outputs.keyVaultUri
 output functionAppUrl string = functions.outputs.functionAppUrl
 output sqlServerFqdn string = sql.outputs.sqlServerFqdn
 // output redisHostName string = redis.outputs.redisHostName  // Redis disabled

@@ -25,8 +25,8 @@ param appInsightsConnectionString string
 @description('Application Insights instrumentation key')
 param appInsightsInstrumentationKey string
 
-@description('Key Vault name for secret references')
-param keyVaultName string
+@description('Entra External ID Service Principal ID')
+param entraServicePrincipalId string
 
 @description('SQL Server FQDN')
 param sqlServerFqdn string
@@ -158,11 +158,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: entraExternalIdClientId
         }
         // ====================================================================
-        // Entra External ID (sensitive - Key Vault reference)
+        // Entra External ID (Service Principal ID - not sensitive)
         // ====================================================================
         {
           name: 'EntraExternalId__ServicePrincipalId'
-          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=EntraExternalId-ServicePrincipalId)'
+          value: entraServicePrincipalId
         }
         // ====================================================================
         // App Roles
