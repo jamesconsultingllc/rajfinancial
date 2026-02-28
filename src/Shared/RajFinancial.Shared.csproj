@@ -4,7 +4,26 @@
     <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- MemoryPack: Generate TypeScript models for the React client.
+         The source generator outputs both runtime (MemoryPackWriter/Reader) and
+         type files — no npm package is required. -->
+    <MemoryPackGenerator_TypeScriptOutputDirectory>$(MSBuildProjectDirectory)\..\Client\src\generated\memorypack</MemoryPackGenerator_TypeScriptOutputDirectory>
+    <!-- Empty extension: Vite handles module resolution without .js/.ts suffix -->
+    <MemoryPackGenerator_TypeScriptImportExtension></MemoryPackGenerator_TypeScriptImportExtension>
+    <!-- Convert C# PascalCase properties to TypeScript camelCase (default: true) -->
+    <MemoryPackGenerator_TypeScriptConvertPropertyName>true</MemoryPackGenerator_TypeScriptConvertPropertyName>
+    <!-- Reflect C# nullable annotations in TypeScript output -->
+    <MemoryPackGenerator_TypeScriptEnableNullableTypes>true</MemoryPackGenerator_TypeScriptEnableNullableTypes>
   </PropertyGroup>
+
+  <!-- Required: expose properties to the MemoryPack source generator -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="MemoryPackGenerator_TypeScriptOutputDirectory" />
+    <CompilerVisibleProperty Include="MemoryPackGenerator_TypeScriptImportExtension" />
+    <CompilerVisibleProperty Include="MemoryPackGenerator_TypeScriptConvertPropertyName" />
+    <CompilerVisibleProperty Include="MemoryPackGenerator_TypeScriptEnableNullableTypes" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />

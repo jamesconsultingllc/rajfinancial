@@ -3,7 +3,7 @@
   "profiles": {
     "https": {
       "commandName": "Project",
-      "commandLineArgs": "--useHttps",
+      "commandLineArgs": "--useHttps --cert certificate.pfx --password DevCert123!",
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "api/health",
@@ -26,3 +26,4 @@
     }
   }
 }
+

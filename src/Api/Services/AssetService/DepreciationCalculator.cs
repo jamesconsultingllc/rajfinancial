@@ -97,7 +97,7 @@ public static class DepreciationCalculator
         decimal purchasePrice, decimal salvageValue,
         int usefulLifeMonths, int monthsElapsed)
     {
-        // Double declining balance: rate = 2 / useful life in months
+        // decimal declining balance: rate = 2 / useful life in months
         var monthlyRate = 2.0m / usefulLifeMonths;
         var bookValue = purchasePrice;
         var cappedMonths = Math.Min(monthsElapsed, usefulLifeMonths);

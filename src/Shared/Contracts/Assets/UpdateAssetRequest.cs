@@ -1,4 +1,5 @@
 using MemoryPack;
+using RajFinancial.Shared.Contracts.Assets.Metadata;
 using RajFinancial.Shared.Entities;
 
 namespace RajFinancial.Shared.Contracts.Assets;
@@ -10,7 +11,8 @@ namespace RajFinancial.Shared.Contracts.Assets;
 ///     Used by <c>PUT /api/assets/{id}</c>. All fields are required for a full update.
 ///     The service validates user ownership before applying changes.
 /// </remarks>
-[MemoryPackable(GenerateType.VersionTolerant)]
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
 public sealed partial record UpdateAssetRequest
 {
     /// <summary>Display name of the asset (required, max 200 characters).</summary>
@@ -23,15 +25,15 @@ public sealed partial record UpdateAssetRequest
 
     /// <summary>Current value of the asset (required, must be >= 0).</summary>
     [MemoryPackOrder(2)]
-    public required decimal CurrentValue { get; init; }
+    public required double CurrentValue { get; init; }
 
     /// <summary>Original purchase price (cost basis).</summary>
     [MemoryPackOrder(3)]
-    public decimal? PurchasePrice { get; init; }
+    public double? PurchasePrice { get; init; }
 
     /// <summary>Date the asset was purchased.</summary>
     [MemoryPackOrder(4)]
-    public DateTimeOffset? PurchaseDate { get; init; }
+    public DateTime? PurchaseDate { get; init; }
 
     /// <summary>Optional description or notes (max 2000 characters).</summary>
     [MemoryPackOrder(5)]
@@ -59,7 +61,7 @@ public sealed partial record UpdateAssetRequest
 
     /// <summary>Estimated residual value at end of useful life (must be >= 0).</summary>
     [MemoryPackOrder(10)]
-    public decimal? SalvageValue { get; init; }
+    public double? SalvageValue { get; init; }
 
     /// <summary>Expected useful life in months (must be > 0).</summary>
     [MemoryPackOrder(11)]
@@ -67,7 +69,7 @@ public sealed partial record UpdateAssetRequest
 
     /// <summary>Date the asset was placed in service.</summary>
     [MemoryPackOrder(12)]
-    public DateTimeOffset? InServiceDate { get; init; }
+    public DateTime? InServiceDate { get; init; }
 
     // =========================================================================
     // Valuation (optional)
@@ -75,9 +77,13 @@ public sealed partial record UpdateAssetRequest
 
     /// <summary>Current fair market value (appraisal or market data).</summary>
     [MemoryPackOrder(13)]
-    public decimal? MarketValue { get; init; }
+    public double? MarketValue { get; init; }
 
     /// <summary>Date when MarketValue was last updated.</summary>
     [MemoryPackOrder(14)]
-    public DateTimeOffset? LastValuationDate { get; init; }
+    public DateTime? LastValuationDate { get; init; }
+
+    /// <summary>Per-type metadata (vehicle details, real estate details, etc.).</summary>
+    [MemoryPackOrder(15)]
+    public IAssetMetadata? Metadata { get; init; }
 }

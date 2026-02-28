@@ -83,7 +83,7 @@ public class AssetServiceTests : IDisposable
         result.CurrentValue.Should().Be(5000);
         result.IsDepreciable.Should().BeFalse();
         result.IsDisposed.Should().BeFalse();
-        result.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public class AssetServiceTests : IDisposable
     public async Task GetAssetById_DepreciableAsset_IncludesComputedFields()
     {
         var asset = await SeedDepreciableAssetAsync(ownerId, "Car", 30000, 5000, 60,
-            new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
         var result = await service.GetAssetByIdAsync(ownerId, asset.Id);
 
@@ -323,7 +323,7 @@ public class AssetServiceTests : IDisposable
     public async Task UpdateAsset_DepreciableToBase_SwitchesType()
     {
         var asset = await SeedDepreciableAssetAsync(ownerId, "Car", 30000, 5000, 60,
-            new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var request = new UpdateAssetRequest
         {
             Name = "Now A Bank Account",
@@ -359,9 +359,9 @@ public class AssetServiceTests : IDisposable
 
         var result = await service.UpdateAssetAsync(ownerId, asset.Id, request);
 
-        result.CreatedAt.Should().Be(originalCreatedAt);
+        result.CreatedAt.Should().Be(originalCreatedAt.UtcDateTime);
         result.UpdatedAt.Should().NotBeNull();
-        result.UpdatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        result.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     // =========================================================================
@@ -458,7 +458,7 @@ public class AssetServiceTests : IDisposable
             Type = assetType,
             CurrentValue = 1000,
             IsDisposed = isDisposed,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
 
         dbContext.Assets.Add(asset);
@@ -483,7 +483,7 @@ public class AssetServiceTests : IDisposable
             SalvageValue = salvageValue,
             UsefulLifeMonths = usefulLifeMonths,
             InServiceDate = inServiceDate,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
 
         dbContext.Assets.Add(asset);
