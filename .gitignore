@@ -29,12 +29,15 @@ Thumbs.db
 playwright-report/
 
 node_modules/
+dist/
+.env.local
+.env.*.local
 
 # Test settings with secrets
 testsettings.local.json
 .env.test
 appsettings.local.json
-/.claude/settings.local.json
+/.claude/
 
 /src/nul
 /tests/AcceptanceTests/appsettings.local.json
