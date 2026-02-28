@@ -55,14 +55,16 @@ This document contains the API implementation tracking tables extracted from [RA
 | AssetDto + AssetDetailDto | ✅ Complete | P0 | MemoryPack attributes, detail includes depreciation |
 | CreateAssetRequest + UpdateAssetRequest | ✅ Complete | P0 | MemoryPack attributes |
 | LinkedAccountDto | ⬜ Not Started | P0 | MemoryPack attributes |
-| BeneficiaryDto + requests | ⬜ Not Started | P0 | MemoryPack attributes |
+| ContactDto (polymorphic) | ⬜ Not Started | P0 | Individual, Trust, Organization subtypes |
+| TrustRoleDto | ⬜ Not Started | P0 | Trust-to-Contact role mapping |
+| AssetContactLinkDto | ⬜ Not Started | P0 | Contact-to-Asset link (beneficiary, co-owner, etc.) |
 | AIInsightDto | ⬜ Not Started | P1 | MemoryPack attributes |
 | DebtPayoffAnalysisDto | ⬜ Not Started | P1 | Strategy results |
 | InsuranceCoverageDto | ⬜ Not Started | P1 | Breakdown included |
 | ApiErrorResponse | ✅ Complete | P0 | Standardized errors with Code, Message, Details |
 | ErrorCodes constants | ✅ Complete | P0 | NotFoundException, ForbiddenException, etc. |
 | AddressDto | ⬜ Not Started | P1 | Value object |
-| Enums (all) | ✅ Complete | P0 | AssetType, DepreciationMethod done; AccountType etc. remaining |
+| Enums (all) | ✅ Complete | P0 | AssetType, DepreciationMethod done; Contact enums remaining |
 
 ### 2.3 Core Domain (RAJFinancial.Core)
 
@@ -71,13 +73,17 @@ This document contains the API implementation tracking tables extracted from [RA
 | User entity | ⬜ Not Started | P0 | Entra External ID linked |
 | LinkedAccount entity | ⬜ Not Started | P0 | |
 | Asset entity | ✅ Complete | P0 | Includes depreciation, disposal, valuation fields |
-| Beneficiary entity | ⬜ Not Started | P0 | |
-| BeneficiaryAssignment entity | ⬜ Not Started | P0 | |
+| Contact entity (base) | ⬜ Not Started | P0 | Abstract base for all contact types |
+| IndividualContact entity | ⬜ Not Started | P0 | Person: name, DOB, SSN, relationship |
+| TrustContact entity | ⬜ Not Started | P0 | Trust: name, EIN, category, purpose, specificType |
+| OrganizationContact entity | ⬜ Not Started | P0 | Org: name, EIN, type (Charity, Business, etc.) |
+| TrustRole entity | ⬜ Not Started | P0 | Links Contact to Trust with role |
+| AssetContactLink entity | ⬜ Not Started | P0 | Links Contact to Asset (Beneficiary, CoOwner, etc.) |
 | ClientRelationship entity | ⬜ Not Started | P0 | Professional-to-client mapping |
 | AuditLog entity | ⬜ Not Started | P1 | |
 | IAccountService interface | ⬜ Not Started | P0 | |
 | IAssetService interface | ✅ Complete | P0 | |
-| IBeneficiaryService interface | ⬜ Not Started | P0 | |
+| IContactService interface | ⬜ Not Started | P0 | Replaces IBeneficiaryService |
 | IAnalysisService interface | ⬜ Not Started | P1 | |
 | IPlaidService interface | ⬜ Not Started | P0 | |
 | IClaudeAIService interface | ⬜ Not Started | P1 | |
@@ -105,10 +111,10 @@ This document contains the API implementation tracking tables extracted from [RA
 | AccountService | ⬜ Not Started | P0 | Plaid orchestration |
 | AssetService | ✅ Complete | P0 | CRUD + validation + depreciation calc |
 | DepreciationCalculator | ✅ Complete | P0 | Pure computation: StraightLine, DecliningBalance, MACRS |
-| BeneficiaryService | ⬜ Not Started | P0 | Assignments included |
+| ContactService | ⬜ Not Started | P0 | CRUD + trust roles + asset links |
 | AnalysisService | ⬜ Not Started | P1 | Net worth, debt, insurance |
 | CreateAssetValidator | ✅ Complete | P0 | FluentValidation |
-| CreateBeneficiaryValidator | ⬜ Not Started | P0 | FluentValidation |
+| CreateContactValidator | ⬜ Not Started | P0 | FluentValidation (Individual, Trust, Org) |
 | MappingProfile | ⬜ Not Started | P1 | AutoMapper config |
 
 ### 2.6 API Functions (RAJFinancial.Api)
@@ -149,18 +155,25 @@ This document contains the API implementation tracking tables extracted from [RA
 | POST /api/assets/{id}/dispose | DisposeAsset | ⬜ Not Started | P1 |
 | GET /api/assets/{id}/depreciation | GetDepreciationSchedule | ⬜ Not Started | P2 |
 
-#### Beneficiary Functions
+#### Contact Functions (formerly Beneficiary Functions)
+> **Note**: "Beneficiary" is now a *role* a Contact plays when linked to an Asset. See [RAJ_FINANCIAL_INTEGRATIONS_API.md](RAJ_FINANCIAL_INTEGRATIONS_API.md) for details.
+
 | Endpoint | Function | Status | Priority |
 |----------|----------|--------|----------|
-| GET /api/beneficiaries | GetBeneficiaries | ⬜ Not Started | P0 |
-| GET /api/beneficiaries/{id} | GetBeneficiaryById | ⬜ Not Started | P0 |
-| POST /api/beneficiaries | CreateBeneficiary | ⬜ Not Started | P0 |
-| PUT /api/beneficiaries/{id} | UpdateBeneficiary | ⬜ Not Started | P0 |
-| DELETE /api/beneficiaries/{id} | DeleteBeneficiary | ⬜ Not Started | P0 |
-| POST /api/beneficiaries/assign | AssignBeneficiary | ⬜ Not Started | P0 |
-| PUT /api/assignments/{id} | UpdateAssignment | ⬜ Not Started | P1 |
-| DELETE /api/assignments/{id} | RemoveAssignment | ⬜ Not Started | P1 |
-| GET /api/beneficiaries/coverage | GetCoverageSummary | ⬜ Not Started | P1 |
+| GET /api/contacts | GetContacts | ⬜ Not Started | P0 |
+| GET /api/contacts/{id} | GetContactById | ⬜ Not Started | P0 |
+| POST /api/contacts | CreateContact | ⬜ Not Started | P0 |
+| PUT /api/contacts/{id} | UpdateContact | ⬜ Not Started | P0 |
+| DELETE /api/contacts/{id} | DeleteContact | ⬜ Not Started | P0 |
+| GET /api/contacts/{id}/roles | GetTrustRoles | ⬜ Not Started | P1 |
+| POST /api/contacts/{id}/roles | AddTrustRole | ⬜ Not Started | P1 |
+| PUT /api/contacts/{id}/roles/{roleId} | UpdateTrustRole | ⬜ Not Started | P1 |
+| DELETE /api/contacts/{id}/roles/{roleId} | RemoveTrustRole | ⬜ Not Started | P1 |
+| GET /api/assets/{id}/contacts | GetAssetContacts | ⬜ Not Started | P0 |
+| POST /api/assets/{id}/contacts | LinkContactToAsset | ⬜ Not Started | P0 |
+| PUT /api/asset-links/{linkId} | UpdateAssetContactLink | ⬜ Not Started | P1 |
+| DELETE /api/asset-links/{linkId} | RemoveAssetContactLink | ⬜ Not Started | P1 |
+| GET /api/contacts/coverage | GetBeneficiaryCoverage | ⬜ Not Started | P1 |
 
 #### Analysis Functions
 | Endpoint | Function | Status | Priority |

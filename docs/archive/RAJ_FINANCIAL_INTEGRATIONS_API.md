@@ -977,18 +977,32 @@ DELETE /api/assets/{id}           → DeleteAsset
 GET    /api/assets/summary        → GetAssetSummary
 ```
 
-### Beneficiaries Endpoints
+### Contacts Endpoints (formerly Beneficiaries)
+
+> **Note**: "Beneficiary" is now a *role* a contact plays when linked to an asset, not a separate entity type.
 
 ```
-GET    /api/beneficiaries              → GetBeneficiaries
-GET    /api/beneficiaries/{id}         → GetBeneficiaryById
-POST   /api/beneficiaries              → CreateBeneficiary
-PUT    /api/beneficiaries/{id}         → UpdateBeneficiary
-DELETE /api/beneficiaries/{id}         → DeleteBeneficiary
-POST   /api/beneficiaries/assign       → AssignBeneficiary
-PUT    /api/assignments/{id}           → UpdateAssignment
-DELETE /api/assignments/{id}           → RemoveAssignment
-GET    /api/beneficiaries/coverage     → GetCoverageSummary
+# Contact CRUD
+GET    /api/contacts                    → GetContacts (with ?type= filter)
+GET    /api/contacts/{id}               → GetContactById
+POST   /api/contacts                    → CreateContact
+PUT    /api/contacts/{id}               → UpdateContact
+DELETE /api/contacts/{id}               → DeleteContact
+
+# Trust-specific (for TrustContact type)
+GET    /api/contacts/{id}/roles         → GetTrustRoles
+POST   /api/contacts/{id}/roles         → AddTrustRole
+PUT    /api/contacts/{id}/roles/{roleId} → UpdateTrustRole
+DELETE /api/contacts/{id}/roles/{roleId} → RemoveTrustRole
+
+# Asset-Contact Links (how contacts become beneficiaries, co-owners, etc.)
+GET    /api/assets/{id}/contacts        → GetAssetContacts
+POST   /api/assets/{id}/contacts        → LinkContactToAsset
+PUT    /api/asset-links/{linkId}        → UpdateAssetContactLink
+DELETE /api/asset-links/{linkId}        → RemoveAssetContactLink
+
+# Coverage Analysis
+GET    /api/contacts/coverage           → GetBeneficiaryCoverageSummary
 ```
 
 ### Analysis Endpoints
@@ -1909,27 +1923,36 @@ public interface IAssetService
 }
 ```
 
-### Beneficiary Service Interface
+### Contact Service Interface (formerly Beneficiary Service)
 
 ```csharp
-// RAJFinancial.Core/Interfaces/IBeneficiaryService.cs
+// RAJFinancial.Core/Interfaces/IContactService.cs
 namespace RAJFinancial.Core.Interfaces;
 
 /// <summary>
-/// Service for managing beneficiaries and assignments.
+/// Service for managing contacts and their links to assets.
+/// Contacts can serve various roles including beneficiary, co-owner, trustee, etc.
 /// </summary>
-public interface IBeneficiaryService
+public interface IContactService
 {
-    Task<IEnumerable<BeneficiaryDto>> GetBeneficiariesAsync(Guid userId);
-    Task<BeneficiaryDto> GetBeneficiaryByIdAsync(Guid userId, Guid beneficiaryId);
-    Task<BeneficiaryDto> CreateBeneficiaryAsync(Guid userId, CreateBeneficiaryRequest request);
-    Task<BeneficiaryDto> UpdateBeneficiaryAsync(Guid userId, Guid beneficiaryId, UpdateBeneficiaryRequest request);
-    Task DeleteBeneficiaryAsync(Guid userId, Guid beneficiaryId);
+    // Contact CRUD
+    Task<IEnumerable<ContactDto>> GetContactsAsync(Guid userId, ContactType? filterType = null);
+    Task<ContactDto> GetContactByIdAsync(Guid userId, Guid contactId);
+    Task<ContactDto> CreateContactAsync(Guid userId, CreateContactRequest request);
+    Task<ContactDto> UpdateContactAsync(Guid userId, Guid contactId, UpdateContactRequest request);
+    Task DeleteContactAsync(Guid userId, Guid contactId);
     
-    // Assignment operations
-    Task<BeneficiaryAssignmentDto> AssignBeneficiaryAsync(Guid userId, AssignBeneficiaryRequest request);
-    Task UpdateAssignmentAsync(Guid userId, Guid assignmentId, UpdateAssignmentRequest request);
-    Task RemoveAssignmentAsync(Guid userId, Guid assignmentId);
+    // Trust roles (for TrustContact type)
+    Task<IEnumerable<TrustRoleDto>> GetTrustRolesAsync(Guid userId, Guid trustContactId);
+    Task<TrustRoleDto> AddTrustRoleAsync(Guid userId, Guid trustContactId, CreateTrustRoleRequest request);
+    Task<TrustRoleDto> UpdateTrustRoleAsync(Guid userId, Guid trustContactId, Guid roleId, UpdateTrustRoleRequest request);
+    Task RemoveTrustRoleAsync(Guid userId, Guid trustContactId, Guid roleId);
+    
+    // Asset-Contact links (how contacts become beneficiaries, etc.)
+    Task<IEnumerable<AssetContactLinkDto>> GetAssetContactsAsync(Guid userId, Guid assetId);
+    Task<AssetContactLinkDto> LinkContactToAssetAsync(Guid userId, Guid assetId, CreateAssetContactLinkRequest request);
+    Task<AssetContactLinkDto> UpdateAssetContactLinkAsync(Guid userId, Guid linkId, UpdateAssetContactLinkRequest request);
+    Task RemoveAssetContactLinkAsync(Guid userId, Guid linkId);
     
     // Analysis
     Task<BeneficiaryCoverageDto> GetCoverageSummaryAsync(Guid userId);
@@ -2386,6 +2409,8 @@ public interface IApiClient
 
 ## Part 14: Domain Entities
 
+> **Cross-Reference**: For complete asset type specifications including all 12 asset types, metadata fields, and type-specific validation rules, see [`ASSET_TYPE_SPECIFICATIONS.md`](ASSET_TYPE_SPECIFICATIONS.md).
+
 ### User Entity
 
 ```csharp
@@ -2410,7 +2435,7 @@ public class User
     // Navigation properties
     public ICollection<LinkedAccount> LinkedAccounts { get; set; } = new List<LinkedAccount>();
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
-    public ICollection<Beneficiary> Beneficiaries { get; set; } = new List<Beneficiary>();
+    public ICollection<Contact> Contacts { get; set; } = new List<Contact>();
 }
 ```
 
@@ -2455,6 +2480,8 @@ public class LinkedAccount
 
 ### Asset Entity
 
+> **Note**: For complete asset type specifications including all 12 types and their metadata fields, see [`ASSET_TYPE_SPECIFICATIONS.md`](ASSET_TYPE_SPECIFICATIONS.md).
+
 ```csharp
 // RAJFinancial.Core/Entities/Asset.cs
 namespace RAJFinancial.Core.Entities;
@@ -2469,97 +2496,344 @@ public class Asset
     public string Name { get; set; } = string.Empty;
     public AssetType AssetType { get; set; }
     public string? Description { get; set; }
-    public decimal CurrentValue { get; set; }
+    public decimal? CurrentValue { get; set; }  // Nullable - user may not know value
     public string CurrencyCode { get; set; } = "USD";
     public decimal? PurchasePrice { get; set; }
     public DateOnly? PurchaseDate { get; set; }
     public decimal OwnershipPercentage { get; set; } = 100m;
-    public Guid? AssociatedEntityId { get; set; }
-    public string? AssociatedEntityName { get; set; }
-    public string? AddressJson { get; set; } // For real estate
-    public string? MetadataJson { get; set; } // Type-specific data
+    public string? Location { get; set; }
+    
+    // Depreciation (see ASSET_TYPE_SPECIFICATIONS.md)
+    public bool IsDepreciable { get; set; }
+    public DepreciationMethod? DepreciationMethod { get; set; }
+    public decimal? SalvageValue { get; set; }
+    public int? UsefulLifeMonths { get; set; }
+    public DateTimeOffset? InServiceDate { get; set; }
+    
+    // Disposal
+    public bool IsDisposed { get; set; }
+    public DateTimeOffset? DisposalDate { get; set; }
+    public decimal? DisposalPrice { get; set; }
+    public string? DisposalNotes { get; set; }
+    
+    // Valuation
+    public decimal? MarketValue { get; set; }
+    public DateTimeOffset? LastValuationDate { get; set; }
+    
+    // Type-specific metadata (JSON stored)
+    public string? MetadataJson { get; set; }
+    
+    // Financial account fields (only for Investment, Retirement, BankAccount, Insurance, Cryptocurrency)
+    public string? AccountNumber { get; set; }  // Encrypted, masked in responses
+    public string? InstitutionName { get; set; }
+    
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }
     
     // Navigation
     public User User { get; set; } = null!;
-    public ICollection<BeneficiaryAssignment> BeneficiaryAssignments { get; set; } = new List<BeneficiaryAssignment>();
+    public ICollection<AssetContactLink> ContactLinks { get; set; } = new List<AssetContactLink>();
+    public ICollection<AssetDocument> Documents { get; set; } = new List<AssetDocument>();
     
     // Calculated
-    public decimal UserShareValue => CurrentValue * (OwnershipPercentage / 100m);
+    public decimal? UserShareValue => CurrentValue * (OwnershipPercentage / 100m);
+    public bool HasBeneficiaries => ContactLinks.Any(cl => cl.Role == AssetContactRole.Beneficiary);
 }
 ```
 
-### Beneficiary Entity
+### Contact Entity (Base)
+
+> **Design Principle**: A Contact is the base entity for people and organizations. "Beneficiary" is a *role* a contact plays when linked to an asset — not a separate entity type. This allows the same contact to serve multiple roles (beneficiary, trustee, co-owner, emergency contact, power of attorney, etc.).
 
 ```csharp
-// RAJFinancial.Core/Entities/Beneficiary.cs
+// RAJFinancial.Core/Entities/Contact.cs
 namespace RAJFinancial.Core.Entities;
 
 /// <summary>
-/// Represents a beneficiary (individual, trust, or organization).
+/// Base entity for all contacts (individuals, trusts, organizations).
+/// A contact becomes a "beneficiary" when linked to an asset via AssetContactLink.
 /// </summary>
-public class Beneficiary
+public abstract class Contact
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public BeneficiaryType BeneficiaryType { get; set; }
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-    public string? OrganizationName { get; set; }
-    public string? TrustName { get; set; }
-    public RelationshipType? Relationship { get; set; }
+    public ContactType ContactType { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
-    public DateTime? DateOfBirth { get; set; }
     public string? AddressJson { get; set; }
-    public string? TaxId { get; set; } // Encrypted
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    
-    // Navigation
-    public User User { get; set; } = null!;
-    public ICollection<BeneficiaryAssignment> Assignments { get; set; } = new List<BeneficiaryAssignment>();
-    
-    // Calculated
-    public string DisplayName => BeneficiaryType switch
-    {
-        BeneficiaryType.Individual => $"{FirstName} {LastName}",
-        BeneficiaryType.Trust => TrustName ?? "Unknown Trust",
-        BeneficiaryType.Charity => OrganizationName ?? "Unknown Charity",
-        BeneficiaryType.Organization => OrganizationName ?? "Unknown Organization",
-        _ => "Unknown"
-    };
-}
-```
-
-### Beneficiary Assignment Entity
-
-```csharp
-// RAJFinancial.Core/Entities/BeneficiaryAssignment.cs
-namespace RAJFinancial.Core.Entities;
-
-/// <summary>
-/// Links a beneficiary to an asset or account with allocation details.
-/// </summary>
-public class BeneficiaryAssignment
-{
-    public Guid Id { get; set; }
-    public Guid BeneficiaryId { get; set; }
-    public Guid? AssetId { get; set; }
-    public Guid? LinkedAccountId { get; set; }
-    public DesignationType DesignationType { get; set; }
-    public decimal AllocationPercentage { get; set; }
-    public bool PerStirpes { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     
     // Navigation
-    public Beneficiary Beneficiary { get; set; } = null!;
-    public Asset? Asset { get; set; }
-    public LinkedAccount? LinkedAccount { get; set; }
+    public User User { get; set; } = null!;
+    public ICollection<AssetContactLink> AssetLinks { get; set; } = new List<AssetContactLink>();
+    
+    // Abstract - implemented by derived types
+    public abstract string DisplayName { get; }
+}
+
+public enum ContactType
+{
+    Individual,
+    Trust,
+    Organization
+}
+```
+
+### IndividualContact Entity
+
+```csharp
+// RAJFinancial.Core/Entities/IndividualContact.cs
+namespace RAJFinancial.Core.Entities;
+
+/// <summary>
+/// Represents an individual person (family member, friend, professional).
+/// </summary>
+public class IndividualContact : Contact
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public DateOnly? DateOfBirth { get; set; }
+    
+    [SensitiveData(VisibleChars = 4)]
+    public string? Ssn { get; set; }  // Encrypted at rest
+    
+    public RelationshipType? Relationship { get; set; }
+    
+    public override string DisplayName => $"{FirstName} {LastName}".Trim();
+}
+
+public enum RelationshipType
+{
+    Spouse,
+    Child,
+    Parent,
+    Sibling,
+    Grandchild,
+    Grandparent,
+    InLaw,
+    Friend,
+    Attorney,
+    Accountant,
+    FinancialAdvisor,
+    Other
+}
+```
+
+### TrustContact Entity
+
+```csharp
+// RAJFinancial.Core/Entities/TrustContact.cs
+namespace RAJFinancial.Core.Entities;
+
+/// <summary>
+/// Represents a trust entity. Uses a flexible category + purpose model
+/// rather than enumerating all 50+ trust types.
+/// </summary>
+public class TrustContact : Contact
+{
+    public string TrustName { get; set; } = string.Empty;
+    
+    [SensitiveData(VisibleChars = 4)]
+    public string? Ein { get; set; }  // Encrypted at rest (optional - revocable living trusts often don't have EINs)
+    
+    public TrustCategory Category { get; set; }
+    public TrustPurpose Purpose { get; set; }
+    
+    /// <summary>
+    /// Specific trust type name (e.g., "QTIP", "GRAT", "ILIT").
+    /// Freeform to allow for the 50+ trust variants without schema changes.
+    /// </summary>
+    public string? SpecificType { get; set; }
+    
+    public DateOnly? TrustDate { get; set; }
+    public string? StateOfFormation { get; set; }
+    
+    // Tax treatment flags
+    public bool IsGrantorTrust { get; set; }
+    public bool HasCrummeyProvisions { get; set; }
+    public bool IsGstExempt { get; set; }
+    
+    // Navigation - roles link to other contacts
+    public ICollection<TrustRole> Roles { get; set; } = new List<TrustRole>();
+    
+    public override string DisplayName => TrustName;
+}
+
+/// <summary>
+/// Base structural type of the trust.
+/// </summary>
+public enum TrustCategory
+{
+    RevocableLiving,
+    Irrevocable,
+    Testamentary
+}
+
+/// <summary>
+/// Primary purpose of the trust. Determines UI flow and relevant fields.
+/// </summary>
+public enum TrustPurpose
+{
+    General,
+    Marital,           // QTIP, Bypass, AB trusts
+    AssetProtection,   // DAPT, Spendthrift
+    SpecialNeeds,      // SNT, Supplemental Needs
+    Charitable,        // CRT, CLT, CRAT, CRUT, CLAT, CLUT
+    Insurance,         // ILIT
+    TaxPlanning,       // GRAT, QPRT, IDGT, SLAT
+    Dynasty,           // GST-exempt, multi-generational
+    Business,          // ESBT, QSST
+    Other              // Pet, Funeral, Land, etc.
+}
+```
+
+### TrustRole Entity
+
+```csharp
+// RAJFinancial.Core/Entities/TrustRole.cs
+namespace RAJFinancial.Core.Entities;
+
+/// <summary>
+/// Links a contact to a trust with a specific role (trustee, beneficiary, etc.).
+/// </summary>
+public class TrustRole
+{
+    public Guid Id { get; set; }
+    public Guid TrustContactId { get; set; }
+    public Guid ContactId { get; set; }  // The person/entity in this role
+    public TrustRoleType RoleType { get; set; }
+    
+    /// <summary>
+    /// For successor trustees: 1 = first successor, 2 = second, etc.
+    /// </summary>
+    public int? SuccessionOrder { get; set; }
+    
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    
+    // Navigation
+    public TrustContact TrustContact { get; set; } = null!;
+    public Contact Contact { get; set; } = null!;
+}
+
+public enum TrustRoleType
+{
+    Grantor,
+    Trustee,
+    SuccessorTrustee,
+    Beneficiary,
+    RemainderBeneficiary,
+    TrustProtector,
+    InvestmentAdvisor,
+    DistributionAdvisor
+}
+```
+
+### OrganizationContact Entity
+
+```csharp
+// RAJFinancial.Core/Entities/OrganizationContact.cs
+namespace RAJFinancial.Core.Entities;
+
+/// <summary>
+/// Represents an organization (charity, business, government entity).
+/// </summary>
+public class OrganizationContact : Contact
+{
+    public string OrganizationName { get; set; } = string.Empty;
+    
+    [SensitiveData(VisibleChars = 4)]
+    public string? Ein { get; set; }  // Encrypted at rest
+    
+    public OrganizationType OrganizationType { get; set; }
+    
+    /// <summary>
+    /// For charities: whether they have 501(c)(3) status.
+    /// </summary>
+    public bool? Is501c3 { get; set; }
+    
+    public override string DisplayName => OrganizationName;
+}
+
+public enum OrganizationType
+{
+    Charity,
+    Business,
+    Government,
+    NonProfit,
+    EducationalInstitution,
+    ReligiousOrganization,
+    Other
+}
+```
+
+### AssetContactLink Entity
+
+```csharp
+// RAJFinancial.Core/Entities/AssetContactLink.cs
+namespace RAJFinancial.Core.Entities;
+
+/// <summary>
+/// Links a contact to an asset with a specific role.
+/// This is how a contact becomes a "beneficiary" — by being linked
+/// to an asset with Role = Beneficiary.
+/// </summary>
+public class AssetContactLink
+{
+    public Guid Id { get; set; }
+    public Guid AssetId { get; set; }
+    public Guid ContactId { get; set; }
+    
+    /// <summary>
+    /// The role this contact plays for this asset.
+    /// </summary>
+    public AssetContactRole Role { get; set; }
+    
+    /// <summary>
+    /// For beneficiaries: Primary or Contingent designation.
+    /// Null for non-beneficiary roles.
+    /// </summary>
+    public DesignationType? Designation { get; set; }
+    
+    /// <summary>
+    /// Allocation percentage (0-100). Required for beneficiaries.
+    /// </summary>
+    public decimal? AllocationPercent { get; set; }
+    
+    /// <summary>
+    /// Per stirpes: if beneficiary dies, their share passes to their descendants.
+    /// </summary>
+    public bool PerStirpes { get; set; }
+    
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    
+    // Navigation
+    public Asset Asset { get; set; } = null!;
+    public Contact Contact { get; set; } = null!;
+}
+
+public enum AssetContactRole
+{
+    Beneficiary,
+    CoOwner,
+    Trustee,
+    Custodian,
+    PowerOfAttorney,
+    EmergencyContact,
+    Insured,
+    Other
+}
+
+public enum DesignationType
+{
+    Primary,
+    Contingent
 }
 ```
 
@@ -2571,14 +2845,23 @@ public class BeneficiaryAssignment
 // RAJFinancial.Core/Enums/AssetType.cs
 namespace RAJFinancial.Core.Enums;
 
+/// <summary>
+/// Asset types. See ASSET_TYPE_SPECIFICATIONS.md for complete type definitions.
+/// </summary>
 public enum AssetType
 {
-    RealEstate,
-    Vehicle,
-    BusinessInterest,
-    PersonalProperty,
-    Collectible,
-    Other
+    RealEstate           = 0,
+    Vehicle              = 1,
+    Investment           = 2,
+    Retirement           = 3,
+    BankAccount          = 4,
+    Insurance            = 5,
+    Business             = 6,
+    PersonalProperty     = 7,
+    Collectible          = 8,
+    Cryptocurrency       = 9,
+    IntellectualProperty = 10,
+    Other                = 99  // Values 11–98 reserved for future asset types
 }
 
 // RAJFinancial.Core/Enums/AccountType.cs
@@ -2600,32 +2883,15 @@ public enum ConnectionStatus
     Syncing
 }
 
-// RAJFinancial.Core/Enums/BeneficiaryType.cs
-public enum BeneficiaryType
-{
-    Individual,
-    Trust,
-    Charity,
-    Organization
-}
-
-// RAJFinancial.Core/Enums/RelationshipType.cs
-public enum RelationshipType
-{
-    Spouse,
-    Child,
-    Parent,
-    Sibling,
-    Grandchild,
-    Other
-}
-
-// RAJFinancial.Core/Enums/DesignationType.cs
-public enum DesignationType
-{
-    Primary,
-    Contingent
-}
+// Contact-related enums are defined with their entities above:
+// - ContactType (Individual, Trust, Organization)
+// - RelationshipType (Spouse, Child, Parent, etc.)
+// - TrustCategory (RevocableLiving, Irrevocable, Testamentary)
+// - TrustPurpose (General, Marital, AssetProtection, etc.)
+// - TrustRoleType (Grantor, Trustee, SuccessorTrustee, etc.)
+// - OrganizationType (Charity, Business, Government, etc.)
+// - AssetContactRole (Beneficiary, CoOwner, Trustee, etc.)
+// - DesignationType (Primary, Contingent)
 
 // RAJFinancial.Core/Enums/DebtType.cs
 public enum DebtType
@@ -2655,8 +2921,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<LinkedAccount> LinkedAccounts => Set<LinkedAccount>();
     public DbSet<Asset> Assets => Set<Asset>();
-    public DbSet<Beneficiary> Beneficiaries => Set<Beneficiary>();
-    public DbSet<BeneficiaryAssignment> BeneficiaryAssignments => Set<BeneficiaryAssignment>();
+    
+    // Contacts (TPH - Table Per Hierarchy)
+    public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<IndividualContact> IndividualContacts => Set<IndividualContact>();
+    public DbSet<TrustContact> TrustContacts => Set<TrustContact>();
+    public DbSet<OrganizationContact> OrganizationContacts => Set<OrganizationContact>();
+    
+    public DbSet<TrustRole> TrustRoles => Set<TrustRole>();
+    public DbSet<AssetContactLink> AssetContactLinks => Set<AssetContactLink>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     
     /// <summary>
@@ -2680,19 +2953,17 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Asset>()
             .HasQueryFilter(a => CurrentUserId == null || a.UserId == CurrentUserId);
             
-        modelBuilder.Entity<Beneficiary>()
-            .HasQueryFilter(b => CurrentUserId == null || b.UserId == CurrentUserId);
-            
-        modelBuilder.Entity<BeneficiaryAssignment>()
-            .HasQueryFilter(ba => CurrentUserId == null || ba.Beneficiary.UserId == CurrentUserId);
+        modelBuilder.Entity<Contact>()
+            .HasQueryFilter(c => CurrentUserId == null || c.UserId == CurrentUserId);
         
-        // Configure relationships
+        // Configure User
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Email).IsUnique();
         });
         
+        // Configure LinkedAccount
         modelBuilder.Entity<LinkedAccount>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -2703,6 +2974,7 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
         
+        // Configure Asset
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -2715,23 +2987,53 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.OwnershipPercentage).HasPrecision(5, 2);
         });
         
-        modelBuilder.Entity<Beneficiary>(entity =>
+        // Configure Contact hierarchy (TPH)
+        modelBuilder.Entity<Contact>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.UserId);
+            entity.HasDiscriminator(e => e.ContactType)
+                .HasValue<IndividualContact>(ContactType.Individual)
+                .HasValue<TrustContact>(ContactType.Trust)
+                .HasValue<OrganizationContact>(ContactType.Organization);
             entity.HasOne(e => e.User)
-                .WithMany(u => u.Beneficiaries)
+                .WithMany(u => u.Contacts)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
         
-        modelBuilder.Entity<BeneficiaryAssignment>(entity =>
+        // Configure TrustRole
+        modelBuilder.Entity<TrustRole>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.BeneficiaryId);
+            entity.HasIndex(e => e.TrustContactId);
+            entity.HasIndex(e => e.ContactId);
+            entity.HasOne(e => e.TrustContact)
+                .WithMany(t => t.Roles)
+                .HasForeignKey(e => e.TrustContactId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Contact)
+                .WithMany()
+                .HasForeignKey(e => e.ContactId)
+                .OnDelete(DeleteBehavior.Restrict);  // Prevent cascade loops
+        });
+        
+        // Configure AssetContactLink
+        modelBuilder.Entity<AssetContactLink>(entity =>
+        {
+            entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.AssetId);
-            entity.HasIndex(e => e.LinkedAccountId);
-            entity.Property(e => e.AllocationPercentage).HasPrecision(5, 2);
+            entity.HasIndex(e => e.ContactId);
+            entity.HasIndex(e => new { e.AssetId, e.ContactId, e.Role }).IsUnique();
+            entity.Property(e => e.AllocationPercent).HasPrecision(5, 2);
+            entity.HasOne(e => e.Asset)
+                .WithMany(a => a.ContactLinks)
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Contact)
+                .WithMany(c => c.AssetLinks)
+                .HasForeignKey(e => e.ContactId)
+                .OnDelete(DeleteBehavior.Restrict);  // Prevent cascade loops
         });
     }
     
