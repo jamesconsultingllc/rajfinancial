@@ -2,11 +2,10 @@
 // RAJ Financial - Azure Functions Module
 // ============================================================================
 // Creates an Azure Functions app for the API backend.
-// Uses Consumption plan for dev, Premium for prod.
+// Uses Consumption (Y1) plan — upgrade to EP1 if VNet/always-warm needed.
 //
 // Security:
 //   - System-assigned Managed Identity
-//   - Key Vault references for secrets
 //   - HTTPS only
 // ============================================================================
 

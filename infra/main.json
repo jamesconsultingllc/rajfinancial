@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "80411737576822861"
+      "templateHash": "10735576490851706548"
     }
   },
   "parameters": {
@@ -71,10 +71,10 @@
       }
     },
     "entraServicePrincipalId": {
-      "type": "securestring",
+      "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Entra External ID Service Principal ID (stored in Key Vault)"
+        "description": "Entra External ID Service Principal ID (GUID, not sensitive)"
       }
     },
     "sqlAdminObjectId": {

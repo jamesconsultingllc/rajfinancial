@@ -43,8 +43,7 @@ param appRoleAdministrator string
 @description('Advisor App Role GUID')
 param appRoleAdvisor string
 
-@description('Entra External ID Service Principal ID (stored in Key Vault)')
-@secure()
+@description('Entra External ID Service Principal ID (GUID, not sensitive)')
 param entraServicePrincipalId string = ''
 
 @description('Entra admin object ID for SQL Server (user or group)')
@@ -75,7 +74,6 @@ param tags object = {
 // ============================================================================
 
 var resourceGroupName = resourceGroupNameOverride != '' ? resourceGroupNameOverride : 'rg-${baseName}-${environment}'
-// var keyVaultName = 'kv-${baseName}-${environment}'  // Key Vault removed
 // SQL naming: prod gets clean name (rajfinancial), dev gets suffix (rajfinancial-dev)
 var sqlServerName = environment == 'prod' ? baseName : '${baseName}-${environment}'
 var sqlDatabaseName = baseName
@@ -109,20 +107,6 @@ module monitoring 'modules/monitoring.bicep' = {
     tags: tags
   }
 }
-
-// ============================================================================
-// Key Vault (REMOVED - SP ID is not sensitive, stored directly in app settings)
-// ============================================================================
-// module keyVault 'modules/keyvault.bicep' = {
-//   name: 'keyvault-deployment'
-//   scope: rg
-//   params: {
-//     location: location
-//     keyVaultName: keyVaultName
-//     tags: tags
-//     entraServicePrincipalId: entraServicePrincipalId
-//   }
-// }
 
 // ============================================================================
 // Storage Account (for documents/blobs)
