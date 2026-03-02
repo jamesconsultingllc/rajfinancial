@@ -201,16 +201,38 @@ jobs:
           echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
 
-      # TODO: Re-enable after migrating E2E tests to Cucumber.js + Playwright (TypeScript)
-      # Tracking: the new test project will live in tests/e2e/ with npm-based tooling.
-      # Once scaffolded, replace this block with:
-      #   - setup-node + npm ci (tests/e2e)
-      #   - npx playwright install --with-deps ${{ matrix.browser }}
-      #   - npm test (runs Cucumber.js + Playwright)
-      #   - Upload test-results/ and screenshots/ artifacts from tests/e2e/
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
 
-      - name: E2E tests pending migration
-        run: echo "E2E tests disabled - migrating from C# Reqnroll to Cucumber.js + Playwright (TS)"
+      - name: Install E2E dependencies
+        run: npm ci
+        working-directory: tests/e2e
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+        working-directory: tests/e2e
+
+      - name: Run E2E tests (${{ matrix.browser }})
+        run: npm run test:${{ matrix.browser }}
+        working-directory: tests/e2e
+        env:
+          BASE_URL: ${{ steps.swa-url.outputs.url }}
+          BROWSER: ${{ matrix.browser }}
+          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
+
+      - name: Upload E2E test reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: e2e-reports-${{ matrix.browser }}
+          path: |
+            tests/e2e/reports/
+          retention-days: 14
 
   close_pull_request_job:
     if: |
