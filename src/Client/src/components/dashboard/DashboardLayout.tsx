@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Home,
   LayoutDashboard,
   Wallet,
   TrendingUp,
@@ -29,17 +30,74 @@ import {
   X,
   ChevronLeft,
   Package,
+  UserCog,
+  Activity,
+  ClipboardList,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Package, label: "Assets", path: "/assets" },
-  { icon: Wallet, label: "Accounts", path: "/dashboard/accounts" },
-  { icon: TrendingUp, label: "Net Worth", path: "/dashboard/net-worth" },
-  { icon: Shield, label: "Insurance", path: "/dashboard/insurance" },
-  { icon: FileText, label: "Documents", path: "/dashboard/documents" },
-  { icon: Users, label: "Beneficiaries", path: "/contacts" },
+interface NavItem {
+  icon: typeof Home;
+  label: string;
+  path: string;
+}
+
+interface NavSection {
+  title: string;
+  dataTestId: string;
+  items: NavItem[];
+}
+
+const clientNavSections: NavSection[] = [
+  {
+    title: "",
+    dataTestId: "nav-main",
+    items: [
+      { icon: Home, label: "Home", path: "/" },
+      { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    ],
+  },
+  {
+    title: "My Account",
+    dataTestId: "my-account",
+    items: [
+      { icon: TrendingUp, label: "My Portfolio", path: "/portfolio" },
+      { icon: Package, label: "Assets", path: "/assets" },
+      { icon: Wallet, label: "Accounts", path: "/dashboard/accounts" },
+      { icon: Shield, label: "Insurance", path: "/dashboard/insurance" },
+      { icon: FileText, label: "Documents", path: "/dashboard/documents" },
+      { icon: Users, label: "Beneficiaries", path: "/contacts" },
+    ],
+  },
+];
+
+const adminNavSections: NavSection[] = [
+  {
+    title: "",
+    dataTestId: "nav-main",
+    items: [
+      { icon: Home, label: "Home", path: "/" },
+    ],
+  },
+  {
+    title: "Administration",
+    dataTestId: "administration",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
+      { icon: UserCog, label: "User Management", path: "/admin/users" },
+      { icon: ClipboardList, label: "Audit Logs", path: "/admin/audit" },
+      { icon: BarChart3, label: "System Reports", path: "/admin/reports" },
+    ],
+  },
+  {
+    title: "My Account",
+    dataTestId: "my-account",
+    items: [
+      { icon: TrendingUp, label: "My Portfolio", path: "/portfolio" },
+      { icon: Package, label: "Assets", path: "/assets" },
+    ],
+  },
 ];
 
 /**
@@ -53,13 +111,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
 
   const displayUser = {
     name: user?.name ?? "User",
     email: user?.email ?? "",
     initials: user?.initials ?? "U",
   };
+
+  const navSections = isAdmin ? adminNavSections : clientNavSections;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -73,6 +133,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
+        data-testid="sidebar"
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar-background border-r border-sidebar-border transition-all duration-300",
           sidebarCollapsed ? "w-16" : "w-64",
@@ -91,32 +152,46 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  sidebarCollapsed && "justify-center px-2"
-                )}
-                title={sidebarCollapsed ? item.label : undefined}
-              >
-                <item.icon className="w-5 h-5 shrink-0" />
-                {!sidebarCollapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 py-4 px-2 space-y-4 overflow-y-auto">
+          {navSections.map((section) => (
+            <div key={section.dataTestId} data-testid={section.dataTestId}>
+              {section.title && (
+                <p className={cn(
+                  "text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2",
+                  sidebarCollapsed ? "text-center" : "px-3"
+                )}>
+                  {!sidebarCollapsed && section.title}
+                </p>
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        sidebarCollapsed && "justify-center px-2"
+                      )}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      <item.icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                      {!sidebarCollapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Sidebar footer */}
-        <div className={cn("p-2 border-t border-sidebar-border", sidebarCollapsed && "flex justify-center")}>
+        <div className={cn("p-2 border-t border-sidebar-border space-y-1", sidebarCollapsed && "flex flex-col items-center")}>
           <Link
             to="/dashboard/settings"
             className={cn(
@@ -124,17 +199,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               sidebarCollapsed && "justify-center px-2"
             )}
           >
-            <Settings className="w-5 h-5 shrink-0" />
+            <Settings className="w-5 h-5 shrink-0" aria-hidden="true" />
             {!sidebarCollapsed && <span>Settings</span>}
           </Link>
+          <button
+            onClick={() => logout()}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-sidebar-accent transition-colors w-full",
+              sidebarCollapsed && "justify-center px-2"
+            )}
+          >
+            <LogOut className="w-5 h-5 shrink-0" aria-hidden="true" />
+            {!sidebarCollapsed && <span>Log out</span>}
+          </button>
         </div>
 
         {/* Collapse button - desktop only */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden md:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ChevronLeft className={cn("w-3.5 h-3.5 transition-transform", sidebarCollapsed && "rotate-180")} />
+          <ChevronLeft className={cn("w-3.5 h-3.5 transition-transform", sidebarCollapsed && "rotate-180")} aria-hidden="true" />
         </button>
       </aside>
 
@@ -144,16 +230,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 h-16 bg-card/90 backdrop-blur-xl border-b border-border/30 flex items-center px-4 md:px-6 gap-4">
           {/* Mobile menu button */}
           <button
+            data-testid="mobile-menu-toggle"
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden text-foreground p-1.5"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
           </button>
 
           {/* Search */}
           <div className="flex-1 max-w-md">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search accounts, transactions..."
@@ -167,8 +255,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
 
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+              <Bell className="w-5 h-5" aria-hidden="true" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
             </Button>
 
@@ -198,17 +286,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
-                  <User className="w-4 h-4 mr-2" />
+                  <User className="w-4 h-4 mr-2" aria-hidden="true" />
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>
-                  <Settings className="w-4 h-4 mr-2" />
+                  <Settings className="w-4 h-4 mr-2" aria-hidden="true" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()} className="text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

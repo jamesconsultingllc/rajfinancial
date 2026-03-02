@@ -11,6 +11,7 @@ import { AuthProvider } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
 import Assets from "./pages/Assets";
 import Contacts from "./pages/Contacts";
@@ -57,6 +58,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/portfolio"
+                  element={
+                    <ProtectedRoute policy="RequireClient">
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/assets"
                   element={
                     <ProtectedRoute policy="RequireClient">
@@ -77,6 +86,32 @@ const App = () => (
                   element={
                     <ProtectedRoute policy="RequireAuthenticated">
                       <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Admin routes */}
+                <Route
+                  path="/admin/dashboard"
+                  element={
+                    <ProtectedRoute policy="RequireAdministrator">
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <ProtectedRoute policy="RequireAdministrator">
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/*"
+                  element={
+                    <ProtectedRoute policy="RequireAdministrator">
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />

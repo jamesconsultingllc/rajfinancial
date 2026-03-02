@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 import { Button } from "./ui/button";
 import { Menu, X } from "lucide-react";
@@ -21,7 +22,9 @@ export function Navbar() {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Logo size="sm" />
+          <Link to="/" data-testid="nav-home-link" aria-label="Home">
+            <Logo size="sm" />
+          </Link>
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-2">
@@ -37,6 +40,9 @@ export function Navbar() {
           {/* Mobile Menu Toggle */}
           <div className="md:hidden flex items-center gap-2">
             <ThemeToggle />
+            <Button variant="goldOutline" size="sm" onClick={() => login()}>
+              Sign In
+            </Button>
             <button
               className="text-foreground p-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -19,8 +19,9 @@ interface FeatureCardProps {
 function FeatureCard({ icon: Icon, title, description, features, delay = 0 }: FeatureCardProps) {
   return (
     <div
+      data-testid="feature-card"
       className="group relative p-8 rounded-xl bg-card border border-border/50 transition-all duration-500 hover:border-primary/50 hover:shadow-gold-sm opacity-0 animate-fade-in"
-      style={{ animationDelay: `${delay}ms` }}
+      style={{ '--animation-delay': `${delay}ms` } as React.CSSProperties}
     >
       {/* Icon container */}
       <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20">
@@ -92,11 +93,11 @@ export function FeaturesSection() {
           <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 opacity-0 animate-fade-in">
             Platform Features
           </p>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-6 text-foreground opacity-0 animate-fade-in" style={{ animationDelay: "100ms" }}>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-6 text-foreground opacity-0 animate-fade-in [animation-delay:100ms]">
             Everything You Need to Manage Your
             <span className="text-primary"> Wealth</span>
           </h2>
-          <p className="text-lg text-muted-foreground opacity-0 animate-fade-in" style={{ animationDelay: "200ms" }}>
+          <p className="text-lg text-muted-foreground opacity-0 animate-fade-in [animation-delay:200ms]">
             From tracking your net worth to planning for the future, RAJ Financial provides the tools and insights you need to make smarter financial decisions.
           </p>
         </div>

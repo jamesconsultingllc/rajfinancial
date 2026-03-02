@@ -36,6 +36,7 @@ dist/
 # Test settings with secrets
 testsettings.local.json
 .env.test
+tests/e2e/.env
 appsettings.local.json
 /.claude/
 

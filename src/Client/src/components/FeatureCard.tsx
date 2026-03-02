@@ -10,15 +10,18 @@ interface FeatureCardProps {
 }
 
 export function FeatureCard({ icon: Icon, title, description, className, delay = 0 }: FeatureCardProps) {
+  const delayClass = delay ? `[animation-delay:${delay}ms]` : "";
+
   return (
     <div
+      data-testid="feature-card"
       className={cn(
         "group relative p-8 rounded-xl bg-card/50 backdrop-blur-xl border border-border/30",
         "transition-all duration-500 hover:border-primary/50 hover:shadow-gold-sm",
         "opacity-0 animate-fade-in",
+        delayClass,
         className
       )}
-      style={{ animationDelay: `${delay}ms` }}
     >
       {/* Gold gradient border on hover */}
       <div className="absolute inset-0 rounded-xl bg-gold-gradient opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
