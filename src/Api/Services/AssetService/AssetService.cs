@@ -237,8 +237,8 @@ public class AssetService(
         Id = asset.Id,
         Name = asset.Name,
         Type = asset.Type,
-        CurrentValue = (double)asset.CurrentValue,
-        PurchasePrice = (double?)asset.PurchasePrice,
+        CurrentValue = FromMoney(asset.CurrentValue),
+        PurchasePrice = FromMoney(asset.PurchasePrice),
         PurchaseDate = asset.PurchaseDate?.UtcDateTime,
         Description = asset.Description,
         Location = asset.Location,
@@ -265,8 +265,8 @@ public class AssetService(
             Id = asset.Id,
             Name = asset.Name,
             Type = asset.Type,
-            CurrentValue = (double)asset.CurrentValue,
-            PurchasePrice = (double?)asset.PurchasePrice,
+            CurrentValue = FromMoney(asset.CurrentValue),
+            PurchasePrice = FromMoney(asset.PurchasePrice),
             PurchaseDate = asset.PurchaseDate?.UtcDateTime,
             Description = asset.Description,
             Location = asset.Location,
@@ -276,24 +276,24 @@ public class AssetService(
             // Depreciation input fields
             IsDepreciable = isDepreciable,
             DepreciationMethod = depreciable?.DepreciationMethod,
-            SalvageValue = (double?)depreciable?.SalvageValue,
+            SalvageValue = FromMoney(depreciable?.SalvageValue),
             UsefulLifeMonths = depreciable?.UsefulLifeMonths,
             InServiceDate = depreciable?.InServiceDate?.UtcDateTime,
 
             // Depreciation computed fields
-            AccumulatedDepreciation = (double?)depreciation?.AccumulatedDepreciation,
-            BookValue = (double?)depreciation?.BookValue,
-            MonthlyDepreciation = (double?)depreciation?.MonthlyDepreciation,
+            AccumulatedDepreciation = FromMoney(depreciation?.AccumulatedDepreciation),
+            BookValue = FromMoney(depreciation?.BookValue),
+            MonthlyDepreciation = FromMoney(depreciation?.MonthlyDepreciation),
             DepreciationPercentComplete = (double?)depreciation?.DepreciationPercentComplete,
 
             // Disposal
             IsDisposed = asset.IsDisposed,
             DisposalDate = asset.DisposalDate?.UtcDateTime,
-            DisposalPrice = (double?)asset.DisposalPrice,
+            DisposalPrice = FromMoney(asset.DisposalPrice),
             DisposalNotes = asset.DisposalNotes,
 
             // Valuation
-            MarketValue = (double?)asset.MarketValue,
+            MarketValue = FromMoney(asset.MarketValue),
             LastValuationDate = asset.LastValuationDate?.UtcDateTime,
 
             // Beneficiaries — TODO: populate when beneficiary feature is implemented
@@ -356,4 +356,15 @@ public class AssetService(
     /// <inheritdoc cref="ToMoney(double)"/>
     private static decimal? ToMoney(double? value) =>
         value.HasValue ? ToMoney(value.Value) : null;
+
+    /// <summary>
+    ///     Converts a decimal money value to double, rounding to 2 decimal places
+    ///     to avoid floating-point representation artifacts in API responses.
+    /// </summary>
+    private static double FromMoney(decimal value) =>
+        (double)Math.Round(value, 2);
+
+    /// <inheritdoc cref="FromMoney(decimal)"/>
+    private static double? FromMoney(decimal? value) =>
+        value.HasValue ? FromMoney(value.Value) : null;
 }

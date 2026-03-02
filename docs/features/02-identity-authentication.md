@@ -378,4 +378,4 @@ Custom branding assets are stored in `infra/entra-branding/`:
 
 ---
 
-*Last Updated: June 2025*
+*Last Updated: February 2026*
