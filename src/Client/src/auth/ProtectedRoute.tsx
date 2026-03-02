@@ -1,0 +1,175 @@
+import { type ReactNode } from "react";
+import {
+  AuthenticatedTemplate,
+  UnauthenticatedTemplate,
+  useMsal,
+} from "@azure/msal-react";
+import { InteractionStatus } from "@azure/msal-browser";
+import { useAuth } from "./useAuth";
+import { loginRequest } from "./authConfig";
+import { Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+/**
+ * Authorization policies matching the Blazor backend policies.
+ *
+ * @description
+ * - RequireAuthenticated: Any authenticated user
+ * - RequireClient: Client role or implicit client (no role)
+ * - RequireAdministrator: Administrator, AdminAdvisor, or AdminClient roles
+ */
+export type AuthPolicy =
+  | "RequireAuthenticated"
+  | "RequireClient"
+  | "RequireAdministrator";
+
+interface ProtectedRouteProps {
+  /** The authorization policy to enforce */
+  policy?: AuthPolicy;
+  /** Child components to render when authorized */
+  children: ReactNode;
+}
+
+/**
+ * Checks whether the user's roles satisfy the given policy.
+ *
+ * @param roles - Array of user roles from the ID token
+ * @param policy - The authorization policy to check
+ * @returns Whether the user is authorized
+ */
+export function satisfiesPolicy(roles: string[], policy: AuthPolicy): boolean {
+  switch (policy) {
+    case "RequireAuthenticated":
+      return true;
+
+    case "RequireClient":
+      // Implicit client: no roles assigned = client
+      return (
+        roles.length === 0 ||
+        roles.includes("Client") ||
+        roles.includes("Administrator") ||
+        roles.includes("AdminClient")
+      );
+
+    case "RequireAdministrator":
+      return (
+        roles.includes("Administrator") ||
+        roles.includes("AdminAdvisor") ||
+        roles.includes("AdminClient")
+      );
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Route guard component that enforces authentication and authorization.
+ *
+ * @description
+ * - Unauthenticated users are redirected to MSAL login
+ * - Authenticated users with insufficient roles see an Access Denied page
+ * - Authorized users see the child content
+ *
+ * @param policy - The authorization policy to enforce (default: RequireAuthenticated)
+ * @param children - Content to render when authorized
+ *
+ * @example
+ * ```tsx
+ * <Route
+ *   path="/dashboard"
+ *   element={
+ *     <ProtectedRoute policy="RequireClient">
+ *       <Dashboard />
+ *     </ProtectedRoute>
+ *   }
+ * />
+ * ```
+ */
+export function ProtectedRoute({
+  policy = "RequireAuthenticated",
+  children,
+}: ProtectedRouteProps) {
+  const { inProgress } = useMsal();
+  const { user, isAuthenticated } = useAuth();
+
+  // Show loading while MSAL is processing
+  if (inProgress !== InteractionStatus.None) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <UnauthenticatedTemplate>
+        <RedirectToLogin />
+      </UnauthenticatedTemplate>
+
+      <AuthenticatedTemplate>
+        {isAuthenticated &&
+        user &&
+        satisfiesPolicy(user.roles, policy) ? (
+          children
+        ) : (
+          <AccessDenied />
+        )}
+      </AuthenticatedTemplate>
+    </>
+  );
+}
+
+/**
+ * Triggers MSAL redirect login when rendered.
+ */
+function RedirectToLogin() {
+  const { instance, inProgress } = useMsal();
+
+  if (inProgress === InteractionStatus.None) {
+    instance.loginRedirect(loginRequest);
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-muted-foreground text-sm">Redirecting to sign in...</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Access denied page for authenticated but unauthorized users.
+ */
+function AccessDenied() {
+  const { logout } = useAuth();
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center max-w-md mx-auto p-6">
+        <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          Access Denied
+        </h1>
+        <p className="text-muted-foreground mb-6">
+          You don't have permission to access this page. Contact your
+          administrator if you believe this is an error.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+          <Button variant="destructive" onClick={() => logout()}>
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

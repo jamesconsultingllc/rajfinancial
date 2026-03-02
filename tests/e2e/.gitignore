@@ -1,0 +1,6 @@
+.auth/
+.env
+node_modules/
+reports/
+debug-*.png
+results*.txt

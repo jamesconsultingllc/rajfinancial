@@ -1,4 +1,5 @@
 using MemoryPack;
+using RajFinancial.Shared.Contracts.Assets.Metadata;
 using RajFinancial.Shared.Entities;
 
 namespace RajFinancial.Shared.Contracts.Assets;
@@ -11,7 +12,8 @@ namespace RajFinancial.Shared.Contracts.Assets;
 ///     Does not include beneficiary assignments or full depreciation details —
 ///     use <see cref="AssetDetailDto"/> for single-asset views.
 /// </remarks>
-[MemoryPackable(GenerateType.VersionTolerant)]
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
 public sealed partial record AssetDto
 {
     /// <summary>Unique identifier for the asset.</summary>
@@ -28,15 +30,15 @@ public sealed partial record AssetDto
 
     /// <summary>Current value as entered by the user.</summary>
     [MemoryPackOrder(3)]
-    public required decimal CurrentValue { get; init; }
+    public required double CurrentValue { get; init; }
 
     /// <summary>Original purchase price (cost basis).</summary>
     [MemoryPackOrder(4)]
-    public decimal? PurchasePrice { get; init; }
+    public double? PurchasePrice { get; init; }
 
     /// <summary>Date the asset was purchased.</summary>
     [MemoryPackOrder(5)]
-    public DateTimeOffset? PurchaseDate { get; init; }
+    public DateTime? PurchaseDate { get; init; }
 
     /// <summary>Optional description or notes.</summary>
     [MemoryPackOrder(6)]
@@ -68,9 +70,13 @@ public sealed partial record AssetDto
 
     /// <summary>Date and time the asset was created.</summary>
     [MemoryPackOrder(13)]
-    public required DateTimeOffset CreatedAt { get; init; }
+    public required DateTime CreatedAt { get; init; }
 
     /// <summary>Date and time the asset was last updated.</summary>
     [MemoryPackOrder(14)]
-    public DateTimeOffset? UpdatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+
+    /// <summary>Per-type metadata (vehicle details, real estate details, etc.).</summary>
+    [MemoryPackOrder(15)]
+    public IAssetMetadata? Metadata { get; init; }
 }

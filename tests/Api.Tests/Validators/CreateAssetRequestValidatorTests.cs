@@ -40,7 +40,7 @@ public class CreateAssetRequestValidatorTests
             Type = AssetType.RealEstate,
             CurrentValue = 250000,
             PurchasePrice = 200000,
-            PurchaseDate = DateTimeOffset.UtcNow.AddYears(-2),
+            PurchaseDate = DateTime.UtcNow.AddYears(-2),
             Description = "Rental property in Austin",
             Location = "123 Main St, Austin TX",
             AccountNumber = "PROP-001",
@@ -48,9 +48,9 @@ public class CreateAssetRequestValidatorTests
             DepreciationMethod = DepreciationMethod.StraightLine,
             SalvageValue = 50000,
             UsefulLifeMonths = 360,
-            InServiceDate = DateTimeOffset.UtcNow.AddYears(-2),
+            InServiceDate = DateTime.UtcNow.AddYears(-2),
             MarketValue = 275000,
-            LastValuationDate = DateTimeOffset.UtcNow
+            LastValuationDate = DateTime.UtcNow
         };
 
         var result = validator.TestValidate(request);

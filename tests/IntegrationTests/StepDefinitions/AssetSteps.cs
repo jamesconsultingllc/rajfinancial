@@ -10,6 +10,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Data.SqlClient;
 using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
 
@@ -37,6 +38,7 @@ public class AssetSteps
     private string? authToken;
     private readonly Dictionary<string, string> createdAssetIds = new();
     private string? lastCreatedAssetId;
+    private string? ownerUserId;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="AssetSteps"/> class.
@@ -127,27 +129,53 @@ public class AssetSteps
     }
 
     [Given(@"I have an asset ""(.*)"" that has been disposed")]
-    public void GivenIHaveAnAssetThatHasBeenDisposed(string name)
+    public async Task GivenIHaveAnAssetThatHasBeenDisposed(string name)
     {
-        // Placeholder: disposing an asset requires service-level support.
-        // This step will be implemented when the dispose endpoint is available.
-        throw new InconclusiveException(
-            $"Step not yet implemented: disposing asset '{name}' requires dispose endpoint.");
+        // Create the asset via the API first
+        await GivenIHaveCreatedAnAssetOfTypeWorth(name, "Vehicle", 10_000m);
+
+        // Mark it as disposed directly in the DB (no dispose endpoint exists yet)
+        var connectionString = fixture.Configuration.GetSection("ConnectionStrings")["SqlConnectionString"]
+                               ?? throw new InvalidOperationException("SqlConnectionString not configured");
+
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE Assets SET IsDisposed = 1, DisposalDate = @date WHERE Id = @id";
+        cmd.Parameters.AddWithValue("@date", DateTimeOffset.UtcNow);
+        cmd.Parameters.AddWithValue("@id", Guid.Parse(createdAssetIds[name]));
+        var rows = await cmd.ExecuteNonQueryAsync();
+        rows.Should().Be(1, $"asset '{name}' should exist in the database");
     }
 
     [Given(@"user ""(.*)"" has assets")]
-    public void GivenUserHasAssets(string email)
+    public async Task GivenUserHasAssets(string email)
     {
-        // Placeholder: cross-user asset setup requires admin-level seed data.
-        throw new InconclusiveException(
-            $"Step not yet implemented: seeding assets for user '{email}'.");
+        // Authenticate as the owner, create assets, then store the userId for {ownerUserId} substitution
+        var ownerToken = await authHelper.GetTokenForRoleAsync(email, "Client");
+        ownerUserId = TestClaimsBuilder.DeterministicUserId(email);
+
+        var body = new { name = "Owner Asset", type = "BankAccount", currentValue = 5000 };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/assets");
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+
+        var resp = await client.SendAsync(request);
+        resp.StatusCode.Should().Be(HttpStatusCode.Created, "setup: creating asset for owner should succeed");
+
+        var json = await resp.Content.ReadAsStringAsync();
+        var doc = JsonDocument.Parse(json);
+        lastCreatedAssetId = doc.RootElement.GetProperty("id").GetString()!;
+        createdAssetIds["Owner Asset"] = lastCreatedAssetId;
     }
 
     [Given(@"user ""(.*)"" has an asset with a known ID")]
-    public void GivenUserHasAnAssetWithAKnownId(string email)
+    public async Task GivenUserHasAnAssetWithAKnownId(string email)
     {
-        throw new InconclusiveException(
-            $"Step not yet implemented: seeding a known asset for user '{email}'.");
+        // Reuse the "has assets" step — it creates one asset and stores its ID
+        await GivenUserHasAssets(email);
     }
 
     // =========================================================================
@@ -157,6 +185,10 @@ public class AssetSteps
     [When(@"I send a GET request to ""(.*)""")]
     public async Task WhenISendAGetRequestTo(string path)
     {
+        // Resolve {ownerUserId} placeholder if present
+        if (ownerUserId is not null)
+            path = path.Replace("{ownerUserId}", ownerUserId);
+
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         SetAuthHeader(request);
         response = await client.SendAsync(request);

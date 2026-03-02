@@ -75,18 +75,18 @@ public class AssetService(
                 UserId = userId,
                 Name = request.Name,
                 Type = request.Type,
-                CurrentValue = request.CurrentValue,
-                PurchasePrice = request.PurchasePrice,
+                CurrentValue = ToMoney(request.CurrentValue),
+                PurchasePrice = ToMoney(request.PurchasePrice),
                 PurchaseDate = request.PurchaseDate,
                 Description = request.Description,
                 Location = request.Location,
                 AccountNumber = request.AccountNumber,
                 InstitutionName = request.InstitutionName,
-                MarketValue = request.MarketValue,
+                MarketValue = ToMoney(request.MarketValue),
                 LastValuationDate = request.LastValuationDate,
                 CreatedAt = DateTimeOffset.UtcNow,
                 DepreciationMethod = request.DepreciationMethod!.Value,
-                SalvageValue = request.SalvageValue,
+                SalvageValue = ToMoney(request.SalvageValue),
                 UsefulLifeMonths = request.UsefulLifeMonths,
                 InServiceDate = request.InServiceDate
             }
@@ -96,14 +96,14 @@ public class AssetService(
                 UserId = userId,
                 Name = request.Name,
                 Type = request.Type,
-                CurrentValue = request.CurrentValue,
-                PurchasePrice = request.PurchasePrice,
+                CurrentValue = ToMoney(request.CurrentValue),
+                PurchasePrice = ToMoney(request.PurchasePrice),
                 PurchaseDate = request.PurchaseDate,
                 Description = request.Description,
                 Location = request.Location,
                 AccountNumber = request.AccountNumber,
                 InstitutionName = request.InstitutionName,
-                MarketValue = request.MarketValue,
+                MarketValue = ToMoney(request.MarketValue),
                 LastValuationDate = request.LastValuationDate,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -166,14 +166,14 @@ public class AssetService(
         // Update common fields
         asset.Name = request.Name;
         asset.Type = request.Type;
-        asset.CurrentValue = request.CurrentValue;
-        asset.PurchasePrice = request.PurchasePrice;
+        asset.CurrentValue = ToMoney(request.CurrentValue);
+        asset.PurchasePrice = ToMoney(request.PurchasePrice);
         asset.PurchaseDate = request.PurchaseDate;
         asset.Description = request.Description;
         asset.Location = request.Location;
         asset.AccountNumber = request.AccountNumber;
         asset.InstitutionName = request.InstitutionName;
-        asset.MarketValue = request.MarketValue;
+        asset.MarketValue = ToMoney(request.MarketValue);
         asset.LastValuationDate = request.LastValuationDate;
         asset.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -181,7 +181,7 @@ public class AssetService(
         if (asset is DepreciableAsset depreciable && nowIsDepreciable)
         {
             depreciable.DepreciationMethod = request.DepreciationMethod!.Value;
-            depreciable.SalvageValue = request.SalvageValue;
+            depreciable.SalvageValue = ToMoney(request.SalvageValue);
             depreciable.UsefulLifeMonths = request.UsefulLifeMonths;
             depreciable.InServiceDate = request.InServiceDate;
         }
@@ -237,9 +237,9 @@ public class AssetService(
         Id = asset.Id,
         Name = asset.Name,
         Type = asset.Type,
-        CurrentValue = asset.CurrentValue,
-        PurchasePrice = asset.PurchasePrice,
-        PurchaseDate = asset.PurchaseDate,
+        CurrentValue = FromMoney(asset.CurrentValue),
+        PurchasePrice = FromMoney(asset.PurchasePrice),
+        PurchaseDate = asset.PurchaseDate?.UtcDateTime,
         Description = asset.Description,
         Location = asset.Location,
         AccountNumber = asset.AccountNumber,
@@ -247,8 +247,8 @@ public class AssetService(
         IsDepreciable = asset is DepreciableAsset,
         IsDisposed = asset.IsDisposed,
         HasBeneficiaries = false, // TODO: populate when beneficiary feature is implemented
-        CreatedAt = asset.CreatedAt,
-        UpdatedAt = asset.UpdatedAt
+        CreatedAt = asset.CreatedAt.UtcDateTime,
+        UpdatedAt = asset.UpdatedAt?.UtcDateTime
     };
 
     private static AssetDetailDto MapToDetailDto(Asset asset)
@@ -265,9 +265,9 @@ public class AssetService(
             Id = asset.Id,
             Name = asset.Name,
             Type = asset.Type,
-            CurrentValue = asset.CurrentValue,
-            PurchasePrice = asset.PurchasePrice,
-            PurchaseDate = asset.PurchaseDate,
+            CurrentValue = FromMoney(asset.CurrentValue),
+            PurchasePrice = FromMoney(asset.PurchasePrice),
+            PurchaseDate = asset.PurchaseDate?.UtcDateTime,
             Description = asset.Description,
             Location = asset.Location,
             AccountNumber = asset.AccountNumber,
@@ -276,33 +276,33 @@ public class AssetService(
             // Depreciation input fields
             IsDepreciable = isDepreciable,
             DepreciationMethod = depreciable?.DepreciationMethod,
-            SalvageValue = depreciable?.SalvageValue,
+            SalvageValue = FromMoney(depreciable?.SalvageValue),
             UsefulLifeMonths = depreciable?.UsefulLifeMonths,
-            InServiceDate = depreciable?.InServiceDate,
+            InServiceDate = depreciable?.InServiceDate?.UtcDateTime,
 
             // Depreciation computed fields
-            AccumulatedDepreciation = depreciation?.AccumulatedDepreciation,
-            BookValue = depreciation?.BookValue,
-            MonthlyDepreciation = depreciation?.MonthlyDepreciation,
-            DepreciationPercentComplete = depreciation?.DepreciationPercentComplete,
+            AccumulatedDepreciation = FromMoney(depreciation?.AccumulatedDepreciation),
+            BookValue = FromMoney(depreciation?.BookValue),
+            MonthlyDepreciation = FromMoney(depreciation?.MonthlyDepreciation),
+            DepreciationPercentComplete = (double?)depreciation?.DepreciationPercentComplete,
 
             // Disposal
             IsDisposed = asset.IsDisposed,
-            DisposalDate = asset.DisposalDate,
-            DisposalPrice = asset.DisposalPrice,
+            DisposalDate = asset.DisposalDate?.UtcDateTime,
+            DisposalPrice = FromMoney(asset.DisposalPrice),
             DisposalNotes = asset.DisposalNotes,
 
             // Valuation
-            MarketValue = asset.MarketValue,
-            LastValuationDate = asset.LastValuationDate,
+            MarketValue = FromMoney(asset.MarketValue),
+            LastValuationDate = asset.LastValuationDate?.UtcDateTime,
 
             // Beneficiaries — TODO: populate when beneficiary feature is implemented
             HasBeneficiaries = false,
             Beneficiaries = [],
 
             // Audit
-            CreatedAt = asset.CreatedAt,
-            UpdatedAt = asset.UpdatedAt
+            CreatedAt = asset.CreatedAt.UtcDateTime,
+            UpdatedAt = asset.UpdatedAt?.UtcDateTime
         };
     }
 
@@ -312,7 +312,7 @@ public class AssetService(
             ? new DepreciableAsset
             {
                 DepreciationMethod = request.DepreciationMethod!.Value,
-                SalvageValue = request.SalvageValue,
+                SalvageValue = ToMoney(request.SalvageValue),
                 UsefulLifeMonths = request.UsefulLifeMonths,
                 InServiceDate = request.InServiceDate
             }
@@ -333,16 +333,38 @@ public class AssetService(
         // Apply updated fields from request
         newAsset.Name = request.Name;
         newAsset.Type = request.Type;
-        newAsset.CurrentValue = request.CurrentValue;
-        newAsset.PurchasePrice = request.PurchasePrice;
+        newAsset.CurrentValue = ToMoney(request.CurrentValue);
+        newAsset.PurchasePrice = ToMoney(request.PurchasePrice);
         newAsset.PurchaseDate = request.PurchaseDate;
         newAsset.Description = request.Description;
         newAsset.Location = request.Location;
         newAsset.AccountNumber = request.AccountNumber;
         newAsset.InstitutionName = request.InstitutionName;
-        newAsset.MarketValue = request.MarketValue;
+        newAsset.MarketValue = ToMoney(request.MarketValue);
         newAsset.LastValuationDate = request.LastValuationDate;
 
         return newAsset;
     }
+
+    /// <summary>
+    ///     Converts a double money value to decimal, rounding to 2 decimal places
+    ///     to avoid floating-point artifacts (e.g. 0.1 → 0.100000000000000005...).
+    /// </summary>
+    private static decimal ToMoney(double value) =>
+        Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero);
+
+    /// <inheritdoc cref="ToMoney(double)"/>
+    private static decimal? ToMoney(double? value) =>
+        value.HasValue ? ToMoney(value.Value) : null;
+
+    /// <summary>
+    ///     Converts a decimal money value to double, rounding to 2 decimal places
+    ///     to avoid floating-point representation artifacts in API responses.
+    /// </summary>
+    private static double FromMoney(decimal value) =>
+        (double)Math.Round(value, 2, MidpointRounding.AwayFromZero);
+
+    /// <inheritdoc cref="FromMoney(decimal)"/>
+    private static double? FromMoney(decimal? value) =>
+        value.HasValue ? FromMoney(value.Value) : null;
 }

@@ -1,0 +1,138 @@
+{
+  "help": {
+    "common": {
+      "currentValue": "What you believe this asset is worth today.",
+      "purchasePrice": "Original amount paid when you acquired this asset.",
+      "marketValue": "Current fair market value from an appraisal or market data — may differ from your estimate.",
+      "depreciationMethod": "How the asset's value decreases over time for tax/accounting purposes.",
+      "salvageValue": "Estimated residual value at the end of the asset's useful life.",
+      "usefulLifeMonths": "Expected number of months this asset will be in productive use.",
+      "inServiceDate": "Date the asset was first put to productive use (starts depreciation)."
+    },
+    "Vehicle": {
+      "vin": "17-character Vehicle Identification Number — found on the dashboard near the windshield or on the driver-side door jamb."
+    },
+    "RealEstate": {
+      "propertyType": "Classification affects depreciation rules. Only depreciate rental/commercial properties, not your primary residence. Residential rental: 27.5 years, commercial: 39 years. Depreciate the building value only — exclude land.",
+      "lotSize": "Total land area. Note: land is not depreciated — only the building."
+    },
+    "Investment": {
+      "costBasis": "Total amount originally paid for these shares, including commissions and fees. Used to calculate capital gains/losses.",
+      "ticker": "Stock exchange symbol (e.g., AAPL for Apple, VTSAX for Vanguard Total Stock Market).",
+      "shares": "Number of shares or units you own. Can be fractional (e.g., 10.5)."
+    },
+    "Retirement": {
+      "accountType": "Type of retirement plan. Tax treatment varies: Traditional/401(k) contributions are pre-tax, Roth contributions are after-tax (tax-free withdrawals).",
+      "employerMatch": "Percentage your employer contributes to match your own contribution.",
+      "vestedPercent": "Percentage of employer contributions you've earned ownership of. 100% means fully vested — you keep all employer contributions if you leave.",
+      "annualContribution": "How much you plan to contribute this year. Subject to IRS annual limits."
+    },
+    "BankAccount": {
+      "accountType": "CD = Certificate of Deposit (fixed term, higher rate). HYSA = High-Yield Savings Account. Money Market = savings account with check-writing.",
+      "routingNumber": "9-digit ABA number identifying your bank — found on checks or in your online banking settings.",
+      "interestRate": "Annual Percentage Yield (APY) — the effective yearly interest rate including compounding.",
+      "maturityDate": "CD only — the date your CD term ends and funds become available without early withdrawal penalty."
+    },
+    "Insurance": {
+      "policyType": "Whole Life = permanent coverage with cash value growth. Term Life = coverage for a set period, no cash value. Universal Life = flexible permanent coverage. Annuity = contract that provides an income stream.",
+      "cashValue": "The savings component of a permanent life policy — the amount you'd receive if you surrendered (canceled) the policy today. Not applicable to term life.",
+      "deathBenefit": "Amount paid to your beneficiaries upon death of the insured.",
+      "premiumAmount": "Your regular payment amount to keep the policy active."
+    },
+    "Business": {
+      "entityType": "Legal structure. LLC = Limited Liability Company. S-Corp = pass-through taxation. C-Corp = standard corporation (double-taxed).",
+      "ownershipPercent": "Your ownership stake in the business (1-100%).",
+      "ein": "Employer Identification Number — the business's federal tax ID (format: XX-XXXXXXX)."
+    },
+    "Cryptocurrency": {
+      "coinSymbol": "Ticker symbol (e.g., BTC = Bitcoin, ETH = Ethereum, SOL = Solana).",
+      "stakingApy": "Annual Percentage Yield earned by staking (locking) your coins to help validate the blockchain network."
+    },
+    "Collectible": {
+      "condition": "Professional grading scale: Mint = perfect/unused, Excellent = near-perfect, Good = normal wear, Fair = noticeable wear, Poor = significant damage.",
+      "provenance": "Documented chain of ownership and origin — important for authentication and value."
+    },
+    "IntellectualProperty": {
+      "ipType": "Patent = invention protection (20 years). Trademark = brand/logo protection (renewable). Copyright = creative work protection. Trade Secret = proprietary information (no registration).",
+      "royaltyRate": "Percentage of revenue paid to you by licensees for using this IP.",
+      "registrationNumber": "Official number assigned by the registering authority (USPTO, Copyright Office, etc.)."
+    }
+  },
+  "options": {
+    "PropertyType": {
+      "SingleFamily": "Single Family Home",
+      "Condo": "Condominium",
+      "Townhouse": "Townhouse",
+      "MultiFamily": "Multi-Family (Duplex, Triplex)",
+      "Land": "Undeveloped Land",
+      "Commercial": "Commercial",
+      "Other": "Other"
+    },
+    "DepreciationMethod": {
+      "None": "None",
+      "StraightLine": "Straight Line",
+      "DecliningBalance": "Declining Balance",
+      "Macrs": "MACRS (Modified Accelerated Cost Recovery)"
+    },
+    "InvestmentType": {
+      "Stocks": "Stocks",
+      "Bonds": "Bonds",
+      "MutualFunds": "Mutual Funds",
+      "ETF": "ETF",
+      "Options": "Options",
+      "Other": "Other"
+    },
+    "RetirementAccountType": {
+      "401k": "401(k)",
+      "IRA": "Traditional IRA",
+      "RothIRA": "Roth IRA",
+      "SEP_IRA": "SEP IRA",
+      "Pension": "Pension",
+      "403b": "403(b)",
+      "Other": "Other"
+    },
+    "BankAccountType": {
+      "Checking": "Checking",
+      "Savings": "Savings",
+      "MoneyMarket": "Money Market",
+      "CD": "Certificate of Deposit (CD)",
+      "HYSA": "High-Yield Savings (HYSA)",
+      "Other": "Other"
+    },
+    "InsurancePolicyType": {
+      "WholeLife": "Whole Life",
+      "UniversalLife": "Universal Life",
+      "TermLife": "Term Life",
+      "Annuity": "Annuity",
+      "Other": "Other"
+    },
+    "PremiumFrequency": {
+      "Monthly": "Monthly",
+      "Quarterly": "Quarterly",
+      "SemiAnnually": "Semi-Annually",
+      "Annually": "Annually"
+    },
+    "BusinessEntityType": {
+      "SoleProprietorship": "Sole Proprietorship",
+      "Partnership": "Partnership",
+      "LLC": "LLC",
+      "Corporation": "C-Corporation",
+      "SCorp": "S-Corporation",
+      "Other": "Other"
+    },
+    "ItemCondition": {
+      "Mint": "Mint",
+      "Excellent": "Excellent",
+      "Good": "Good",
+      "Fair": "Fair",
+      "Poor": "Poor"
+    },
+    "IpType": {
+      "Patent": "Patent",
+      "Trademark": "Trademark",
+      "Copyright": "Copyright",
+      "TradeSecret": "Trade Secret",
+      "Other": "Other"
+    }
+  }
+}

@@ -580,11 +580,11 @@ public class AssetFunctionsTests
         Id = Guid.NewGuid(),
         Name = name,
         Type = AssetType.BankAccount,
-        CurrentValue = 5_000m,
+        CurrentValue = 5_000d,
         IsDepreciable = false,
         IsDisposed = false,
         HasBeneficiaries = false,
-        CreatedAt = DateTimeOffset.UtcNow
+        CreatedAt = DateTime.UtcNow
     };
 
     /// <summary>
@@ -595,10 +595,10 @@ public class AssetFunctionsTests
         Id = TestAssetId,
         Name = "Detail Asset",
         Type = AssetType.BankAccount,
-        CurrentValue = 10_000m,
+        CurrentValue = 10_000d,
         IsDepreciable = false,
         IsDisposed = false,
         HasBeneficiaries = false,
-        CreatedAt = DateTimeOffset.UtcNow
+        CreatedAt = DateTime.UtcNow
     };
 }
