@@ -34,7 +34,7 @@
 | **Secrets** | Azure Key Vault | Managed Identity |
 | **Hosting (Client)** | Azure Static Web Apps | Free tier |
 | **Hosting (API)** | Azure Functions (Standalone) | Consumption plan |
-| **Serialization** | System.Text.Json | Built-in |
+| **Serialization** | System.Text.Json + MemoryPack | Built-in + source-generated |
 | **AI** | Claude API (Anthropic) | claude-sonnet-4-5-20250929 |
 | **Account Linking** | Plaid | Premium tier only |
 | **IaC** | Bicep | Latest |

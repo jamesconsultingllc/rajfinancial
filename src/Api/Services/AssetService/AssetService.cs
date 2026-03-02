@@ -362,7 +362,7 @@ public class AssetService(
     ///     to avoid floating-point representation artifacts in API responses.
     /// </summary>
     private static double FromMoney(decimal value) =>
-        (double)Math.Round(value, 2);
+        (double)Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
     /// <inheritdoc cref="FromMoney(decimal)"/>
     private static double? FromMoney(decimal? value) =>
