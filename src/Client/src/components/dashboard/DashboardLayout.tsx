@@ -193,9 +193,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Sidebar footer */}
         <div className={cn("p-2 border-t border-sidebar-border space-y-1", sidebarCollapsed && "flex flex-col items-center")}>
           <Link
-            to="/dashboard/settings"
+            to="/settings"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              location.pathname.startsWith("/settings")
+                ? "bg-primary/10 text-primary"
+                : "text-sidebar-foreground hover:bg-sidebar-accent",
               sidebarCollapsed && "justify-center px-2"
             )}
           >
@@ -285,11 +288,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                <DropdownMenuItem onClick={() => navigate("/settings/profile")}>
                   <User className="w-4 h-4 mr-2" aria-hidden="true" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
                   <Settings className="w-4 h-4 mr-2" aria-hidden="true" />
                   Settings
                 </DropdownMenuItem>
