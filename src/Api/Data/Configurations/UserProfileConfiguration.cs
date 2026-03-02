@@ -15,9 +15,7 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
     {
         builder.HasKey(e => e.Id);
 
-        // Index for fast lookups by email and tenant
-        builder.HasIndex(e => e.Email);
-        builder.HasIndex(e => e.TenantId);
+        // Composite index covers lookups by tenant+email; unique constraint prevents duplicates
         builder.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
 
         builder.Property(e => e.Email).IsRequired().HasMaxLength(256);
