@@ -57,13 +57,16 @@ import { Configuration, LogLevel } from '@azure/msal-browser';
 export const msalConfig: Configuration = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID,
-    authority: `https://${import.meta.env.VITE_AZURE_AD_DOMAIN}/${import.meta.env.VITE_AZURE_AD_TENANT_ID}`,
-    knownAuthorities: [import.meta.env.VITE_AZURE_AD_DOMAIN],
+    authority: import.meta.env.VITE_AZURE_AD_AUTHORITY,
+    knownAuthorities: [
+      'rajfinancialdev.ciamlogin.com',
+      'rajfinancialprod.ciamlogin.com',
+    ],
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: 'sessionStorage',
+    cacheLocation: import.meta.env.VITE_MSAL_CACHE_LOCATION ?? 'sessionStorage',
     storeAuthStateInCookie: false,
   },
   system: {
@@ -78,9 +81,9 @@ export const msalConfig: Configuration = {
   },
 };
 
-/** Scopes requested when calling the API */
+/** Scopes requested when calling the API (TODO: add when API integration is wired) */
 export const apiScopes = {
-  access: [`api://${import.meta.env.VITE_AZURE_AD_API_CLIENT_ID}/access_as_user`],
+  access: [`api://<api-client-id>/access_as_user`],
 };
 ```
 
@@ -164,7 +167,7 @@ export async function apiClient<T>(
     account,
   });
 
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${apiBaseUrl}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -210,7 +210,7 @@ jobs:
       #   - Upload test-results/ and screenshots/ artifacts from tests/e2e/
 
       - name: E2E tests pending migration
-        run: echo "⏳ E2E tests disabled — migrating from C# Reqnroll to Cucumber.js + Playwright (TS)"
+        run: echo "E2E tests disabled - migrating from C# Reqnroll to Cucumber.js + Playwright (TS)"
 
   close_pull_request_job:
     if: |
