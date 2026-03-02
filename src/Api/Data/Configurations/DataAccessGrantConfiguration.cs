@@ -48,7 +48,7 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
             .HasColumnType("nvarchar(max)")
             .Metadata.SetValueComparer(new ValueComparer<List<string>>(
                 (a, b) => ReferenceEquals(a, b) || (a != null && b != null && a.SequenceEqual(b)),
-                c => c == null ? 0 : c.Aggregate(0, (hash, item) => HashCode.Combine(hash, (item ?? string.Empty).GetHashCode())),
+                c => c == null ? 0 : c.Aggregate(0, (hash, item) => HashCode.Combine(hash, StringComparer.Ordinal.GetHashCode(item ?? string.Empty))),
                 c => c == null ? new List<string>() : c.ToList()));
 
         // Configure relationships

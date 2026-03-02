@@ -355,5 +355,5 @@ public class AssetService(
 
     /// <inheritdoc cref="ToMoney(double)"/>
     private static decimal? ToMoney(double? value) =>
-        value.HasValue ? Math.Round((decimal)value.Value, 2, MidpointRounding.AwayFromZero) : null;
+        value.HasValue ? ToMoney(value.Value) : null;
 }
