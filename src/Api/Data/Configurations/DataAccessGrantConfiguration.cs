@@ -47,9 +47,9 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
                 v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
             .HasColumnType("nvarchar(max)")
             .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                (a, b) => a != null && b != null && a.SequenceEqual(b),
-                c => c.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
-                c => c.ToList()));
+                (a, b) => ReferenceEquals(a, b) || (a != null && b != null && a.SequenceEqual(b)),
+                c => c == null ? 0 : c.Aggregate(0, (hash, item) => HashCode.Combine(hash, (item ?? string.Empty).GetHashCode())),
+                c => c == null ? new List<string>() : c.ToList()));
 
         // Configure relationships
         builder.HasOne<UserProfile>()
