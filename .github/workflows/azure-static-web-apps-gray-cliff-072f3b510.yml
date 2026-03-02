@@ -92,15 +92,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set MSAL environment variables for non-production
-        if: github.ref != 'refs/heads/main'
+      - name: Set MSAL environment variables
         run: |
-          cat > src/Client/.env.local << 'EOF'
-          VITE_AZURE_AD_AUTHORITY=https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com
-          VITE_AZURE_AD_CLIENT_ID=2d6a08c7-b142-4d53-a307-9ac75bae75eb
-          VITE_MSAL_CACHE_LOCATION=localStorage
+          cat > src/Client/.env.local << EOF
+          VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}
+          VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
+          VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}
           EOF
-          echo "Created .env.local for non-production build"
+          echo "Created .env.local for ${{ github.ref }} build"
 
       - name: Build And Deploy
         id: builddeploy

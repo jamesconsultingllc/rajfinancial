@@ -23,8 +23,8 @@
 |-----------|-----------|---------|
 | **API Runtime** | .NET (Isolated Worker) | net10.0 |
 | **Client Runtime** | React + TypeScript | React 18, TS 5.x |
-| **Build Tool** | Vite | 6.x |
-| **CSS** | Tailwind CSS | 4.x |
+| **Build Tool** | Vite | 5.4.x |
+| **CSS** | Tailwind CSS | 3.x |
 | **UI Components** | shadcn/ui + Radix | Latest |
 | **State/Data** | TanStack Query | v5 |
 | **Auth (Client)** | MSAL React | @azure/msal-react |

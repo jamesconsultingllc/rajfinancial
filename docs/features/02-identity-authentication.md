@@ -312,20 +312,29 @@ builder.Services.AddSingleton(sp =>
 
 ## Environment Variables (Client)
 
+The React SPA reads its configuration from Vite env vars (all prefixed with `VITE_`).
+For local development these live in `.env.development`. In Azure Static Web Apps
+(and other hosted environments) these same keys must be configured as app settings
+(they are **not** committed in a `.env.production` file).
+
 ```env
 # .env.development
 VITE_AZURE_AD_CLIENT_ID=<spa-app-client-id>
 VITE_AZURE_AD_API_CLIENT_ID=<api-app-client-id>
 VITE_AZURE_AD_TENANT_ID=496527a2-41f8-4297-a979-c916e7255a22
 VITE_AZURE_AD_DOMAIN=rajfinancialdev.ciamlogin.com
+VITE_AZURE_AD_AUTHORITY=https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com
+VITE_MSAL_CACHE_LOCATION=localStorage
 VITE_API_BASE_URL=http://localhost:7071/api
 
-# .env.production
-VITE_AZURE_AD_CLIENT_ID=<spa-app-client-id>
-VITE_AZURE_AD_API_CLIENT_ID=<api-app-client-id>
-VITE_AZURE_AD_TENANT_ID=cc4d96fb-ebb5-4aef-8ac3-1d4f947dd2b6
-VITE_AZURE_AD_DOMAIN=rajfinancialprod.ciamlogin.com
-VITE_API_BASE_URL=https://func-rajfinancial-prod.azurewebsites.net/api
+# Production values are injected via SWA app settings (not via a checked-in .env.production):
+#   VITE_AZURE_AD_CLIENT_ID=<spa-app-client-id>
+#   VITE_AZURE_AD_API_CLIENT_ID=<api-app-client-id>
+#   VITE_AZURE_AD_TENANT_ID=<tenant-id>
+#   VITE_AZURE_AD_DOMAIN=<tenant-domain>
+#   VITE_AZURE_AD_AUTHORITY=https://<tenant-domain>/<tenant-id>/
+#   VITE_MSAL_CACHE_LOCATION=sessionStorage
+#   VITE_API_BASE_URL=https://<prod-function-app>.azurewebsites.net/api
 ```
 
 ---

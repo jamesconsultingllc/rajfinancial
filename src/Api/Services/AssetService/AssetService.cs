@@ -351,9 +351,9 @@ public class AssetService(
     ///     to avoid floating-point artifacts (e.g. 0.1 → 0.100000000000000005...).
     /// </summary>
     private static decimal ToMoney(double value) =>
-        Math.Round((decimal)value, 2);
+        Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero);
 
     /// <inheritdoc cref="ToMoney(double)"/>
     private static decimal? ToMoney(double? value) =>
-        value.HasValue ? Math.Round((decimal)value.Value, 2) : null;
+        value.HasValue ? Math.Round((decimal)value.Value, 2, MidpointRounding.AwayFromZero) : null;
 }
