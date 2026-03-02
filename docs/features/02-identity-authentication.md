@@ -318,23 +318,16 @@ For local development these live in `.env.development`. In Azure Static Web Apps
 (they are **not** committed in a `.env.production` file).
 
 ```env
-# .env.development
-VITE_AZURE_AD_CLIENT_ID=<spa-app-client-id>
-VITE_AZURE_AD_API_CLIENT_ID=<api-app-client-id>
-VITE_AZURE_AD_TENANT_ID=496527a2-41f8-4297-a979-c916e7255a22
-VITE_AZURE_AD_DOMAIN=rajfinancialdev.ciamlogin.com
-VITE_AZURE_AD_AUTHORITY=https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com
-VITE_MSAL_CACHE_LOCATION=localStorage
-VITE_API_BASE_URL=http://localhost:7071/api
+# .env.development (only 3 vars are read by the client)
+VITE_AZURE_AD_AUTHORITY=https://YOUR_TENANT_NAME.ciamlogin.com/YOUR_TENANT_NAME.onmicrosoft.com
+VITE_AZURE_AD_CLIENT_ID=YOUR_AZURE_AD_CLIENT_ID
+VITE_MSAL_CACHE_LOCATION=sessionStorage
 
-# Production values are injected via SWA app settings (not via a checked-in .env.production):
+# Production values are injected by CI via .env.local (see GitHub workflow).
+# The same 3 vars are required:
+#   VITE_AZURE_AD_AUTHORITY=https://<tenant>.ciamlogin.com/<tenant>.onmicrosoft.com
 #   VITE_AZURE_AD_CLIENT_ID=<spa-app-client-id>
-#   VITE_AZURE_AD_API_CLIENT_ID=<api-app-client-id>
-#   VITE_AZURE_AD_TENANT_ID=<tenant-id>
-#   VITE_AZURE_AD_DOMAIN=<tenant-domain>
-#   VITE_AZURE_AD_AUTHORITY=https://<tenant-domain>/<tenant-id>/
 #   VITE_MSAL_CACHE_LOCATION=sessionStorage
-#   VITE_API_BASE_URL=https://<prod-function-app>.azurewebsites.net/api
 ```
 
 ---

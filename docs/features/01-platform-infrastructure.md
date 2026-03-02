@@ -41,7 +41,7 @@
 | **Observability** | Application Insights | WorkerService SDK |
 
 > **Architecture**: Standalone Azure Functions (not SWA-linked) for Managed Identity support.  
-> **Serialization**: System.Text.Json only. No MemoryPack.  
+> **Serialization**: System.Text.Json for HTTP APIs; MemoryPack for binary DTO generation.  
 > **UI Framework**: React + Vite + Tailwind. No Blazor, Syncfusion, or Fluxor.
 
 ### Key NuGet Packages (API)
