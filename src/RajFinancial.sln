@@ -11,8 +11,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{4F52FD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.Shared", "Shared\RajFinancial.Shared.csproj", "{50916044-1532-4305-BE28-51A246C412CE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.AcceptanceTests", "..\tests\AcceptanceTests\RajFinancial.AcceptanceTests.csproj", "{E7905711-C289-4E0A-9F09-FDB45D604B76}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.Api.Tests", "..\tests\Api.Tests\RajFinancial.Api.Tests.csproj", "{BB0DDC28-960F-4C96-8993-672E491D9B82}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RajFinancial.IntegrationTests", "..\tests\IntegrationTests\RajFinancial.IntegrationTests.csproj", "{BC625EC5-CA4C-4E51-A271-6BCBBE4F6055}"
@@ -51,18 +49,6 @@ Global
 		{50916044-1532-4305-BE28-51A246C412CE}.Release|x64.Build.0 = Release|Any CPU
 		{50916044-1532-4305-BE28-51A246C412CE}.Release|x86.ActiveCfg = Release|Any CPU
 		{50916044-1532-4305-BE28-51A246C412CE}.Release|x86.Build.0 = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|x64.Build.0 = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Debug|x86.Build.0 = Debug|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|x64.ActiveCfg = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|x64.Build.0 = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|x86.ActiveCfg = Release|Any CPU
-		{E7905711-C289-4E0A-9F09-FDB45D604B76}.Release|x86.Build.0 = Release|Any CPU
 		{BB0DDC28-960F-4C96-8993-672E491D9B82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BB0DDC28-960F-4C96-8993-672E491D9B82}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BB0DDC28-960F-4C96-8993-672E491D9B82}.Debug|x64.ActiveCfg = Debug|Any CPU
