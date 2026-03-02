@@ -16,6 +16,7 @@ import LanguageDetector from "i18next-browser-languagedetector";
 
 import assetsEn from "@/locales/en/assets.json";
 import commonEn from "@/locales/en/common.json";
+import settingsEn from "@/locales/en/settings.json";
 
 i18n
   .use(LanguageDetector)
@@ -25,11 +26,12 @@ i18n
       en: {
         assets: assetsEn,
         common: commonEn,
+        settings: settingsEn,
       },
     },
     fallbackLng: "en",
     defaultNS: "common",
-    ns: ["assets", "common"],
+    ns: ["assets", "common", "settings"],
     interpolation: {
       escapeValue: false, // React already escapes
     },
