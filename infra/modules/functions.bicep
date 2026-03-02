@@ -2,11 +2,10 @@
 // RAJ Financial - Azure Functions Module
 // ============================================================================
 // Creates an Azure Functions app for the API backend.
-// Uses Consumption plan for dev, Premium for prod.
+// Uses Consumption (Y1) plan — upgrade to EP1 if VNet/always-warm needed.
 //
 // Security:
 //   - System-assigned Managed Identity
-//   - Key Vault references for secrets
 //   - HTTPS only
 // ============================================================================
 
@@ -25,8 +24,8 @@ param appInsightsConnectionString string
 @description('Application Insights instrumentation key')
 param appInsightsInstrumentationKey string
 
-@description('Key Vault name for secret references')
-param keyVaultName string
+@description('Entra External ID Service Principal ID')
+param entraServicePrincipalId string
 
 @description('SQL Server FQDN')
 param sqlServerFqdn string
@@ -158,11 +157,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: entraExternalIdClientId
         }
         // ====================================================================
-        // Entra External ID (sensitive - Key Vault reference)
+        // Entra External ID (Service Principal ID - not sensitive)
         // ====================================================================
         {
           name: 'EntraExternalId__ServicePrincipalId'
-          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=EntraExternalId-ServicePrincipalId)'
+          value: entraServicePrincipalId
         }
         // ====================================================================
         // App Roles

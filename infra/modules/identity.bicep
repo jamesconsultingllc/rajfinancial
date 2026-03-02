@@ -8,18 +8,12 @@
 @description('The principal ID of the Function App Managed Identity')
 param functionAppPrincipalId string
 
-@description('The name of the Key Vault')
-param keyVaultName string
-
 @description('The name of the Storage Account')
 param storageAccountName string
 
 // ============================================================================
 // Role Definition IDs (Built-in Azure RBAC Roles)
 // ============================================================================
-
-// Key Vault Secrets User - read secrets
-var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
 
 // Storage Blob Data Contributor - read/write blobs
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
@@ -31,30 +25,12 @@ var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 // Existing Resources
 // ============================================================================
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
-  name: keyVaultName
-}
-
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
 
 // Note: SQL Server access is configured via T-SQL after deployment
 // See: scripts/infra/configure-sql-access.ps1
-
-// ============================================================================
-// Key Vault Role Assignment
-// ============================================================================
-
-resource keyVaultSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, functionAppPrincipalId, keyVaultSecretsUserRoleId)
-  scope: keyVault
-  properties: {
-    principalId: functionAppPrincipalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalType: 'ServicePrincipal'
-  }
-}
 
 // ============================================================================
 // Storage Account Role Assignments
