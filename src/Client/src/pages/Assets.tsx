@@ -389,12 +389,12 @@ export default function Assets() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by asset type">
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Filter by asset type">
           {FILTER_TABS.map((tab) => (
             <button
               key={tab.value}
-              role="tab"
-              aria-selected={activeFilter === tab.value}
+              role="radio"
+              aria-checked={activeFilter === tab.value}
               onClick={() => setActiveFilter(tab.value)}
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",

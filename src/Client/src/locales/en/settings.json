@@ -44,7 +44,13 @@
     "billingPeriod": "Billing period: {{start}} — {{end}}",
     "restored": "Subscription restored",
     "cancelled": "Cancellation requested",
-    "usage": "Usage"
+    "usage": "Usage",
+    "usageMeters": "Usage Meters",
+    "usage.assets": "Assets",
+    "usage.contacts": "Contacts",
+    "usage.accounts": "Accounts",
+    "usage.storage": "Storage",
+    "usage.aiCalls": "AI Calls"
   },
 
   "aiKeys": {

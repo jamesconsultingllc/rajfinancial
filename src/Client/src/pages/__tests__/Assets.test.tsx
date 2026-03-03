@@ -240,32 +240,32 @@ describe("Assets Page — Filter Tabs", () => {
   it("renders all filter tabs", () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    // Use semantic role query for tabs
-    const filterTabs = screen.getAllByRole("tab");
+    // Use semantic role query for radio buttons (filter group)
+    const filterRadios = screen.getAllByRole("radio");
     
-    expect(filterTabs.length).toBeGreaterThanOrEqual(8); // All, Real Estate, Vehicles, etc.
+    expect(filterRadios.length).toBeGreaterThanOrEqual(8); // All, Real Estate, Vehicles, etc.
   });
 
   it("highlights 'All' filter by default", () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    // Find the All filter tab by accessible name
-    const allTab = screen.getByRole("tab", { name: "All" });
+    // Find the All filter radio by accessible name
+    const allRadio = screen.getByRole("radio", { name: "All" });
     
-    expect(allTab).toHaveAttribute("aria-selected", "true");
+    expect(allRadio).toHaveAttribute("aria-checked", "true");
   });
 
   it("changes active filter when tab is clicked", async () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    const allTab = screen.getByRole("tab", { name: "All" });
-    const vehiclesTab = screen.getByRole("tab", { name: "Vehicles" });
+    const allRadio = screen.getByRole("radio", { name: "All" });
+    const vehiclesRadio = screen.getByRole("radio", { name: "Vehicles" });
     
-    fireEvent.click(vehiclesTab);
+    fireEvent.click(vehiclesRadio);
 
     await waitFor(() => {
-      expect(vehiclesTab).toHaveAttribute("aria-selected", "true");
-      expect(allTab).toHaveAttribute("aria-selected", "false");
+      expect(vehiclesRadio).toHaveAttribute("aria-checked", "true");
+      expect(allRadio).toHaveAttribute("aria-checked", "false");
     });
   });
 });

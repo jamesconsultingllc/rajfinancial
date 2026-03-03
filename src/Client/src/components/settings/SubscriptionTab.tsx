@@ -39,11 +39,11 @@ export function SubscriptionTab() {
   const [cancelling, setCancelling] = useState(sub.isCancelling);
 
   const usageMeters = [
-    { label: "Assets", used: sub.usage.assetCount, limit: sub.usage.assetLimit },
-    { label: "Contacts", used: sub.usage.contactCount, limit: sub.usage.contactLimit },
-    { label: "Accounts", used: sub.usage.manualAccountCount, limit: sub.usage.manualAccountLimit },
-    { label: "Storage", used: sub.usage.storageUsedBytes, limit: sub.usage.storageLimitBytes, isBytes: true },
-    { label: "AI Calls", used: sub.usage.aiCallsThisMonth, limit: sub.usage.aiCallLimit },
+    { label: t("subscription.usage.assets"), used: sub.usage.assetCount, limit: sub.usage.assetLimit },
+    { label: t("subscription.usage.contacts"), used: sub.usage.contactCount, limit: sub.usage.contactLimit },
+    { label: t("subscription.usage.accounts"), used: sub.usage.manualAccountCount, limit: sub.usage.manualAccountLimit },
+    { label: t("subscription.usage.storage"), used: sub.usage.storageUsedBytes, limit: sub.usage.storageLimitBytes, isBytes: true },
+    { label: t("subscription.usage.aiCalls"), used: sub.usage.aiCallsThisMonth, limit: sub.usage.aiCallLimit },
   ];
 
   return (
@@ -116,8 +116,10 @@ export function SubscriptionTab() {
                 <div
                   role="progressbar"
                   aria-label={m.label}
-                  aria-valuenow={m.used}
-                  aria-valuemax={m.limit === -1 ? undefined : m.limit}
+                  aria-valuenow={usagePct(m.used, m.limit)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuetext={`${m.isBytes ? formatBytes(m.used) : m.used} / ${m.isBytes ? formatBytes(m.limit) : formatLimit(m.limit)}`}
                   className="relative h-2 rounded-full bg-muted overflow-hidden"
                 >
                   <div
