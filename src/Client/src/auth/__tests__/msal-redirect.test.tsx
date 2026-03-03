@@ -1,11 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { InteractionStatus } from "@azure/msal-browser";
+import { InteractionStatus, EventType } from "@azure/msal-browser";
 
 // Hoisted mock functions
 const mockLoginRedirect = vi.hoisted(() => vi.fn());
 const mockHandleRedirectPromise = vi.hoisted(() => vi.fn());
 const mockSetActiveAccount = vi.hoisted(() => vi.fn());
+const mockGetAllAccounts = vi.hoisted(() => vi.fn(() => []));
+const mockAddEventCallback = vi.hoisted(() => vi.fn());
+const mockInitialize = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+
+// Mock @azure/msal-browser's PublicClientApplication constructor
+vi.mock("@azure/msal-browser", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@azure/msal-browser")>();
+  return {
+    ...actual,
+    PublicClientApplication: vi.fn().mockImplementation(() => ({
+      initialize: mockInitialize,
+      handleRedirectPromise: mockHandleRedirectPromise,
+      setActiveAccount: mockSetActiveAccount,
+      getAllAccounts: mockGetAllAccounts,
+      addEventCallback: mockAddEventCallback,
+      loginRedirect: mockLoginRedirect,
+    })),
+  };
+});
 
 vi.mock("@azure/msal-react", () => ({
   MsalProvider: ({ children }: { children: React.ReactNode }) => (
@@ -22,19 +41,6 @@ vi.mock("@azure/msal-react", () => ({
     <>{children}</>
   ),
 }));
-
-vi.mock("../AuthProvider", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../AuthProvider")>();
-  return {
-    ...actual,
-    msalInstance: {
-      handleRedirectPromise: mockHandleRedirectPromise,
-      setActiveAccount: mockSetActiveAccount,
-      getAllAccounts: () => [],
-      addEventCallback: vi.fn(),
-    },
-  };
-});
 
 vi.mock("../useAuth", () => ({
   useAuth: () => ({
@@ -71,10 +77,15 @@ describe("MSAL Redirect Loop Prevention", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    // Default mock implementations
+    mockInitialize.mockResolvedValue(undefined);
+    mockHandleRedirectPromise.mockResolvedValue(null);
+    mockGetAllAccounts.mockReturnValue([]);
   });
 
   afterEach(() => {
     sessionStorage.clear();
+    vi.resetModules();
   });
 
   describe("Redirect counter logic", () => {
