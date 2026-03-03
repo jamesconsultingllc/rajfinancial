@@ -862,6 +862,17 @@ _auditLogger.LogDataAccess(
 
 ---
 
+## Address Component Libraries
+
+The `ContactAddress` form uses shared address libraries — see [10-user-profile-settings.md](10-user-profile-settings.md) § Address Component Libraries for details:
+
+- **`react-country-region-selector`** — dynamic country/region dropdowns
+- **`i18n-postal-address`** — country-aware display formatting
+
+A shared `<AddressForm />` component is used by both Contact forms and the Profile settings page.
+
+---
+
 ## Cross-References
 
 - Asset model & AssetContactLink bridge: [05-assets-portfolio.md](05-assets-portfolio.md)

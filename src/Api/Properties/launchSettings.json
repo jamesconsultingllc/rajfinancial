@@ -1,18 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "https": {
-      "commandName": "Project",
-      "commandLineArgs": "--useHttps",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "launchUrl": "api/health",
-      "applicationUrl": "https://localhost:7071",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "AZURE_FUNCTIONS_ENVIRONMENT": "Development"
-      }
-    },
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,

@@ -63,6 +63,13 @@ public class UserProfile
     /// <summary>Email address (synced from Entra, read-only in app).</summary>
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>Phone number (user-editable, for financial planning contact info).</summary>
+    public string? Phone { get; set; }
+
+    /// <summary>Mailing address (user-editable, for estate planning documents).
+    /// Reuses ContactAddress owned entity from doc 04.</summary>
+    public ContactAddress? Address { get; set; }
+
     /// <summary>URL to avatar image in Blob Storage, null if using initials.</summary>
     public string? AvatarUrl { get; set; }
 
@@ -156,6 +163,16 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.Property(p => p.TenantId).HasMaxLength(128).IsRequired();
         builder.Property(p => p.DisplayName).HasMaxLength(200).IsRequired();
         builder.Property(p => p.Email).HasMaxLength(320).IsRequired();
+        builder.Property(p => p.Phone).HasMaxLength(30);
+        builder.OwnsOne(p => p.Address, a =>
+        {
+            a.Property(x => x.Street1).HasMaxLength(200);
+            a.Property(x => x.Street2).HasMaxLength(200);
+            a.Property(x => x.City).HasMaxLength(100);
+            a.Property(x => x.State).HasMaxLength(100);
+            a.Property(x => x.PostalCode).HasMaxLength(20);
+            a.Property(x => x.Country).HasMaxLength(2);
+        });
         builder.Property(p => p.AvatarUrl).HasMaxLength(500);
         builder.Property(p => p.Locale).HasMaxLength(10).IsRequired();
         builder.Property(p => p.Timezone).HasMaxLength(64).IsRequired();
@@ -317,6 +334,8 @@ public sealed record UserProfileDto
     public string UserId { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
+    public string? Phone { get; init; }
+    public ContactAddressDto? Address { get; init; }
     public string? AvatarUrl { get; init; }
     public string Locale { get; init; } = string.Empty;
     public string Timezone { get; init; } = string.Empty;
@@ -350,6 +369,8 @@ public sealed record UserProfileDto
 public sealed record UpdateProfileRequest
 {
     public string? DisplayName { get; init; }
+    public string? Phone { get; init; }
+    public ContactAddressDto? Address { get; init; }
     public string? Locale { get; init; }
     public string? Timezone { get; init; }
     public string? CurrencyCode { get; init; }
@@ -479,6 +500,21 @@ public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequ
         RuleFor(x => x.DisplayName)
             .MinimumLength(2).MaximumLength(200)
             .When(x => x.DisplayName is not null);
+
+        RuleFor(x => x.Phone)
+            .MaximumLength(30)
+            .Matches(@"^[\d\s\+\-\(\)\.]+$").WithMessage("Invalid phone number format")
+            .When(x => x.Phone is not null);
+
+        When(x => x.Address is not null, () =>
+        {
+            RuleFor(x => x.Address!.Street1).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Address!.Street2).MaximumLength(200);
+            RuleFor(x => x.Address!.City).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Address!.State).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Address!.PostalCode).NotEmpty().MaximumLength(20);
+            RuleFor(x => x.Address!.Country).NotEmpty().Length(2);
+        });
 
         RuleFor(x => x.Locale)
             .Must(l => SupportedLocales.Contains(l!))
@@ -858,6 +894,8 @@ interface UserProfileDto {
   userId: string;
   displayName: string;
   email: string;
+  phone?: string;
+  address?: ContactAddress;
   avatarUrl?: string;
   locale: string;
   timezone: string;
@@ -875,8 +913,19 @@ interface UserProfileDto {
 }
 
 /** Request to update profile fields. */
+interface ContactAddress {
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;    // ISO 3166-1 alpha-2 (e.g., "US")
+}
+
 interface UpdateProfileRequest {
   displayName?: string;
+  phone?: string;
+  address?: ContactAddress;
   locale?: string;
   timezone?: string;
   currencyCode?: string;
@@ -1558,6 +1607,50 @@ User avatar dropdown:
 ├── Settings → /settings
 └── Sign Out
 ```
+
+---
+
+## Address Component Libraries
+
+The structured `ContactAddress` form uses two libraries for international address support:
+
+### react-country-region-selector
+
+- **Package:** `react-country-region-selector`
+- **Docs:** https://country-regions.github.io/react-country-region-selector/
+- **Purpose:** Paired country/region dropdowns — selecting a country dynamically populates the correct states, provinces, or regions
+- **Used in:** Profile address form, Contact address form (shared component)
+- **Notes:** Lightweight, widely adopted, no external API calls (bundled data)
+
+### i18n-postal-address
+
+- **Package:** `i18n-postal-address`
+- **Docs:** https://github.com/joaocarmo/i18n-postal-address
+- **Purpose:** Formats stored `ContactAddress` data for display using country-specific postal conventions (field order, line breaks, labels)
+- **Used in:** Profile display, Contact cards, estate planning document generation, data export
+- **Notes:** Supports local script formatting with latin fallback
+
+### Shared Address Form Component
+
+Both libraries should be wrapped in a reusable `<AddressForm />` component used by both the Profile settings and Contact CRUD forms:
+
+```tsx
+interface AddressFormProps {
+  value: ContactAddress;
+  onChange: (address: ContactAddress) => void;
+  disabled?: boolean;
+}
+```
+
+The component renders:
+1. Country dropdown (react-country-region-selector `CountryDropdown`)
+2. State/Province/Region dropdown (react-country-region-selector `RegionDropdown`, dynamically filtered by country)
+3. Street 1 (text input, required)
+4. Street 2 (text input, optional)
+5. City (text input, required)
+6. Postal Code (text input, required)
+
+Field order adapts based on country selection where feasible. Default country: `"US"`.
 
 ---
 
