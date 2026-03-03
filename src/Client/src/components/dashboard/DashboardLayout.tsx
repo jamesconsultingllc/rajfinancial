@@ -268,7 +268,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-secondary transition-colors">
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={displayUser.avatar} />
+                    <AvatarImage />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs font-semibold">
                       {displayUser.initials}
                     </AvatarFallback>

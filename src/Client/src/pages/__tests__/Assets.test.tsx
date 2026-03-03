@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock the auth hook
 vi.mock("@/auth/useAuth", () => ({
@@ -88,7 +90,9 @@ function createTestWrapper() {
       <HelmetProvider>
         <ThemeProvider>
           <QueryClientProvider client={queryClient}>
-            <MemoryRouter>{children}</MemoryRouter>
+            <TooltipProvider>
+              <MemoryRouter>{children}</MemoryRouter>
+            </TooltipProvider>
           </QueryClientProvider>
         </ThemeProvider>
       </HelmetProvider>
@@ -295,5 +299,155 @@ describe("Assets Page — Summary Cards", () => {
     // We have 3 assets in mock data - find the count in summary cards
     const summarySection = screen.getByText("Number of Assets").closest("div");
     expect(summarySection).toHaveTextContent("3");
+  });
+});
+
+describe("Assets Page — Delete Functionality", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("shows delete option in actions menu (table view)", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    // Find the row containing "123 Main Street" and click its action button
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    expect(assetRow).toBeDefined();
+    
+    const actionButton = assetRow!.querySelector("button");
+    expect(actionButton).toBeDefined();
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+  });
+
+  it("opens delete dialog from actions menu in table view", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    const actionButton = assetRow!.querySelector("button");
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(screen.getByText("Delete Asset")).toBeInTheDocument();
+    });
+  });
+
+  it("shows asset name in delete confirmation dialog", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    const actionButton = assetRow!.querySelector("button");
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+
+    await waitFor(() => {
+      const dialog = screen.getByRole("alertdialog");
+      expect(dialog).toHaveTextContent("123 Main Street");
+    });
+  });
+
+  it("closes delete dialog when Cancel is clicked", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    const actionButton = assetRow!.querySelector("button");
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    });
+
+    const cancelButton = screen.getByRole("button", { name: /cancel/i });
+    await user.click(cancelButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("displays warning about beneficiary assignments in delete dialog", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    const actionButton = assetRow!.querySelector("button");
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/beneficiary assignments will also be removed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows Delete button with destructive styling in confirmation dialog", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("assets-view-mode", "table");
+    render(<Assets />, { wrapper: createTestWrapper() });
+
+    const rows = screen.getAllByRole("row");
+    const assetRow = rows.find(row => row.textContent?.includes("123 Main Street"));
+    const actionButton = assetRow!.querySelector("button");
+    
+    await user.click(actionButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole("alertdialog");
+    const deleteButton = dialog.querySelector("button.bg-destructive");
+    expect(deleteButton).toBeInTheDocument();
   });
 });

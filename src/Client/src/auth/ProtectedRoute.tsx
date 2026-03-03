@@ -5,10 +5,15 @@ import {
   useMsal,
 } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "./useAuth";
 import { loginRequest } from "./authConfig";
-import { Shield } from "lucide-react";
+import { REDIRECT_COUNT_KEY } from "./AuthProvider";
+import { Shield, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+/** Maximum number of redirect attempts before showing manual sign-in */
+const MAX_REDIRECTS = 2;
 
 /**
  * Authorization policies matching the Blazor backend policies.
@@ -126,11 +131,24 @@ export function ProtectedRoute({
 
 /**
  * Triggers MSAL redirect login when rendered.
+ * Includes a loop breaker that shows a manual sign-in card after MAX_REDIRECTS attempts.
  */
 function RedirectToLogin() {
   const { instance, inProgress } = useMsal();
+  const { t } = useTranslation();
+
+  const redirectCount = parseInt(
+    sessionStorage.getItem(REDIRECT_COUNT_KEY) ?? "0",
+    10
+  );
+
+  // Loop breaker: after MAX_REDIRECTS attempts, show manual sign-in
+  if (redirectCount > MAX_REDIRECTS) {
+    return <SessionExpiredCard />;
+  }
 
   if (inProgress === InteractionStatus.None) {
+    sessionStorage.setItem(REDIRECT_COUNT_KEY, String(redirectCount + 1));
     instance.loginRedirect(loginRequest);
   }
 
@@ -138,7 +156,38 @@ function RedirectToLogin() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground text-sm">Redirecting to sign in...</p>
+        <p className="text-muted-foreground text-sm">
+          {t("auth.redirecting")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Session expired card shown when redirect loop is detected.
+ * Allows user to manually initiate sign-in after resetting the counter.
+ */
+function SessionExpiredCard() {
+  const { instance } = useMsal();
+  const { t } = useTranslation();
+
+  const handleSignIn = () => {
+    sessionStorage.setItem(REDIRECT_COUNT_KEY, "0");
+    instance.loginRedirect(loginRequest);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center max-w-md mx-auto p-6">
+        <ShieldAlert className="w-16 h-16 text-warning mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          {t("auth.sessionExpired")}
+        </h1>
+        <p className="text-muted-foreground mb-6">
+          {t("auth.sessionExpiredDescription")}
+        </p>
+        <Button onClick={handleSignIn}>{t("auth.signIn")}</Button>
       </div>
     </div>
   );
