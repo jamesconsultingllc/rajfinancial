@@ -199,15 +199,15 @@ describe("Assets Page — View Toggle", () => {
     const cardViewButton = screen.getByLabelText("Card view");
     const tableViewButton = screen.getByLabelText("Table view");
 
-    // Card should be active by default
-    expect(cardViewButton).toHaveClass("bg-primary");
-    expect(tableViewButton).not.toHaveClass("bg-primary");
+    // Card should be active by default - check aria-pressed
+    expect(cardViewButton).toHaveAttribute("aria-pressed", "true");
+    expect(tableViewButton).toHaveAttribute("aria-pressed", "false");
 
     // Switch to table
     fireEvent.click(tableViewButton);
 
-    expect(tableViewButton).toHaveClass("bg-primary");
-    expect(cardViewButton).not.toHaveClass("bg-primary");
+    expect(tableViewButton).toHaveAttribute("aria-pressed", "true");
+    expect(cardViewButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("displays all assets in card view", () => {

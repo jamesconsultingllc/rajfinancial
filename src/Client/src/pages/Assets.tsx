@@ -355,7 +355,7 @@ export default function Assets() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold text-foreground">Assets</h1>
           <div className="flex items-center gap-3">
-            <div className="flex border border-border rounded-lg overflow-hidden">
+            <div className="flex border border-border rounded-lg overflow-hidden" role="group" aria-label="View mode">
               <button
                 onClick={() => setViewMode("card")}
                 className={cn(
@@ -365,6 +365,7 @@ export default function Assets() {
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 )}
                 aria-label="Card view"
+                aria-pressed={viewMode === "card"}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
@@ -377,6 +378,7 @@ export default function Assets() {
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 )}
                 aria-label="Table view"
+                aria-pressed={viewMode === "table"}
               >
                 <List className="w-4 h-4" />
               </button>
