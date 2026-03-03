@@ -4,7 +4,6 @@
 
   "tabs": {
     "profile": "Profile",
-    "security": "Security",
     "subscription": "Subscription",
     "ai-keys": "AI Keys",
     "sharing": "Sharing",
@@ -33,21 +32,6 @@
     "saveChanges": "Save Changes",
     "saved": "Profile updated successfully",
     "uploadAvatar": "Upload avatar"
-  },
-
-  "security": {
-    "title": "Security",
-    "password": "Password",
-    "lastChanged": "Last changed {{days}} days ago",
-    "changePassword": "Change Password",
-    "twoFactor": "Two-Factor Authentication",
-    "twoFactorEnabled": "Enabled",
-    "twoFactorDisabled": "Not enabled",
-    "manageMfa": "Manage",
-    "enableMfa": "Enable",
-    "connectedAccount": "Connected Account",
-    "entraId": "Microsoft Entra ID",
-    "connected": "Connected"
   },
 
   "subscription": {

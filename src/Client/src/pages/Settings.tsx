@@ -5,11 +5,10 @@ import { Helmet } from "react-helmet-async";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
-  User, Shield, CreditCard, Key, Share2, Bell, Palette, Download, Trash2,
+  User, CreditCard, Key, Share2, Bell, Palette, Download, Trash2,
 } from "lucide-react";
 
 import { ProfileTab } from "@/components/settings/ProfileTab";
-import { SecurityTab } from "@/components/settings/SecurityTab";
 import { SubscriptionTab } from "@/components/settings/SubscriptionTab";
 import { AIKeysTab } from "@/components/settings/AIKeysTab";
 import { SharingTab } from "@/components/settings/SharingTab";
@@ -27,7 +26,6 @@ interface TabDef {
 
 const tabs: TabDef[] = [
   { id: "profile", label: "Profile", icon: User },
-  { id: "security", label: "Security", icon: Shield },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "ai-keys", label: "AI Keys", icon: Key },
   { id: "sharing", label: "Sharing", icon: Share2 },
@@ -41,7 +39,6 @@ type TabId = string;
 
 const tabComponents: Record<TabId, React.FC> = {
   profile: ProfileTab,
-  security: SecurityTab,
   subscription: SubscriptionTab,
   "ai-keys": AIKeysTab,
   sharing: SharingTab,

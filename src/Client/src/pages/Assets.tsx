@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,11 +15,22 @@ import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Plus, MoreHorizontal, ChevronRight, AlertTriangle, Package,
   Pencil, DollarSign, Archive, Users, Trash2, CheckCircle2,
+  LayoutGrid, List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAssets, useCreateAsset, useUpdateAsset } from "@/services/asset-service";
+import { useAssets, useCreateAsset, useUpdateAsset, useDeleteAsset } from "@/services/asset-service";
 import { computeAssetsSummary } from "@/data/mock-assets";
 import {
   type AssetDto, type AssetType, ASSET_TYPE_LABELS, ASSET_TYPE_ICONS, formatCurrency,
@@ -82,7 +93,7 @@ function AssetIcon({ type }: { type: AssetType }) {
   );
 }
 
-function ActionsMenu({ asset, onEdit }: { asset: AssetDto; onEdit: (asset: AssetDto) => void }) {
+function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -109,7 +120,10 @@ function ActionsMenu({ asset, onEdit }: { asset: AssetDto; onEdit: (asset: Asset
           <Users className="w-4 h-4 mr-2" /> Manage Beneficiaries
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => onDelete(asset)}
+        >
           <Trash2 className="w-4 h-4 mr-2" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -128,9 +142,9 @@ function BeneficiaryStatus({ has }: { has: boolean }) {
   return <Badge variant="secondary" className="bg-primary/10 text-primary border-0">None</Badge>;
 }
 
-function DesktopTable({ assets, onEdit }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void }) {
+function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
   return (
-    <div className="hidden lg:block">
+    <div>
       <Card className="bg-card border-border/50">
         <Table>
           <TableHeader>
@@ -164,7 +178,7 @@ function DesktopTable({ assets, onEdit }: { assets: AssetDto[]; onEdit: (asset: 
                   <BeneficiaryStatus has={asset.hasBeneficiaries} />
                 </TableCell>
                 <TableCell>
-                  <ActionsMenu asset={asset} onEdit={onEdit} />
+                  <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} />
                 </TableCell>
               </TableRow>
             ))}
@@ -175,9 +189,9 @@ function DesktopTable({ assets, onEdit }: { assets: AssetDto[]; onEdit: (asset: 
   );
 }
 
-function MobileCards({ assets, onEdit }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void }) {
+function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
   return (
-    <div className="lg:hidden space-y-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {assets.map((asset) => (
         <Card key={asset.id} className="bg-card border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onEdit(asset)}>
           <CardContent className="p-4">
@@ -189,11 +203,17 @@ function MobileCards({ assets, onEdit }: { assets: AssetDto[]; onEdit: (asset: A
                   <p className="text-xs text-muted-foreground">{ASSET_TYPE_LABELS[asset.type]}</p>
                 </div>
               </div>
-              {!asset.hasBeneficiaries && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-0 shrink-0 text-xs">
-                  No beneficiary
-                </Badge>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(asset);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
             <div className="flex items-center justify-between mt-3">
               <p className="text-lg font-bold text-foreground">{formatCurrency(asset.currentValue)}</p>
@@ -246,13 +266,23 @@ function EmptyState() {
 
 export default function Assets() {
   const [activeFilter, setActiveFilter] = useState<AssetType | "All">("All");
+  const [viewMode, setViewMode] = useState<"card" | "table">(() => {
+    return (localStorage.getItem("assets-view-mode") as "card" | "table") || "card";
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState<AssetDto | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem("assets-view-mode", viewMode);
+  }, [viewMode]);
 
   const queryParams = activeFilter === "All" ? undefined : { type: activeFilter };
   const { data: assets, isLoading } = useAssets(queryParams);
   const createAsset = useCreateAsset();
   const updateAsset = useUpdateAsset();
+  const deleteAsset = useDeleteAsset();
 
   const filteredAssets = assets ?? [];
 
@@ -264,6 +294,26 @@ export default function Assets() {
   function handleOpenEdit(asset: AssetDto) {
     setEditingAsset(asset);
     setSheetOpen(true);
+  }
+
+  function handleDeleteClick(asset: AssetDto) {
+    setAssetToDelete(asset);
+    setDeleteDialogOpen(true);
+  }
+
+  function handleConfirmDelete() {
+    if (!assetToDelete) return;
+
+    deleteAsset.mutate(assetToDelete.id, {
+      onSuccess: () => {
+        toast.success(`"${assetToDelete.name}" has been deleted`);
+        setDeleteDialogOpen(false);
+        setAssetToDelete(null);
+      },
+      onError: () => {
+        toast.error("Failed to delete asset. Please try again.");
+      },
+    });
   }
 
   function handleFormSubmit(values: any) {
@@ -302,9 +352,37 @@ export default function Assets() {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold text-foreground">Assets</h1>
-          <Button variant="gold" className="sm:w-auto w-full" onClick={handleOpenAdd}>
-            <Plus className="w-4 h-4" /> Add Asset
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode("card")}
+                className={cn(
+                  "p-2 transition-colors",
+                  viewMode === "card"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                aria-label="Card view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "p-2 transition-colors",
+                  viewMode === "table"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                aria-label="Table view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            <Button variant="gold" className="sm:w-auto w-full" onClick={handleOpenAdd}>
+              <Plus className="w-4 h-4" /> Add Asset
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -329,10 +407,11 @@ export default function Assets() {
         ) : filteredAssets.length === 0 ? (
           <EmptyState />
         ) : (
-          <>
-            <DesktopTable assets={filteredAssets} onEdit={handleOpenEdit} />
-            <MobileCards assets={filteredAssets} onEdit={handleOpenEdit} />
-          </>
+          viewMode === "table" ? (
+            <AssetTable assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+          ) : (
+            <CardGrid assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+          )
         )}
       </div>
 
@@ -343,6 +422,27 @@ export default function Assets() {
         onSubmit={handleFormSubmit}
         isPending={createAsset.isPending || updateAsset.isPending}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{assetToDelete?.name}</strong>?
+              This action cannot be undone. All associated beneficiary assignments will also be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAsset.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
