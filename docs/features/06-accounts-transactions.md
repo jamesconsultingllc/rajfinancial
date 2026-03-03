@@ -231,6 +231,32 @@ public class Transaction
 
     public bool IsHidden { get; set; }
 
+    // === Promotional financing (user-annotated for debt payoff integration) ===
+    /// <summary>
+    /// Indicates this purchase has promotional/introductory financing.
+    /// Common with PayPal Credit, store cards, "Buy Now Pay Later" services.
+    /// When true, PromoRate and PromoExpirationDate should be set.
+    /// </summary>
+    public bool HasPromoFinancing { get; set; }
+
+    /// <summary>
+    /// Promotional interest rate as decimal (e.g., 0 for "0% APR").
+    /// Only applies if HasPromoFinancing is true.
+    /// </summary>
+    public decimal? PromoRate { get; set; }
+
+    /// <summary>
+    /// When the promotional rate expires and reverts to standard APR.
+    /// Only applies if HasPromoFinancing is true.
+    /// </summary>
+    public DateOnly? PromoExpirationDate { get; set; }
+
+    /// <summary>
+    /// The standard APR that applies after promo expires.
+    /// If null, uses the LinkedAccount's default rate.
+    /// </summary>
+    public decimal? PostPromoRate { get; set; }
+
     // === Raw Plaid payload ===
     /// <summary>
     /// Complete Plaid transaction JSON. Contains location, payment_meta,
@@ -791,6 +817,11 @@ interface TransactionDto {
   userNotes?: string;
   userTags?: string[];
   isHidden: boolean;
+  // Promotional financing (for debt payoff integration)
+  hasPromoFinancing: boolean;
+  promoRate?: number;              // 0 for "0% APR"
+  promoExpirationDate?: string;    // ISO date
+  postPromoRate?: number;          // Rate after promo expires
 }
 
 /** Maps 1:1 from Plaid's transaction_type field. Do not add custom values. */
@@ -812,6 +843,11 @@ interface UpdateTransactionRequest {
   userNotes?: string;
   userTags?: string[];
   isHidden?: boolean;
+  // Promotional financing fields
+  hasPromoFinancing?: boolean;
+  promoRate?: number;
+  promoExpirationDate?: string;
+  postPromoRate?: number;
 }
 
 interface PaginatedTransactionsDto {
