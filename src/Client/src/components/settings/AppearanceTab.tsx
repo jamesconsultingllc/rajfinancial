@@ -39,7 +39,9 @@ export function AppearanceTab() {
 
   const handleChange = (value: string) => {
     setTheme(value as "dark" | "light" | "system");
-    toast.success(t("appearance.changed", { theme: value }));
+    const selectedTheme = themes.find((option) => option.value === value);
+    const themeLabel = selectedTheme ? t(selectedTheme.labelKey) : value;
+    toast.success(t("appearance.changed", { theme: themeLabel }));
   };
 
   return (

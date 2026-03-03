@@ -17,8 +17,11 @@ import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { ExportTab } from "@/components/settings/ExportTab";
 import { DeleteAccountTab } from "@/components/settings/DeleteAccountTab";
 
+const TAB_IDS = ["profile", "subscription", "ai-keys", "sharing", "notifications", "appearance", "export", "delete"] as const;
+type TabId = typeof TAB_IDS[number];
+
 interface TabDef {
-  id: string;
+  id: TabId;
   label: string;
   icon: typeof User;
   destructive?: boolean;
@@ -35,8 +38,6 @@ const tabs: TabDef[] = [
   { id: "delete", label: "Delete Account", icon: Trash2, destructive: true },
 ];
 
-type TabId = string;
-
 const tabComponents: Record<TabId, React.FC> = {
   profile: ProfileTab,
   subscription: SubscriptionTab,
@@ -52,9 +53,9 @@ export default function Settings() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation("settings");
-  const activeTab = (tabs.find(t => t.id === tab)?.id ?? "profile") as TabId;
+  const activeTab: TabId = (tabs.find(t => t.id === tab)?.id ?? "profile");
 
-  const ActiveComponent = tabComponents[activeTab];
+  const ActiveComponent = tabComponents[activeTab] ?? tabComponents.profile;
 
   const handleTabChange = (id: string) => {
     navigate(`/settings/${id}`, { replace: true });

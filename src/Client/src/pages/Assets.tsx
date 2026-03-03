@@ -207,6 +207,7 @@ function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (a
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                aria-label={`Delete ${asset.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(asset);
@@ -386,10 +387,12 @@ export default function Assets() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by asset type">
           {FILTER_TABS.map((tab) => (
             <button
               key={tab.value}
+              role="tab"
+              aria-selected={activeFilter === tab.value}
               onClick={() => setActiveFilter(tab.value)}
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
@@ -435,11 +438,17 @@ export default function Assets() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteAsset.isPending ? "Deleting..." : "Delete"}
+            <AlertDialogAction asChild>
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleConfirmDelete();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteAsset.isPending}
+              >
+                {deleteAsset.isPending ? "Deleting..." : "Delete"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

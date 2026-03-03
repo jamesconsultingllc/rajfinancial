@@ -240,41 +240,32 @@ describe("Assets Page — Filter Tabs", () => {
   it("renders all filter tabs", () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    // Use getAllByRole for buttons that are filter tabs
-    const filterButtons = screen.getAllByRole("button").filter(
-      btn => btn.classList.contains("rounded-full")
-    );
+    // Use semantic role query for tabs
+    const filterTabs = screen.getAllByRole("tab");
     
-    expect(filterButtons.length).toBeGreaterThanOrEqual(8); // All, Real Estate, Vehicles, etc.
+    expect(filterTabs.length).toBeGreaterThanOrEqual(8); // All, Real Estate, Vehicles, etc.
   });
 
   it("highlights 'All' filter by default", () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    // Find the All filter tab button (rounded-full class and contains "All" text)
-    const allTab = screen.getAllByRole("button").find(
-      btn => btn.classList.contains("rounded-full") && btn.textContent === "All"
-    );
+    // Find the All filter tab by accessible name
+    const allTab = screen.getByRole("tab", { name: "All" });
     
-    expect(allTab).toHaveClass("bg-primary");
+    expect(allTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("changes active filter when tab is clicked", async () => {
     render(<Assets />, { wrapper: createTestWrapper() });
 
-    // Find filter tab buttons
-    const filterButtons = screen.getAllByRole("button").filter(
-      btn => btn.classList.contains("rounded-full")
-    );
+    const allTab = screen.getByRole("tab", { name: "All" });
+    const vehiclesTab = screen.getByRole("tab", { name: "Vehicles" });
     
-    // Find the Vehicles tab
-    const vehiclesTab = filterButtons.find(btn => btn.textContent === "Vehicles");
-    expect(vehiclesTab).toBeDefined();
-    
-    fireEvent.click(vehiclesTab!);
+    fireEvent.click(vehiclesTab);
 
     await waitFor(() => {
-      expect(vehiclesTab).toHaveClass("bg-primary");
+      expect(vehiclesTab).toHaveAttribute("aria-selected", "true");
+      expect(allTab).toHaveAttribute("aria-selected", "false");
     });
   });
 });

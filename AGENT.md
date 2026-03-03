@@ -118,6 +118,14 @@ Every project should have a `session.md` tracking:
 
 ## Azure DevOps Integration
 
+**Project URL**: https://dev.azure.com/jamesconsulting/RAJ%20Financial%20Planner/
+
+## GitHub Repository
+
+**Repo URL**: https://github.com/jamesconsultingllc/rajfinancial
+**Owner**: jamesconsultingllc
+**Repo**: rajfinancial
+
 ### Before Starting a Task
 
 **Always do these steps BEFORE writing any code:**
