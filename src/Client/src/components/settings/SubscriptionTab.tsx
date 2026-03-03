@@ -94,7 +94,7 @@ export function SubscriptionTab() {
 
           {sub.tier === "Premium" && sub.subscriptionStartDate && (
             <p className="text-xs text-muted-foreground">
-              Billing period: {sub.subscriptionStartDate} — {sub.subscriptionEndDate}
+              {t("subscription.billingPeriod", { start: sub.subscriptionStartDate, end: sub.subscriptionEndDate })}
             </p>
           )}
         </CardContent>

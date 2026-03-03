@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState, useRef } from "react";
 import {
   AuthenticatedTemplate,
   UnauthenticatedTemplate,
@@ -136,20 +136,31 @@ export function ProtectedRoute({
 function RedirectToLogin() {
   const { instance, inProgress } = useMsal();
   const { t } = useTranslation();
+  const hasTriggeredRedirect = useRef(false);
 
   const redirectCount = parseInt(
     sessionStorage.getItem(REDIRECT_COUNT_KEY) ?? "0",
     10
   );
 
-  // Loop breaker: after MAX_REDIRECTS attempts, show manual sign-in
-  if (redirectCount > MAX_REDIRECTS) {
-    return <SessionExpiredCard />;
-  }
+  // Move side effects to useEffect to avoid issues with re-renders
+  useEffect(() => {
+    // Loop breaker: after MAX_REDIRECTS attempts, don't redirect
+    if (redirectCount >= MAX_REDIRECTS) {
+      return;
+    }
 
-  if (inProgress === InteractionStatus.None) {
-    sessionStorage.setItem(REDIRECT_COUNT_KEY, String(redirectCount + 1));
-    instance.loginRedirect(loginRequest);
+    // Only trigger redirect when no interaction is in progress and we haven't already triggered
+    if (inProgress === InteractionStatus.None && !hasTriggeredRedirect.current) {
+      hasTriggeredRedirect.current = true;
+      sessionStorage.setItem(REDIRECT_COUNT_KEY, String(redirectCount + 1));
+      instance.loginRedirect(loginRequest);
+    }
+  }, [inProgress, redirectCount, instance]);
+
+  // Loop breaker: after MAX_REDIRECTS attempts, show manual sign-in
+  if (redirectCount >= MAX_REDIRECTS) {
+    return <SessionExpiredCard />;
   }
 
   return (

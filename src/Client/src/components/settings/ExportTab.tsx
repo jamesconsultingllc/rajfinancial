@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,20 @@ import type { DataExportStatusDto } from "@/types/settings";
 export function ExportTab() {
   const { t } = useTranslation("settings");
   const [exportStatus, setExportStatus] = useState<DataExportStatusDto | null>(null);
+  const timersRef = useRef<number[]>([]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(id => clearTimeout(id));
+    };
+  }, []);
 
   const handleRequestExport = () => {
+    // Clear any existing timers
+    timersRef.current.forEach(id => clearTimeout(id));
+    timersRef.current = [];
+
     setExportStatus({
       exportId: "exp-001",
       status: "Queued",
@@ -18,11 +30,12 @@ export function ExportTab() {
     });
 
     // Simulate processing
-    setTimeout(() => {
+    const timer1 = window.setTimeout(() => {
       setExportStatus(prev => prev ? { ...prev, status: "Processing" } : null);
     }, 2000);
+    timersRef.current.push(timer1);
 
-    setTimeout(() => {
+    const timer2 = window.setTimeout(() => {
       setExportStatus({
         exportId: "exp-001",
         status: "Completed",
@@ -33,6 +46,7 @@ export function ExportTab() {
         downloadExpiresAt: new Date(Date.now() + 3600000).toISOString(),
       });
     }, 4000);
+    timersRef.current.push(timer2);
   };
 
   const formatBytes = (bytes: number) => {

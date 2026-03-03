@@ -1,28 +1,34 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Palette, Monitor, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { toast } from "sonner";
 
-const themes = [
+type ThemeOption = {
+  value: "system" | "light" | "dark";
+  labelKey: string;
+  descriptionKey: string;
+  icon: typeof Monitor;
+};
+
+const themes: ThemeOption[] = [
   {
     value: "system",
-    label: "System",
-    description: "Match your operating system preference",
+    labelKey: "appearance.system",
+    descriptionKey: "appearance.systemDescription",
     icon: Monitor,
   },
   {
     value: "light",
-    label: "Light",
-    description: "Light background with dark text",
+    labelKey: "appearance.light",
+    descriptionKey: "appearance.lightDescription",
     icon: Sun,
   },
   {
     value: "dark",
-    label: "Dark",
-    description: "Dark background with light text",
+    labelKey: "appearance.dark",
+    descriptionKey: "appearance.darkDescription",
     icon: Moon,
   },
 ];
@@ -46,21 +52,21 @@ export function AppearanceTab() {
         </CardHeader>
         <CardContent>
           <RadioGroup value={theme} onValueChange={handleChange} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {themes.map((t) => {
-              const Icon = t.icon;
+            {themes.map((themeOption) => {
+              const Icon = themeOption.icon;
               return (
                 <label
-                  key={t.value}
+                  key={themeOption.value}
                   className={`relative flex flex-col items-center gap-3 p-6 rounded-lg border-2 cursor-pointer transition-all ${
-                    theme === t.value
+                    theme === themeOption.value
                       ? "border-primary bg-primary/5"
                       : "border-border/50 hover:border-border"
                   }`}
                 >
-                  <RadioGroupItem value={t.value} className="sr-only" />
-                  <Icon className={`w-8 h-8 ${theme === t.value ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-sm font-medium text-foreground">{t.label}</span>
-                  <span className="text-xs text-muted-foreground text-center">{t.description}</span>
+                  <RadioGroupItem value={themeOption.value} className="sr-only" />
+                  <Icon className={`w-8 h-8 ${theme === themeOption.value ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-sm font-medium text-foreground">{t(themeOption.labelKey)}</span>
+                  <span className="text-xs text-muted-foreground text-center">{t(themeOption.descriptionKey)}</span>
                 </label>
               );
             })}

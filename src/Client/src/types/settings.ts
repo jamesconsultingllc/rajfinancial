@@ -1,7 +1,7 @@
-import type { ContactAddressDto } from '@/types/contacts';
+import type { ContactAddressDto } from "@/types/contacts";
 
-export type SubscriptionTier = 'Free' | 'Premium';
-export type ThemePreference = 'System' | 'Light' | 'Dark';
+export type SubscriptionTier = "Free" | "Premium";
+export type ThemePreference = "System" | "Light" | "Dark";
 
 export interface UserProfileDto {
   id: string;
@@ -52,7 +52,7 @@ export interface DataAccessGrantDto {
   granteeId: string;
   granteeName: string;
   granteeEmail: string;
-  accessType: 'Read' | 'Limited' | 'Full';
+  accessType: "Read" | "Limited" | "Full";
   dataCategories: string[];
   expiresAt?: string;
   isActive: boolean;
@@ -61,14 +61,14 @@ export interface DataAccessGrantDto {
 
 export interface ShareInvitationRequest {
   granteeEmail: string;
-  accessType: 'Read' | 'Limited' | 'Full';
+  accessType: "Read" | "Limited" | "Full";
   dataCategories: string[];
   expiresAt?: string;
 }
 
 export interface DataExportStatusDto {
   exportId: string;
-  status: 'Queued' | 'Processing' | 'Completed' | 'Failed' | 'Expired';
+  status: "Queued" | "Processing" | "Completed" | "Failed" | "Expired";
   requestedAt: string;
   completedAt?: string;
   fileSizeBytes?: number;

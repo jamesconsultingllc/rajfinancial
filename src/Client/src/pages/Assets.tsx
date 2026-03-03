@@ -267,7 +267,8 @@ function EmptyState() {
 export default function Assets() {
   const [activeFilter, setActiveFilter] = useState<AssetType | "All">("All");
   const [viewMode, setViewMode] = useState<"card" | "table">(() => {
-    return (localStorage.getItem("assets-view-mode") as "card" | "table") || "card";
+    const stored = localStorage.getItem("assets-view-mode");
+    return stored === "card" || stored === "table" ? stored : "card";
   });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);

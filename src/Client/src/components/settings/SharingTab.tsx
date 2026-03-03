@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -16,7 +16,7 @@ import type { DataAccessGrantDto } from "@/types/settings";
 
 const DATA_CATEGORIES = ["Assets", "Contacts", "Accounts", "Transactions", "Documents"];
 
-const accessBadgeVariant = (type: string) => {
+const accessBadgeVariant = (type: string): BadgeProps["variant"] => {
   if (type === "Read") return "secondary";
   if (type === "Full") return "default";
   return "outline";
@@ -99,13 +99,13 @@ export function SharingTab() {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label>{t("sharing.email")}</Label>
-                  <Input type="email" placeholder="advisor@example.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
+                  <Label htmlFor="invite-email">{t("sharing.email")}</Label>
+                  <Input id="invite-email" type="email" placeholder="advisor@example.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("sharing.accessType")}</Label>
+                  <Label htmlFor="invite-access">{t("sharing.accessType")}</Label>
                   <Select value={inviteAccess} onValueChange={setInviteAccess}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="invite-access"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Read">Read</SelectItem>
                       <SelectItem value="Limited">Limited</SelectItem>
@@ -128,10 +128,10 @@ export function SharingTab() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("sharing.expiryDate")}</Label>
+                  <Label htmlFor="invite-expiry">{t("sharing.expiryDate")}</Label>
                   <DatePicker
                     value={inviteExpiry}
-                    onChange={(val) => setInviteExpiry(val ? new Date(val) : undefined)}
+                    onChange={(val) => setInviteExpiry(val ?? undefined)}
                   />
                 </div>
               </div>
@@ -155,7 +155,7 @@ export function SharingTab() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-foreground">{grant.granteeName}</span>
-                    <Badge variant={accessBadgeVariant(grant.accessType) as any}>{grant.accessType}</Badge>
+                    <Badge variant={accessBadgeVariant(grant.accessType)}>{grant.accessType}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{grant.granteeEmail}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
