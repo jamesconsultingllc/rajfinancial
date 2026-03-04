@@ -65,7 +65,7 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
 // This requires Standard tier SWA.
 // ============================================================================
 
-resource linkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = if (linkedBackendResourceId != '') {
+resource linkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = if (linkedBackendResourceId != '' && skuName == 'Standard') {
   parent: staticWebApp
   name: 'backend'
   properties: {
@@ -84,9 +84,6 @@ resource linkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = i
 resource customDomainResource 'Microsoft.Web/staticSites/customDomains@2023-12-01' = if (customDomain != '') {
   parent: staticWebApp
   name: customDomain
-  dependsOn: [
-    linkedBackend
-  ]
   properties: {}
 }
 

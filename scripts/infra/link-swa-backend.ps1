@@ -63,10 +63,11 @@ $existingBackendsRaw = az staticwebapp backends show `
     --subscription $subscriptionId 2>&1
 
 try {
-    if ($existingBackendsRaw -and $existingBackendsRaw.Trim().StartsWith('{')) {
-        $existingBackends = $existingBackendsRaw | ConvertFrom-Json -ErrorAction Stop
+    $existingBackendsText = $existingBackendsRaw -join "`n"
+    if ($existingBackendsText -and $existingBackendsText.Trim().StartsWith('{')) {
+        $existingBackends = $existingBackendsText | ConvertFrom-Json -ErrorAction Stop
     }
-} catch {
+}catch {
     Write-Host "No existing backends found or unable to parse existing backend configuration." -ForegroundColor Gray
     $existingBackends = $null
 }
