@@ -183,12 +183,37 @@ module functions 'modules/functions.bicep' = {
 }
 
 // ============================================================================
-// Static Web App (Blazor WASM)
+// Static Web App with Linked Backend
 // ============================================================================
-// SKIPPED: SWA already exists in 'rajfinancial' resource group (Central US)
-// Uses preview environments for dev/prod branching
+// NOTE: SWA already exists in 'rajfinancial' resource group (Central US)
+// The SWA was created before this Bicep and uses preview environments.
 // Existing SWA: gray-cliff-072f3b510.azurestaticapps.net
+// Custom Domain: app.rajfinancial.net
+//
+// To migrate to IaC-managed SWA:
+// 1. Update DNS CNAME for app.rajfinancial.net to point to new SWA hostname
+// 2. Uncomment the module below
+// 3. Deploy Bicep
+// 4. Get new deployment token: az staticwebapp secrets list --name <swa> --query "properties.apiKey" -o tsv
+// 5. Update GitHub secret AZURE_STATIC_WEB_APPS_API_TOKEN with new token
+// 6. Update workflow to use new SWA name in deploy action
 // ============================================================================
+
+// module staticWebApp 'modules/staticwebapp.bicep' = {
+//   name: 'staticwebapp-deployment'
+//   scope: rg
+//   params: {
+//     location: 'centralus'  // Must match existing SWA region
+//     staticWebAppName: 'stapp-${baseName}-${environment}'
+//     skuName: 'Standard'  // Standard required for linked backends
+//     linkedBackendResourceId: functions.outputs.functionAppId
+//     linkedBackendRegion: 'centralus'
+//     customDomain: environment == 'prod' ? 'app.rajfinancial.net' : ''
+//     repositoryUrl: 'https://github.com/jamesconsultingllc/rajfinancial'
+//     repositoryBranch: environment == 'prod' ? 'main' : 'develop'
+//     tags: tags
+//   }
+// }
 
 // ============================================================================
 // Identity & RBAC Assignments

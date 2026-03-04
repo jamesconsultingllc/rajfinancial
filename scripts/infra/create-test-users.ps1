@@ -10,14 +10,13 @@
 #   3. Adds all test users to the security group
 #   4. Assigns app roles on the API app's service principal
 #   5. Optionally stores passwords in Azure Key Vault
+#   6. Creates a Conditional Access policy requiring MFA (excludes test users)
 #
 # Prerequisites:
 #   - Azure CLI installed (az --version)
 #   - Logged into the correct Entra External ID tenant:
 #       az login --tenant <tenant-id> --allow-no-subscriptions
 #   - register-entra-apps.ps1 has already been run (API app must exist)
-#   - Conditional Access policy excluding "Test Users - No MFA" group
-#     must be created manually (requires Premium P1)
 #
 # Usage:
 #   .\create-test-users.ps1 -Environment dev
@@ -511,6 +510,88 @@ if (-not $SkipKeyVault) {
 Write-Host ""
 
 # ============================================================================
+# Step 8: Create Conditional Access Policy (Require MFA, Exclude Test Users)
+# ============================================================================
+
+Write-Host "Step 8: Configuring Conditional Access Policy..." -ForegroundColor Yellow
+
+$caPolicyName = "Require MFA - Exclude Test Users"
+
+# Check if policy already exists
+$existingPolicies = az rest `
+    --method GET `
+    --uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies" `
+    2>$null | ConvertFrom-Json
+
+$existingPolicy = $existingPolicies.value | Where-Object { $_.displayName -eq $caPolicyName }
+
+if ($existingPolicy) {
+    Write-Host "  Conditional Access policy already exists: $($existingPolicy.id)" -ForegroundColor Green
+    Write-Host "  State: $($existingPolicy.state)" -ForegroundColor Gray
+} else {
+    Write-Host "  Creating Conditional Access policy..." -ForegroundColor Yellow
+    
+    # Build the policy - require MFA for all users, exclude test users group
+    $caPolicy = @{
+        displayName = $caPolicyName
+        state = "enabledForReportingButNotEnforced"  # Start in report-only mode for safety
+        conditions = @{
+            users = @{
+                includeUsers = @("All")
+                excludeGroups = @($securityGroupId)  # Exclude "Test Users - No MFA" group
+            }
+            applications = @{
+                includeApplications = @("All")
+            }
+            clientAppTypes = @("all")
+        }
+        grantControls = @{
+            operator = "OR"
+            builtInControls = @("mfa")
+        }
+    } | ConvertTo-Json -Depth 10
+    
+    $caTempFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($caTempFile, $caPolicy)
+    
+    try {
+        $newPolicy = az rest `
+            --method POST `
+            --uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies" `
+            --headers "Content-Type=application/json" `
+            --body "@$caTempFile" 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            $policyResult = $newPolicy | ConvertFrom-Json
+            Write-Host "  Created Conditional Access policy: $($policyResult.id)" -ForegroundColor Green
+            Write-Host "  State: enabledForReportingButNotEnforced (report-only mode)" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "  ╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+            Write-Host "  ║  IMPORTANT: Policy is in REPORT-ONLY mode for safety.           ║" -ForegroundColor Yellow
+            Write-Host "  ║  To enforce MFA, change state to 'enabled' in Entra portal:     ║" -ForegroundColor Yellow
+            Write-Host "  ║  Protection > Conditional Access > '$caPolicyName'              ║" -ForegroundColor Yellow
+            Write-Host "  ╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+        } else {
+            Write-Warning "  Failed to create Conditional Access policy."
+            Write-Warning "  This may require Entra ID P1 license or additional permissions."
+            Write-Host ""
+            Write-Host "  Manual steps:" -ForegroundColor Yellow
+            Write-Host "    1. Go to Entra admin center > Protection > Conditional Access" -ForegroundColor Gray
+            Write-Host "    2. Create new policy: '$caPolicyName'" -ForegroundColor Gray
+            Write-Host "    3. Users: Include 'All users', Exclude '$securityGroupName'" -ForegroundColor Gray
+            Write-Host "    4. Target resources: All cloud apps" -ForegroundColor Gray
+            Write-Host "    5. Grant: Require multifactor authentication" -ForegroundColor Gray
+            Write-Host "    6. Enable policy" -ForegroundColor Gray
+        }
+    }
+    finally {
+        Remove-Item $caTempFile -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host ""
+
+# ============================================================================
 # Summary
 # ============================================================================
 
@@ -554,13 +635,10 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " Next Steps" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "1. Create a Conditional Access policy (requires Premium P1):" -ForegroundColor White
-Write-Host "   - Entra Admin Center > Protection > Conditional Access > New Policy" -ForegroundColor Gray
-Write-Host "   - Name: 'Require MFA for All Users Except Test Accounts'" -ForegroundColor Gray
-Write-Host "   - Include: All users" -ForegroundColor Gray
-Write-Host "   - Exclude: '$securityGroupName' group" -ForegroundColor Gray
-Write-Host "   - Grant: Require MFA" -ForegroundColor Gray
-Write-Host "   See: docs/MFA_CONFIGURATION_WITH_TEST_EXCEPTIONS.md" -ForegroundColor Gray
+Write-Host "1. Enable Conditional Access policy (if created in report-only mode):" -ForegroundColor White
+Write-Host "   - Entra Admin Center > Protection > Conditional Access" -ForegroundColor Gray
+Write-Host "   - Select '$caPolicyName'" -ForegroundColor Gray
+Write-Host "   - Review report-only insights, then change state to 'On'" -ForegroundColor Gray
 Write-Host ""
 Write-Host "2. Add passwords to GitHub Secrets (production environment):" -ForegroundColor White
 foreach ($user in $testUsers) {

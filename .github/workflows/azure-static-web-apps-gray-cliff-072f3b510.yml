@@ -200,6 +200,7 @@ jobs:
           echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+          echo "::add-mask::${{ secrets.IMAP_PASSWORD }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -224,6 +225,9 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
           TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
+          IMAP_HOST: ${{ secrets.IMAP_HOST }}
+          IMAP_USERNAME: ${{ secrets.IMAP_USERNAME }}
+          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
 
       - name: Upload E2E test reports
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
