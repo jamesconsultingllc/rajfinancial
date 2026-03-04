@@ -200,6 +200,7 @@ jobs:
           echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+          echo "::add-mask::${{ secrets.IMAP_PASSWORD }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
