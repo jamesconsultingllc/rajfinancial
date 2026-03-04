@@ -84,6 +84,9 @@ resource linkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = i
 resource customDomainResource 'Microsoft.Web/staticSites/customDomains@2023-12-01' = if (customDomain != '') {
   parent: staticWebApp
   name: customDomain
+  dependsOn: [
+    linkedBackend
+  ]
   properties: {}
 }
 

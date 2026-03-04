@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Links the Azure Functions backend to the Static Web App.
@@ -55,19 +56,26 @@ Write-Host ""
 
 # Check if already linked
 Write-Host "Checking existing backends..." -ForegroundColor Yellow
-$existingBackends = az staticwebapp backends show `
+$existingBackends = $null
+$existingBackendsRaw = az staticwebapp backends show `
     --name $swaName `
     --resource-group $swaResourceGroup `
-    --subscription $subscriptionId 2>&1 | ConvertFrom-Json
+    --subscription $subscriptionId 2>&1
 
-if ($existingBackends -and $existingBackends.Count -gt 0) {
-    Write-Host "Existing backends found:" -ForegroundColor Yellow
-    $existingBackends | ForEach-Object {
-        Write-Host "  - $($_.name): $($_.backendResourceId)" -ForegroundColor Gray
+try {
+    if ($existingBackendsRaw -and $existingBackendsRaw.Trim().StartsWith('{')) {
+        $existingBackends = $existingBackendsRaw | ConvertFrom-Json -ErrorAction Stop
     }
-    
-    $linkedFunc = $existingBackends | Where-Object { $_.backendResourceId -like "*$($envConfig.functionAppName)*" }
-    if ($linkedFunc) {
+} catch {
+    Write-Host "No existing backends found or unable to parse existing backend configuration." -ForegroundColor Gray
+    $existingBackends = $null
+}
+
+if ($existingBackends) {
+    Write-Host "Existing backend found:" -ForegroundColor Yellow
+    Write-Host "  - $($existingBackends.name): $($existingBackends.backendResourceId)" -ForegroundColor Gray
+
+    if ($existingBackends.backendResourceId -and $existingBackends.backendResourceId -like "*$($envConfig.functionAppName)*") {
         Write-Host "Backend already linked for $Environment environment." -ForegroundColor Green
         exit 0
     }
