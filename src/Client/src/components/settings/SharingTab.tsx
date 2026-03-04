@@ -29,7 +29,7 @@ export function SharingTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteAccess, setInviteAccess] = useState<string>("Read");
   const [inviteCategories, setInviteCategories] = useState<string[]>([]);
-  const [inviteExpiry, setInviteExpiry] = useState<Date | undefined>();
+  const [inviteExpiry, setInviteExpiry] = useState<string | undefined>();
 
   const isPremium = mockProfile.tier === "Premium";
 
@@ -57,7 +57,7 @@ export function SharingTab() {
       granteeEmail: inviteEmail,
       accessType: inviteAccess as "Read" | "Limited" | "Full",
       dataCategories: inviteCategories,
-      expiresAt: inviteExpiry?.toISOString().split("T")[0],
+      expiresAt: inviteExpiry,
       isActive: true,
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -131,7 +131,7 @@ export function SharingTab() {
                   <Label htmlFor="invite-expiry">{t("sharing.expiryDate")}</Label>
                   <DatePicker
                     value={inviteExpiry}
-                    onChange={(val) => setInviteExpiry(val ?? undefined)}
+                    onChange={(val) => setInviteExpiry(val)}
                   />
                 </div>
               </div>

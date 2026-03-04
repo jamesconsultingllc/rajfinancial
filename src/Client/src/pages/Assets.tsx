@@ -36,6 +36,7 @@ import {
   type AssetDto, type AssetType, ASSET_TYPE_LABELS, ASSET_TYPE_ICONS, formatCurrency,
 } from "@/types/assets";
 import { AssetFormSheet } from "@/components/assets/AssetFormSheet";
+import { BeneficiaryAssignmentDialog } from "@/components/assets/BeneficiaryAssignmentDialog";
 import { toast } from "sonner";
 
 const FILTER_TABS: { label: string; value: AssetType | "All" }[] = [
@@ -93,7 +94,12 @@ function AssetIcon({ type }: { type: AssetType }) {
   );
 }
 
-function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function ActionsMenu({ asset, onEdit, onDelete, onManageBeneficiaries }: {
+  asset: AssetDto;
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -108,6 +114,9 @@ function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (as
         <DropdownMenuItem>
           <DollarSign className="w-4 h-4 mr-2" /> Update Value
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onManageBeneficiaries(asset)}>
+          <Users className="w-4 h-4 mr-2" /> Manage Beneficiaries
+        </DropdownMenuItem>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuItem disabled className="opacity-50">
@@ -116,9 +125,6 @@ function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (as
           </TooltipTrigger>
           <TooltipContent side="left">Coming soon</TooltipContent>
         </Tooltip>
-        <DropdownMenuItem>
-          <Users className="w-4 h-4 mr-2" /> Manage Beneficiaries
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
@@ -142,7 +148,12 @@ function BeneficiaryStatus({ has }: { has: boolean }) {
   return <Badge variant="secondary" className="bg-primary/10 text-primary border-0">None</Badge>;
 }
 
-function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function AssetTable({ assets, onEdit, onDelete, onManageBeneficiaries }: {
+  assets: AssetDto[];
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
   return (
     <div>
       <Card className="bg-card border-border/50">
@@ -178,7 +189,7 @@ function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: 
                   <BeneficiaryStatus has={asset.hasBeneficiaries} />
                 </TableCell>
                 <TableCell>
-                  <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} />
+                  <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} onManageBeneficiaries={onManageBeneficiaries} />
                 </TableCell>
               </TableRow>
             ))}
@@ -189,34 +200,30 @@ function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: 
   );
 }
 
-function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function CardGrid({ assets, onEdit, onDelete, onManageBeneficiaries }: {
+  assets: AssetDto[];
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {assets.map((asset) => (
-        <Card key={asset.id} className="bg-card border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onEdit(asset)}>
+        <Card key={asset.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={() => onEdit(asset)}>
                 <AssetIcon type={asset.type} />
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{asset.name}</p>
                   <p className="text-xs text-muted-foreground">{ASSET_TYPE_LABELS[asset.type]}</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                aria-label={`Delete ${asset.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(asset);
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div onClick={(e) => e.stopPropagation()}>
+                <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} onManageBeneficiaries={onManageBeneficiaries} />
+              </div>
             </div>
-            <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center justify-between mt-3 cursor-pointer" onClick={() => onEdit(asset)}>
               <p className="text-lg font-bold text-foreground">{formatCurrency(asset.currentValue)}</p>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -226,6 +233,7 @@ function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (a
     </div>
   );
 }
+
 
 function LoadingState() {
   return (
@@ -275,6 +283,7 @@ export default function Assets() {
   const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AssetDto | null>(null);
+  const [beneficiaryAsset, setBeneficiaryAsset] = useState<AssetDto | null>(null);
 
   useEffect(() => {
     localStorage.setItem("assets-view-mode", viewMode);
@@ -414,9 +423,9 @@ export default function Assets() {
           <EmptyState />
         ) : (
           viewMode === "table" ? (
-            <AssetTable assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+            <AssetTable assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} onManageBeneficiaries={setBeneficiaryAsset} />
           ) : (
-            <CardGrid assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+            <CardGrid assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} onManageBeneficiaries={setBeneficiaryAsset} />
           )
         )}
       </div>
@@ -455,6 +464,14 @@ export default function Assets() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {beneficiaryAsset && (
+        <BeneficiaryAssignmentDialog
+          open={!!beneficiaryAsset}
+          onOpenChange={(open) => { if (!open) setBeneficiaryAsset(null); }}
+          asset={beneficiaryAsset}
+        />
+      )}
     </DashboardLayout>
   );
 }
