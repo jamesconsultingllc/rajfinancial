@@ -93,12 +93,14 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Set MSAL environment variables
+        env:
+          VITE_AZURE_AD_AUTHORITY: ${{ secrets.AZURE_AD_AUTHORITY }}
+          VITE_AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          VITE_MSAL_CACHE_LOCATION: ${{ vars.MSAL_CACHE_LOCATION }}
         run: |
-          {
-            echo "VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}"
-            echo "VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}"
-            echo "VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}"
-          } > src/Client/.env.local
+          echo "VITE_AZURE_AD_AUTHORITY=${VITE_AZURE_AD_AUTHORITY}" > src/Client/.env.local
+          echo "VITE_AZURE_AD_CLIENT_ID=${VITE_AZURE_AD_CLIENT_ID}" >> src/Client/.env.local
+          echo "VITE_MSAL_CACHE_LOCATION=${VITE_MSAL_CACHE_LOCATION}" >> src/Client/.env.local
           echo "Created .env.local for ${{ github.ref }} build"
 
       - name: Build And Deploy
