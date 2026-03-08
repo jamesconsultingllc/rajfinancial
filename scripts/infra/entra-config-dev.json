@@ -1,0 +1,20 @@
+{
+  "tenantId": "496527a2-41f8-4297-a979-c916e7255a22",
+  "spa": {
+    "displayName": "rajfinancial-spa-dev",
+    "objectId": "fe98922f-d169-44fb-b4d1-c550fc2ede60",
+    "appId": "2d6a08c7-b142-4d53-a307-9ac75bae75eb"
+  },
+  "environment": "dev",
+  "tenantDomain": "rajfinancialdev.onmicrosoft.com",
+  "api": {
+    "displayName": "rajfinancial-api-dev",
+    "objectId": "3c46ec21-d356-4322-ae0a-1b022e0de6b9",
+    "identifierUri": "api://rajfinancial-api-dev",
+    "appId": "211438af-9f00-47be-a367-796dd7770113",
+    "roles": {
+      "Client": "bc34bd6c-38b8-46a6-9d4c-d338afeea81f",
+      "Administrator": "2202014c-e4b9-4ab9-9e6a-4cc53e13598f"
+    }
+  }
+}

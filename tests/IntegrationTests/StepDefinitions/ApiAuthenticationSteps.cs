@@ -13,13 +13,15 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 public class ApiAuthenticationSteps
 {
     private readonly FunctionsHostFixture fixture;
+    private readonly TestAuthHelper authHelper;
     private readonly HttpClient client;
     private HttpResponseMessage? response;
     private string? responseBody;
 
-    public ApiAuthenticationSteps(FunctionsHostFixture fixture)
+    public ApiAuthenticationSteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {
         this.fixture = fixture;
+        this.authHelper = authHelper;
         client = fixture.Client;
     }
 
@@ -57,7 +59,7 @@ public class ApiAuthenticationSteps
     [When("I send a GET request to {string} with a valid user token")]
     public async Task WhenISendAGetRequestToWithAValidUserToken(string path)
     {
-        var token = TestClaimsBuilder.JwtForUser("testuser@example.com", null, "Client");
+        var token = await authHelper.GetUserTokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);
@@ -67,7 +69,7 @@ public class ApiAuthenticationSteps
     [When("I send a GET request to {string} with a {string} role token")]
     public async Task WhenISendAGetRequestToWithARoleToken(string path, string role)
     {
-        var token = TestClaimsBuilder.JwtForUser("testuser@example.com", null, role);
+        var token = await authHelper.GetTokenForRoleAsync("testuser@example.com", role);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);
@@ -77,7 +79,7 @@ public class ApiAuthenticationSteps
     [When("I send a GET request to {string} with an administrator token")]
     public async Task WhenISendAGetRequestToWithAnAdministratorToken(string path)
     {
-        var token = TestClaimsBuilder.JwtForAdmin();
+        var token = await authHelper.GetAdminTokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);

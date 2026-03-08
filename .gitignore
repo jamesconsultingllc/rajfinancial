@@ -29,12 +29,16 @@ Thumbs.db
 playwright-report/
 
 node_modules/
+dist/
+.env.local
+.env.*.local
 
 # Test settings with secrets
 testsettings.local.json
 .env.test
+tests/e2e/.env
 appsettings.local.json
-/.claude/settings.local.json
+/.claude/
 
 /src/nul
 /tests/AcceptanceTests/appsettings.local.json
@@ -49,6 +53,12 @@ test-publish/
 func-logs/
 func-logs2/
 
+# Agent prompt files
+.agents/
+
+# VS Code workspace files (user-specific multi-root configs)
+*.code-workspace
+
 # Review artifacts
 review.md
 func-logs*.zip
@@ -57,3 +67,5 @@ docs/session.md
 
 # Insomnia exports may contain tokens after use
 # tools/insomnia/
+/src/Client/coverage
+*.vite

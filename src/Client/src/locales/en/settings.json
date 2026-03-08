@@ -1,0 +1,155 @@
+{
+  "title": "Settings",
+  "subtitle": "Manage your account and preferences",
+
+  "tabs": {
+    "profile": "Profile",
+    "subscription": "Subscription",
+    "ai-keys": "AI Keys",
+    "sharing": "Sharing",
+    "notifications": "Notifications",
+    "appearance": "Appearance",
+    "export": "Export",
+    "delete": "Delete Account"
+  },
+
+  "profile": {
+    "personalInfo": "Personal Information",
+    "displayName": "Display Name",
+    "phone": "Phone",
+    "address": "Address",
+    "street1": "Street 1",
+    "street2": "Street 2",
+    "city": "City",
+    "state": "State",
+    "postalCode": "Postal Code",
+    "country": "Country",
+    "preferences": "Preferences",
+    "locale": "Locale",
+    "timezone": "Timezone",
+    "currency": "Currency",
+    "memberSince": "Member since {{date}}",
+    "saveChanges": "Save Changes",
+    "saved": "Profile updated successfully",
+    "uploadAvatar": "Upload avatar"
+  },
+
+  "subscription": {
+    "title": "Subscription",
+    "currentPlan": "Current Plan",
+    "upgrade": "Upgrade to Premium",
+    "cancel": "Cancel Subscription",
+    "keepSubscription": "Keep Subscription",
+    "cancelWarning": "Your subscription will end on {{date}}.",
+    "billingPeriod": "Billing period: {{start}} — {{end}}",
+    "restored": "Subscription restored",
+    "cancelled": "Cancellation requested",
+    "usage": "Usage",
+    "usageMeters": "Usage Meters",
+    "usage.assets": "Assets",
+    "usage.contacts": "Contacts",
+    "usage.accounts": "Accounts",
+    "usage.storage": "Storage",
+    "usage.aiCalls": "AI Calls"
+  },
+
+  "aiKeys": {
+    "title": "Anthropic API Key",
+    "status": "Status",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "updateKey": "Update Key",
+    "setKey": "Set Key",
+    "saveKey": "Save Key",
+    "removeKey": "Remove Key",
+    "saved": "API key saved securely",
+    "removed": "API key removed",
+    "info": "Use your own Anthropic API key for AI-powered insights. Your key is stored securely in Azure Key Vault and is never exposed."
+  },
+
+  "sharing": {
+    "title": "Data Sharing",
+    "premiumTitle": "Premium Feature",
+    "premiumDescription": "Data sharing is a Premium feature. Share your financial data securely with your advisor.",
+    "inviteAdvisor": "Invite Advisor",
+    "email": "Email",
+    "accessType": "Access Type",
+    "dataCategories": "Data Categories",
+    "expiryDate": "Expiry Date (optional)",
+    "cancel": "Cancel",
+    "sendInvitation": "Send Invitation",
+    "inviteSent": "Invitation sent",
+    "revokeAccess": "Revoke Access",
+    "revoked": "Access revoked",
+    "noExpiry": "No expiry",
+    "expires": "Expires: {{date}}",
+    "emptyState": "No active shares. Invite an advisor to get started."
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "digest": "Weekly email digest",
+    "digestDescription": "Receive a weekly summary of your financial activity",
+    "syncAlerts": "Account sync alerts",
+    "syncAlertsDescription": "Get notified when a linked account has sync issues",
+    "coverageAlerts": "Beneficiary coverage alerts",
+    "coverageAlertsDescription": "Alert when assets are missing beneficiary assignments",
+    "tierAlerts": "Tier limit warnings",
+    "tierAlertsDescription": "Warn when approaching subscription tier limits",
+    "savePreferences": "Save Preferences",
+    "saved": "Notification preferences saved"
+  },
+
+  "appearance": {
+    "title": "Appearance",
+    "system": "System",
+    "systemDescription": "Match your operating system preference",
+    "light": "Light",
+    "lightDescription": "Light background with dark text",
+    "dark": "Dark",
+    "darkDescription": "Dark background with light text",
+    "changed": "Theme set to {{theme}}"
+  },
+
+  "export": {
+    "title": "Data Export",
+    "description": "Download a complete copy of all your data in JSON format. This satisfies GDPR Article 20 (right to data portability).",
+    "requestExport": "Request Data Export",
+    "queued": "Your export is queued...",
+    "processing": "Generating your export...",
+    "completed": "Export ready — {{size}}",
+    "failed": "Export failed. Please try again.",
+    "download": "Download",
+    "dismiss": "Dismiss",
+    "retry": "Retry",
+    "linkExpiry": "Link expires in 60 minutes",
+    "linkExpiryNote": "Export links expire after 1 hour. You can request a new export at any time.",
+    "includes": "Export includes:",
+    "includesList": "Profile, assets, contacts, accounts, transactions, documents, sharing grants, AI usage, audit log"
+  },
+
+  "delete": {
+    "title": "Permanently delete your account",
+    "warning": "After requesting deletion, you have a 30-day grace period to change your mind. After that, all data is permanently and irreversibly deleted.",
+    "items": {
+      "profile": "Profile and personal information",
+      "assets": "All assets and their history",
+      "contacts": "Contacts and beneficiaries",
+      "accounts": "Linked accounts and transactions",
+      "documents": "Uploaded documents",
+      "keys": "AI keys and sharing grants"
+    },
+    "deleteButton": "Delete My Account",
+    "confirmTitle": "Are you sure? This cannot be undone.",
+    "confirmDescription": "Type your email address to confirm account deletion.",
+    "confirmEmail": "Confirm email",
+    "reasonLabel": "Help us improve: why are you leaving? (optional)",
+    "reasonPlaceholder": "Your feedback helps us improve...",
+    "cancelButton": "Cancel",
+    "confirmDeleteButton": "Delete Account",
+    "requested": "Account deletion requested",
+    "scheduledBanner": "Your account is scheduled for deletion on {{date}} ({{days}} days remaining)",
+    "cancelDeletion": "Cancel Deletion",
+    "deletionCancelled": "Deletion cancelled"
+  }
+}

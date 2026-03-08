@@ -17,6 +17,53 @@
 7. **Observability** - Structured logging, metrics, telemetry
 8. **SOLID Principles** - Clean architecture, dependency inversion
 9. **DRY** - Extract reusable components, services, and utilities
+10. **Script Everything** - Automate all infrastructure and environment setup
+
+---
+
+## Infrastructure & Environment: Script Everything
+
+**If it can be scripted, it MUST be scripted.** Never rely on manual portal clicks for repeatable infra or environment setup.
+
+### What Must Be Scripted
+
+- **Entra app registrations** - App creation, API permissions, role definitions, redirect URIs
+- **Test user provisioning** - User creation, password assignment, role assignment, MFA exclusions
+- **Service principal configuration** - SP creation, credential management
+- **User flow / policy linkage** - Linking apps to authentication flows
+- **GitHub environment secrets** - Documenting which secrets are needed (actual values set manually for security)
+- **Azure resource provisioning** - Bicep/ARM templates for all cloud resources
+- **Key Vault population** - Secrets, certificates, configuration values
+
+### Script Requirements
+
+- **Idempotent** - Safe to run multiple times without side effects (check-before-create pattern)
+- **Environment-aware** - Accept `-Environment dev|prod` parameter, load per-env config
+- **Self-documenting** - Include `Write-Host` progress messages for every step
+- **Error-handling** - Fail fast with clear error messages, don't silently continue
+- **Temp file pattern** - Use temp files for `az rest --body` payloads instead of inline JSON
+- **Located in `scripts/infra/`** - All infra scripts in one place
+
+### Script Naming Convention
+
+| Script | Purpose |
+|--------|---------|
+| `register-entra-apps.ps1` | App registrations, API permissions, user flow linkage |
+| `create-test-users.ps1` | Test user provisioning, role assignment, MFA exclusion |
+| `setup-entra-oidc.ps1` | OIDC federated credentials for GitHub Actions |
+| `entra-config-{env}.json` | Per-environment configuration (generated output) |
+
+### Anti-Patterns
+
+```
+❌ "Go to the portal and click..."
+❌ "Manually create the app registration..."
+❌ "Copy the client ID from the portal..."
+
+✅ Script it with `az rest` / `az ad` / `az cli`
+✅ Output config to JSON for downstream consumption
+✅ Include verification steps that confirm success
+```
 
 ---
 
@@ -70,6 +117,14 @@ Every project should have a `session.md` tracking:
 ---
 
 ## Azure DevOps Integration
+
+**Project URL**: https://dev.azure.com/jamesconsulting/RAJ%20Financial%20Planner/
+
+## GitHub Repository
+
+**Repo URL**: https://github.com/jamesconsultingllc/rajfinancial
+**Owner**: jamesconsultingllc
+**Repo**: rajfinancial
 
 ### Before Starting a Task
 
@@ -145,11 +200,12 @@ For every feature, follow this exact sequence:
 | Component | Technology | Version |
 |-----------|-----------|---------|
 | **API Runtime** | .NET (Isolated Worker) | net10.0 |
-| **Client Runtime** | Blazor WebAssembly | net9.0 |
+| **Client Runtime** | React + TypeScript + Vite | React 18.3, Vite 5.4 |
 | **Shared Library** | .NET Class Library | net9.0 / net10.0 (multi-target) |
 | **Hosting** | Azure Static Web Apps | v4 Functions |
 | **Database** | SQL Server via EF Core | 10.0.2 |
-| **Auth** | Azure AD / MSAL | Microsoft.Authentication.WebAssembly.Msal 9.0.0 |
+| **Auth (API)** | Azure AD / MSAL | Azure.Identity 1.17.1 |
+| **Auth (Client)** | MSAL React | @azure/msal-react 2.x |
 | **Identity** | Microsoft Graph | 5.101.0 |
 
 ### Key NuGet Packages
@@ -165,16 +221,29 @@ For every feature, follow this exact sequence:
 - `Microsoft.Graph` 5.101.0 - Microsoft Graph API
 - `Microsoft.ApplicationInsights.WorkerService` 3.0.0 - Telemetry
 
-**Client (`src/Client`):**
-- `Microsoft.AspNetCore.Components.WebAssembly` 9.0.12 - Blazor WASM runtime
-- `Microsoft.AspNetCore.Components.Authorization` 9.0.10 - Auth components (`<AuthorizeView>`)
-- `Microsoft.Authentication.WebAssembly.Msal` 9.0.0 - MSAL authentication
-- `Microsoft.Extensions.Localization` 9.0.12 - IStringLocalizer support
-- `JetBrains.Annotations` 2025.2.4 - Code annotations
+**Client (`src/Client` - React/TypeScript):**
+- `react` 18.3.1 + `react-dom` - React framework
+- `vite` 5.4.19 - Build tool and dev server
+- `typescript` 5.8.3 - Type safety
+- `@azure/msal-react` 2.x + `@azure/msal-browser` 3.x - Azure AD authentication
+- `@tanstack/react-query` 5.83.0 - Server state management
+- `react-router-dom` 6.30.1 - Client-side routing
+- `tailwindcss` 3.4.17 - Utility-first CSS
+- Radix UI primitives - Accessible UI components
+- `react-hook-form` 7.61.1 + `zod` 3.25.76 - Form handling and validation
+- `recharts` 2.15.4 - Data visualization
+- `lucide-react` 0.462.0 - Icons
+- `date-fns` 3.6.0 - Date utilities
 
-**Testing (`tests/`):**
+**Client Testing:**
+- `vitest` 3.2.4 - Test runner (Vite-native)
+- `@testing-library/react` 16.3.0 - React component testing
+- `@testing-library/jest-dom` 6.6.3 - DOM matchers
+- `@testing-library/user-event` 14.6.1 - User interaction simulation
+- `jsdom` 26.1.0 - DOM environment for tests
+
+**Testing (`tests/` - .NET):**
 - `xunit` 2.9.3 + `xunit.runner.visualstudio` - Unit test framework
-- `bunit` 2.5.3 - Blazor component testing
 - `Reqnroll` 3.3.0 + `Reqnroll.xUnit` - BDD/Gherkin acceptance tests
 - `Microsoft.Playwright` 1.57.0 - Browser automation / E2E
 - `Deque.AxeCore.Playwright` 4.10.1 - Accessibility testing (axe-core)
@@ -192,8 +261,8 @@ For every feature, follow this exact sequence:
 - **ORM**: Entity Framework Core (parameterized queries only, never raw SQL concatenation)
 - **Serialization**: MemoryPack for internal, System.Text.Json for public APIs
 - **Logging**: Structured logging via `ILogger` + Application Insights
-- **Auth pattern**: Azure AD B2C via MSAL, `<AuthorizeView>` in Blazor, `[Authorize]` on Functions
-- **Localization**: `IStringLocalizer<SharedResources>` + `.resx` resource files
+- **Auth pattern**: Azure AD B2C via MSAL, protected routes in React, `[Authorize]` on Functions
+- **Localization**: React i18n (i18next or similar) for client, `.resx` for API
 - **Error handling**: Structured `ApiError` responses with machine-readable codes
 
 ### Code Style (C# / ReSharper Conventions)
@@ -248,13 +317,28 @@ For every feature, follow this exact sequence:
 ### Solution Structure
 
 ```
-src/RajFinancial.sln
+rajfinancial/
+├── src/RajFinancial.sln
 ├── src/Api/RajFinancial.Api.csproj              # Azure Functions API (net10.0)
-├── src/Client/RajFinancial.Client.csproj        # Blazor WASM Client (net9.0)
+├── src/Client/                                   # React + TypeScript Client
+│   ├── package.json                              # npm dependencies
+│   ├── vite.config.ts                            # Vite build config
+│   ├── src/
+│   │   ├── components/                           # Reusable UI components
+│   │   │   └── __tests__/                        # Component tests (colocated)
+│   │   ├── pages/                                # Route pages
+│   │   │   └── __tests__/                        # Page tests (colocated)
+│   │   ├── auth/                                 # MSAL auth logic
+│   │   ├── hooks/                                # Custom React hooks
+│   │   ├── services/                             # API service layer
+│   │   ├── types/                                # TypeScript types
+│   │   ├── generated/memorypack/                 # Auto-generated MemoryPack TS types
+│   │   └── test/                                 # Test setup and mocks
+│   └── public/                                   # Static assets
 ├── src/Shared/RajFinancial.Shared.csproj        # Shared models (net9.0;net10.0)
 ├── tests/Api.Tests/RajFinancial.Api.Tests.csproj           # API unit tests (net10.0)
-├── tests/Client.Tests/RajFinancial.Client.Tests.csproj     # Blazor bUnit tests (net9.0)
-└── tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj  # Reqnroll + Playwright (net9.0)
+├── tests/IntegrationTests/RajFinancial.IntegrationTests.csproj  # Integration tests
+└── tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj    # Reqnroll + Playwright (net9.0)
 ```
 
 ---
@@ -262,7 +346,7 @@ src/RajFinancial.sln
 ## Project Overview
 
 **Raj Financial** is a financial services application built with:
-- **Frontend**: Blazor WebAssembly (Client)
+- **Frontend**: React + TypeScript + Vite (Client)
 - **Backend**: Azure Functions (.NET Isolated Worker)
 - **Shared**: .NET Class Library for shared models and contracts
 - **Hosting**: Azure Static Web Apps
@@ -275,17 +359,24 @@ src/
 │   ├── Functions/          # HTTP trigger functions
 │   ├── Services/           # Business logic services
 │   └── Middleware/         # Auth, validation, error handling
-├── Client/                 # Blazor WebAssembly (frontend)
-│   ├── Pages/              # Routable page components
-│   ├── Shared/             # Shared layout components
-│   └── wwwroot/            # Static assets
+├── Client/                 # React + TypeScript (frontend)
+│   ├── src/
+│   │   ├── pages/          # Route page components
+│   │   ├── components/     # Reusable UI components
+│   │   │   └── ui/         # shadcn/ui primitives
+│   │   ├── auth/           # MSAL authentication
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── services/       # API client services
+│   │   ├── types/          # TypeScript types/interfaces
+│   │   └── generated/      # Auto-generated code (MemoryPack)
+│   └── public/             # Static assets
 ├── Shared/                 # Shared library
 │   ├── Entities/           # Domain entities
 │   ├── Models/             # DTOs and domain models
 │   └── Contracts/          # Interfaces and DTOs
 tests/
 ├── Api.Tests/              # API unit tests (xUnit)
-├── Client.Tests/           # Blazor component tests (bUnit)
+├── IntegrationTests/       # Integration tests
 └── AcceptanceTests/        # BDD acceptance tests (Reqnroll + Gherkin)
 docs/                       # Documentation and planning
 ```
@@ -319,7 +410,7 @@ Brand assets source: `D:\OneDrive - RAJ Financial\RAJ Financial\Assets\All files
 
 Project assets:
 ```
-src/Client/wwwroot/images/brand/
+src/Client/public/images/brand/
 ├── logo-icon.svg, logo-icon.png       # RF monogram
 ├── logo-vertical.svg                  # Logo with text below
 ├── logo-horizontal.svg                # Logo with text right (black)
@@ -334,29 +425,38 @@ src/Client/wwwroot/images/brand/
 ### Test File Organization
 
 ```
-tests/
+src/Client/src/                    # React tests (colocated with source)
+├── components/__tests__/          # Component unit tests
+├── pages/__tests__/               # Page component tests
+├── auth/__tests__/                # Auth logic tests
+├── hooks/__tests__/               # Custom hook tests
+└── test/                          # Test setup, mocks, utilities
+
+tests/                             # .NET tests
 ├── Api.Tests/
-│   ├── Middleware/          # Middleware unit tests
-│   ├── Services/            # Service unit tests
-│   └── Functions/           # Function unit tests
-├── Client.Tests/
-│   ├── Components/          # bUnit component tests
-│   └── Pages/               # bUnit page tests
+│   ├── Middleware/                # Middleware unit tests
+│   ├── Services/                  # Service unit tests
+│   └── Functions/                 # Function unit tests
+├── IntegrationTests/              # API integration tests
 └── AcceptanceTests/
-    ├── Features/            # Gherkin .feature files
-    ├── StepDefinitions/     # Step definition classes
-    └── Support/             # Test hooks, helpers
+    ├── Features/                  # Gherkin .feature files
+    ├── StepDefinitions/           # Step definition classes
+    └── Support/                   # Test hooks, helpers
 ```
 
 ### Running Tests
 
 ```bash
-dotnet test                                      # All tests
+# .NET tests
+dotnet test                                      # All .NET tests
 dotnet test tests/Api.Tests                      # API tests only
-dotnet test tests/Client.Tests                   # Client tests only
 dotnet test tests/AcceptanceTests                # BDD tests only
 dotnet test --collect:"XPlat Code Coverage"      # With coverage
 dotnet test --filter "Category=Security"         # Security tests only
+
+# React tests
+cd src/Client && npm test                        # Run all React tests
+cd src/Client && npm run test:watch              # Watch mode
 ```
 
 ---
@@ -574,12 +674,27 @@ _logger.LogWarning("Authorization denied: {UserId} attempted {Action} on {Resour
 | Context | Format | Library |
 |---------|--------|---------|
 | Public APIs (browser clients) | JSON | System.Text.Json |
-| Internal APIs (WASM client) | MemoryPack | MemoryPack 1.21.4 |
+| Internal APIs (React client) | MemoryPack | MemoryPack 1.21.4 |
 | Content negotiation | `Accept` header | `ContentNegotiationMiddleware` |
 
 - **MemoryPack is the primary serialization format** — JSON exists only for development convenience and browser compatibility
 - Production: MemoryPack for 7-8x faster serialization, 60% smaller payloads
 - All shared DTOs decorated with `[MemoryPackable(GenerateType.VersionTolerant)]` with `[MemoryPackOrder(n)]`
+- **TypeScript types auto-generated** from C# DTOs to `src/Client/src/generated/memorypack/`
+
+### Type Mapping: EF Entities vs DTOs
+
+MemoryPack does not reliably handle `decimal` or `DateTimeOffset`. Use this conversion strategy:
+
+| Concern | EF Entity (DB layer) | DTO (API/display layer) | Why |
+|---------|---------------------|------------------------|-----|
+| Money | `decimal` | `double` | MemoryPack compatible; DB needs `decimal` precision |
+| Timestamps | `DateTimeOffset` | `DateTime` (UTC) | MemoryPack compatible; DB needs offset-aware storage |
+
+- **EF entities** use database-accurate types (`decimal`, `DateTimeOffset`)
+- **DTOs** use MemoryPack-compatible types (`double`, `DateTime` UTC)
+- **Conversion** happens in the service/mapping layer (entity → DTO)
+- DTOs containing `decimal` or date fields that **cannot** be converted must use **JSON-only** serialization (no `[MemoryPackable]`)
 
 ### MemoryPack Testing Requirements
 
@@ -614,15 +729,16 @@ public void CreateAssetRequest_MemoryPackRoundTrip_PreservesAllProperties()
 
 **All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
 
-**Syncfusion Essential UI Kit**: https://blazor.syncfusion.com/essential-ui-kit/
+**Component Library**: shadcn/ui (Radix UI primitives + Tailwind CSS)
+**Reference**: https://ui.shadcn.com/
 
 Before creating any UI component:
-1. Check Syncfusion Essential UI Kit for design inspiration
+1. Check if shadcn/ui has the component (`npx shadcn-ui@latest add <component>`)
 2. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
 3. Follow component structure and design tokens specified
-4. Use Syncfusion Blazor v24+ for complex elements
-5. Apply glass morphism via GlassCard component
-6. Implement mobile-first responsive design
+4. Use Radix UI primitives for accessibility
+5. Apply glass morphism via GlassCard component where appropriate
+6. Implement mobile-first responsive design with Tailwind
 7. Adapt designs to RAJ Financial's gold brand palette
 
 ---
@@ -654,35 +770,44 @@ Before creating any UI component:
 7. Verify all tests pass, coverage >= 90%
 8. Update `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`
 
-### Adding a New Blazor Page
+### Adding a New React Page
 
 1. Write Gherkin feature file for user-facing behavior
-2. Write bUnit tests (a11y + localization + behavior)
-3. Create page in `src/Client/Pages/` with `@page` directive
-4. Create child components in `src/Client/Components/`
-5. Add localization strings to `.resx` files
-6. Verify all tests pass, coverage >= 90%
-7. Update `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`
+2. Write Vitest tests (a11y + behavior) in `pages/__tests__/`
+3. Create page component in `src/Client/src/pages/`
+4. Add route in router configuration
+5. Create child components in `src/Client/src/components/`
+6. Add localization strings (i18next or similar)
+7. Verify all tests pass
+8. Update `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`
 
-### Adding Localization
+### Adding Localization (React)
 
-1. Add string to `Resources/SharedResources.resx` (English)
-2. Add translations to `Resources/SharedResources.{culture}.resx`
-3. Inject `IStringLocalizer<SharedResources>` in component
-4. Use `@Localizer["Key"]` in Razor markup
+1. Add string to localization JSON (e.g., `locales/en.json`)
+2. Add translations to other locale files (`locales/{locale}.json`)
+3. Use `useTranslation()` hook in component
+4. Use `t('key')` for translated strings
 
 ---
 
 ## Useful Commands
 
 ```bash
-dotnet build src/RajFinancial.sln                # Build
-dotnet test                                       # All tests
+# .NET
+dotnet build src/RajFinancial.sln                # Build .NET projects
+dotnet test                                       # All .NET tests
 dotnet test --collect:"XPlat Code Coverage"       # Coverage
-dotnet format src/RajFinancial.sln                # Format
-cd src/Api && func start                          # Run API
-cd src/Client && dotnet run                       # Run Client
-dotnet list package --vulnerable                  # Audit deps
+dotnet format src/RajFinancial.sln                # Format C# code
+cd src/Api && func start                          # Run API locally
+dotnet list package --vulnerable                  # Audit .NET deps
+
+# React Client
+cd src/Client && npm install                      # Install dependencies
+cd src/Client && npm run dev                      # Run dev server
+cd src/Client && npm run build                    # Production build
+cd src/Client && npm test                         # Run tests
+cd src/Client && npm run lint                     # Lint TypeScript
+npm audit                                         # Audit npm deps
 ```
 
 ---

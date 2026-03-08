@@ -2,11 +2,10 @@
 // RAJ Financial - Azure Functions Module
 // ============================================================================
 // Creates an Azure Functions app for the API backend.
-// Uses Consumption plan for dev, Premium for prod.
+// Uses Consumption (Y1) plan — upgrade to EP1 if VNet/always-warm needed.
 //
 // Security:
 //   - System-assigned Managed Identity
-//   - Key Vault references for secrets
 //   - HTTPS only
 // ============================================================================
 
@@ -25,8 +24,8 @@ param appInsightsConnectionString string
 @description('Application Insights instrumentation key')
 param appInsightsInstrumentationKey string
 
-@description('Key Vault name for secret references')
-param keyVaultName string
+@description('Entra External ID Service Principal ID')
+param entraServicePrincipalId string
 
 @description('SQL Server FQDN')
 param sqlServerFqdn string
@@ -49,10 +48,6 @@ param appRoleAdministrator string
 @description('Advisor App Role GUID')
 param appRoleAdvisor string
 
-@description('The environment (dev or prod)')
-@allowed(['dev', 'prod'])
-param environment string
-
 @description('Tags to apply to resources')
 param tags object
 
@@ -62,18 +57,15 @@ param tags object
 
 var planName = 'asp-${functionAppName}'
 
-// Use Consumption (Y1) for dev - pay per execution, no VM quota needed
-// Use Elastic Premium EP1 for prod - scale-out, always warm, VNet support
+// Use Consumption (Y1) plan for all environments - pay per execution only.
+// To use EP1 (Elastic Premium) for VNet integration or always-warm, update this SKU explicitly.
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
   tags: tags
-  sku: environment == 'dev' ? {
+  sku: {
     name: 'Y1'
     tier: 'Dynamic'
-  } : {
-    name: 'EP1'
-    tier: 'ElasticPremium'
   }
   properties: {
     reserved: false // Windows
@@ -108,7 +100,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           'https://localhost:7001'
           'https://*.azurestaticapps.net'
           'https://app.rajfinancial.net'
-          'https://rajfinancial.com'
         ]
         supportCredentials: true
       }
@@ -162,11 +153,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: entraExternalIdClientId
         }
         // ====================================================================
-        // Entra External ID (sensitive - Key Vault reference)
+        // Entra External ID (Service Principal ID - not sensitive)
         // ====================================================================
         {
           name: 'EntraExternalId__ServicePrincipalId'
-          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=EntraExternalId-ServicePrincipalId)'
+          value: entraServicePrincipalId
         }
         // ====================================================================
         // App Roles

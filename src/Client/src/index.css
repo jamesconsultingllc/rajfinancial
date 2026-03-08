@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RAJ Financial Premium Design System
+   Dark theme with gold accents, glass morphism, luxury fintech aesthetic
+*/
+
+@layer base {
+  :root {
+    /* Light mode - Elegant cream/white with gold accents */
+    --background: 40 20% 98%;
+    --foreground: 30 10% 15%;
+
+    /* Card with subtle warmth */
+    --card: 0 0% 100%;
+    --card-foreground: 30 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 10% 15%;
+
+    /* Spanish Yellow gold - darker for light mode contrast */
+    --primary: 43 85% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - warm gray */
+    --secondary: 40 15% 94%;
+    --secondary-foreground: 30 10% 15%;
+
+    /* Muted warm tones */
+    --muted: 40 15% 92%;
+    --muted-foreground: 30 8% 45%;
+
+    /* Accent - gold variant */
+    --accent: 43 85% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders with subtle gold tint */
+    --border: 40 20% 88%;
+    --input: 40 15% 90%;
+    --ring: 43 85% 42%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar - light */
+    --sidebar-background: 40 20% 96%;
+    --sidebar-foreground: 30 10% 25%;
+    --sidebar-primary: 43 85% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 15% 92%;
+    --sidebar-accent-foreground: 30 10% 15%;
+    --sidebar-border: 40 20% 88%;
+    --sidebar-ring: 43 85% 42%;
+
+    /* Custom tokens for RAJ Financial - Light */
+    --gold: 43 85% 42%;
+    --gold-light: 48 91% 49%;
+    --gold-dark: 40 80% 32%;
+    --gold-glow: 0 0 40px hsl(43 85% 42% / 0.25);
+    --gold-glow-sm: 0 0 20px hsl(43 85% 42% / 0.2);
+    --gold-gradient: linear-gradient(135deg, hsl(48 91% 49%), hsl(43 85% 42%), hsl(40 80% 32%));
+    
+    /* Glass morphism - light */
+    --glass-bg: hsl(0 0% 100% / 0.8);
+    --glass-border: hsl(43 85% 42% / 0.2);
+    --glass-border-hover: hsl(43 85% 42% / 0.4);
+    
+    /* Success/positive for gains */
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+  }
+
+  /* Dark mode - Premium cinematic dark */
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 48 91% 49%;
+    --primary-foreground: 0 0% 4%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 30 6% 63%;
+
+    --accent: 48 91% 49%;
+    --accent-foreground: 0 0% 4%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 48 30% 20%;
+    --input: 0 0% 15%;
+    --ring: 48 91% 49%;
+
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 48 91% 49%;
+    --sidebar-primary-foreground: 0 0% 4%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 48 30% 15%;
+    --sidebar-ring: 48 91% 49%;
+
+    --gold: 48 91% 49%;
+    --gold-light: 48 100% 65%;
+    --gold-dark: 43 76% 35%;
+    --gold-glow: 0 0 40px hsl(48 91% 49% / 0.4);
+    --gold-glow-sm: 0 0 20px hsl(48 91% 49% / 0.3);
+    --gold-gradient: linear-gradient(135deg, hsl(48 100% 85%), hsl(48 91% 49%), hsl(43 76% 35%));
+    
+    --glass-bg: hsl(0 0% 8% / 0.7);
+    --glass-border: hsl(48 91% 49% / 0.2);
+    --glass-border-hover: hsl(48 91% 49% / 0.4);
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /* Number input spinner styling */
+  /* Option: Hide spinners (recommended for financial inputs) */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Alternative: Style spinners with gold theme (uncomment to use)
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+    opacity: 1;
+    background: hsl(var(--muted));
+    border-left: 1px solid hsl(var(--border));
+    cursor: pointer;
+  }
+  input[type="number"]::-webkit-inner-spin-button:hover {
+    background: hsl(var(--primary) / 0.2);
+  }
+  */
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* Dark section - always dark background */
+  .section-dark {
+    background-color: hsl(0 0% 8%);
+    color: hsl(0 0% 100%);
+  }
+  
+  .section-dark .section-muted,
+  .section-dark .text-muted-foreground {
+    color: hsl(30 6% 63%);
+  }
+  
+  .section-dark .bg-card {
+    background-color: hsl(0 0% 12%);
+  }
+  
+  .section-dark .border-border\/50 {
+    border-color: hsl(48 30% 20% / 0.5);
+  }
+
+  /* Light section - always light background */
+  .section-light {
+    background-color: hsl(40 20% 98%);
+    color: hsl(30 10% 15%);
+  }
+  
+  .section-light .section-muted,
+  .section-light .text-muted-foreground {
+    color: hsl(30 8% 45%);
+  }
+  
+  .section-light .text-foreground {
+    color: hsl(30 10% 15%);
+  }
+  
+  .section-light .bg-card {
+    background-color: hsl(0 0% 100%);
+  }
+  
+  .section-light .border-border\/50 {
+    border-color: hsl(40 20% 88% / 0.5);
+  }
+
+  /* Solid gold text */
+  .text-gold {
+    color: hsl(var(--primary));
+  }
+
+  /* Gold glow effect */
+  .gold-glow {
+    box-shadow: 0 0 40px hsl(48 91% 49% / 0.4);
+  }
+
+  .gold-glow-sm {
+    box-shadow: 0 0 20px hsl(48 91% 49% / 0.3);
+  }
+
+  .gold-glow-text {
+    text-shadow: 0 0 30px hsl(48 91% 49% / 0.5);
+  }
+
+  /* Glass morphism card */
+  .glass-card {
+    background: hsl(0 0% 8% / 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(48 91% 49% / 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card:hover {
+    border-color: hsl(48 91% 49% / 0.4);
+    box-shadow: 0 0 30px hsl(48 91% 49% / 0.15);
+  }
+
+  /* Gold border animation */
+  .gold-border-animated {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gold-border-animated::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(48 100% 85%), hsl(48 91% 49%), hsl(43 76% 35%));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Subtle grid pattern for backgrounds */
+  .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(48 91% 49% / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(48 91% 49% / 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Radial glow for hero sections */
+  .hero-glow {
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, hsl(48 91% 49% / 0.15), transparent);
+  }
+}
+
+/* Animation keyframes */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(48 91% 49% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(48 91% 49% / 0.5);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(48 91% 49% / 0) 0%,
+    hsl(48 91% 49% / 0.3) 50%,
+    hsl(48 91% 49% / 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}

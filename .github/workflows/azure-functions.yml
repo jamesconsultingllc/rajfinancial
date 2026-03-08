@@ -187,6 +187,7 @@ jobs:
           exit 1
 
   integration-test-dev:
+    if: ${{ needs.deploy-dev.result == 'success' }}
     runs-on: ubuntu-latest
     name: Integration Tests (Dev)
     needs: deploy-dev
@@ -206,10 +207,25 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Mask sensitive environment variables
+        run: |
+          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+
       - name: Run integration tests against dev
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-dev.azurewebsites.net
           SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
+          Entra__TenantId: ${{ secrets.ENTRA_TENANT_ID }}
+          Entra__RopcClientId: ${{ secrets.ENTRA_ROPC_CLIENT_ID }}
+          Entra__ApiScope: ${{ secrets.ENTRA_API_SCOPE }}
+          Entra__TestUsers__Administrator: ${{ secrets.TEST_ADMINISTRATOR_EMAIL }}
+          Entra__TestUsers__Client: ${{ secrets.TEST_CLIENT_EMAIL }}
+          Entra__TestUsers__Advisor: ${{ secrets.TEST_ADVISOR_EMAIL }}
+          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+          TEST_ADVISOR_PASSWORD: ${{ secrets.TEST_ADVISOR_PASSWORD }}
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
         run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal
 
   migrate-prod:
@@ -298,6 +314,7 @@ jobs:
           exit 1
 
   integration-test-prod:
+    if: ${{ needs.deploy-prod.result == 'success' }}
     runs-on: ubuntu-latest
     name: Integration Tests (Prod)
     needs: deploy-prod
@@ -317,8 +334,23 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Mask sensitive environment variables
+        run: |
+          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+
       - name: Run integration tests against prod
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-prod.azurewebsites.net
           SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
+          Entra__TenantId: ${{ secrets.ENTRA_TENANT_ID }}
+          Entra__RopcClientId: ${{ secrets.ENTRA_ROPC_CLIENT_ID }}
+          Entra__ApiScope: ${{ secrets.ENTRA_API_SCOPE }}
+          Entra__TestUsers__Administrator: ${{ secrets.TEST_ADMINISTRATOR_EMAIL }}
+          Entra__TestUsers__Client: ${{ secrets.TEST_CLIENT_EMAIL }}
+          Entra__TestUsers__Advisor: ${{ secrets.TEST_ADVISOR_EMAIL }}
+          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+          TEST_ADVISOR_PASSWORD: ${{ secrets.TEST_ADVISOR_PASSWORD }}
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
         run: dotnet test ${{ env.INTEGRATION_TEST_PROJECT }} --configuration Release --verbosity normal --filter "Category!=devOnly"

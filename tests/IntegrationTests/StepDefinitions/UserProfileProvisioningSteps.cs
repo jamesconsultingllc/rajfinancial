@@ -44,9 +44,12 @@ public class UserProfileProvisioningSteps
     // For "returning user" scenarios — captures LastLoginAt from the initial request
     private DateTimeOffset _previousLastLoginAt;
 
-    public UserProfileProvisioningSteps(FunctionsHostFixture fixture)
+    private readonly TestAuthHelper _authHelper;
+
+    public UserProfileProvisioningSteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {
         _fixture = fixture;
+        _authHelper = authHelper;
         _client = fixture.Client;
     }
 
@@ -135,7 +138,7 @@ public class UserProfileProvisioningSteps
         _testUserName = $"Returning User {_testUserId[..8]}";
         _testUserRole = "Client";
 
-        var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, _testUserRole);
+        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -177,7 +180,7 @@ public class UserProfileProvisioningSteps
         // that used a different (random) user ID.
         await CleanupStaleProfileAsync(email);
 
-        var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, _testUserRole);
+        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -224,7 +227,7 @@ public class UserProfileProvisioningSteps
     {
         _requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, _testUserRole);
+        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -242,7 +245,7 @@ public class UserProfileProvisioningSteps
     {
         _requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, _testUserRole);
+        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -260,7 +263,7 @@ public class UserProfileProvisioningSteps
     {
         _requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = TestClaimsBuilder.JwtForAdmin(_testUserEmail, _testUserId);
+        var token = await _authHelper.GetAdminTokenAsync(_testUserEmail, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -279,7 +282,7 @@ public class UserProfileProvisioningSteps
         _testUserRole = role;
         _requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = TestClaimsBuilder.JwtForUser(_testUserEmail, _testUserId, role);
+        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, role, _testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 

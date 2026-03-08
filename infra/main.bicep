@@ -43,8 +43,7 @@ param appRoleAdministrator string
 @description('Advisor App Role GUID')
 param appRoleAdvisor string
 
-@description('Entra External ID Service Principal ID (stored in Key Vault)')
-@secure()
+@description('Entra External ID Service Principal ID (GUID, not sensitive)')
 param entraServicePrincipalId string = ''
 
 @description('Entra admin object ID for SQL Server (user or group)')
@@ -75,7 +74,6 @@ param tags object = {
 // ============================================================================
 
 var resourceGroupName = resourceGroupNameOverride != '' ? resourceGroupNameOverride : 'rg-${baseName}-${environment}'
-var keyVaultName = 'kv-${baseName}-${environment}'
 // SQL naming: prod gets clean name (rajfinancial), dev gets suffix (rajfinancial-dev)
 var sqlServerName = environment == 'prod' ? baseName : '${baseName}-${environment}'
 var sqlDatabaseName = baseName
@@ -107,21 +105,6 @@ module monitoring 'modules/monitoring.bicep' = {
     appInsightsName: appInsightsName
     logAnalyticsName: logAnalyticsName
     tags: tags
-  }
-}
-
-// ============================================================================
-// Key Vault
-// ============================================================================
-
-module keyVault 'modules/keyvault.bicep' = {
-  name: 'keyvault-deployment'
-  scope: rg
-  params: {
-    location: location
-    keyVaultName: keyVaultName
-    tags: tags
-    entraServicePrincipalId: entraServicePrincipalId
   }
 }
 
@@ -186,7 +169,7 @@ module functions 'modules/functions.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: monitoring.outputs.appInsightsInstrumentationKey
-    keyVaultName: keyVault.outputs.keyVaultName
+    entraServicePrincipalId: entraServicePrincipalId
     sqlServerFqdn: sql.outputs.sqlServerFqdn
     sqlDatabaseName: sqlDatabaseName
     entraExternalIdTenantId: entraExternalIdTenantId
@@ -194,18 +177,42 @@ module functions 'modules/functions.bicep' = {
     appRoleClient: appRoleClient
     appRoleAdministrator: appRoleAdministrator
     appRoleAdvisor: appRoleAdvisor
-    environment: environment
     tags: tags
   }
 }
 
 // ============================================================================
-// Static Web App (Blazor WASM)
+// Static Web App with Linked Backend
 // ============================================================================
-// SKIPPED: SWA already exists in 'rajfinancial' resource group (Central US)
-// Uses preview environments for dev/prod branching
+// NOTE: SWA already exists in 'rajfinancial' resource group (Central US)
+// The SWA was created before this Bicep and uses preview environments.
 // Existing SWA: gray-cliff-072f3b510.azurestaticapps.net
+// Custom Domain: app.rajfinancial.net
+//
+// To migrate to IaC-managed SWA:
+// 1. Update DNS CNAME for app.rajfinancial.net to point to new SWA hostname
+// 2. Uncomment the module below
+// 3. Deploy Bicep
+// 4. Get new deployment token: az staticwebapp secrets list --name <swa> --query "properties.apiKey" -o tsv
+// 5. Update GitHub secret AZURE_STATIC_WEB_APPS_API_TOKEN with new token
+// 6. Update workflow to use new SWA name in deploy action
 // ============================================================================
+
+// module staticWebApp 'modules/staticwebapp.bicep' = {
+//   name: 'staticwebapp-deployment'
+//   scope: rg
+//   params: {
+//     location: 'centralus'  // Must match existing SWA region
+//     staticWebAppName: 'stapp-${baseName}-${environment}'
+//     skuName: 'Standard'  // Standard required for linked backends
+//     linkedBackendResourceId: functions.outputs.functionAppId
+//     linkedBackendRegion: 'centralus'
+//     customDomain: environment == 'prod' ? 'app.rajfinancial.net' : ''
+//     repositoryUrl: 'https://github.com/jamesconsultingllc/rajfinancial'
+//     repositoryBranch: environment == 'prod' ? 'main' : 'develop'
+//     tags: tags
+//   }
+// }
 
 // ============================================================================
 // Identity & RBAC Assignments
@@ -216,7 +223,6 @@ module identity 'modules/identity.bicep' = {
   scope: rg
   params: {
     functionAppPrincipalId: functions.outputs.functionAppPrincipalId
-    keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
   }
 }
@@ -226,7 +232,6 @@ module identity 'modules/identity.bicep' = {
 // ============================================================================
 
 output resourceGroupName string = rg.name
-output keyVaultUri string = keyVault.outputs.keyVaultUri
 output functionAppUrl string = functions.outputs.functionAppUrl
 output sqlServerFqdn string = sql.outputs.sqlServerFqdn
 // output redisHostName string = redis.outputs.redisHostName  // Redis disabled

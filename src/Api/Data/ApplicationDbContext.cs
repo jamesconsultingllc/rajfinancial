@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using RajFinancial.Shared.Entities;
 
@@ -7,6 +6,7 @@ namespace RajFinancial.Api.Data;
 /// <summary>
 /// Main database context for RAJ Financial application.
 /// Configured to use Azure SQL with Managed Identity authentication.
+/// Entity configurations are in <c>Data/Configurations/</c>.
 /// </summary>
 public class ApplicationDbContext : DbContext
 {
@@ -44,128 +44,7 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Apply all entity configurations from this assembly
+        // Apply all IEntityTypeConfiguration<T> classes from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-
-        // Configure UserProfile
-        modelBuilder.Entity<UserProfile>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            // Index for fast lookups by email and tenant
-            entity.HasIndex(e => e.Email);
-            entity.HasIndex(e => e.TenantId);
-            entity.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
-
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.DisplayName).HasMaxLength(256);
-            entity.Property(e => e.FirstName).HasMaxLength(100);
-            entity.Property(e => e.LastName).HasMaxLength(100);
-            entity.Property(e => e.PhoneNumber).HasMaxLength(20);
-            entity.Property(e => e.PreferencesJson).HasColumnType("nvarchar(max)");
-
-            // Store enum as string for readability
-            entity.Property(e => e.Role)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-        });
-
-        // Configure DataAccessGrant
-        modelBuilder.Entity<DataAccessGrant>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            // Indexes for efficient queries
-            entity.HasIndex(e => new { e.GrantorUserId, e.GranteeUserId });
-            entity.HasIndex(e => e.GranteeUserId);
-            entity.HasIndex(e => e.GranteeEmail);
-            entity.HasIndex(e => e.InvitationToken).IsUnique();
-            entity.HasIndex(e => e.Status);
-
-            entity.Property(e => e.GrantorUserId).IsRequired();
-            entity.Property(e => e.GranteeEmail).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.RelationshipLabel).HasMaxLength(100);
-            entity.Property(e => e.InvitationToken).HasMaxLength(128);
-            entity.Property(e => e.Notes).HasMaxLength(500);
-
-            // Store enum as string for readability
-            entity.Property(e => e.AccessType)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-
-            entity.Property(e => e.Status)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-
-            // Store categories as JSON
-            entity.Property(e => e.Categories)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-                .HasColumnType("nvarchar(max)");
-
-            // Configure relationships
-            entity.HasOne<UserProfile>()
-                .WithMany()
-                .HasForeignKey(e => e.GrantorUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne<UserProfile>()
-                .WithMany()
-                .HasForeignKey(e => e.GranteeUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        // Configure Asset (TPH base)
-        modelBuilder.Entity<Asset>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            // TPH discriminator
-            entity.HasDiscriminator<string>("AssetDiscriminator")
-                .HasValue<Asset>("Asset")
-                .HasValue<DepreciableAsset>("DepreciableAsset");
-
-            // Indexes for efficient queries
-            entity.HasIndex(e => e.UserId);
-            entity.HasIndex(e => new { e.UserId, e.Type });
-            entity.HasIndex(e => new { e.UserId, e.IsDisposed });
-
-            // Property constraints
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Description).HasMaxLength(2000);
-            entity.Property(e => e.Location).HasMaxLength(500);
-            entity.Property(e => e.AccountNumber).HasMaxLength(100);
-            entity.Property(e => e.InstitutionName).HasMaxLength(200);
-            entity.Property(e => e.DisposalNotes).HasMaxLength(2000);
-
-            // Decimal precision
-            entity.Property(e => e.CurrentValue).HasPrecision(18, 2);
-            entity.Property(e => e.PurchasePrice).HasPrecision(18, 2);
-            entity.Property(e => e.DisposalPrice).HasPrecision(18, 2);
-            entity.Property(e => e.MarketValue).HasPrecision(18, 2);
-
-            // Store enum as string for readability
-            entity.Property(e => e.Type)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-
-            // FK to UserProfile with restrict delete
-            entity.HasOne<UserProfile>()
-                .WithMany()
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        // Configure DepreciableAsset (TPH derived)
-        modelBuilder.Entity<DepreciableAsset>(entity =>
-        {
-            entity.Property(e => e.SalvageValue).HasPrecision(18, 2);
-
-            // Store enum as string for readability
-            entity.Property(e => e.DepreciationMethod)
-                .HasConversion<string>()
-                .HasMaxLength(50);
-        });
     }
 }

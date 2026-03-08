@@ -1,0 +1,9 @@
+{
+  "auth": {
+    "authenticating": "Authenticating...",
+    "redirecting": "Redirecting to sign in...",
+    "sessionExpired": "Session Expired",
+    "sessionExpiredDescription": "Your session has expired. Please sign in again.",
+    "signIn": "Sign In"
+  }
+}

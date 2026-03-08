@@ -7,8 +7,6 @@ on:
       - main
       - develop
       - 'release/**'
-      - 'feature/**'
-      - 'hotfix/**'
     paths:
       - 'src/**'
       - 'tests/**'
@@ -51,27 +49,27 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          dotnet-version: '9.0.x'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/Client/package-lock.json
 
-      - name: Restore Client dependencies
-        run: dotnet restore tests/Client.Tests/RajFinancial.Client.Tests.csproj
-
-      - name: Build Client tests
-        run: dotnet build tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release
+      - name: Install Client dependencies
+        run: npm ci
+        working-directory: src/Client
 
       - name: Run Client unit tests
-        run: dotnet test tests/Client.Tests/RajFinancial.Client.Tests.csproj --no-restore --configuration Release --verbosity normal --logger trx
+        run: npm test
+        working-directory: src/Client
 
   build_and_deploy_job:
-    # Always deploy for feature/hotfix branches (preview), or when src changed for main/develop
+    # Deploy when src changed for main/develop/release branches
+    # Feature/hotfix branches are deployed manually via CLI
     if: |
       github.event_name != 'pull_request' &&
-      (needs.detect_changes.outputs.src_changed == 'true' ||
-       startsWith(github.ref, 'refs/heads/feature/') ||
-       startsWith(github.ref, 'refs/heads/hotfix/'))
+      needs.detect_changes.outputs.src_changed == 'true'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
@@ -94,29 +92,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Use localStorage for MSAL in non-production
-        if: github.ref != 'refs/heads/main'
+      - name: Set MSAL environment variables
         run: |
-          # Use localStorage for MSAL cache in non-production environments
-          # This enables Playwright E2E tests to work with sessionStorage not persisting across contexts
-          cat > src/Client/wwwroot/appsettings.json << 'EOF'
-          {
-            "AzureAd": {
-              "Authority": "https://rajfinancialdev.ciamlogin.com/rajfinancialdev.onmicrosoft.com",
-              "ClientId": "2d6a08c7-b142-4d53-a307-9ac75bae75eb",
-              "ValidateAuthority": true
-            },
-            "Msal": {
-              "CacheLocation": "localStorage"
-            }
-          }
-          EOF
-          echo "Updated appsettings.json to use localStorage for MSAL cache"
+          cat > src/Client/.env.local << EOF
+VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}
+VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
+VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}
+EOF
+          echo "Created .env.local for ${{ github.ref }} build"
 
       - name: Build And Deploy
         id: builddeploy
@@ -127,7 +110,7 @@ jobs:
           action: upload
           deployment_environment: ${{ steps.resolve-env.outputs.target-slot }}
           app_location: "src/Client"
-          output_location: "wwwroot"
+          output_location: "dist"
           production_branch: main
           skip_app_build: false
           skip_api_build: true
@@ -158,7 +141,7 @@ jobs:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net/
-          callback-path: '/authentication/login-callback'
+          callback-path: '/'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS management when storage account is created
@@ -212,122 +195,48 @@ jobs:
           fi
           echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
 
-      - name: Azure Login with OIDC
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Fetch Test Passwords from SWA Settings
-        id: fetch-passwords
+      - name: Mask sensitive environment variables
         run: |
-          target_env="${{ steps.resolve-env.outputs.target-environment }}"
-          source_env="${{ steps.resolve-env.outputs.source-environment }}"
+          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+          echo "::add-mask::${{ secrets.IMAP_PASSWORD }}"
 
-          # Test passwords are Entra credentials shared across all environments.
-          # Try the target environment first; fall back to the source (development)
-          # so that PR preview slots (which may not have settings synced yet) still work.
-          for env in "$target_env" "$source_env"; do
-            echo "Trying environment: $env"
-            settings=$(az staticwebapp appsettings list \
-              --name rajfinancial \
-              --resource-group rajfinancial \
-              --environment-name "$env" \
-              --query "properties" -o json 2>/dev/null || echo "{}")
-
-            admin_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADMINISTRATOR // empty')
-            if [[ -n "$admin_password" ]]; then
-              echo "Found test passwords in environment: $env"
-              break
-            fi
-            echo "Test passwords not found in $env, trying next..."
-          done
-
-          # Extract all role passwords from whichever environment succeeded
-          advisor_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_ADVISOR // empty')
-          client_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_CLIENT // empty')
-          viewer_password=$(echo "$settings" | jq -r '.DEVELOPMENT_TEST_VIEWER // empty')
-
-          # Set as masked environment variables for subsequent steps
-          if [[ -n "$admin_password" ]]; then
-            echo "::add-mask::$admin_password"
-            echo "TEST_ADMINISTRATOR_PASSWORD=$admin_password" >> "$GITHUB_ENV"
-            echo "Found DEVELOPMENT_TEST_ADMINISTRATOR password"
-          else
-            echo "::warning::DEVELOPMENT_TEST_ADMINISTRATOR not found in any SWA environment"
-          fi
-
-          if [[ -n "$advisor_password" ]]; then
-            echo "::add-mask::$advisor_password"
-            echo "TEST_ADVISOR_PASSWORD=$advisor_password" >> "$GITHUB_ENV"
-            echo "Found DEVELOPMENT_TEST_ADVISOR password"
-          else
-            echo "::warning::DEVELOPMENT_TEST_ADVISOR not found in any SWA environment"
-          fi
-
-          if [[ -n "$client_password" ]]; then
-            echo "::add-mask::$client_password"
-            echo "TEST_CLIENT_PASSWORD=$client_password" >> "$GITHUB_ENV"
-            echo "Found DEVELOPMENT_TEST_CLIENT password"
-          else
-            echo "::warning::DEVELOPMENT_TEST_CLIENT not found in any SWA environment"
-          fi
-
-          if [[ -n "$viewer_password" ]]; then
-            echo "::add-mask::$viewer_password"
-            echo "TEST_VIEWER_PASSWORD=$viewer_password" >> "$GITHUB_ENV"
-            echo "Found DEVELOPMENT_TEST_VIEWER password"
-          else
-            echo "::warning::DEVELOPMENT_TEST_VIEWER not found in any SWA environment"
-          fi
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          dotnet-version: '9.0.x'
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
 
-      - name: Restore dependencies
-        run: dotnet restore src/RajFinancial.sln
+      - name: Install E2E dependencies
+        run: npm ci
+        working-directory: tests/e2e
 
-      - name: Build test project
-        run: dotnet build tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --configuration Debug
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+        working-directory: tests/e2e
 
-      - name: Install Playwright browser (${{ matrix.browser }})
-        run: pwsh tests/AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install ${{ matrix.browser }} --with-deps
-
-      - name: Wait for deployment to stabilize
-        if: needs.build_and_deploy_job.result == 'success'
-        run: sleep 30
-
-      - name: Run E2E Acceptance Tests (${{ matrix.browser }})
-        run: dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj --no-build --configuration Debug --verbosity normal --logger trx --settings tests/AcceptanceTests/AcceptanceTests.runsettings --filter "Category!=signup"
+      - name: Run E2E tests (${{ matrix.browser }})
+        run: npm run test:${{ matrix.browser }}
+        working-directory: tests/e2e
         env:
           BASE_URL: ${{ steps.swa-url.outputs.url }}
           BROWSER: ${{ matrix.browser }}
+          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
+          IMAP_HOST: ${{ secrets.IMAP_HOST }}
+          IMAP_USERNAME: ${{ secrets.IMAP_USERNAME }}
+          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
 
-      - name: Upload test results
+      - name: Upload E2E test reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: e2e-test-results-${{ matrix.browser }}
-          path: tests/AcceptanceTests/TestResults/
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Upload debug screenshots
-        if: failure()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: e2e-debug-screenshots-${{ matrix.browser }}
+          name: e2e-reports-${{ matrix.browser }}
           path: |
-            /tmp/entra-*.png
-            /tmp/auth-failed-*.png
-            /tmp/login-redirect-*.png
-            TestResults/Screenshots/
-            tests/AcceptanceTests/TestResults/Screenshots/
-          if-no-files-found: ignore
-          retention-days: 1
+            tests/e2e/reports/
+          retention-days: 14
 
   close_pull_request_job:
     if: |
@@ -385,7 +294,7 @@ jobs:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
           origin: https://gray-cliff-072f3b510-${{ steps.source-env.outputs.sanitized-branch }}.centralus.azurestaticapps.net/
-          callback-path: '/authentication/login-callback'
+          callback-path: '/'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS cleanup when storage account is created
@@ -398,10 +307,22 @@ jobs:
       #     storage-account-key: ${{ secrets.STORAGE_ACCOUNT_KEY }}
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
-      - name: Close Preview Environment
-        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
+      - name: Azure Login with OIDC (for SWA delete)
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_CLIFF_072F3B510 }}
-          action: close
-          deployment_environment: ${{ steps.source-env.outputs.sanitized-branch }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Close Preview Environment
+        run: |
+          ENV_NAME="${{ steps.source-env.outputs.sanitized-branch }}"
+          echo "Closing SWA environment: $ENV_NAME"
+          
+          # Delete the preview environment using Azure CLI
+          az staticwebapp environment delete \
+            --name rajfinancial \
+            --resource-group rajfinancial \
+            --environment-name "$ENV_NAME" \
+            --yes || echo "Environment $ENV_NAME may not exist or already deleted"
 
