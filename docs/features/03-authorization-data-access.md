@@ -407,8 +407,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 - Identity & MFA: [02-identity-authentication.md](02-identity-authentication.md)
 - Tier limits (sharing = premium): [01-platform-infrastructure.md](01-platform-infrastructure.md)
-- Asset access control: [04-assets.md](04-assets.md)
-- Contact access control: [05-contacts.md](05-contacts.md)
+- Asset access control: [05-assets-portfolio.md](05-assets-portfolio.md)
+- Contact access control: [04-contacts-beneficiaries.md](04-contacts-beneficiaries.md)
 
 ---
 

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "10735576490851706548"
+      "templateHash": "7964813067211776627"
     }
   },
   "parameters": {
@@ -673,9 +673,6 @@
           "appRoleAdvisor": {
             "value": "[parameters('appRoleAdvisor')]"
           },
-          "environment": {
-            "value": "[parameters('environment')]"
-          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -687,7 +684,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "5418984621953401882"
+              "templateHash": "4510191872344432149"
             }
           },
           "parameters": {
@@ -767,16 +764,6 @@
               "type": "string",
               "metadata": {
                 "description": "Advisor App Role GUID"
-              }
-            },
-            "environment": {
-              "type": "string",
-              "allowedValues": [
-                "dev",
-                "prod"
-              ],
-              "metadata": {
-                "description": "The environment (dev or prod)"
               }
             },
             "tags": {

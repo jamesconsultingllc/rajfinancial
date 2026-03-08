@@ -125,18 +125,9 @@ interface PayoffRequest {
 }
 ```
 
-### PayoffResult
+### PayoffMonth
 
 ```typescript
-/** Result of payoff calculation for a single strategy. */
-interface PayoffResult {
-  strategy: 'avalanche' | 'snowball';
-  totalMonths: number;
-  totalInterestPaid: number;
-  payoffDate: string;           // ISO date string
-  schedule: PayoffMonth[];
-}
-
 /** A single month in the payoff schedule. */
 interface PayoffMonth {
   month: number;
@@ -528,9 +519,9 @@ Response: `StrategyComparison`
 ```json
 {
   "debts": [
-    { "id": "1", "name": "Credit Card", "balance": 5000, "interestRate": 0.1899, "minimumPayment": 150 },
-    { "id": "2", "name": "Car Loan", "balance": 12000, "interestRate": 0.0649, "minimumPayment": 300 },
-    { "id": "3", "name": "Student Loan", "balance": 25000, "interestRate": 0.0499, "minimumPayment": 250 }
+    { "id": "1", "name": "Credit Card", "balance": 5000, "rateSegments": [ { "rate": 0.1899 } ], "minimumPayment": 150 },
+    { "id": "2", "name": "Car Loan", "balance": 12000, "rateSegments": [ { "rate": 0.0649 } ], "minimumPayment": 300 },
+    { "id": "3", "name": "Student Loan", "balance": 25000, "rateSegments": [ { "rate": 0.0499 } ], "minimumPayment": 250 }
   ],
   "extraMonthlyPayment": 200
 }
@@ -554,10 +545,17 @@ Response: `StrategyComparison`
     "payoffDate": "2029-07-01",
     "schedule": [...]
   },
-  "interestSavings": 410.67,
-  "monthsSaved": 2,
-  "recommendedStrategy": "avalanche",
-  "recommendation": "Avalanche saves you $410.67 in interest and pays off debt 2 months faster."
+  "cashFlowIndex": {
+    "strategy": "cashFlowIndex",
+    "totalMonths": 39,
+    "totalInterestPaid": 5010.00,
+    "payoffDate": "2029-06-01",
+    "schedule": [...]
+  },
+  "lowestInterest": "avalanche",
+  "fastestPayoff": "avalanche",
+  "bestCashFlow": "cashFlowIndex",
+  "maxInterestSavings": 410.67
 }
 ```
 

@@ -1,4 +1,126 @@
 {
+  "page": {
+    "title": "Assets | RAJ Financial",
+    "heading": "Assets",
+    "addAsset": "Add Asset",
+    "viewModeLabel": "View mode",
+    "cardView": "Card view",
+    "tableView": "Table view",
+    "filterLabel": "Filter by asset type"
+  },
+  "filters": {
+    "All": "All",
+    "RealEstate": "Real Estate",
+    "Vehicle": "Vehicles",
+    "Investment": "Investments",
+    "Retirement": "Retirement",
+    "BankAccount": "Bank Accounts",
+    "Business": "Business",
+    "Other": "Other"
+  },
+  "summary": {
+    "totalValue": "Total Assets Value",
+    "count": "Number of Assets",
+    "topCategory": "Top Category",
+    "needsAttention": "Needs Attention"
+  },
+  "actions": {
+    "moreActions": "More actions",
+    "edit": "Edit",
+    "updateValue": "Update Value",
+    "manageBeneficiaries": "Manage Beneficiaries",
+    "delete": "Delete"
+  },
+  "beneficiaryStatus": {
+    "assigned": "Assigned",
+    "none": "None"
+  },
+  "table": {
+    "name": "Name",
+    "currentValue": "Current Value",
+    "purchasePrice": "Purchase Price",
+    "beneficiaries": "Beneficiaries"
+  },
+  "empty": {
+    "title": "No assets yet",
+    "description": "Start building your financial picture by adding your first asset — property, accounts, investments, and more.",
+    "addFirst": "Add Your First Asset"
+  },
+  "deleteDialog": {
+    "title": "Delete Asset",
+    "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone. All associated beneficiary assignments will also be removed.",
+    "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "confirm": "Delete"
+  },
+  "toast": {
+    "deleted": "\"{{name}}\" has been deleted",
+    "deleteFailed": "Failed to delete asset. Please try again.",
+    "updated": "Asset updated successfully",
+    "updateFailed": "Failed to update asset",
+    "added": "Asset added successfully",
+    "addFailed": "Failed to add asset"
+  },
+  "beneficiaryDialog": {
+    "title": "Manage Beneficiaries",
+    "description": "Assign contacts to {{name}} with roles and allocation percentages.",
+    "loading": "Loading…",
+    "emptyState": "No beneficiaries assigned yet.",
+    "table": {
+      "contact": "Contact",
+      "role": "Role",
+      "designation": "Designation",
+      "allocation": "Allocation",
+      "perStirpes": "Per Stirpes"
+    },
+    "editAssignment": "Edit assignment",
+    "deleteAssignment": "Delete assignment",
+    "save": "Save",
+    "cancel": "Cancel",
+    "addForm": {
+      "heading": "Add Assignment",
+      "contactLabel": "Contact",
+      "roleLabel": "Role",
+      "designationLabel": "Designation",
+      "allocationLabel": "Allocation %",
+      "allocationPlaceholder": "e.g. 50",
+      "selectContact": "Select contact…",
+      "noContacts": "No available contacts",
+      "perStirpesLabel": "Per Stirpes — share passes to descendants if beneficiary predeceases",
+      "cancel": "Cancel",
+      "adding": "Adding…",
+      "add": "Add"
+    },
+    "addAssignment": "Add Assignment",
+    "close": "Close",
+    "badge": {
+      "primary": "Primary",
+      "contingent": "Contingent"
+    },
+    "toast": {
+      "assigned": "{{name}} assigned",
+      "assignFailed": "Failed to add assignment",
+      "updated": "Assignment updated",
+      "updateFailed": "Failed to update",
+      "removed": "{{name}} removed",
+      "removeFailed": "Failed to remove"
+    }
+  },
+  "coverageWarning": {
+    "NoBeneficiaries": {
+      "title": "No Beneficiaries Assigned",
+      "description": "This asset has no beneficiaries. Without designated beneficiaries, the asset may be subject to probate."
+    },
+    "IncompleteAllocation": {
+      "title": "Incomplete Allocation",
+      "description": "Beneficiary allocations do not total 100%. Adjust allocations to ensure full coverage."
+    },
+    "NoContingentBeneficiaries": {
+      "title": "No Contingent Beneficiaries",
+      "description": "This asset has no contingent beneficiaries. Consider adding backup beneficiaries in case primary beneficiaries are unable to inherit."
+    },
+    "resolve": "Resolve"
+  },
   "help": {
     "common": {
       "currentValue": "What you believe this asset is worth today.",

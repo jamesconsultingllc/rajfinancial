@@ -187,7 +187,7 @@ jobs:
           exit 1
 
   integration-test-dev:
-    if: ${{ always() && needs.deploy-dev.result == 'success' }}
+    if: ${{ needs.deploy-dev.result == 'success' }}
     runs-on: ubuntu-latest
     name: Integration Tests (Dev)
     needs: deploy-dev
@@ -314,7 +314,7 @@ jobs:
           exit 1
 
   integration-test-prod:
-    if: ${{ always() && needs.deploy-prod.result == 'success' }}
+    if: ${{ needs.deploy-prod.result == 'success' }}
     runs-on: ubuntu-latest
     name: Integration Tests (Prod)
     needs: deploy-prod

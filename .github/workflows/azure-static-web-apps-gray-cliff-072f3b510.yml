@@ -50,9 +50,9 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: src/Client/package-lock.json
 
@@ -95,10 +95,10 @@ jobs:
       - name: Set MSAL environment variables
         run: |
           cat > src/Client/.env.local << EOF
-          VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}
-          VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
-          VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}
-          EOF
+VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}
+VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
+VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}
+EOF
           echo "Created .env.local for ${{ github.ref }} build"
 
       - name: Build And Deploy

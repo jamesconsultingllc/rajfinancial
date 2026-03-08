@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,9 +13,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  Tooltip, TooltipContent, TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Plus, MoreHorizontal, ChevronRight, AlertTriangle, Package,
-  Pencil, DollarSign, Archive, Users, Trash2, CheckCircle2,
+  Pencil, DollarSign, Users, Trash2, CheckCircle2,
   LayoutGrid, List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,27 +34,22 @@ import {
   type AssetDto, type AssetType, ASSET_TYPE_LABELS, ASSET_TYPE_ICONS, formatCurrency,
 } from "@/types/assets";
 import { AssetFormSheet } from "@/components/assets/AssetFormSheet";
+import { BeneficiaryAssignmentDialog } from "@/components/assets/BeneficiaryAssignmentDialog";
 import { toast } from "sonner";
 
-const FILTER_TABS: { label: string; value: AssetType | "All" }[] = [
-  { label: "All", value: "All" },
-  { label: "Real Estate", value: "RealEstate" },
-  { label: "Vehicles", value: "Vehicle" },
-  { label: "Investments", value: "Investment" },
-  { label: "Retirement", value: "Retirement" },
-  { label: "Bank Accounts", value: "BankAccount" },
-  { label: "Business", value: "Business" },
-  { label: "Other", value: "Other" },
+const FILTER_VALUES: (AssetType | "All")[] = [
+  "All", "RealEstate", "Vehicle", "Investment", "Retirement", "BankAccount", "Business", "Other",
 ];
 
 function SummaryCards({ assets }: { assets: AssetDto[] }) {
+  const { t } = useTranslation("assets");
   const summary = computeAssetsSummary(assets);
   const cards = [
-    { label: "Total Assets Value", value: formatCurrency(summary.totalValue), accent: true },
-    { label: "Number of Assets", value: String(summary.count) },
-    { label: "Top Category", value: summary.topCategory },
+    { label: t("summary.totalValue"), value: formatCurrency(summary.totalValue), accent: true },
+    { label: t("summary.count"), value: String(summary.count) },
+    { label: t("summary.topCategory"), value: summary.topCategory },
     {
-      label: "Needs Attention",
+      label: t("summary.needsAttention"),
       value: String(summary.needsAttention),
       warning: summary.needsAttention > 0,
     },
@@ -93,38 +86,36 @@ function AssetIcon({ type }: { type: AssetType }) {
   );
 }
 
-function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function ActionsMenu({ asset, onEdit, onDelete, onManageBeneficiaries }: {
+  asset: AssetDto;
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
+  const { t } = useTranslation("assets");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("actions.moreActions")}>
           <MoreHorizontal className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => onEdit(asset)}>
-          <Pencil className="w-4 h-4 mr-2" /> Edit
+          <Pencil className="w-4 h-4 mr-2" /> {t("actions.edit")}
         </DropdownMenuItem>
         <DropdownMenuItem>
-          <DollarSign className="w-4 h-4 mr-2" /> Update Value
+          <DollarSign className="w-4 h-4 mr-2" /> {t("actions.updateValue")}
         </DropdownMenuItem>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuItem disabled className="opacity-50">
-              <Archive className="w-4 h-4 mr-2" /> Mark as Disposed
-            </DropdownMenuItem>
-          </TooltipTrigger>
-          <TooltipContent side="left">Coming soon</TooltipContent>
-        </Tooltip>
-        <DropdownMenuItem>
-          <Users className="w-4 h-4 mr-2" /> Manage Beneficiaries
+        <DropdownMenuItem onClick={() => onManageBeneficiaries(asset)}>
+          <Users className="w-4 h-4 mr-2" /> {t("actions.manageBeneficiaries")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={() => onDelete(asset)}
         >
-          <Trash2 className="w-4 h-4 mr-2" /> Delete
+          <Trash2 className="w-4 h-4 mr-2" /> {t("actions.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -132,27 +123,34 @@ function ActionsMenu({ asset, onEdit, onDelete }: { asset: AssetDto; onEdit: (as
 }
 
 function BeneficiaryStatus({ has }: { has: boolean }) {
+  const { t } = useTranslation("assets");
   if (has) {
     return (
       <span className="inline-flex items-center gap-1 text-sm text-[hsl(var(--success))]">
-        <CheckCircle2 className="w-4 h-4" /> Assigned
+        <CheckCircle2 className="w-4 h-4" /> {t("beneficiaryStatus.assigned")}
       </span>
     );
   }
-  return <Badge variant="secondary" className="bg-primary/10 text-primary border-0">None</Badge>;
+  return <Badge variant="secondary" className="bg-primary/10 text-primary border-0">{t("beneficiaryStatus.none")}</Badge>;
 }
 
-function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function AssetTable({ assets, onEdit, onDelete, onManageBeneficiaries }: {
+  assets: AssetDto[];
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
+  const { t } = useTranslation("assets");
   return (
     <div>
       <Card className="bg-card border-border/50">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Current Value</TableHead>
-              <TableHead className="text-right">Purchase Price</TableHead>
-              <TableHead>Beneficiaries</TableHead>
+              <TableHead>{t("table.name")}</TableHead>
+              <TableHead className="text-right">{t("table.currentValue")}</TableHead>
+              <TableHead className="text-right">{t("table.purchasePrice")}</TableHead>
+              <TableHead>{t("table.beneficiaries")}</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -178,7 +176,7 @@ function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: 
                   <BeneficiaryStatus has={asset.hasBeneficiaries} />
                 </TableCell>
                 <TableCell>
-                  <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} />
+                  <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} onManageBeneficiaries={onManageBeneficiaries} />
                 </TableCell>
               </TableRow>
             ))}
@@ -189,34 +187,30 @@ function AssetTable({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: 
   );
 }
 
-function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (asset: AssetDto) => void; onDelete: (asset: AssetDto) => void }) {
+function CardGrid({ assets, onEdit, onDelete, onManageBeneficiaries }: {
+  assets: AssetDto[];
+  onEdit: (asset: AssetDto) => void;
+  onDelete: (asset: AssetDto) => void;
+  onManageBeneficiaries: (asset: AssetDto) => void;
+}) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {assets.map((asset) => (
-        <Card key={asset.id} className="bg-card border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onEdit(asset)}>
+        <Card key={asset.id} className="bg-card border-border/50 hover:border-primary/30 transition-colors">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer" role="button" tabIndex={0} onClick={() => onEdit(asset)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(asset); } }}>
                 <AssetIcon type={asset.type} />
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{asset.name}</p>
                   <p className="text-xs text-muted-foreground">{ASSET_TYPE_LABELS[asset.type]}</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                aria-label={`Delete ${asset.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(asset);
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div onClick={(e) => e.stopPropagation()}>
+                <ActionsMenu asset={asset} onEdit={onEdit} onDelete={onDelete} onManageBeneficiaries={onManageBeneficiaries} />
+              </div>
             </div>
-            <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center justify-between mt-3 cursor-pointer" role="button" tabIndex={0} onClick={() => onEdit(asset)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(asset); } }}>
               <p className="text-lg font-bold text-foreground">{formatCurrency(asset.currentValue)}</p>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -226,6 +220,7 @@ function CardGrid({ assets, onEdit, onDelete }: { assets: AssetDto[]; onEdit: (a
     </div>
   );
 }
+
 
 function LoadingState() {
   return (
@@ -249,23 +244,25 @@ function LoadingState() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation("assets");
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
         <Package className="w-8 h-8 text-primary" />
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">No assets yet</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-1">{t("empty.title")}</h3>
       <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-        Start building your financial picture by adding your first asset — property, accounts, investments, and more.
+        {t("empty.description")}
       </p>
       <Button variant="gold">
-        <Plus className="w-4 h-4" /> Add Your First Asset
+        <Plus className="w-4 h-4" /> {t("empty.addFirst")}
       </Button>
     </div>
   );
 }
 
 export default function Assets() {
+  const { t } = useTranslation("assets");
   const [activeFilter, setActiveFilter] = useState<AssetType | "All">("All");
   const [viewMode, setViewMode] = useState<"card" | "table">(() => {
     const stored = localStorage.getItem("assets-view-mode");
@@ -275,6 +272,7 @@ export default function Assets() {
   const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AssetDto | null>(null);
+  const [beneficiaryAsset, setBeneficiaryAsset] = useState<AssetDto | null>(null);
 
   useEffect(() => {
     localStorage.setItem("assets-view-mode", viewMode);
@@ -308,12 +306,12 @@ export default function Assets() {
 
     deleteAsset.mutate(assetToDelete.id, {
       onSuccess: () => {
-        toast.success(`"${assetToDelete.name}" has been deleted`);
+        toast.success(t("toast.deleted", { name: assetToDelete.name }));
         setDeleteDialogOpen(false);
         setAssetToDelete(null);
       },
       onError: () => {
-        toast.error("Failed to delete asset. Please try again.");
+        toast.error(t("toast.deleteFailed"));
       },
     });
   }
@@ -324,19 +322,19 @@ export default function Assets() {
         { id: editingAsset.id, data: values },
         {
           onSuccess: () => {
-            toast.success("Asset updated successfully");
+            toast.success(t("toast.updated"));
             setSheetOpen(false);
           },
-          onError: () => toast.error("Failed to update asset"),
+          onError: () => toast.error(t("toast.updateFailed")),
         }
       );
     } else {
       createAsset.mutate(values, {
         onSuccess: () => {
-          toast.success("Asset added successfully");
+          toast.success(t("toast.added"));
           setSheetOpen(false);
         },
-        onError: () => toast.error("Failed to add asset"),
+        onError: () => toast.error(t("toast.addFailed")),
       });
     }
   }
@@ -344,7 +342,7 @@ export default function Assets() {
   return (
     <DashboardLayout>
       <Helmet>
-        <title>Assets | RAJ Financial</title>
+        <title>{t("page.title")}</title>
       </Helmet>
 
       <div className="space-y-6">
@@ -353,9 +351,9 @@ export default function Assets() {
         )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-foreground">Assets</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("page.heading")}</h1>
           <div className="flex items-center gap-3">
-            <div className="flex border border-border rounded-lg overflow-hidden" role="group" aria-label="View mode">
+            <div className="flex border border-border rounded-lg overflow-hidden" role="group" aria-label={t("page.viewModeLabel")}>
               <button
                 onClick={() => setViewMode("card")}
                 className={cn(
@@ -364,7 +362,7 @@ export default function Assets() {
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 )}
-                aria-label="Card view"
+                aria-label={t("page.cardView")}
                 aria-pressed={viewMode === "card"}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -377,33 +375,33 @@ export default function Assets() {
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 )}
-                aria-label="Table view"
+                aria-label={t("page.tableView")}
                 aria-pressed={viewMode === "table"}
               >
                 <List className="w-4 h-4" />
               </button>
             </div>
             <Button variant="gold" className="sm:w-auto w-full" onClick={handleOpenAdd}>
-              <Plus className="w-4 h-4" /> Add Asset
+              <Plus className="w-4 h-4" /> {t("page.addAsset")}
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Filter by asset type">
-          {FILTER_TABS.map((tab) => (
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("page.filterLabel")}>
+          {FILTER_VALUES.map((value) => (
             <button
-              key={tab.value}
+              key={value}
               role="radio"
-              aria-checked={activeFilter === tab.value}
-              onClick={() => setActiveFilter(tab.value)}
+              aria-checked={activeFilter === value}
+              onClick={() => setActiveFilter(value)}
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                activeFilter === tab.value
+                activeFilter === value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
               )}
             >
-              {tab.label}
+              {t(`filters.${value}`)}
             </button>
           ))}
         </div>
@@ -414,9 +412,9 @@ export default function Assets() {
           <EmptyState />
         ) : (
           viewMode === "table" ? (
-            <AssetTable assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+            <AssetTable assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} onManageBeneficiaries={setBeneficiaryAsset} />
           ) : (
-            <CardGrid assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} />
+            <CardGrid assets={filteredAssets} onEdit={handleOpenEdit} onDelete={handleDeleteClick} onManageBeneficiaries={setBeneficiaryAsset} />
           )
         )}
       </div>
@@ -432,14 +430,13 @@ export default function Assets() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{assetToDelete?.name}</strong>?
-              This action cannot be undone. All associated beneficiary assignments will also be removed.
+              {t("deleteDialog.description", { name: assetToDelete?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("deleteDialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 onClick={(e) => {
@@ -449,12 +446,20 @@ export default function Assets() {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={deleteAsset.isPending}
               >
-                {deleteAsset.isPending ? "Deleting..." : "Delete"}
+                {deleteAsset.isPending ? t("deleteDialog.deleting") : t("deleteDialog.confirm")}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {beneficiaryAsset && (
+        <BeneficiaryAssignmentDialog
+          open={!!beneficiaryAsset}
+          onOpenChange={(open) => { if (!open) setBeneficiaryAsset(null); }}
+          asset={beneficiaryAsset}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -48,10 +48,6 @@ param appRoleAdministrator string
 @description('Advisor App Role GUID')
 param appRoleAdvisor string
 
-@description('The environment (dev or prod)')
-@allowed(['dev', 'prod'])
-param environment string
-
 @description('Tags to apply to resources')
 param tags object
 
@@ -61,8 +57,8 @@ param tags object
 
 var planName = 'asp-${functionAppName}'
 
-// Use Consumption (Y1) for both environments - pay per execution only
-// Upgrade to EP1 (Elastic Premium) if VNet integration or always-warm is needed
+// Use Consumption (Y1) plan for all environments - pay per execution only.
+// To use EP1 (Elastic Premium) for VNet integration or always-warm, update this SKU explicitly.
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
