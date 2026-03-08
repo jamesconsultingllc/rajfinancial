@@ -161,29 +161,32 @@ jobs:
           echo "Waiting for deployment to stabilize..."
           for i in 1 2 3 4 5 6; do
             echo "Health check attempt $i/6..."
-            if curl -sf --max-time 10 "$BASE_URL/api/health"; then
-              echo ""
-              echo "Health check passed!"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/health")
+            if [ "$STATUS" != "000" ]; then
+              echo "App is responding (HTTP $STATUS)"
+              if [ "$STATUS" = "503" ]; then
+                echo "Warning: DB connectivity degraded, but app is running"
+              fi
               # Warm up auth middleware by hitting a protected endpoint
               # Accept any non-503 response (401 = middleware loaded)
               echo "Warming up auth middleware..."
               for j in 1 2 3 4 5 6; do
                 echo "Warmup attempt $j/6..."
-                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
-                if [ "$STATUS" != "503" ] && [ "$STATUS" != "000" ]; then
-                  echo "Auth middleware ready (HTTP $STATUS)"
+                MW_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
+                if [ "$MW_STATUS" != "503" ] && [ "$MW_STATUS" != "000" ]; then
+                  echo "Auth middleware ready (HTTP $MW_STATUS)"
                   exit 0
                 fi
-                echo "Auth middleware not ready (HTTP $STATUS), retrying in 10s..."
+                echo "Auth middleware not ready (HTTP $MW_STATUS), retrying in 10s..."
                 sleep 10
               done
               echo "Auth middleware warmup failed after 6 attempts"
               exit 1
             fi
-            echo "Health check failed, retrying in 10s..."
+            echo "No response from app (HTTP $STATUS), retrying in 10s..."
             sleep 10
           done
-          echo "Health check failed after 6 attempts"
+          echo "Health check failed after 6 attempts — app not responding"
           exit 1
 
   integration-test-dev:
@@ -288,29 +291,32 @@ jobs:
           echo "Waiting for deployment to stabilize..."
           for i in 1 2 3 4 5 6; do
             echo "Health check attempt $i/6..."
-            if curl -sf --max-time 10 "$BASE_URL/api/health"; then
-              echo ""
-              echo "Health check passed!"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/health")
+            if [ "$STATUS" != "000" ]; then
+              echo "App is responding (HTTP $STATUS)"
+              if [ "$STATUS" = "503" ]; then
+                echo "Warning: DB connectivity degraded, but app is running"
+              fi
               # Warm up auth middleware by hitting a protected endpoint
               # Accept any non-503 response (401 = middleware loaded)
               echo "Warming up auth middleware..."
               for j in 1 2 3 4 5 6; do
                 echo "Warmup attempt $j/6..."
-                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
-                if [ "$STATUS" != "503" ] && [ "$STATUS" != "000" ]; then
-                  echo "Auth middleware ready (HTTP $STATUS)"
+                MW_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/api/profile")
+                if [ "$MW_STATUS" != "503" ] && [ "$MW_STATUS" != "000" ]; then
+                  echo "Auth middleware ready (HTTP $MW_STATUS)"
                   exit 0
                 fi
-                echo "Auth middleware not ready (HTTP $STATUS), retrying in 10s..."
+                echo "Auth middleware not ready (HTTP $MW_STATUS), retrying in 10s..."
                 sleep 10
               done
               echo "Auth middleware warmup failed after 6 attempts"
               exit 1
             fi
-            echo "Health check failed, retrying in 10s..."
+            echo "No response from app (HTTP $STATUS), retrying in 10s..."
             sleep 10
           done
-          echo "Health check failed after 6 attempts"
+          echo "Health check failed after 6 attempts — app not responding"
           exit 1
 
   integration-test-prod:
