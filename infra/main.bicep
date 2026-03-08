@@ -177,7 +177,6 @@ module functions 'modules/functions.bicep' = {
     appRoleClient: appRoleClient
     appRoleAdministrator: appRoleAdministrator
     appRoleAdvisor: appRoleAdvisor
-    environment: environment
     tags: tags
   }
 }
