@@ -44,7 +44,6 @@ function renderWarning(
   props: {
     warningType: CoverageWarningType;
     message?: string;
-    assetId?: string;
     onResolve?: () => void;
   },
 ) {

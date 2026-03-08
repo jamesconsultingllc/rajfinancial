@@ -23,7 +23,6 @@ export type CoverageWarningType =
 export interface CoverageWarningProps {
   warningType: CoverageWarningType;
   message?: string;
-  assetId?: string;
   onResolve?: () => void;
 }
 
