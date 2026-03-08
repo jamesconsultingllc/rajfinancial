@@ -102,7 +102,12 @@ export async function updateAssetLink(
   const links = assetLinksStore[assetId] ?? [];
   const idx = links.findIndex((l) => l.id === linkId);
   if (idx === -1) throw new Error("LINK_NOT_FOUND");
-  links[idx] = { ...links[idx], ...data };
+  links[idx] = {
+    ...links[idx],
+    ...data,
+    designation: data.designation ?? null,
+    allocationPercent: data.allocationPercent ?? null,
+  };
   return links[idx];
 }
 
@@ -136,7 +141,10 @@ export function useCreateAssetLink() {
       contactDisplayName: string;
       data: CreateAssetContactLinkRequest;
     }) => createAssetLink(vars.assetId, vars.assetName, vars.contactId, vars.contactDisplayName, vars.data),
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] });
+      qc.invalidateQueries({ queryKey: ["assets"] });
+    },
   });
 }
 
@@ -145,7 +153,10 @@ export function useUpdateAssetLink() {
   return useMutation({
     mutationFn: (vars: { linkId: string; assetId: string; data: UpdateAssetContactLinkRequest }) =>
       updateAssetLink(vars.linkId, vars.assetId, vars.data),
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] });
+      qc.invalidateQueries({ queryKey: ["assets"] });
+    },
   });
 }
 
@@ -153,6 +164,9 @@ export function useDeleteAssetLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { linkId: string; assetId: string }) => deleteAssetLink(vars.linkId, vars.assetId),
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["asset-links", vars.assetId] });
+      qc.invalidateQueries({ queryKey: ["assets"] });
+    },
   });
 }

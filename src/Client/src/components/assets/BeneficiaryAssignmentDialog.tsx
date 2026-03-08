@@ -5,6 +5,7 @@
  * and provides a form to add new assignments from the contacts list.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -43,6 +44,7 @@ const DESIGNATIONS: DesignationType[] = ["Primary", "Contingent"];
 export function BeneficiaryAssignmentDialog({
   open, onOpenChange, asset,
 }: BeneficiaryAssignmentDialogProps) {
+  const { t } = useTranslation("assets");
   const { data: contacts = [] } = useContacts();
   const { data: links = [], isLoading } = useAssetLinks(asset.id);
   const createLink = useCreateAssetLink();
@@ -105,10 +107,10 @@ export function BeneficiaryAssignmentDialog({
       },
       {
         onSuccess: () => {
-          toast.success(`${contact.displayName} assigned`);
+          toast.success(t("beneficiaryDialog.toast.assigned", { name: contact.displayName }));
           resetAddForm();
         },
-        onError: () => toast.error("Failed to add assignment"),
+        onError: () => toast.error(t("beneficiaryDialog.toast.assignFailed")),
       }
     );
   }
@@ -135,10 +137,10 @@ export function BeneficiaryAssignmentDialog({
       },
       {
         onSuccess: () => {
-          toast.success("Assignment updated");
+          toast.success(t("beneficiaryDialog.toast.updated"));
           setEditingLinkId(null);
         },
-        onError: () => toast.error("Failed to update"),
+        onError: () => toast.error(t("beneficiaryDialog.toast.updateFailed")),
       }
     );
   }
@@ -147,8 +149,8 @@ export function BeneficiaryAssignmentDialog({
     deleteLink.mutate(
       { linkId, assetId: asset.id },
       {
-        onSuccess: () => toast.success(`${name} removed`),
-        onError: () => toast.error("Failed to remove"),
+        onSuccess: () => toast.success(t("beneficiaryDialog.toast.removed", { name })),
+        onError: () => toast.error(t("beneficiaryDialog.toast.removeFailed")),
       }
     );
   }
@@ -158,38 +160,38 @@ export function BeneficiaryAssignmentDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" /> Manage Beneficiaries
+            <Users className="w-5 h-5" /> {t("beneficiaryDialog.title")}
           </DialogTitle>
           <DialogDescription>
-            Assign contacts to <strong>{asset.name}</strong> with roles and allocation percentages.
+            {t("beneficiaryDialog.description", { name: asset.name })}
           </DialogDescription>
         </DialogHeader>
 
         {/* Allocation summary */}
         <div className="flex flex-wrap gap-3">
-          <AllocationBadge label="Primary" total={primaryTotal} />
-          <AllocationBadge label="Contingent" total={contingentTotal} />
+          <AllocationBadge label={t("beneficiaryDialog.badge.primary")} total={primaryTotal} />
+          <AllocationBadge label={t("beneficiaryDialog.badge.contingent")} total={contingentTotal} />
         </div>
 
         <Separator />
 
         {/* Existing assignments */}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">{t("beneficiaryDialog.loading")}</p>
         ) : links.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            No beneficiaries assigned yet.
+            {t("beneficiaryDialog.emptyState")}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead className="text-right">Allocation</TableHead>
-                  <TableHead className="text-center">Per Stirpes</TableHead>
+                  <TableHead>{t("beneficiaryDialog.table.contact")}</TableHead>
+                  <TableHead>{t("beneficiaryDialog.table.role")}</TableHead>
+                  <TableHead>{t("beneficiaryDialog.table.designation")}</TableHead>
+                  <TableHead className="text-right">{t("beneficiaryDialog.table.allocation")}</TableHead>
+                  <TableHead className="text-center">{t("beneficiaryDialog.table.perStirpes")}</TableHead>
                   <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
@@ -238,8 +240,8 @@ export function BeneficiaryAssignmentDialog({
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="sm" onClick={() => handleSaveEdit(link.id)}
-                            disabled={updateLink.isPending}>Save</Button>
-                          <Button variant="ghost" size="sm" onClick={() => setEditingLinkId(null)}>Cancel</Button>
+                            disabled={updateLink.isPending}>{t("beneficiaryDialog.save")}</Button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingLinkId(null)}>{t("beneficiaryDialog.cancel")}</Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -263,11 +265,13 @@ export function BeneficiaryAssignmentDialog({
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7"
+                            aria-label={t("beneficiaryDialog.editAssignment")}
                             onClick={() => handleStartEdit(link)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon"
                             className="h-7 w-7 text-destructive hover:text-destructive"
+                            aria-label={t("beneficiaryDialog.deleteAssignment")}
                             onClick={() => handleDelete(link.id, link.contactDisplayName)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -286,15 +290,15 @@ export function BeneficiaryAssignmentDialog({
         {/* Add new assignment */}
         {showAddForm ? (
           <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border/50">
-            <h4 className="text-sm font-semibold text-foreground">Add Assignment</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("beneficiaryDialog.addForm.heading")}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Contact</Label>
+                <Label htmlFor="add-contact">{t("beneficiaryDialog.addForm.contactLabel")}</Label>
                 <Select value={selectedContactId} onValueChange={setSelectedContactId}>
-                  <SelectTrigger><SelectValue placeholder="Select contact…" /></SelectTrigger>
+                  <SelectTrigger id="add-contact"><SelectValue placeholder={t("beneficiaryDialog.addForm.selectContact")} /></SelectTrigger>
                   <SelectContent>
                     {availableContacts.length === 0 ? (
-                      <SelectItem value="__none" disabled>No available contacts</SelectItem>
+                      <SelectItem value="__none" disabled>{t("beneficiaryDialog.addForm.noContacts")}</SelectItem>
                     ) : (
                       availableContacts.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.displayName}</SelectItem>
@@ -304,9 +308,9 @@ export function BeneficiaryAssignmentDialog({
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Role</Label>
+                <Label htmlFor="add-role">{t("beneficiaryDialog.addForm.roleLabel")}</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as AssetContactRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="add-role"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ROLES.map((r) => (
                       <SelectItem key={r} value={r}>{ASSET_CONTACT_ROLE_LABELS[r]}</SelectItem>
@@ -317,9 +321,9 @@ export function BeneficiaryAssignmentDialog({
               {role === "Beneficiary" && (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Designation</Label>
+                    <Label htmlFor="add-designation">{t("beneficiaryDialog.addForm.designationLabel")}</Label>
                     <Select value={designation} onValueChange={(v) => setDesignation(v as DesignationType)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="add-designation"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {DESIGNATIONS.map((d) => (
                           <SelectItem key={d} value={d}>{DESIGNATION_LABELS[d]}</SelectItem>
@@ -328,10 +332,11 @@ export function BeneficiaryAssignmentDialog({
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Allocation %</Label>
+                    <Label htmlFor="add-allocation">{t("beneficiaryDialog.addForm.allocationLabel")}</Label>
                     <Input
+                      id="add-allocation"
                       type="number" min={0} max={100}
-                      placeholder="e.g. 50"
+                      placeholder={t("beneficiaryDialog.addForm.allocationPlaceholder")}
                       value={allocation}
                       onChange={(e) => setAllocation(e.target.value)}
                     />
@@ -343,28 +348,28 @@ export function BeneficiaryAssignmentDialog({
                       onCheckedChange={(v) => setPerStirpes(!!v)}
                     />
                     <Label htmlFor="per-stirpes" className="text-sm cursor-pointer">
-                      Per Stirpes — share passes to descendants if beneficiary predeceases
+                      {t("beneficiaryDialog.addForm.perStirpesLabel")}
                     </Label>
                   </div>
                 </>
               )}
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={resetAddForm}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={resetAddForm}>{t("beneficiaryDialog.addForm.cancel")}</Button>
               <Button variant="gold" size="sm" onClick={handleAdd}
                 disabled={!selectedContactId || createLink.isPending}>
-                {createLink.isPending ? "Adding…" : "Add"}
+                {createLink.isPending ? t("beneficiaryDialog.addForm.adding") : t("beneficiaryDialog.addForm.add")}
               </Button>
             </div>
           </div>
         ) : (
           <Button variant="outline" className="w-full" onClick={() => setShowAddForm(true)}>
-            <Plus className="w-4 h-4" /> Add Assignment
+            <Plus className="w-4 h-4" /> {t("beneficiaryDialog.addAssignment")}
           </Button>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("beneficiaryDialog.close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
