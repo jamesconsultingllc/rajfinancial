@@ -106,6 +106,21 @@
       "removeFailed": "Failed to remove"
     }
   },
+  "coverageWarning": {
+    "NoBeneficiaries": {
+      "title": "No Beneficiaries Assigned",
+      "description": "This asset has no beneficiaries. Without designated beneficiaries, the asset may be subject to probate."
+    },
+    "IncompleteAllocation": {
+      "title": "Incomplete Allocation",
+      "description": "Beneficiary allocations do not total 100%. Adjust allocations to ensure full coverage."
+    },
+    "NoContingentBeneficiaries": {
+      "title": "No Contingent Beneficiaries",
+      "description": "This asset has no contingent beneficiaries. Consider adding backup beneficiaries in case primary beneficiaries are unable to inherit."
+    },
+    "resolve": "Resolve"
+  },
   "help": {
     "common": {
       "currentValue": "What you believe this asset is worth today.",
