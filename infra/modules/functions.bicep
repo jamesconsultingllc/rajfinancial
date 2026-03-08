@@ -61,8 +61,9 @@ param tags object
 
 var planName = 'asp-${functionAppName}'
 
-// Use Consumption (Y1) for both environments - pay per execution only
-// Upgrade to EP1 (Elastic Premium) if VNet integration or always-warm is needed
+// Use Consumption (Y1) plan for all environments - pay per execution only.
+// To use EP1 (Elastic Premium) for VNet integration or always-warm, update this SKU explicitly;
+// the `environment` parameter is not used for plan selection and is retained for other configuration.
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
