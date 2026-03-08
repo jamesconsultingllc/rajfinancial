@@ -519,9 +519,9 @@ Response: `StrategyComparison`
 ```json
 {
   "debts": [
-    { "id": "1", "name": "Credit Card", "balance": 5000, "interestRate": 0.1899, "minimumPayment": 150 },
-    { "id": "2", "name": "Car Loan", "balance": 12000, "interestRate": 0.0649, "minimumPayment": 300 },
-    { "id": "3", "name": "Student Loan", "balance": 25000, "interestRate": 0.0499, "minimumPayment": 250 }
+    { "id": "1", "name": "Credit Card", "balance": 5000, "rateSegments": [ { "rate": 0.1899 } ], "minimumPayment": 150 },
+    { "id": "2", "name": "Car Loan", "balance": 12000, "rateSegments": [ { "rate": 0.0649 } ], "minimumPayment": 300 },
+    { "id": "3", "name": "Student Loan", "balance": 25000, "rateSegments": [ { "rate": 0.0499 } ], "minimumPayment": 250 }
   ],
   "extraMonthlyPayment": 200
 }

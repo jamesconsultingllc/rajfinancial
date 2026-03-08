@@ -314,7 +314,7 @@ jobs:
           exit 1
 
   integration-test-prod:
-    if: ${{ always() && needs.deploy-prod.result == 'success' }}
+    if: ${{ needs.deploy-prod.result == 'success' }}
     runs-on: ubuntu-latest
     name: Integration Tests (Prod)
     needs: deploy-prod
