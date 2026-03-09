@@ -1,0 +1,107 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.40.2.10011",
+      "templateHash": "12113312145315618996"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region for resources"
+      }
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name for Static Web App"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "metadata": {
+        "description": "Tags to apply to resources"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Free",
+        "Standard"
+      ],
+      "metadata": {
+        "description": "SKU name for the Static Web App"
+      }
+    },
+    "linkedBackendResourceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional: Resource ID of the Azure Functions app to link as backend"
+      }
+    },
+    "linkedBackendRegion": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional: Region of the linked backend (must match Functions app region)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('staticWebAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "[parameters('skuName')]",
+        "tier": "[parameters('skuName')]"
+      },
+      "properties": {
+        "stagingEnvironmentPolicy": "Enabled",
+        "allowConfigFileUpdates": true,
+        "buildProperties": {
+          "skipGithubActionWorkflowGeneration": true
+        }
+      }
+    },
+    {
+      "condition": "[not(equals(parameters('linkedBackendResourceId'), ''))]",
+      "type": "Microsoft.Web/staticSites/linkedBackends",
+      "apiVersion": "2023-12-01",
+      "name": "[format('{0}/{1}', parameters('staticWebAppName'), 'backend')]",
+      "properties": {
+        "backendResourceId": "[parameters('linkedBackendResourceId')]",
+        "region": "[if(not(equals(parameters('linkedBackendRegion'), '')), parameters('linkedBackendRegion'), parameters('location'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "staticWebAppId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[parameters('staticWebAppName')]"
+    },
+    "staticWebAppUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-12-01').defaultHostname)]"
+    },
+    "staticWebAppDefaultHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-12-01').defaultHostname]"
+    }
+  }
+}

@@ -1,8 +1,10 @@
 # 06 — Accounts & Transactions
 
-> Linked bank accounts via Plaid, manual accounts, transaction sync, cursor-based pagination, spending summaries, user annotations, and tier gating.
+> Linked bank accounts via Plaid, manual accounts, cloud storage document import, transaction sync, cursor-based pagination, spending summaries, user annotations, and tier gating.
 
 **ADO Tracking:** [Epic #309 — 06 - Accounts & Transactions](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/309)
+
+### Plaid & Manual Accounts
 
 | # | Feature | State |
 |---|---------|-------|
@@ -12,11 +14,27 @@
 | [522](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/522) | Transaction Service & API | New |
 | [524](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/524) | Spending & Transaction UI | New |
 
+### Cloud Storage Document Import
+
+> Users connect OneDrive, Google Drive, or Dropbox via OAuth. The app scans for financial documents (bank/brokerage statements), extracts structured data via Azure Document Intelligence, and populates existing `LinkedAccount` + `Transaction` entities with `Source = DocumentImport`. Documents never leave the user's cloud storage.
+>
+> **Specification:** [`CLOUD_STORAGE_INTEGRATION_SPECIFICATION.md`](../CLOUD_STORAGE_INTEGRATION_SPECIFICATION.md)
+
+| # | Feature | State |
+|---|---------|-------|
+| TBD | Cloud Storage OAuth Integration (OneDrive, Google Drive, Dropbox) | New |
+| TBD | Cloud Storage Connection Management API | New |
+| TBD | Document Discovery & Scanning Pipeline | New |
+| TBD | Document Parsing via Azure Document Intelligence | New |
+| TBD | Transaction Extraction & User Confirmation Flow | New |
+| TBD | Cloud Storage Connection UI (connect, folder picker, scan) | New |
+| TBD | Extraction Review & Approval UI | New |
+
 ---
 
 ## Overview
 
-RAJ Financial connects users' bank accounts via **Plaid** (Premium) or **manual entry** (Free) and syncs transactions into a relational store optimized for date-range queries, category aggregation, and merchant search. The transaction pipeline follows a **hybrid storage** strategy — typed relational columns for queried fields, a JSON column for the full Plaid payload to avoid schema changes as Plaid evolves.
+RAJ Financial connects users' bank accounts via **Plaid** (Premium), **manual entry** (Free), or **cloud storage document import** (Free with limits) and syncs transactions into a relational store optimized for date-range queries, category aggregation, and merchant search. The transaction pipeline follows a **hybrid storage** strategy — typed relational columns for queried fields, a JSON column for the full Plaid payload to avoid schema changes as Plaid evolves. The cloud storage path adds a document-scanning pipeline that extracts transaction data from PDFs/images of financial statements using AI, with mandatory user review before committing.
 
 Key design decisions:
 
