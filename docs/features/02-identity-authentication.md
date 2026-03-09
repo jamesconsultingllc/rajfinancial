@@ -11,6 +11,7 @@
 | [266](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/266) | Test Users & Security Policies | New |
 | [267](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/267) | Entra User Flows Configuration | New |
 | [502](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/502) | ROPC-Based Auth for Integration & E2E Tests | In Progress |
+| [552](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/552) | React SPA ↔ Auth API Integration | New |
 
 ---
 

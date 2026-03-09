@@ -144,7 +144,7 @@ public class AuthFunctions(
 
         var responseDto = new UserRolesResponse
         {
-            Roles = roles,
+            Roles = roles.ToArray(),
             IsAdministrator = isAdministrator
         };
 

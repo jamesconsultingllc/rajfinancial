@@ -19,10 +19,9 @@
 
 1. Read `session.md` to understand where we left off
 2. Read the ADO work item for full task context
-3. Check execution plans for current progress:
-   - `docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`
-   - `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`
-   - `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`
+3. Check feature docs and plans for context:
+   - `docs/features/` — Feature specification documents
+   - `docs/plans/` — Implementation plans
 
 ---
 
@@ -37,7 +36,7 @@ You may create a temporary `IMPLEMENTATION_PLAN.md` at repo root for the current
 - **Global Standards**: [E:\AGENT.md](file:///E:/AGENT.md)
 - **Project Instructions**: [AGENT.md](AGENT.md)
 - **Copilot Instructions**: [.github/copilot-instructions.md](.github/copilot-instructions.md)
-- **Execution Plan**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN.md](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md)
-- **API Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md](docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md)
-- **UI Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md](docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md)
-- **UI Design**: [docs/RAJ_FINANCIAL_UI.md](docs/RAJ_FINANCIAL_UI.md)
+- **Feature Docs**: [docs/features/](docs/features/) (all feature specifications)
+- **Implementation Plans**: [docs/plans/](docs/plans/) (phased implementation plans)
+- **Entity Architecture**: [docs/features/12-entity-structure.md](docs/features/12-entity-structure.md)
+- **Entity Implementation Plan**: [docs/plans/2026-03-08-entity-restructure.md](docs/plans/2026-03-08-entity-restructure.md)

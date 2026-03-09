@@ -242,15 +242,20 @@ For every feature, follow this exact sequence:
 - `@testing-library/user-event` 14.6.1 - User interaction simulation
 - `jsdom` 26.1.0 - DOM environment for tests
 
-**Testing (`tests/` - .NET):**
+**Testing (.NET — `tests/Api.Tests/` + `tests/IntegrationTests/`):**
 - `xunit` 2.9.3 + `xunit.runner.visualstudio` - Unit test framework
-- `Reqnroll` 3.3.0 + `Reqnroll.xUnit` - BDD/Gherkin acceptance tests
-- `Microsoft.Playwright` 1.57.0 - Browser automation / E2E
-- `Deque.AxeCore.Playwright` 4.10.1 - Accessibility testing (axe-core)
+- `Reqnroll` 3.3.0 + `Reqnroll.xUnit` - BDD/Gherkin API integration tests
 - `FluentAssertions` 8.8.0 - Assertion library
 - `Moq` 4.20.72 - Mocking framework
 - `coverlet.collector` 6.0.4 - Code coverage
 - `MailKit` 4.14.1 - Email testing
+
+**Testing (E2E — `tests/e2e/`):**
+- `@cucumber/cucumber` 11.2.0 - Cucumber.js BDD framework (Gherkin features)
+- `@playwright/test` 1.52.0 - Browser automation (Chromium, Firefox, WebKit)
+- TypeScript step definitions with `ts-node`
+- Pre-authenticated storage states for Entra login (avoids per-scenario login)
+- Screenshot on failure, HTML + JSON reports
 
 ### Coding Standards
 
@@ -337,8 +342,11 @@ rajfinancial/
 │   └── public/                                   # Static assets
 ├── src/Shared/RajFinancial.Shared.csproj        # Shared models (net9.0;net10.0)
 ├── tests/Api.Tests/RajFinancial.Api.Tests.csproj           # API unit tests (net10.0)
-├── tests/IntegrationTests/RajFinancial.IntegrationTests.csproj  # Integration tests
-└── tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj    # Reqnroll + Playwright (net9.0)
+├── tests/IntegrationTests/RajFinancial.IntegrationTests.csproj  # BDD API integration (Reqnroll + Gherkin)
+└── tests/e2e/                                               # BDD E2E acceptance (Cucumber.js + Playwright)
+    ├── features/                                            # Gherkin .feature files
+    ├── step-definitions/                                    # TypeScript step definitions
+    └── support/                                             # Hooks, world, config, helpers
 ```
 
 ---
@@ -356,9 +364,11 @@ rajfinancial/
 ```
 src/
 ├── Api/                    # Azure Functions API (backend)
-│   ├── Functions/          # HTTP trigger functions
-│   ├── Services/           # Business logic services
-│   └── Middleware/         # Auth, validation, error handling
+│   ├── Functions/          # HTTP trigger functions (one file per resource)
+│   ├── Services/           # Business logic services (interface + implementation)
+│   ├── Middleware/         # Auth, validation, error handling, content negotiation
+│   ├── Validators/         # FluentValidation validators
+│   └── Data/               # EF Core DbContext, configurations, migrations
 ├── Client/                 # React + TypeScript (frontend)
 │   ├── src/
 │   │   ├── pages/          # Route page components
@@ -366,19 +376,22 @@ src/
 │   │   │   └── ui/         # shadcn/ui primitives
 │   │   ├── auth/           # MSAL authentication
 │   │   ├── hooks/          # Custom React hooks
-│   │   ├── services/       # API client services
+│   │   ├── services/       # API client services (TanStack Query hooks)
 │   │   ├── types/          # TypeScript types/interfaces
+│   │   ├── locales/        # i18n translation JSON files
 │   │   └── generated/      # Auto-generated code (MemoryPack)
 │   └── public/             # Static assets
-├── Shared/                 # Shared library
-│   ├── Entities/           # Domain entities
-│   ├── Models/             # DTOs and domain models
-│   └── Contracts/          # Interfaces and DTOs
+├── Shared/                 # Shared library (multi-target net9.0;net10.0)
+│   ├── Entities/           # Domain entities (MemoryPackable, EF-mapped)
+│   └── Contracts/          # DTOs, request models, error codes (by feature)
 tests/
-├── Api.Tests/              # API unit tests (xUnit)
-├── IntegrationTests/       # Integration tests
-└── AcceptanceTests/        # BDD acceptance tests (Reqnroll + Gherkin)
-docs/                       # Documentation and planning
+├── Api.Tests/              # Unit tests (xUnit + FluentAssertions + InMemoryDb)
+├── IntegrationTests/       # BDD API integration tests (Reqnroll + Gherkin .feature)
+└── e2e/                    # BDD E2E acceptance tests (Cucumber.js + Playwright + Gherkin .feature)
+docs/
+├── features/               # Feature specification documents
+├── plans/                  # Implementation plans
+└── lovable-prompts/        # UI generation prompts
 ```
 
 ---
@@ -422,6 +435,15 @@ src/Client/public/images/brand/
 
 ## Testing (Project-Specific)
 
+### Three Test Layers
+
+| Layer | Location | Framework | Purpose |
+|-------|----------|-----------|---------|
+| **Unit Tests** | `tests/Api.Tests/` | xUnit + FluentAssertions + InMemoryDb + Moq | Service logic, validators, middleware |
+| **API Integration (BDD)** | `tests/IntegrationTests/` | Reqnroll + Gherkin `.feature` (C#) | HTTP endpoints against live Functions host |
+| **E2E Acceptance (BDD)** | `tests/e2e/` | Cucumber.js + Playwright + Gherkin `.feature` (TypeScript) | Full browser flows, navigation, a11y |
+| **Component Tests** | `src/Client/src/**/__tests__/` | Vitest + Testing Library + jsdom | React component behavior |
+
 ### Test File Organization
 
 ```
@@ -430,33 +452,60 @@ src/Client/src/                    # React tests (colocated with source)
 ├── pages/__tests__/               # Page component tests
 ├── auth/__tests__/                # Auth logic tests
 ├── hooks/__tests__/               # Custom hook tests
+├── services/__tests__/            # Service hook tests
 └── test/                          # Test setup, mocks, utilities
 
-tests/                             # .NET tests
+tests/                             # .NET + E2E tests
 ├── Api.Tests/
 │   ├── Middleware/                # Middleware unit tests
-│   ├── Services/                  # Service unit tests
-│   └── Functions/                 # Function unit tests
-├── IntegrationTests/              # API integration tests
-└── AcceptanceTests/
-    ├── Features/                  # Gherkin .feature files
-    ├── StepDefinitions/           # Step definition classes
-    └── Support/                   # Test hooks, helpers
+│   ├── Services/                  # Service unit tests (per feature)
+│   └── Serialization/            # MemoryPack round-trip tests
+├── IntegrationTests/              # BDD API integration (Reqnroll)
+│   ├── Features/                  # Gherkin .feature files (@api @security tags)
+│   ├── StepDefinitions/           # C# step definition classes
+│   └── Support/                   # FunctionsHostFixture, TestAuthHelper
+└── e2e/                           # BDD E2E acceptance (Cucumber.js + Playwright)
+    ├── features/                  # Gherkin .feature files (@requires-auth @mobile tags)
+    ├── step-definitions/          # TypeScript step definitions
+    └── support/                   # World, hooks, config, Entra auth helpers
 ```
+
+### BDD Feature File Conventions
+
+**API Integration features** (`tests/IntegrationTests/Features/`):
+- Tag with `@api @{feature} @security`
+- Background: `Given the API is running`
+- Test auth guard (401), CRUD operations, validation (400), IDOR prevention (403/404)
+- Use `@smoke` for happy path, `@security @A01` for OWASP scenarios
+
+**E2E features** (`tests/e2e/features/`):
+- Tag with `@{feature} @requires-auth` (or `@unauthenticated`)
+- Test UI navigation, form interactions, mobile responsiveness, keyboard accessibility
+- Use `@smoke` for critical paths, `@mobile` for mobile-specific, `@accessibility` for a11y
 
 ### Running Tests
 
 ```bash
-# .NET tests
-dotnet test                                      # All .NET tests
-dotnet test tests/Api.Tests                      # API tests only
-dotnet test tests/AcceptanceTests                # BDD tests only
-dotnet test --collect:"XPlat Code Coverage"      # With coverage
-dotnet test --filter "Category=Security"         # Security tests only
+# .NET unit tests
+dotnet test tests/Api.Tests                      # API unit tests only
+dotnet test tests/Api.Tests --filter "FullyQualifiedName~EntityService"  # Specific service
 
-# React tests
+# .NET BDD integration tests (requires func start running)
+dotnet test tests/IntegrationTests               # All integration scenarios
+dotnet test tests/IntegrationTests --filter "Tag=entities"  # Entity scenarios only
+dotnet test tests/IntegrationTests --filter "Tag=security"  # Security scenarios only
+
+# All .NET tests with coverage
+dotnet test --collect:"XPlat Code Coverage"
+
+# React component tests
 cd src/Client && npm test                        # Run all React tests
 cd src/Client && npm run test:watch              # Watch mode
+
+# E2E acceptance tests (requires app running)
+cd tests/e2e && npm test                         # All E2E scenarios
+cd tests/e2e && npm run test:headed              # Headed mode (see browser)
+cd tests/e2e && npm run test:chromium            # Chromium only
 ```
 
 ---
@@ -727,14 +776,12 @@ public void CreateAssetRequest_MemoryPackRoundTrip_PreservesAllProperties()
 
 ## UI Implementation
 
-**All UI must follow [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md).**
-
 **Component Library**: shadcn/ui (Radix UI primitives + Tailwind CSS)
 **Reference**: https://ui.shadcn.com/
 
 Before creating any UI component:
 1. Check if shadcn/ui has the component (`npx shadcn-ui@latest add <component>`)
-2. Check `docs/RAJ_FINANCIAL_UI.md` for existing specifications
+2. Check `docs/features/` for existing feature specifications
 3. Follow component structure and design tokens specified
 4. Use Radix UI primitives for accessibility
 5. Apply glass morphism via GlassCard component where appropriate
@@ -745,15 +792,14 @@ Before creating any UI component:
 
 ## Planning & Progress Tracking
 
-### Execution Plans (Source of Truth)
+### Planning Documents
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) | Master execution plan |
-| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md) | API progress tracking |
-| [`docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`](docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md) | UI progress tracking |
-| [`docs/RAJ_FINANCIAL_INTEGRATIONS_API.md`](docs/RAJ_FINANCIAL_INTEGRATIONS_API.md) | API integration specs |
-| [`docs/RAJ_FINANCIAL_UI.md`](docs/RAJ_FINANCIAL_UI.md) | UI design specs |
+| [`docs/features/`](docs/features/) | Feature design specifications |
+| [`docs/plans/`](docs/plans/) | Implementation plans |
+| [`docs/features/12-entity-structure.md`](docs/features/12-entity-structure.md) | Entity-First Architecture design |
+| [`docs/plans/2026-03-08-entity-restructure.md`](docs/plans/2026-03-08-entity-restructure.md) | Entity restructure implementation plan |
 
 ---
 
@@ -761,53 +807,72 @@ Before creating any UI component:
 
 ### Adding a New API Endpoint
 
-1. Write Gherkin feature file in `tests/AcceptanceTests/Features/`
-2. Write step definitions (stubs)
-3. Write unit tests (security scenarios first) in `tests/Api.Tests/`
-4. Create function in `src/Api/Functions/`
-5. Add service in `src/Api/Services/` if needed
-6. Add DTOs in `src/Shared/Models/`
-7. Verify all tests pass, coverage >= 90%
-8. Update `docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md`
+1. Write BDD feature file in `tests/IntegrationTests/Features/{Feature}.feature`
+2. Write step definition stubs in `tests/IntegrationTests/StepDefinitions/{Feature}Steps.cs`
+3. Write unit tests (security first) in `tests/Api.Tests/Services/{Feature}/`
+4. Create error codes in `src/Shared/Contracts/{Feature}/{Feature}ErrorCodes.cs`
+5. Create DTOs in `src/Shared/Contracts/{Feature}/`
+6. Create validator in `src/Api/Validators/`
+7. Create service interface + implementation in `src/Api/Services/{Feature}/`
+8. Create Functions endpoint in `src/Api/Functions/{Feature}/`
+9. Register service + validator in `src/Api/Program.cs`
+10. Verify all tests pass, coverage >= 90%
 
 ### Adding a New React Page
 
-1. Write Gherkin feature file for user-facing behavior
-2. Write Vitest tests (a11y + behavior) in `pages/__tests__/`
-3. Create page component in `src/Client/src/pages/`
-4. Add route in router configuration
-5. Create child components in `src/Client/src/components/`
-6. Add localization strings (i18next or similar)
-7. Verify all tests pass
-8. Update `docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md`
+1. Write E2E BDD feature file in `tests/e2e/features/{Feature}.feature`
+2. Write step definitions in `tests/e2e/step-definitions/{feature}.steps.ts`
+3. Write Vitest tests (a11y + behavior) in `src/Client/src/pages/__tests__/`
+4. Create TypeScript types in `src/Client/src/types/{feature}.ts`
+5. Create TanStack Query service hooks in `src/Client/src/services/{feature}-service.ts`
+6. Create page component in `src/Client/src/pages/{Feature}.tsx`
+7. Add route in `src/Client/src/App.tsx`
+8. Create child components in `src/Client/src/components/{feature}/`
+9. Add i18n translation keys in `src/Client/src/locales/en/{feature}.json`
+10. Verify all tests pass
 
 ### Adding Localization (React)
 
-1. Add string to localization JSON (e.g., `locales/en.json`)
-2. Add translations to other locale files (`locales/{locale}.json`)
-3. Use `useTranslation()` hook in component
-4. Use `t('key')` for translated strings
+1. Add translation keys to `src/Client/src/locales/en/{feature}.json`
+2. Use `useTranslation()` hook: `const { t } = useTranslation();`
+3. Use `t('feature.section.key')` for translated strings
+4. Use `Intl.NumberFormat` for currency/number formatting
+5. Use `Intl.DateTimeFormat` for date formatting
+6. Account for text expansion (30-50% longer than English)
 
 ---
 
 ## Useful Commands
 
 ```bash
-# .NET
-dotnet build src/RajFinancial.sln                # Build .NET projects
-dotnet test                                       # All .NET tests
-dotnet test --collect:"XPlat Code Coverage"       # Coverage
-dotnet format src/RajFinancial.sln                # Format C# code
+# .NET — Build & Run
+dotnet build src/RajFinancial.sln                # Build all .NET projects
 cd src/Api && func start                          # Run API locally
+dotnet format src/RajFinancial.sln                # Format C# code
 dotnet list package --vulnerable                  # Audit .NET deps
 
-# React Client
+# .NET — Tests
+dotnet test tests/Api.Tests                       # Unit tests
+dotnet test tests/IntegrationTests                # BDD API integration tests
+dotnet test --collect:"XPlat Code Coverage"       # All tests with coverage
+dotnet test tests/Api.Tests --filter "FullyQualifiedName~EntityService"  # Specific service
+
+# React Client — Build & Run
 cd src/Client && npm install                      # Install dependencies
 cd src/Client && npm run dev                      # Run dev server
 cd src/Client && npm run build                    # Production build
-cd src/Client && npm test                         # Run tests
 cd src/Client && npm run lint                     # Lint TypeScript
 npm audit                                         # Audit npm deps
+
+# React Client — Tests
+cd src/Client && npm test                         # Component tests (Vitest)
+cd src/Client && npm run test:watch              # Watch mode
+
+# E2E Acceptance Tests (Cucumber.js + Playwright)
+cd tests/e2e && npm test                          # All E2E BDD scenarios
+cd tests/e2e && npm run test:headed               # Headed mode (see browser)
+cd tests/e2e && npm run test:chromium             # Chromium only
+cd tests/e2e && npm run playwright:install        # Install browser binaries
 ```
 
 ---

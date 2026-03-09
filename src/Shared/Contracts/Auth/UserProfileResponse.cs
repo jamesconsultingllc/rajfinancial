@@ -5,6 +5,8 @@
 // profile information derived from Entra claims and local UserProfile data.
 // ============================================================================
 
+using MemoryPack;
+
 namespace RajFinancial.Shared.Contracts.Auth;
 
 /// <summary>
@@ -33,35 +35,43 @@ namespace RajFinancial.Shared.Contracts.Auth;
 ///     }
 ///     </code>
 /// </example>
-public sealed record UserProfileResponse
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
+public sealed partial record UserProfileResponse
 {
     /// <summary>
     ///     The user's unique identifier (matches Entra Object ID).
     /// </summary>
+    [MemoryPackOrder(0)]
     public required string UserId { get; init; }
 
     /// <summary>
     ///     The user's email address.
     /// </summary>
+    [MemoryPackOrder(1)]
     public required string Email { get; init; }
 
     /// <summary>
     ///     The user's display name.
     /// </summary>
+    [MemoryPackOrder(2)]
     public required string DisplayName { get; init; }
 
     /// <summary>
     ///     The user's primary role in the system (Administrator, Advisor, or Client).
     /// </summary>
+    [MemoryPackOrder(3)]
     public required string Role { get; init; }
 
     /// <summary>
     ///     Whether the user has completed their profile setup.
     /// </summary>
+    [MemoryPackOrder(4)]
     public required bool IsProfileComplete { get; init; }
 
     /// <summary>
     ///     Whether the user has the Administrator role.
     /// </summary>
+    [MemoryPackOrder(5)]
     public required bool IsAdministrator { get; init; }
 }

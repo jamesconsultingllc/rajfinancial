@@ -5,6 +5,8 @@
 // role assignments for client-side access control decisions.
 // ============================================================================
 
+using MemoryPack;
+
 namespace RajFinancial.Shared.Contracts.Auth;
 
 /// <summary>
@@ -24,7 +26,9 @@ namespace RajFinancial.Shared.Contracts.Auth;
 ///     }
 ///     </code>
 /// </example>
-public sealed record UserRolesResponse
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
+public sealed partial record UserRolesResponse
 {
     /// <summary>
     ///     All roles assigned to the current user.
@@ -33,10 +37,12 @@ public sealed record UserRolesResponse
     ///     Roles are returned as string values matching the <c>UserRole</c> enum names:
     ///     "Administrator", "Advisor", "Client".
     /// </remarks>
-    public required IReadOnlyList<string> Roles { get; init; }
+    [MemoryPackOrder(0)]
+    public required string[] Roles { get; init; }
 
     /// <summary>
     ///     Convenience flag indicating whether the user has the Administrator role.
     /// </summary>
+    [MemoryPackOrder(1)]
     public required bool IsAdministrator { get; init; }
 }
