@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Assets from "./pages/Assets";
 import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
+import RealEstate from "./pages/real-estate";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,16 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                {/* Real Estate routes */}
+                <Route
+                  path="/real-estate"
+                  element={
+                    <ProtectedRoute policy="RequireClient">
+                      <RealEstate />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Settings routes */}
                 <Route
                   path="/settings/:tab"

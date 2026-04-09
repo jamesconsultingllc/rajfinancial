@@ -34,6 +34,7 @@ import {
   Activity,
   ClipboardList,
   BarChart3,
+  Building,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,13 @@ const clientNavSections: NavSection[] = [
       { icon: Users, label: "Beneficiaries", path: "/contacts" },
     ],
   },
+  {
+    title: "Tools",
+    dataTestId: "tools",
+    items: [
+      { icon: Building, label: "Real Estate", path: "/real-estate" },
+    ],
+  },
 ];
 
 const adminNavSections: NavSection[] = [
@@ -96,6 +104,13 @@ const adminNavSections: NavSection[] = [
     items: [
       { icon: TrendingUp, label: "My Portfolio", path: "/portfolio" },
       { icon: Package, label: "Assets", path: "/assets" },
+    ],
+  },
+  {
+    title: "Tools",
+    dataTestId: "tools",
+    items: [
+      { icon: Building, label: "Real Estate", path: "/real-estate" },
     ],
   },
 ];
