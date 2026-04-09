@@ -1,4 +1,4 @@
-﻿name: 'Find SWA Environment Slot'
+name: 'Find SWA Environment Slot'
 description: 'Find an Azure Static Web App environment slot by branch pattern'
 author: 'James Consulting LLC'
 

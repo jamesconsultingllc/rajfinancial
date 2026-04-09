@@ -1,4 +1,4 @@
-﻿name: 'Manage Entra Redirect URIs'
+name: 'Manage Entra Redirect URIs'
 description: 'Add or remove redirect URIs from Microsoft Entra (Azure AD) app registration for Azure Static Web Apps preview environments. Requires prior authentication via azure/login action.'
 author: 'James Consulting LLC'
 
