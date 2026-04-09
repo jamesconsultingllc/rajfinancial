@@ -69,7 +69,7 @@ jobs:
     # Feature/hotfix branches are deployed manually via CLI
     if: |
       github.event_name != 'pull_request' &&
-      needs.detect_changes.outputs.src_changed == 'true'
+      (github.event_name == 'workflow_dispatch' || needs.detect_changes.outputs.src_changed == 'true')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
