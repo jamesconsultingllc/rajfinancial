@@ -69,7 +69,7 @@ jobs:
     # Feature/hotfix branches are deployed manually via CLI
     if: |
       github.event_name != 'pull_request' &&
-      needs.detect_changes.outputs.src_changed == 'true'
+      (github.event_name == 'workflow_dispatch' || needs.detect_changes.outputs.src_changed == 'true')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     needs: [detect_changes, unit_tests_job]
@@ -94,11 +94,11 @@ jobs:
 
       - name: Set MSAL environment variables
         run: |
-          cat > src/Client/.env.local << EOF
-VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}
-VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
-VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}
-EOF
+          {
+            echo "VITE_AZURE_AD_AUTHORITY=${{ secrets.AZURE_AD_AUTHORITY }}"
+            echo "VITE_AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}"
+            echo "VITE_MSAL_CACHE_LOCATION=${{ vars.MSAL_CACHE_LOCATION }}"
+          } > src/Client/.env.local
           echo "Created .env.local for ${{ github.ref }} build"
 
       - name: Build And Deploy
