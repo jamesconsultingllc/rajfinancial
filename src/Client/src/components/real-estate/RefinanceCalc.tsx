@@ -26,6 +26,9 @@ export default function RefinanceCalc({ inputs }: Props) {
     breakeven: s.breakevenMonths,
   }));
 
+  const bestBreakeven = refi.scenarios.reduce((best, s) =>
+    s.breakevenMonths < best.breakevenMonths && s.savings > 0 ? s : best, refi.scenarios[0]);
+
   if (refi.scenarios.length === 0) {
     return (
       <Card className="border-border/50">
@@ -52,8 +55,8 @@ export default function RefinanceCalc({ inputs }: Props) {
         />
         <MetricCard
           label="Best Breakeven"
-          value={`${refi.scenarios[0].breakevenMonths} mo`}
-          sublabel="Months to recoup closing costs"
+          value={`${bestBreakeven.breakevenMonths} mo`}
+          sublabel={`At ${bestBreakeven.rate.toFixed(2)}%`}
           color="amber"
         />
       </div>

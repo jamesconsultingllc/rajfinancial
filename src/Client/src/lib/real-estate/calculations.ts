@@ -258,7 +258,7 @@ export function runScenarios(inputs: PropertyInputs, marketData: MarketData): Sc
       loanAmount, shockedRate, inputs.loanTermYears,
       inputs.purchasePrice, inputs.downPaymentPct, inputs.appreciationRate
     );
-    const equityAt5 = schedule[59]?.totalEquity || 0;
+    const equityAt5 = schedule[Math.min(59, schedule.length - 1)]?.totalEquity || 0;
 
     scenarios.push({
       label: `Rate +${bump}% (${shockedRate.toFixed(2)}%)`,
@@ -280,7 +280,7 @@ export function runScenarios(inputs: PropertyInputs, marketData: MarketData): Sc
       declinedLoan, inputs.interestRate, inputs.loanTermYears,
       declinedPrice, inputs.downPaymentPct, inputs.appreciationRate
     );
-    const equityAt5 = schedule[59]?.totalEquity || 0;
+    const equityAt5 = schedule[Math.min(59, schedule.length - 1)]?.totalEquity || 0;
 
     scenarios.push({
       label: `Price -${decline}% ($${(declinedPrice / 1000).toFixed(0)}K)`,
