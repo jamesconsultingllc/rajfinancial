@@ -115,8 +115,10 @@ export function calculateBreakeven(inputs: PropertyInputs, marketData: MarketDat
   let balance = loanAmount;
   let totalCost = downPayment + closingCosts;
   let totalReturn = 0;
+  const maxMonths = inputs.loanTermYears * 12;
 
-  for (let month = 1; month <= 360; month++) {
+  for (let month = 1; month <= maxMonths; month++) {
+    if (balance <= 0) break;
     const interest = balance * r;
     const principal = monthlyPayment - interest;
     balance -= principal;
@@ -145,8 +147,8 @@ export function calculateBreakeven(inputs: PropertyInputs, marketData: MarketDat
   }
 
   return {
-    months: 360,
-    years: 30,
+    months: maxMonths,
+    years: inputs.loanTermYears,
     totalCostAtBreakeven: totalCost,
     totalReturnAtBreakeven: totalReturn,
     monthlyData,
@@ -190,13 +192,15 @@ export function calculateRefinance(inputs: PropertyInputs): RefinanceResult {
     }
   }
 
-  const bestScenario = scenarios.length > 0 ? scenarios[0] : null;
+  const bestByNpv = scenarios.length > 0
+    ? scenarios.reduce((best, s) => s.npvSavings > best.npvSavings ? s : best, scenarios[0])
+    : null;
 
   return {
     triggerRate,
-    monthlySavings: bestScenario?.savings || 0,
-    breakevenMonths: bestScenario?.breakevenMonths || 0,
-    lifetimeSavings: bestScenario ? bestScenario.savings * (inputs.currentRemainingMonths || 360) : 0,
+    monthlySavings: bestByNpv?.savings || 0,
+    breakevenMonths: bestByNpv?.breakevenMonths || 0,
+    lifetimeSavings: bestByNpv ? bestByNpv.savings * (inputs.currentRemainingMonths || 360) : 0,
     scenarios,
   };
 }
