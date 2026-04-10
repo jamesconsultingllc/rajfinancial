@@ -140,8 +140,8 @@ jobs:
         with:
           action: add
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net
-          callback-path: ''
+          origin: https://gray-cliff-072f3b510-${{ steps.resolve-env.outputs.target-slot }}.centralus.azurestaticapps.net/
+          callback-path: '/'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS management when storage account is created
@@ -293,8 +293,8 @@ jobs:
         with:
           action: remove
           app-object-id: ${{ secrets.ENTRA_SPA_APP_OBJECT_ID }}
-          origin: https://gray-cliff-072f3b510-${{ steps.source-env.outputs.sanitized-branch }}.centralus.azurestaticapps.net
-          callback-path: ''
+          origin: https://gray-cliff-072f3b510-${{ steps.source-env.outputs.sanitized-branch }}.centralus.azurestaticapps.net/
+          callback-path: '/'
           uri-type: 'spa'
 
       # TODO: Add Storage CORS cleanup when storage account is created
