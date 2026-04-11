@@ -110,6 +110,13 @@ public class AuthenticationMiddleware(
             return principal;
         }
 
+        // Check HttpContext.User — populated by EasyAuth via ConfigureFunctionsWebApplication()
+        var httpContext = context.GetHttpContext();
+        if (httpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            return httpContext.User;
+        }
+
         // Extract JWT from Authorization header for local development / standalone hosting
         var httpRequestData = await context.GetHttpRequestDataAsync();
         if (httpRequestData is null)
