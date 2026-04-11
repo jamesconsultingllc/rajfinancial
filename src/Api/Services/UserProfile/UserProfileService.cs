@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
+using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
 
 namespace RajFinancial.Api.Services.UserProfiles;
@@ -48,7 +49,6 @@ public class UserProfileService(
                 DisplayName = displayName ?? string.Empty,
                 Role = mappedRole,
                 TenantId = tenantId ?? Guid.Empty,
-                IsActive = true,
                 CreatedAt = now,
                 LastLoginAt = now
             };
@@ -131,6 +131,38 @@ public class UserProfileService(
         CancellationToken cancellationToken = default)
     {
         return await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<UserProfile?> UpdateProfileAsync(
+        Guid userId,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+
+        if (profile is null)
+        {
+            logger.LogWarning("UpdateProfile: profile not found for user {UserId}", userId);
+            return null;
+        }
+
+        profile.DisplayName = request.DisplayName;
+        profile.PreferencesJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            locale = request.Locale,
+            timezone = request.Timezone,
+            currency = request.Currency
+        });
+        profile.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Updated profile for user {UserId} (displayName={DisplayName}, locale={Locale}, timezone={Timezone}, currency={Currency})",
+            userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
+
+        return profile;
     }
 
     /// <summary>

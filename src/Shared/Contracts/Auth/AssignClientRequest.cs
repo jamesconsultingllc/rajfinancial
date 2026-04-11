@@ -5,6 +5,8 @@
 // Administrator to assign a client by email with specified access parameters.
 // ============================================================================
 
+using MemoryPack;
+
 namespace RajFinancial.Shared.Contracts.Auth;
 
 /// <summary>
@@ -32,7 +34,9 @@ namespace RajFinancial.Shared.Contracts.Auth;
 ///     }
 ///     </code>
 /// </example>
-public sealed record AssignClientRequest
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
+public sealed partial record AssignClientRequest
 {
     /// <summary>
     ///     The email address of the client to assign.
@@ -41,6 +45,7 @@ public sealed record AssignClientRequest
     ///     Used to match the client when they register or log in.
     ///     Must be a valid email address format.
     /// </remarks>
+    [MemoryPackOrder(0)]
     public required string ClientEmail { get; init; }
 
     /// <summary>
@@ -49,6 +54,7 @@ public sealed record AssignClientRequest
     /// <remarks>
     ///     Must match a valid <c>AccessType</c> enum value as a string.
     /// </remarks>
+    [MemoryPackOrder(1)]
     public required string AccessType { get; init; }
 
     /// <summary>
@@ -58,11 +64,13 @@ public sealed record AssignClientRequest
     ///     Must contain at least one category. Valid categories include:
     ///     "accounts", "assets", "beneficiaries", "documents", "investments".
     /// </remarks>
-    public required IReadOnlyList<string> Categories { get; init; }
+    [MemoryPackOrder(2)]
+    public required string[] Categories { get; init; }
 
     /// <summary>
     ///     Optional label describing the advisor-client relationship.
     /// </summary>
     /// <example>"Primary Advisor", "Estate Attorney", "CPA"</example>
+    [MemoryPackOrder(3)]
     public string? RelationshipLabel { get; init; }
 }

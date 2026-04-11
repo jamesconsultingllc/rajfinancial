@@ -62,3 +62,16 @@ export const msalConfig: Configuration = {
 export const loginRequest = {
   scopes: ["openid", "profile", "email", "offline_access"],
 };
+
+/**
+ * Scopes requested when calling the Azure Functions API.
+ *
+ * @description The API scope is defined on the API app registration in Entra.
+ * Uses VITE_AZURE_AD_API_SCOPE env var, falling back to the dev registration.
+ */
+export const apiRequest = {
+  scopes: [
+    import.meta.env.VITE_AZURE_AD_API_SCOPE ??
+      "api://rajfinancial-api-dev/user_impersonation",
+  ],
+};

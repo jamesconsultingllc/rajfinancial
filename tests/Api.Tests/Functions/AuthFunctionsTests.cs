@@ -136,9 +136,8 @@ public class AuthFunctionsTests
             Role = role,
             TenantId = TestTenantId,
             IsProfileComplete = isProfileComplete,
-            IsActive = isActive,
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(-30),
-            LastLoginAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTime.UtcNow.AddDays(-30),
+            LastLoginAt = DateTime.UtcNow
         };
     }
 
@@ -249,7 +248,7 @@ public class AuthFunctionsTests
     }
 
     [Fact]
-    public async Task GetMe_AuthenticatedUser_ReturnsEmail()
+    public async Task GetMe_AuthenticatedUser_DoesNotLeakEmail()
     {
         // Arrange
         var functions = CreateFunctions();
@@ -264,9 +263,10 @@ public class AuthFunctionsTests
         // Act
         var response = await functions.GetMe(request, context);
 
-        // Assert
+        // Assert — email is NOT in the profile response (comes from Entra claims instead)
         var body = await ReadResponseBody(response);
-        body.Should().Contain("advisor@rajfinancial.com");
+        body.Should().NotContain("advisor@rajfinancial.com");
+        body.Should().Contain(TestUserId.ToString());
     }
 
     [Fact]
@@ -290,88 +290,41 @@ public class AuthFunctionsTests
     }
 
     [Fact]
-    public async Task GetMe_AuthenticatedUser_ReturnsRole()
-    {
-        // Arrange
-        var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(
-            TestUserId,
-            roles: ["Advisor"]);
-
-        SetupEnsureProfileExists("user@rajfinancial.com", "Test User", ["Advisor"],
-            CreateTestProfile(role: UserRole.Advisor));
-
-        // Act
-        var response = await functions.GetMe(request, context);
-
-        // Assert
-        var body = await ReadResponseBody(response);
-        body.Should().Contain("Advisor");
-    }
-
-    [Fact]
-    public async Task GetMe_AuthenticatedUser_ReturnsIsProfileComplete()
+    public async Task GetMe_AuthenticatedUser_ReturnsLocaleDefaults()
     {
         // Arrange
         var functions = CreateFunctions();
         var (request, context) = CreateAuthenticatedRequest(TestUserId);
 
         SetupEnsureProfileExists("user@rajfinancial.com", "Test User", ["Client"],
-            CreateTestProfile(isProfileComplete: true));
+            CreateTestProfile());
 
         // Act
         var response = await functions.GetMe(request, context);
 
-        // Assert
+        // Assert — defaults when no PreferencesJson set
         var body = await ReadResponseBody(response);
-        body.Should().Contain("\"isProfileComplete\":true");
-    }
-
-    // =========================================================================
-    // GET /api/auth/me — isAdministrator flag
-    // =========================================================================
-
-    [Fact]
-    public async Task GetMe_AdminUser_ReturnsIsAdministratorTrue()
-    {
-        // Arrange
-        var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(
-            TestUserId,
-            email: "admin@rajfinancial.com",
-            displayName: "Admin User",
-            roles: ["Administrator"]);
-
-        SetupEnsureProfileExists("admin@rajfinancial.com", "Admin User", ["Administrator"],
-            CreateTestProfile(email: "admin@rajfinancial.com", displayName: "Admin User",
-                role: UserRole.Administrator));
-
-        // Act
-        var response = await functions.GetMe(request, context);
-
-        // Assert
-        var body = await ReadResponseBody(response);
-        body.Should().Contain("\"isAdministrator\":true");
+        body.Should().Contain("\"locale\":\"en-US\"");
+        body.Should().Contain("\"timezone\":\"America/New_York\"");
+        body.Should().Contain("\"currency\":\"USD\"");
     }
 
     [Fact]
-    public async Task GetMe_NonAdminUser_ReturnsIsAdministratorFalse()
+    public async Task GetMe_AuthenticatedUser_ReturnsCreatedAt()
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(
-            TestUserId,
-            roles: ["Client"]);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
 
         SetupEnsureProfileExists("user@rajfinancial.com", "Test User", ["Client"],
-            CreateTestProfile(role: UserRole.Client));
+            CreateTestProfile());
 
         // Act
         var response = await functions.GetMe(request, context);
 
         // Assert
         var body = await ReadResponseBody(response);
-        body.Should().Contain("\"isAdministrator\":false");
+        body.Should().Contain("\"createdAt\":");
     }
 
     // =========================================================================
@@ -473,7 +426,7 @@ public class AuthFunctionsTests
     // =========================================================================
 
     [Fact]
-    public async Task GetMe_MultipleRolesIncludingAdmin_ReturnsAdministratorRole()
+    public async Task GetMe_MultipleRolesIncludingAdmin_ReturnsProfile()
     {
         // Arrange — BDD: User with "Client,Administrator" => role = "Administrator"
         var multiRoleUserId = Guid.Parse("990e8400-e29b-41d4-a716-446655440004");
@@ -489,9 +442,11 @@ public class AuthFunctionsTests
         // Act
         var response = await functions.GetMe(request, context);
 
-        // Assert
+        // Assert — role is no longer in UserProfileResponse (available via /api/auth/roles),
+        // verify profile response contains userId and display name
         var body = await ReadResponseBody(response);
-        body.Should().Contain("\"role\":\"Administrator\"");
+        body.Should().Contain(multiRoleUserId.ToString());
+        body.Should().Contain("Test User");
     }
 
     // =========================================================================

@@ -251,12 +251,7 @@ namespace RajFinancial.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email");
-
                     b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Email")
-                        .IsUnique();
 
                     b.ToTable("UserProfiles");
                 });

@@ -4,7 +4,10 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/useAuth";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +34,9 @@ import {
   ChevronLeft,
   Package,
   UserCog,
-  Activity,
   ClipboardList,
   BarChart3,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -104,6 +107,8 @@ const adminNavSections: NavSection[] = [
  * Dashboard layout with sidebar navigation, top bar, and user menu.
  *
  * @description Uses MSAL auth for user info and sign out.
+ * Integrates with useAuthProfile to display API-sourced profile data
+ * (admin badge, profile completion status).
  * Responsive sidebar collapses on mobile with overlay.
  */
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -112,6 +117,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAdmin } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useAuthProfile();
+
+  // Use auth state (from Entra claims) for admin badge; profile API for completion status
+  const showAdminBadge = isAdmin;
+  const showProfileIncompleteBanner = !isProfileLoading && profile != null && profile.displayName === "";
 
   const displayUser = {
     name: user?.name ?? "User",
@@ -283,7 +293,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>{displayUser.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span>{displayUser.name}</span>
+                      {showAdminBadge && (
+                        <Badge
+                          data-testid="admin-badge"
+                          variant="secondary"
+                          className="text-xs px-1.5 py-0 bg-primary/10 text-primary"
+                        >
+                          <Shield className="w-3 h-3 mr-1" aria-hidden="true" />
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs font-normal text-muted-foreground">{displayUser.email}</span>
                   </div>
                 </DropdownMenuLabel>
@@ -308,6 +330,24 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         <main className="flex-1 p-4 md:p-6 overflow-auto">
+          {showProfileIncompleteBanner && (
+            <Alert
+              data-testid="profile-incomplete-banner"
+              className="mb-4 border-primary/30 bg-primary/5"
+            >
+              <AlertCircle className="h-4 w-4 text-primary" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Complete your profile to unlock all features.</span>
+                <Button
+                  variant="goldOutline"
+                  size="sm"
+                  onClick={() => navigate("/settings/profile")}
+                >
+                  Complete Profile
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
           {children}
         </main>
       </div>

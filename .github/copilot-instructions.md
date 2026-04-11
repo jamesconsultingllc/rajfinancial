@@ -10,6 +10,34 @@ applyTo: '**'
 
 ---
 
+## Branching Strategy
+- PRs for feature branches should target the `develop` branch, not `main`. The workflow is feature → develop → main.
+- The Git flow uses `develop` as the integration branch.
+
+---
+
+## Scrum Project Structure
+- This Scrum project uses an **Epic > Feature > Task** hierarchy.
+- Child work items under Features should be created as **Tasks** (not Product Backlog Items).
+- Task states are: **To Do**, **In Progress**, **Done**.
+- Product Backlog Item (PBI) states are: **New**, **Approved**, **Committed**, **Done**.
+- Feature states include: **New**, **In Progress**, **Done**.
+
+---
+
+## Test Layers
+
+| Layer | Location | Framework | Gherkin? |
+|-------|----------|-----------|----------|
+| Unit tests | `tests/Api.Tests/` | xUnit + FluentAssertions | No |
+| API BDD integration | `tests/IntegrationTests/` | Reqnroll + Gherkin (C#) | Yes |
+| E2E BDD acceptance | `tests/e2e/` | Cucumber.js + Playwright + Gherkin (TypeScript) | Yes |
+| Component tests | `src/Client/src/**/__tests__/` | Vitest + Testing Library | No |
+
+**BDD is mandatory for all new features.** Write `.feature` files before implementation.
+
+---
+
 ## Files to Ignore in Code Reviews
 
 The following files are auto-generated and should be **ignored during code reviews**:
@@ -32,7 +60,6 @@ The following files are auto-generated and should be **ignored during code revie
 - **Global Standards**: [E:\AGENT.md](file:///E:/AGENT.md)
 - **Project Instructions**: [AGENT.md](../AGENT.md)
 - **Claude Instructions**: [CLAUDE.md](../CLAUDE.md)
-- **Execution Plan**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN.md)
-- **API Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN_API_TRACKING.md)
-- **UI Tracking**: [docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md](../docs/RAJ_FINANCIAL_EXECUTION_PLAN_UI_TRACKING.md)
-- **UI Design**: [docs/RAJ_FINANCIAL_UI.md](../docs/RAJ_FINANCIAL_UI.md)
+- **Feature Docs**: [docs/features/](../docs/features/)
+- **Implementation Plans**: [docs/plans/](../docs/plans/)
+- **Entity Architecture**: [docs/features/12-entity-structure.md](../docs/features/12-entity-structure.md)

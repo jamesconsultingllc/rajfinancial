@@ -26,6 +26,18 @@ export interface UserProfileDto {
   deletionRequestedAt?: string;
 }
 
+/**
+ * Account-level settings used by non-profile tabs (BYOK, deletion, etc.).
+ * These fields will each get their own API endpoints.
+ */
+export interface AccountSettingsDto {
+  email: string;
+  tier: SubscriptionTier;
+  hasByokKey: boolean;
+  theme: ThemePreference;
+  deletionRequestedAt?: string;
+}
+
 export interface TierUsageDto {
   assetCount: number;
   assetLimit: number;

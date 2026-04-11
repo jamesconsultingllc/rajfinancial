@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -6,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Entities;
@@ -21,6 +24,7 @@ public class ProfileFunctionsTests
 {
     private readonly Mock<ILogger<ProfileFunctions>> loggerMock;
     private readonly Mock<IUserProfileService> userProfileServiceMock;
+    private readonly Mock<ISerializationFactory> serializationFactoryMock;
 
     private static readonly Guid testUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
     private static readonly Guid testTenantId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
@@ -29,10 +33,19 @@ public class ProfileFunctionsTests
     {
         loggerMock = new Mock<ILogger<ProfileFunctions>>();
         userProfileServiceMock = new Mock<IUserProfileService>();
+        serializationFactoryMock = new Mock<ISerializationFactory>();
+
+        // Default: serialize any object to JSON bytes (camelCase to match API output)
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        serializationFactoryMock
+            .Setup(s => s.SerializeAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<object, string, CancellationToken>((data, _, _) =>
+                Task.FromResult(Encoding.UTF8.GetBytes(
+                    JsonSerializer.Serialize(data, jsonOptions))));
     }
 
     private ProfileFunctions CreateFunctions()
-        => new(loggerMock.Object, userProfileServiceMock.Object);
+        => new(loggerMock.Object, userProfileServiceMock.Object, serializationFactoryMock.Object);
 
     private static (HttpRequestData Request, TestFunctionContext Context) CreateAuthenticatedRequest(
         Guid userId)
@@ -100,7 +113,7 @@ public class ProfileFunctionsTests
     }
 
     [Fact]
-    public async Task GetMyProfile_ExistingProfile_ReturnsEmail()
+    public async Task GetMyProfile_ExistingProfile_ReturnsLocaleDefaults()
     {
         // Arrange
         var functions = CreateFunctions();
@@ -112,13 +125,15 @@ public class ProfileFunctionsTests
         // Act
         var response = await functions.GetMyProfile(request, context);
 
-        // Assert
+        // Assert — defaults when no PreferencesJson
         var body = await ReadResponseBody(response);
-        body.Should().Contain("user@rajfinancial.com");
+        body.Should().Contain("\"locale\":\"en-US\"");
+        body.Should().Contain("\"timezone\":\"America/New_York\"");
+        body.Should().Contain("\"currency\":\"USD\"");
     }
 
     [Fact]
-    public async Task GetMyProfile_ExistingProfile_ReturnsRole()
+    public async Task GetMyProfile_ExistingProfile_ReturnsCreatedAt()
     {
         // Arrange
         var functions = CreateFunctions();
@@ -132,7 +147,7 @@ public class ProfileFunctionsTests
 
         // Assert
         var body = await ReadResponseBody(response);
-        body.Should().Contain("Client");
+        body.Should().Contain("\"createdAt\":");
     }
 
     [Fact]
@@ -242,8 +257,8 @@ public class ProfileFunctionsTests
             Role = UserRole.Client,
             TenantId = testTenantId,
             IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(-30),
-            LastLoginAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTime.UtcNow.AddDays(-30),
+            LastLoginAt = DateTime.UtcNow
         };
     }
 

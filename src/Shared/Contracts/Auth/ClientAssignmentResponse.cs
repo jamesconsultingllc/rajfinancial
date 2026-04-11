@@ -6,6 +6,8 @@
 //   - GET /api/auth/clients  (200 OK — list of assignments)
 // ============================================================================
 
+using MemoryPack;
+
 namespace RajFinancial.Shared.Contracts.Auth;
 
 /// <summary>
@@ -35,41 +37,50 @@ namespace RajFinancial.Shared.Contracts.Auth;
 ///     }
 ///     </code>
 /// </example>
-public sealed record ClientAssignmentResponse
+[MemoryPackable(SerializeLayout.Explicit)]
+[GenerateTypeScript]
+public sealed partial record ClientAssignmentResponse
 {
     /// <summary>
     ///     Unique identifier of the data access grant.
     /// </summary>
+    [MemoryPackOrder(0)]
     public required Guid GrantId { get; init; }
 
     /// <summary>
     ///     The email address of the assigned client.
     /// </summary>
+    [MemoryPackOrder(1)]
     public required string ClientEmail { get; init; }
 
     /// <summary>
     ///     The type of access granted (Full, Read, or Limited).
     ///     Owner access is implicit for data owners and is not assigned via these endpoints.
     /// </summary>
+    [MemoryPackOrder(2)]
     public required string AccessType { get; init; }
 
     /// <summary>
     ///     Data categories accessible under this grant.
     /// </summary>
-    public required IReadOnlyList<string> Categories { get; init; }
+    [MemoryPackOrder(3)]
+    public required string[] Categories { get; init; }
 
     /// <summary>
     ///     Optional label describing the relationship (e.g., "Primary Advisor").
     /// </summary>
+    [MemoryPackOrder(4)]
     public string? RelationshipLabel { get; init; }
 
     /// <summary>
     ///     Current status of the grant (Pending, Active, Expired, or Revoked).
     /// </summary>
+    [MemoryPackOrder(5)]
     public required string Status { get; init; }
 
     /// <summary>
     ///     When the grant was created.
     /// </summary>
-    public required DateTimeOffset CreatedAt { get; init; }
+    [MemoryPackOrder(6)]
+    public required DateTime CreatedAt { get; init; }
 }

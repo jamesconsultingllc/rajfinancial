@@ -1,6 +1,6 @@
 # 09 — AI Insights & Document Processing
 
-> Claude AI integration architecture, BYOK key model, financial statement parsing, AI-powered spending analysis, document upload & processing, and rate limiting per subscription tier.
+> Provider-agnostic AI integration architecture (via `Microsoft.Extensions.AI`), BYOK key model, financial statement parsing, AI-powered spending analysis, document upload & processing, and rate limiting per subscription tier.
 
 **ADO Tracking:** [Epic #393 — 09 - AI Insights & Document Processing](https://dev.azure.com/jamesconsulting/c21b4869-5c21-461b-9a0b-ab984e08a088/_workitems/edit/393)
 
@@ -15,12 +15,25 @@
 
 ## Overview
 
-RAJ Financial integrates **Claude AI** (Anthropic) to provide:
+RAJ Financial integrates AI capabilities via **`Microsoft.Extensions.AI`** — a provider-agnostic abstraction layer that supports multiple LLM providers through a unified `IChatClient` interface:
 
 1. **Financial statement parsing** — Upload bank/brokerage statements and extract transactions automatically
 2. **Spending insights** — AI-generated analysis of spending patterns, anomalies, and recommendations
 3. **Asset recommendations** — Suggestions for portfolio diversification and estate planning improvements
 4. **Document understanding** — Extract structured data from scanned financial documents
+
+### Supported Providers
+
+| Provider | NuGet Package | Vision/PDF | Notes |
+|----------|--------------|------------|-------|
+| **Anthropic Claude** (default) | `Microsoft.Extensions.AI.Anthropic` | ✅ | Default provider; best reasoning for ambiguous formats |
+| **Azure OpenAI** | `Microsoft.Extensions.AI.OpenAI` + `Azure.AI.OpenAI` | ✅ | Managed identity auth; Azure-native billing |
+| **OpenAI** | `Microsoft.Extensions.AI.OpenAI` | ✅ | Direct OpenAI API access |
+| **Google Gemini** | OpenAI-compatible endpoint | ✅ | Via OpenAI-compatible adapter |
+| **DeepSeek** | OpenAI-compatible endpoint | ❌ | Text-only; not suitable for document parsing |
+| **Meta Llama** (via Ollama) | `Microsoft.Extensions.AI.Ollama` | ❌ | Local/self-hosted; text-only |
+
+> **Provider selection is per-user via BYOK configuration.** Free users supply their own API key for any supported provider. Premium users use the platform-managed provider (Claude by default).
 
 The AI architecture follows a **BYOK (Bring Your Own Key)** model on the free tier and a **platform-managed key** on Premium, ensuring the platform can offer AI capabilities without bearing API costs for free users.
 
@@ -30,10 +43,10 @@ The AI architecture follows a **BYOK (Bring Your Own Key)** model on the free ti
 
 | Goal | Description |
 |------|-------------|
-| **BYOK-first** | Free users supply their own Anthropic API key — zero AI cost to the platform |
+| **BYOK-first** | Free users supply their own API key (any supported provider) — zero AI cost to the platform |
 | **Premium escalation** | Premium users get a platform-managed key with higher limits |
 | **Fail-safe** | AI features degrade gracefully — the platform works fully without AI |
-| **Privacy-conscious** | Minimize PII sent to Claude; never send SSN/EIN/account numbers |
+| **Privacy-conscious** | Minimize PII sent to AI providers; never send SSN/EIN/account numbers |
 | **Observable** | Every AI call is logged with token usage, latency, and outcome |
 
 ---
@@ -43,42 +56,96 @@ The AI architecture follows a **BYOK (Bring Your Own Key)** model on the free ti
 ### Key Management Flow
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌───────────────┐
-│  Free User  │────▶│  User provides   │────▶│  Stored in    │
-│  (BYOK)     │     │  own Anthropic   │     │  Azure Key    │
-│             │     │  API key         │     │  Vault (per   │
-│             │     │                  │     │  user secret) │
-└─────────────┘     └──────────────────┘     └───────┬───────┘
-                                                      │
-                                                      ▼
-┌─────────────┐     ┌──────────────────┐     ┌───────────────┐
-│  Premium    │────▶│  Platform key    │────▶│  Key Vault    │
-│  User       │     │  used by default │     │  (shared      │
-│             │     │                  │     │  platform key)│
-└─────────────┘     └──────────────────┘     └───────┬───────┘
-                                                      │
-                              ┌────────────────────────┘
-                              ▼
-                    ┌──────────────────┐     ┌───────────────┐
-                    │  IAiKeyResolver  │────▶│  Anthropic    │
-                    │  selects key per │     │  Claude API   │
-                    │  user/tier       │     │  (claude-     │
-                    │                  │     │  sonnet-4-5-  │
-                    │                  │     │  20250929)    │
-                    └──────────────────┘     └───────────────┘
+Free User (BYOK)                Premium User
+  |  provides own API key         |  platform key (Claude by default)
+  |  for any supported provider   |
+  v                               v
+Azure Key Vault                 Azure Key Vault
+  ai-byok-{provider}-{userId}    Ai--{Provider}--ApiKey
+  |                               |
+  +-------------------------------+
+                |
+                v
+      IChatClientFactory
+        resolves provider + key per user/tier
+                |
+        +-------+--------+
+        v       v        v
+    Anthropic  Azure   OpenAI    (+ Gemini, DeepSeek via OpenAI-compat)
+    Claude API OpenAI  GPT-4o
 ```
 
 ### Model Configuration
 
 | Setting | Value | Source |
 |---------|-------|--------|
-| Model | `claude-sonnet-4-5-20250929` | `local.settings.json` → `Claude:Model` |
-| Platform API Key | Azure Key Vault | Secret: `Claude--ApiKey` |
-| User BYOK Key | Azure Key Vault | Secret: `claude-byok-{userId}` |
+| Default Provider | `Anthropic` | `local.settings.json` → `Ai:DefaultProvider` |
+| Default Model | `claude-sonnet-4-5-20250929` | `local.settings.json` → `Ai:DefaultModel` |
+| Platform API Key | Azure Key Vault | Secret: `Ai--Anthropic--ApiKey` |
+| User BYOK Key | Azure Key Vault | Secret: `ai-byok-{provider}-{userId}` |
 | Max Tokens (parse) | 4096 | Configurable |
 | Max Tokens (insight) | 2048 | Configurable |
 | Temperature (parse) | 0.1 | Low for accurate extraction |
 | Temperature (insight) | 0.7 | Higher for creative analysis |
+
+#### Provider-Specific Configuration
+
+```json
+{
+  "Ai": {
+    "DefaultProvider": "Anthropic",
+    "DefaultModel": "claude-sonnet-4-5-20250929",
+    "Providers": {
+      "Anthropic": {
+        "ApiKey": "@Microsoft.KeyVault(SecretUri=...)",
+        "DefaultModel": "claude-sonnet-4-5-20250929"
+      },
+      "AzureOpenAI": {
+        "Endpoint": "https://rajfinancial.openai.azure.com/",
+        "DefaultModel": "gpt-4o"
+      },
+      "OpenAI": {
+        "DefaultModel": "gpt-4o"
+      }
+    }
+  }
+}
+```
+
+| Setting | Value | Source |
+|---------|-------|--------|
+| Default Provider | `Anthropic` | `local.settings.json` → `Ai:DefaultProvider` |
+| Default Model | `claude-sonnet-4-5-20250929` | `local.settings.json` → `Ai:DefaultModel` |
+| Platform API Key | Azure Key Vault | Secret: `Ai--Anthropic--ApiKey` |
+| User BYOK Key | Azure Key Vault | Secret: `ai-byok-{provider}-{userId}` |
+| Max Tokens (parse) | 4096 | Configurable |
+| Max Tokens (insight) | 2048 | Configurable |
+| Temperature (parse) | 0.1 | Low for accurate extraction |
+| Temperature (insight) | 0.7 | Higher for creative analysis |
+
+#### Provider-Specific Settings
+
+```json
+{
+  "Ai": {
+    "DefaultProvider": "Anthropic",
+    "DefaultModel": "claude-sonnet-4-5-20250929",
+    "Providers": {
+      "Anthropic": {
+        "ApiKey": "@Microsoft.KeyVault(SecretUri=...)",
+        "DefaultModel": "claude-sonnet-4-5-20250929"
+      },
+      "AzureOpenAI": {
+        "Endpoint": "https://rajfinancial.openai.azure.com/",
+        "DefaultModel": "gpt-4o"
+      },
+      "OpenAI": {
+        "DefaultModel": "gpt-4o"
+      }
+    }
+  }
+}
+```
 
 ---
 
@@ -101,7 +168,10 @@ public class AiUsageRecord
     /// <summary>Parse, Insight, Chat — categorizes the AI operation.</summary>
     public AiOperationType OperationType { get; set; }
 
-    /// <summary>claude-sonnet-4-5-20250929 etc.</summary>
+    /// <summary>The AI provider used (e.g., Anthropic, AzureOpenAI, OpenAI).</summary>
+    public AiProvider Provider { get; set; }
+
+    /// <summary>The model used (e.g., claude-sonnet-4-5-20250929, gpt-4o).</summary>
     public string ModelId { get; set; } = string.Empty;
 
     /// <summary>Whether the user's BYOK key was used (true) or platform key (false).</summary>
@@ -231,25 +301,101 @@ public enum DocumentType
 
 ## Service Interfaces
 
-### IAiKeyResolver
+
+### IChatClientFactory
 
 ```csharp
 /// <summary>
-/// Resolves the appropriate Anthropic API key for a given user based on their
-/// subscription tier and BYOK configuration.
+/// Resolves a configured IChatClient for a given user based on their
+/// subscription tier, BYOK provider/key, and platform defaults.
+/// Uses Microsoft.Extensions.AI abstractions for provider-agnostic AI access.
 /// </summary>
-public interface IAiKeyResolver
+public interface IChatClientFactory
 {
     /// <summary>
-    /// Get the API key to use for the given user.
-    /// Returns the platform key for Premium users, or the user's BYOK key for Free users.
+    /// Creates an IChatClient for the given user.
+    /// - Premium users: returns a client using the platform's default provider + key.
+    /// - Free (BYOK) users: returns a client using the user's stored provider + key.
+    /// The returned client includes the standard middleware pipeline
+    /// (rate limiting, telemetry, caching).
     /// </summary>
     /// <param name="userId">The authenticated user's ID.</param>
-    /// <returns>The resolved API key and whether it's a BYOK key.</returns>
-    /// <exception cref="NotFoundException">User has no BYOK key configured and is on Free tier.</exception>
-    Task<(string ApiKey, bool IsByok)> ResolveKeyAsync(string userId);
+    /// <returns>A configured IChatClient and metadata about the resolution.</returns>
+    /// <exception cref="NotFoundException">
+    /// User has no BYOK key configured and is on Free tier.
+    /// </exception>
+    Task<AiClientResolution> CreateClientAsync(string userId);
+}
+
+/// <summary>
+/// Result of resolving an AI client for a user.
+/// </summary>
+public sealed record AiClientResolution
+{
+    /// <summary>The resolved, ready-to-use chat client.</summary>
+    public required IChatClient Client { get; init; }
+
+    /// <summary>The provider that was resolved (e.g., "Anthropic", "AzureOpenAI").</summary>
+    public required string Provider { get; init; }
+
+    /// <summary>The model ID to use (e.g., "claude-sonnet-4-5-20250929", "gpt-4o").</summary>
+    public required string ModelId { get; init; }
+
+    /// <summary>Whether the user's BYOK key was used (true) or platform key (false).</summary>
+    public required bool IsByok { get; init; }
+
+    /// <summary>Whether this provider supports vision/document input.</summary>
+    public required bool SupportsVision { get; init; }
+}
+
+/// <summary>
+/// Supported AI providers. Determines which IChatClient implementation to create.
+/// </summary>
+public enum AiProvider
+{
+    Anthropic,      // Claude models via Anthropic API
+    AzureOpenAI,    // GPT models via Azure OpenAI Service
+    OpenAI,         // GPT models via OpenAI API directly
+    Gemini,         // Google Gemini via OpenAI-compatible endpoint
+    DeepSeek,       // DeepSeek via OpenAI-compatible endpoint
+    Ollama          // Local models via Ollama (Llama, Mistral, Phi, etc.)
 }
 ```
+
+#### DI Registration Example
+
+```csharp
+// In Program.cs — register the platform's default IChatClient pipeline
+builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+
+// For operations that don't need per-user resolution (e.g., admin/system tasks),
+// register a default IChatClient using the platform key:
+builder.Services.AddChatClient(services =>
+{
+    var config = services.GetRequiredService<IConfiguration>();
+    var provider = config["Ai:DefaultProvider"];
+    var model = config["Ai:DefaultModel"];
+
+    IChatClient inner = provider switch
+    {
+        "Anthropic" => new AnthropicClient(config["Ai:Providers:Anthropic:ApiKey"])
+            .GetChatClient(model).AsIChatClient(),
+        "AzureOpenAI" => new AzureOpenAIClient(
+            new Uri(config["Ai:Providers:AzureOpenAI:Endpoint"]!),
+            new DefaultAzureCredential())
+            .GetChatClient(model).AsIChatClient(),
+        "OpenAI" => new OpenAIClient(config["Ai:Providers:OpenAI:ApiKey"])
+            .GetChatClient(model).AsIChatClient(),
+        _ => throw new ConfigurationException($"Unsupported AI provider: {provider}")
+    };
+
+    return inner
+        .AsBuilder()
+        .UseOpenTelemetry()
+        .Build(services);
+});
+```
+
 
 ### IAiRateLimiter
 
@@ -936,45 +1082,84 @@ private static void ValidateUpload(IFormFile file)
 
 ```
 User Settings Page
-  └──▶ "Enter your Anthropic API key"
-       └──▶ POST /api/settings/ai-key
-            └──▶ Validate key against Anthropic API
-                 └──▶ Store in Key Vault as "claude-byok-{userId}"
-                      └──▶ Return success (key is masked in all UIs)
+  └──▶ "Configure AI Provider"
+       └──▶ Select provider (Anthropic, OpenAI, Azure OpenAI, Gemini, DeepSeek)
+            └──▶ Enter API key (+ endpoint for Azure OpenAI)
+                 └──▶ POST /api/settings/ai-key
+                      └──▶ Validate key against selected provider's API
+                           └──▶ Store in Key Vault as "ai-byok-{provider}-{userId}"
+                                └──▶ Return success (key is masked in all UIs)
 ```
 
 ### API Endpoints for Key Management
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `POST` | `/api/settings/ai-key` | Set or update BYOK API key |
+| `POST` | `/api/settings/ai-key` | Set or update BYOK API key + provider |
 | `DELETE` | `/api/settings/ai-key` | Remove BYOK API key |
-| `GET` | `/api/settings/ai-key/status` | Check if BYOK key is configured (never returns the key) |
+| `GET` | `/api/settings/ai-key/status` | Check if BYOK key is configured and which provider (never returns the key) |
 
 ### Key Validation
 
 ```csharp
 /// <summary>
-/// Validates an Anthropic API key by making a minimal API call.
+/// Validates an AI provider API key by making a minimal IChatClient call.
+/// Provider-agnostic — uses Microsoft.Extensions.AI to create a temporary client.
 /// </summary>
-public async Task<bool> ValidateApiKeyAsync(string apiKey)
+public async Task<bool> ValidateApiKeyAsync(AiProvider provider, string apiKey, string? endpoint = null)
 {
     try
     {
-        using var client = new AnthropicClient(apiKey);
-        // Minimal call to validate the key
-        var response = await client.Messages.CreateAsync(new MessageRequest
+        IChatClient client = provider switch
         {
-            Model = "claude-sonnet-4-5-20250929",
-            MaxTokens = 5,
-            Messages = [new("user", "hi")]
-        });
+            AiProvider.Anthropic => new AnthropicClient(apiKey)
+                .GetChatClient("claude-sonnet-4-5-20250929").AsIChatClient(),
+            AiProvider.OpenAI => new OpenAIClient(apiKey)
+                .GetChatClient("gpt-4o").AsIChatClient(),
+            AiProvider.AzureOpenAI => new AzureOpenAIClient(
+                new Uri(endpoint ?? throw new ArgumentNullException(nameof(endpoint))),
+                new AzureKeyCredential(apiKey))
+                .GetChatClient("gpt-4o").AsIChatClient(),
+            AiProvider.DeepSeek => new OpenAIClient(
+                new OpenAIClientOptions { Endpoint = new Uri("https://api.deepseek.com") },
+                new ApiKeyCredential(apiKey))
+                .GetChatClient("deepseek-chat").AsIChatClient(),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider))
+        };
+
+        // Minimal call to validate the key
+        var response = await client.GetResponseAsync("hi",
+            new() { MaxOutputTokens = 5 });
         return true;
     }
-    catch (AnthropicApiException ex) when (ex.StatusCode == 401)
+    catch (Exception ex) when (ex is HttpRequestException or ClientResultException)
     {
         return false;
     }
+}
+```
+
+### SetAiKeyRequest
+
+```csharp
+/// <summary>
+/// Request to configure a BYOK AI provider key.
+/// </summary>
+public sealed record SetAiKeyRequest
+{
+    /// <summary>The AI provider to configure.</summary>
+    public required AiProvider Provider { get; init; }
+
+    /// <summary>The API key for the selected provider.</summary>
+    public required string ApiKey { get; init; }
+
+    /// <summary>Optional endpoint URL (required for AzureOpenAI, optional for others).</summary>
+    public string? Endpoint { get; init; }
+
+    /// <summary>Optional model override. If not provided, uses the provider's default.</summary>
+    public string? ModelId { get; init; }
+}
+```
 }
 ```
 
@@ -1006,6 +1191,15 @@ public async Task<bool> ValidateApiKeyAsync(string apiKey)
 ## TypeScript Types
 
 ```typescript
+/** Supported AI providers. */
+type AiProvider =
+  | 'Anthropic'
+  | 'AzureOpenAI'
+  | 'OpenAI'
+  | 'Gemini'
+  | 'DeepSeek'
+  | 'Ollama';
+
 /** AI operation types for client-side rate limit display. */
 type AiOperationType =
   | 'StatementParse'
@@ -1013,6 +1207,22 @@ type AiOperationType =
   | 'AssetRecommendation'
   | 'DocumentExtraction'
   | 'Chat';
+
+/** BYOK key configuration status. */
+interface AiKeyStatus {
+  configured: boolean;
+  provider?: AiProvider;
+  supportsVision: boolean;
+  modelId?: string;
+}
+
+/** Request to set a BYOK API key. */
+interface SetAiKeyRequest {
+  provider: AiProvider;
+  apiKey: string;
+  endpoint?: string;  // Required for AzureOpenAI
+  modelId?: string;   // Optional model override
+}
 
 /** Document processing status. */
 type DocumentStatus =
@@ -1577,4 +1787,4 @@ _logger.LogWarning(
 
 ---
 
-*Last Updated: February 2026*
+*Last Updated: March 2026 — Refactored to provider-agnostic architecture via Microsoft.Extensions.AI*

@@ -173,6 +173,7 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
 
 // Register validators as they are implemented:
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();

@@ -1,3 +1,4 @@
+using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
 
 namespace RajFinancial.Api.Services.UserProfiles;
@@ -62,5 +63,17 @@ public interface IUserProfileService
     /// <returns>The profile, or <c>null</c> if none exists.</returns>
     Task<UserProfile?> GetByIdAsync(
         Guid userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates user-editable profile fields (display name, locale, timezone, currency).
+    /// </summary>
+    /// <param name="userId">The Entra Object ID of the user to update.</param>
+    /// <param name="request">The update request containing new field values.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated profile, or <c>null</c> if no profile exists for the user.</returns>
+    Task<UserProfile?> UpdateProfileAsync(
+        Guid userId,
+        UpdateProfileRequest request,
         CancellationToken cancellationToken = default);
 }

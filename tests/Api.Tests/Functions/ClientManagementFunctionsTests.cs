@@ -206,7 +206,7 @@ public class ClientManagementFunctionsTests
     private static AssignClientRequest CreateValidAssignRequest(
         string clientEmail = "client@example.com",
         string accessType = "Read",
-        List<string>? categories = null,
+        string[]? categories = null,
         string? relationshipLabel = "Primary Advisor")
     {
         return new AssignClientRequest

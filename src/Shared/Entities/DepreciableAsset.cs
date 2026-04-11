@@ -5,8 +5,6 @@
 // that lose value over time (real estate, vehicles, equipment, etc.).
 // ============================================================================
 
-using MemoryPack;
-
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
@@ -35,13 +33,11 @@ namespace RajFinancial.Shared.Entities;
 ///         <see cref="AssetType.Cryptocurrency"/>.
 ///     </para>
 /// </remarks>
-[MemoryPackable(GenerateType.VersionTolerant)]
-public partial class DepreciableAsset : Asset
+public class DepreciableAsset : Asset
 {
     /// <summary>
     ///     Method used to calculate depreciation for this asset.
     /// </summary>
-    [MemoryPackOrder(19)]
     public DepreciationMethod DepreciationMethod { get; set; }
 
     /// <summary>
@@ -49,7 +45,6 @@ public partial class DepreciableAsset : Asset
     ///     Used in depreciation calculations as the floor value.
     ///     Null if not specified (distinct from zero residual value).
     /// </summary>
-    [MemoryPackOrder(20)]
     public decimal? SalvageValue { get; set; }
 
     /// <summary>
@@ -57,13 +52,11 @@ public partial class DepreciableAsset : Asset
     ///     Must be greater than zero for depreciation calculations.
     ///     Null if not specified.
     /// </summary>
-    [MemoryPackOrder(21)]
     public int? UsefulLifeMonths { get; set; }
 
     /// <summary>
     ///     Date the asset was placed in service for depreciation purposes.
     ///     Depreciation begins from this date. Falls back to <see cref="Asset.PurchaseDate"/> if not set.
     /// </summary>
-    [MemoryPackOrder(22)]
     public DateTimeOffset? InServiceDate { get; set; }
 }

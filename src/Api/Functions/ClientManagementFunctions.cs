@@ -294,9 +294,9 @@ public class ClientManagementFunctions(
         GrantId = grant.Id,
         ClientEmail = grant.GranteeEmail,
         AccessType = grant.AccessType.ToString(),
-        Categories = grant.Categories,
+        Categories = grant.Categories.ToArray(),
         RelationshipLabel = grant.RelationshipLabel,
         Status = grant.Status.ToString(),
-        CreatedAt = grant.CreatedAt
+        CreatedAt = grant.CreatedAt.UtcDateTime
     };
 }
