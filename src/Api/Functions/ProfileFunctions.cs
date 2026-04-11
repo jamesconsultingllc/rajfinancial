@@ -89,7 +89,7 @@ public class ProfileFunctions(
             Locale = prefs.Locale,
             Timezone = prefs.Timezone,
             Currency = prefs.Currency,
-            CreatedAt = profile.CreatedAt.UtcDateTime
+            CreatedAt = profile.CreatedAt  // Implicit DateTimeOffset → DtoDateTime
         };
 
         return await context.CreateSerializedResponseAsync(
@@ -147,7 +147,7 @@ public class ProfileFunctions(
             Locale = updatedPrefs.Locale,
             Timezone = updatedPrefs.Timezone,
             Currency = updatedPrefs.Currency,
-            CreatedAt = profile.CreatedAt.UtcDateTime
+            CreatedAt = profile.CreatedAt  // Implicit DateTimeOffset → DtoDateTime
         };
 
         logger.LogInformation(

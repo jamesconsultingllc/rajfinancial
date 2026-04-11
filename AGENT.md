@@ -738,12 +738,24 @@ MemoryPack does not reliably handle `decimal` or `DateTimeOffset`. Use this conv
 | Concern | EF Entity (DB layer) | DTO (API/display layer) | Why |
 |---------|---------------------|------------------------|-----|
 | Money | `decimal` | `double` | MemoryPack compatible; DB needs `decimal` precision |
-| Timestamps | `DateTimeOffset` | `DateTime` (UTC) | MemoryPack compatible; DB needs offset-aware storage |
+| Timestamps | `DateTimeOffset` | `DtoDateTime` | MemoryPack compatible wrapper; implicit conversions eliminate manual `.UtcDateTime` calls |
 
 - **EF entities** use database-accurate types (`decimal`, `DateTimeOffset`)
-- **DTOs** use MemoryPack-compatible types (`double`, `DateTime` UTC)
-- **Conversion** happens in the service/mapping layer (entity → DTO)
+- **DTOs** use MemoryPack-compatible types (`double`, `DtoDateTime`)
+- **Conversion** happens automatically via implicit operators (`DtoDateTime` ↔ `DateTimeOffset`)
 - DTOs containing `decimal` or date fields that **cannot** be converted must use **JSON-only** serialization (no `[MemoryPackable]`)
+
+**DtoDateTime** (`src/Shared/DtoDateTime.cs`) is a wrapper struct that enables seamless entity ↔ DTO mapping:
+
+```csharp
+// Entity → DTO (implicit conversion)
+dto.CreatedAt = entity.CreatedAt;   // DateTimeOffset → DtoDateTime
+
+// DTO → Entity (implicit conversion)  
+entity.CreatedAt = dto.CreatedAt;   // DtoDateTime → DateTimeOffset
+```
+
+See `docs/ASSET_TYPE_SPECIFICATIONS.md` §Serialization Strategy for full documentation.
 
 ### MemoryPack Testing Requirements
 

@@ -50,6 +50,8 @@ public class AuthenticationMiddleware(
     private const string OBJECT_ID_CLAIM_ALT = "oid";
     private const string EMAIL_CLAIM = "emails";
     private const string EMAIL_CLAIM_ALT = "email";
+    private const string PREFERRED_USERNAME_CLAIM = "preferred_username";
+    private const string UPN_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn";
     private const string ROLES_CLAIM = "roles";
     private const string NAME_CLAIM = "name";
 
@@ -78,9 +80,17 @@ public class AuthenticationMiddleware(
                 context.Items["ClaimsPrincipal"] = principal;
                 context.Items["IsAuthenticated"] = true;
 
+                if (string.IsNullOrEmpty(email))
+                {
+                    var claimTypes = principal.Claims.Select(c => $"{c.Type}={c.Value}");
+                    logger.LogWarning(
+                        "No email claim found for user {UserId}. Available claims: {Claims}",
+                        userId, string.Join("; ", claimTypes));
+                }
+
                 logger.LogDebug(
-                    "Authenticated user: {UserId}, Roles: {Roles}",
-                    userId, string.Join(", ", roles));
+                    "Authenticated user: {UserId}, Email: {Email}, Roles: {Roles}",
+                    userId, email ?? "(none)", string.Join(", ", roles));
             }
         }
         else
@@ -168,8 +178,12 @@ public class AuthenticationMiddleware(
             return emailsClaim;
         }
 
+        // Standard email claims
         return principal.FindFirst(EMAIL_CLAIM_ALT)?.Value ??
-               principal.FindFirst(ClaimTypes.Email)?.Value;
+               principal.FindFirst(ClaimTypes.Email)?.Value ??
+               principal.FindFirst(PREFERRED_USERNAME_CLAIM)?.Value ??
+               principal.FindFirst(UPN_CLAIM)?.Value ??
+               principal.FindFirst(ClaimTypes.Upn)?.Value;
     }
 
     private static string? GetName(ClaimsPrincipal principal)

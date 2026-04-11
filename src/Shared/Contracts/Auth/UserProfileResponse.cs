@@ -7,6 +7,7 @@
 // ============================================================================
 
 using MemoryPack;
+using RajFinancial.Shared;
 
 namespace RajFinancial.Shared.Contracts.Auth;
 
@@ -43,5 +44,5 @@ public sealed partial record UserProfileResponse
 
     /// <summary>When the user profile was created (member since).</summary>
     [MemoryPackOrder(5)]
-    public required DateTime CreatedAt { get; init; }
+    public required DtoDateTime CreatedAt { get; init; }
 }

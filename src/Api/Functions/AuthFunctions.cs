@@ -90,7 +90,7 @@ public class AuthFunctions(
             Locale = "en-US",
             Timezone = "America/New_York",
             Currency = "USD",
-            CreatedAt = profile.CreatedAt.UtcDateTime,
+            CreatedAt = profile.CreatedAt,  // Implicit DateTimeOffset → DtoDateTime
         };
 
         logger.LogInformation(

@@ -1,5 +1,6 @@
 import { MemoryPackWriter } from "./MemoryPackWriter";
 import { MemoryPackReader } from "./MemoryPackReader";
+import { DtoDateTime } from "./DtoDateTime";
 
 export class UserProfileResponse {
     userId: string;
@@ -7,7 +8,7 @@ export class UserProfileResponse {
     locale: string;
     timezone: string;
     currency: string;
-    createdAt: Date;
+    createdAt: DtoDateTime | null;
 
     constructor() {
         this.userId = "";
@@ -15,7 +16,7 @@ export class UserProfileResponse {
         this.locale = "";
         this.timezone = "";
         this.currency = "";
-        this.createdAt = new Date(0);
+        this.createdAt = null;
 
     }
 
@@ -37,7 +38,7 @@ export class UserProfileResponse {
         writer.writeString(value.locale);
         writer.writeString(value.timezone);
         writer.writeString(value.currency);
-        writer.writeDate(value.createdAt);
+        DtoDateTime.serializeCore(writer, value.createdAt);
 
     }
 
@@ -68,7 +69,7 @@ export class UserProfileResponse {
             value.locale = reader.readString();
             value.timezone = reader.readString();
             value.currency = reader.readString();
-            value.createdAt = reader.readDate();
+            value.createdAt = DtoDateTime.deserializeCore(reader);
 
         }
         else if (count > 6) {
@@ -81,7 +82,7 @@ export class UserProfileResponse {
             value.locale = reader.readString(); if (count == 3) return value;
             value.timezone = reader.readString(); if (count == 4) return value;
             value.currency = reader.readString(); if (count == 5) return value;
-            value.createdAt = reader.readDate(); if (count == 6) return value;
+            value.createdAt = DtoDateTime.deserializeCore(reader); if (count == 6) return value;
 
         }
         return value;

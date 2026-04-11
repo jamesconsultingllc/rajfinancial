@@ -1090,8 +1090,57 @@ AssetContactLink {
 | Entity (DB) | DTO (MemoryPack) | Notes |
 |-------------|-----------------|-------|
 | `decimal` | `double` | Monetary fields — converted in service/mapping layer |
-| `DateTimeOffset` | `DateTime` | Timestamps — `.DateTime` or `.UtcDateTime` |
+| `DateTimeOffset` | `DtoDateTime` | Timestamps — implicit conversion via wrapper struct (see below) |
 | `List<T>` | `T[]` | MemoryPack prefers arrays |
+
+### DtoDateTime Wrapper
+
+**Problem**: Entities use `DateTimeOffset` for proper timezone handling, while DTOs use `DateTime` for MemoryPack compatibility. Without a helper, every mapping requires manual `.UtcDateTime` calls:
+
+```csharp
+// ❌ Without DtoDateTime — verbose, error-prone
+var dto = new AssetDto
+{
+    CreatedAt = asset.CreatedAt.UtcDateTime,
+    UpdatedAt = asset.UpdatedAt?.UtcDateTime,
+    PurchaseDate = asset.PurchaseDate?.UtcDateTime,
+};
+```
+
+**Solution**: `DtoDateTime` is a MemoryPack-compatible wrapper struct with implicit conversions:
+
+```csharp
+// ✅ With DtoDateTime — clean, automatic
+var dto = new AssetDto
+{
+    CreatedAt = asset.CreatedAt,    // DateTimeOffset → DtoDateTime (implicit)
+    UpdatedAt = asset.UpdatedAt,    // DateTimeOffset? → DtoDateTime? (implicit)
+};
+
+// Reverse mapping also works
+entity.CreatedAt = dto.CreatedAt;   // DtoDateTime → DateTimeOffset (implicit)
+```
+
+**Location**: `src/Shared/DtoDateTime.cs`
+
+**Usage in DTOs**:
+```csharp
+[MemoryPackable]
+public sealed partial record UserProfileResponse
+{
+    [MemoryPackOrder(5)]
+    public DtoDateTime CreatedAt { get; init; }
+
+    [MemoryPackOrder(6)]
+    public DtoDateTime? UpdatedAt { get; init; }
+}
+```
+
+**Benefits**:
+- Eliminates manual `.UtcDateTime` calls at every mapping point
+- Compile-time safety — no runtime overhead
+- MemoryPack serializes it as a raw `DateTime` (8 bytes, no overhead)
+- Implements `IEquatable<T>`, `IComparable<T>` for proper value semantics
 
 ### Metadata serialization
 
