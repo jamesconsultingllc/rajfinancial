@@ -119,9 +119,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin } = useAuth();
   const { profile, isLoading: isProfileLoading } = useAuthProfile();
 
-  // API-sourced profile flags (graceful degradation if API fails)
-  const showAdminBadge = !isProfileLoading && profile?.isAdministrator === true;
-  const showProfileIncompleteBanner = !isProfileLoading && profile?.isProfileComplete === false;
+  // Use auth state (from Entra claims) for admin badge; profile API for completion status
+  const showAdminBadge = isAdmin;
+  const showProfileIncompleteBanner = !isProfileLoading && profile != null && profile.displayName === "";
 
   const displayUser = {
     name: user?.name ?? "User",

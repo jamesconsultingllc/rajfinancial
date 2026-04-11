@@ -110,15 +110,22 @@ export async function apiClient<T>(
     ? (body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer)
     : body;
 
+  // Only set Content-Type when a request body is present (avoids unnecessary CORS preflights on GET)
+  const headers: Record<string, string> = {
+    Accept: MEMORYPACK_CONTENT_TYPE,
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (body != null) {
+    headers["Content-Type"] = contentType;
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
       ...fetchOptions,
       body: fetchBody,
       headers: {
-        "Content-Type": contentType,
-        Accept: MEMORYPACK_CONTENT_TYPE,
-        Authorization: `Bearer ${accessToken}`,
+        ...headers,
         ...fetchOptions.headers,
       },
     });

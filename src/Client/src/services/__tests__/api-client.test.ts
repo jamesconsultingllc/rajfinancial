@@ -86,7 +86,6 @@ describe("apiClient", () => {
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: `Bearer ${TEST_TOKEN}`,
-            "Content-Type": "application/json",
           }),
         }),
       );

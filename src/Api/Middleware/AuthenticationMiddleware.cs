@@ -82,15 +82,15 @@ public class AuthenticationMiddleware(
 
                 if (string.IsNullOrEmpty(email))
                 {
-                    var claimTypes = principal.Claims.Select(c => $"{c.Type}={c.Value}");
+                    var claimTypeNames = principal.Claims.Select(c => c.Type);
                     logger.LogWarning(
-                        "No email claim found for user {UserId}. Available claims: {Claims}",
-                        userId, string.Join("; ", claimTypes));
+                        "No email claim found for user {UserId}. Available claim types: {ClaimTypes}",
+                        userId, string.Join("; ", claimTypeNames));
                 }
 
                 logger.LogDebug(
-                    "Authenticated user: {UserId}, Email: {Email}, Roles: {Roles}",
-                    userId, email ?? "(none)", string.Join(", ", roles));
+                    "Authenticated user: {UserId}, Roles: {Roles}",
+                    userId, string.Join(", ", roles));
             }
         }
         else
