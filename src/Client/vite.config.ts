@@ -10,6 +10,14 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     https: true,
+    proxy: {
+      // Forward /api requests to local Azure Functions host
+      "/api": {
+        target: "https://localhost:7071",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [react(), basicSsl()],
   resolve: {

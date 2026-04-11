@@ -86,11 +86,11 @@ public class AuthFunctions(
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            Email = profile.Email,
             DisplayName = profile.DisplayName ?? string.Empty,
-            Role = profile.Role.ToString(),
-            IsProfileComplete = profile.IsProfileComplete,
-            IsAdministrator = profile.Role == Shared.Entities.UserRole.Administrator
+            Locale = "en-US",
+            Timezone = "America/New_York",
+            Currency = "USD",
+            CreatedAt = profile.CreatedAt,
         };
 
         logger.LogInformation(

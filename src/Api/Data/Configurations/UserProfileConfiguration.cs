@@ -20,14 +20,6 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
 
         builder.Property(e => e.Email).IsRequired().HasMaxLength(256);
         builder.Property(e => e.DisplayName).HasMaxLength(256);
-        builder.Property(e => e.FirstName).HasMaxLength(100);
-        builder.Property(e => e.LastName).HasMaxLength(100);
-        builder.Property(e => e.PhoneNumber).HasMaxLength(20);
         builder.Property(e => e.PreferencesJson).HasColumnType("nvarchar(max)");
-
-        // Store enum as string for readability
-        builder.Property(e => e.Role)
-            .HasConversion<string>()
-            .HasMaxLength(50);
     }
 }

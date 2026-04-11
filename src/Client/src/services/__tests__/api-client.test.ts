@@ -38,6 +38,14 @@ global.fetch = mockFetch;
 const TEST_TOKEN = "eyJ0ZXN0LXRva2VuIn0";
 const TEST_ACCOUNT = { username: "user@test.com", homeAccountId: "123" };
 
+/** Creates a mock Response with headers.get() support. */
+function mockResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    headers: new Headers({ "Content-Type": "application/json" }),
+    ...overrides,
+  };
+}
+
 function setupSuccessfulAuth() {
   mockGetActiveAccount.mockReturnValue(TEST_ACCOUNT);
   mockAcquireTokenSilent.mockResolvedValue({ accessToken: TEST_TOKEN });
@@ -59,11 +67,13 @@ describe("apiClient", () => {
   describe("token acquisition", () => {
     it("injects bearer token into Authorization header", async () => {
       setupSuccessfulAuth();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ data: "test" }),
-      });
+      mockFetch.mockResolvedValue(
+        mockResponse({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: "test" }),
+        }),
+      );
 
       await apiClient("/auth/me");
 
@@ -112,11 +122,13 @@ describe("apiClient", () => {
 
     it("returns parsed JSON for 200 responses", async () => {
       const payload = { userId: "abc", email: "test@test.com" };
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(payload),
-      });
+      mockFetch.mockResolvedValue(
+        mockResponse({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(payload),
+        }),
+      );
 
       const result = await apiClient("/auth/me");
       expect(result).toEqual(payload);
@@ -133,11 +145,13 @@ describe("apiClient", () => {
     });
 
     it("passes custom headers and method through", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      });
+      mockFetch.mockResolvedValue(
+        mockResponse({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({}),
+        }),
+      );
 
       await apiClient("/auth/clients", {
         method: "POST",

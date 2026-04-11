@@ -3,19 +3,19 @@ import { MemoryPackReader } from "./MemoryPackReader";
 
 export class UserProfileResponse {
     userId: string;
-    email: string;
     displayName: string;
-    role: string;
-    isProfileComplete: boolean;
-    isAdministrator: boolean;
+    locale: string;
+    timezone: string;
+    currency: string;
+    createdAt: Date;
 
     constructor() {
         this.userId = "";
-        this.email = "";
         this.displayName = "";
-        this.role = "";
-        this.isProfileComplete = false;
-        this.isAdministrator = false;
+        this.locale = "";
+        this.timezone = "";
+        this.currency = "";
+        this.createdAt = new Date(0);
 
     }
 
@@ -33,11 +33,11 @@ export class UserProfileResponse {
 
         writer.writeObjectHeader(6);
         writer.writeString(value.userId);
-        writer.writeString(value.email);
         writer.writeString(value.displayName);
-        writer.writeString(value.role);
-        writer.writeBoolean(value.isProfileComplete);
-        writer.writeBoolean(value.isAdministrator);
+        writer.writeString(value.locale);
+        writer.writeString(value.timezone);
+        writer.writeString(value.currency);
+        writer.writeDate(value.createdAt);
 
     }
 
@@ -64,11 +64,11 @@ export class UserProfileResponse {
         const value = new UserProfileResponse();
         if (count == 6) {
             value.userId = reader.readString();
-            value.email = reader.readString();
             value.displayName = reader.readString();
-            value.role = reader.readString();
-            value.isProfileComplete = reader.readBoolean();
-            value.isAdministrator = reader.readBoolean();
+            value.locale = reader.readString();
+            value.timezone = reader.readString();
+            value.currency = reader.readString();
+            value.createdAt = reader.readDate();
 
         }
         else if (count > 6) {
@@ -77,11 +77,11 @@ export class UserProfileResponse {
         else {
             if (count == 0) return value;
             value.userId = reader.readString(); if (count == 1) return value;
-            value.email = reader.readString(); if (count == 2) return value;
-            value.displayName = reader.readString(); if (count == 3) return value;
-            value.role = reader.readString(); if (count == 4) return value;
-            value.isProfileComplete = reader.readBoolean(); if (count == 5) return value;
-            value.isAdministrator = reader.readBoolean(); if (count == 6) return value;
+            value.displayName = reader.readString(); if (count == 2) return value;
+            value.locale = reader.readString(); if (count == 3) return value;
+            value.timezone = reader.readString(); if (count == 4) return value;
+            value.currency = reader.readString(); if (count == 5) return value;
+            value.createdAt = reader.readDate(); if (count == 6) return value;
 
         }
         return value;

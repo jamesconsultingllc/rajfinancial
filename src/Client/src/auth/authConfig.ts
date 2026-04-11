@@ -72,6 +72,6 @@ export const loginRequest = {
 export const apiRequest = {
   scopes: [
     import.meta.env.VITE_AZURE_AD_API_SCOPE ??
-      "api://2d6a08c7-b142-4d53-a307-9ac75bae75eb/access_as_user",
+      "api://rajfinancial-api-dev/user_impersonation",
   ],
 };

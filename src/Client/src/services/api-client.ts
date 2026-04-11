@@ -15,6 +15,8 @@ import { ApiError } from "@/types/api";
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+const MEMORYPACK_CONTENT_TYPE = "application/x-memorypack";
+
 /**
  * Acquires a bearer token silently via MSAL.
  * Falls back to interactive redirect if silent acquisition fails
@@ -45,37 +47,79 @@ async function acquireToken(): Promise<string> {
 }
 
 /**
- * Makes authenticated API calls to the Azure Functions backend.
+ * Options for apiClient beyond standard RequestInit.
+ */
+export interface ApiClientOptions<T> extends Omit<RequestInit, "body"> {
+  /** MemoryPack-serialized binary body (for POST/PUT). When provided, Content-Type is set to application/x-memorypack. */
+  body?: Uint8Array | string;
+  /** MemoryPack deserializer for the response. When provided, responses are deserialized from binary. Falls back to JSON when server responds with JSON (dev mode). */
+  deserialize?: (buffer: ArrayBuffer) => T | null;
+}
+
+/**
+ * Makes authenticated API calls to the Azure Functions backend using MemoryPack.
  *
- * @description Acquires a bearer token via MSAL, injects it into the
- * Authorization header, and handles standard error responses.
+ * @description Always requests MemoryPack via Accept header. The server's
+ * ContentNegotiationMiddleware responds with MemoryPack in production and
+ * JSON in development. When a `deserialize` function is provided, binary
+ * responses are deserialized with it; otherwise falls back to JSON.parse.
+ *
+ * For request bodies, pass a `Uint8Array` (MemoryPack-serialized via
+ * generated TypeScript classes) and Content-Type is set automatically.
+ * String bodies are sent as JSON for backward compatibility.
  *
  * @param endpoint - API path relative to the base URL (e.g., "/auth/me")
- * @param options - Standard fetch RequestInit options
- * @returns Parsed JSON response typed as T
+ * @param options - Request options including optional MemoryPack deserializer
+ * @returns Deserialized response typed as T
  * @throws {ApiError} On non-2xx responses or network failures
  *
  * @example
  * ```ts
- * const profile = await apiClient<UserProfileResponse>("/auth/me");
+ * // GET with MemoryPack deserialization
+ * const profile = await apiClient("/auth/me", {
+ *   deserialize: (buf) => UserProfileResponse.deserialize(buf),
+ * });
+ *
+ * // PUT with MemoryPack request + response
+ * const updated = await apiClient("/profile/me", {
+ *   method: "PUT",
+ *   body: UpdateProfileRequest.serialize(request),
+ *   deserialize: (buf) => UserProfileResponse.deserialize(buf),
+ * });
+ *
+ * // Legacy JSON body (still supported)
+ * const result = await apiClient("/auth/clients", {
+ *   method: "POST",
+ *   body: JSON.stringify(request),
+ * });
  * ```
  */
 export async function apiClient<T>(
   endpoint: string,
-  options: RequestInit = {},
+  options: ApiClientOptions<T> = {},
 ): Promise<T> {
   const accessToken = await acquireToken();
-
   const url = `${API_BASE_URL}${endpoint}`;
+
+  const { body, deserialize, ...fetchOptions } = options;
+
+  // Determine content type and fetch body based on body type
+  const isBinaryBody = body instanceof Uint8Array;
+  const contentType = isBinaryBody ? MEMORYPACK_CONTENT_TYPE : "application/json";
+  const fetchBody = isBinaryBody
+    ? (body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer)
+    : body;
 
   let response: Response;
   try {
     response = await fetch(url, {
-      ...options,
+      ...fetchOptions,
+      body: fetchBody,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": contentType,
+        Accept: MEMORYPACK_CONTENT_TYPE,
         Authorization: `Bearer ${accessToken}`,
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
   } catch {
@@ -95,9 +139,9 @@ export async function apiClient<T>(
     let message = `Request failed with status ${response.status}`;
 
     try {
-      const body = await response.json();
-      if (body.code) code = body.code;
-      if (body.message) message = body.message;
+      const errorBody = await response.json();
+      if (errorBody.code) code = errorBody.code;
+      if (errorBody.message) message = errorBody.message;
     } catch {
       // Response body is not JSON — use defaults
     }
@@ -105,5 +149,18 @@ export async function apiClient<T>(
     throw new ApiError(code, message, response.status);
   }
 
+  // Deserialize response based on Content-Type and available deserializer
+  const responseContentType = response.headers.get("Content-Type") ?? "";
+
+  if (deserialize && responseContentType.includes(MEMORYPACK_CONTENT_TYPE)) {
+    const buffer = await response.arrayBuffer();
+    const result = deserialize(buffer);
+    if (result === null) {
+      throw new ApiError("DESERIALIZE_ERROR", "Failed to deserialize MemoryPack response", 0);
+    }
+    return result;
+  }
+
+  // Fallback: JSON response (development mode or no deserializer provided)
   return response.json() as Promise<T>;
 }

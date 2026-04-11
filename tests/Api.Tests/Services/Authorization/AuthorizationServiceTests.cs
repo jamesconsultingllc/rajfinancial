@@ -472,11 +472,8 @@ public class AuthorizationServiceTests : IDisposable
                 Id = userId,
                 Email = $"{role.ToString().ToLowerInvariant()}@example.com",
                 DisplayName = role.ToString(),
-                FirstName = role.ToString(),
-                LastName = "User",
                 Role = role,
                 TenantId = Guid.NewGuid(),
-                IsActive = true
             });
             dbContext.SaveChanges();
         }

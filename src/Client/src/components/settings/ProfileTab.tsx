@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Camera, Lock, Calendar } from "lucide-react";
 import { toast } from "sonner";
-import { mockProfile } from "@/data/mock-settings";
+import { useAuth } from "@/auth/useAuth";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { useUpdateProfile } from "@/hooks/use-update-profile";
 
 const LOCALES = [
   { value: "en-US", label: "English (US)" },
@@ -26,28 +29,75 @@ const TIMEZONES = [
 
 const CURRENCIES = ["USD", "EUR", "GBP", "MXN", "BRL", "CAD"];
 
-const COUNTRIES = [
-  { value: "US", label: "United States" },
-  { value: "CA", label: "Canada" },
-  { value: "MX", label: "Mexico" },
-  { value: "GB", label: "United Kingdom" },
-  { value: "FR", label: "France" },
-  { value: "BR", label: "Brazil" },
-  { value: "JP", label: "Japan" },
-];
-
 export function ProfileTab() {
   const { t } = useTranslation("settings");
-  const [profile] = useState(mockProfile);
+  const { user } = useAuth();
+  const { profile: apiProfile, isLoading } = useAuthProfile();
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
+
+  // Controlled form state
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [locale, setLocale] = useState("en-US");
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [currency, setCurrency] = useState("USD");
+
+  // Sync form state when API profile loads
+  useEffect(() => {
+    if (apiProfile) {
+      setEditDisplayName(apiProfile.displayName ?? "");
+      // TODO: Read preferences from API when PreferencesJson is exposed in the response
+    }
+  }, [apiProfile]);
 
   const handleSave = () => {
-    toast.success(t("profile.saved"));
+    updateProfile(
+      { displayName: editDisplayName, locale, timezone, currency },
+      {
+        onSuccess: () => toast.success(t("profile.saved")),
+        onError: () => toast.error(t("profile.saveError", { defaultValue: "Failed to save profile" })),
+      },
+    );
   };
 
-  const memberSince = new Date(profile.createdAt).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  // Use API profile data when available, fall back to useAuth
+  const displayName = apiProfile?.displayName ?? user?.name ?? "User";
+  const email = user?.email ?? "";
+  const initials = user?.initials ?? displayName.split(" ").map(n => n[0]).join("").slice(0, 2);
+
+  // Format member since date from profile createdAt
+  const memberSince = apiProfile?.createdAt
+    ? new Date(apiProfile.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-6">
+              <Skeleton className="w-20 h-20 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border/50">
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -56,9 +106,9 @@ export function ProfileTab() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="w-20 h-20">
-                <AvatarImage src={profile.avatarUrl} />
+                <AvatarImage />
                 <AvatarFallback className="bg-primary/20 text-primary text-xl font-semibold">
-                  {profile.displayName.split(" ").map(n => n[0]).join("")}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <button
@@ -69,15 +119,17 @@ export function ProfileTab() {
               </button>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">{profile.displayName}</h2>
+              <h2 className="text-lg font-semibold text-foreground">{displayName}</h2>
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Lock className="w-3.5 h-3.5" />
-                <span>{profile.email}</span>
+                <span>{email}</span>
               </div>
-              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                <Calendar className="w-3 h-3" />
-                <span>{t("profile.memberSince", { date: memberSince })}</span>
-              </div>
+              {memberSince && (
+                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                  <Calendar className="w-3 h-3" />
+                  <span>{t("profile.memberSince", { date: memberSince })}</span>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -90,51 +142,7 @@ export function ProfileTab() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="displayName">{t("profile.displayName")}</Label>
-            <Input id="displayName" defaultValue={profile.displayName} maxLength={200} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">{t("profile.phone")}</Label>
-            <Input id="phone" type="tel" defaultValue={profile.phone} maxLength={30} />
-          </div>
-
-          <Separator />
-          <h3 className="text-sm font-semibold text-foreground">{t("profile.address")}</h3>
-
-          <div className="space-y-2">
-            <Label htmlFor="street1">{t("profile.street1")}</Label>
-            <Input id="street1" defaultValue={profile.address?.street1} maxLength={200} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="street2">{t("profile.street2")}</Label>
-            <Input id="street2" defaultValue={profile.address?.street2} maxLength={200} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">{t("profile.city")}</Label>
-              <Input id="city" defaultValue={profile.address?.city} maxLength={100} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">{t("profile.state")}</Label>
-              <Input id="state" defaultValue={profile.address?.state} maxLength={100} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="postalCode">{t("profile.postalCode")}</Label>
-              <Input id="postalCode" defaultValue={profile.address?.postalCode} maxLength={20} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">{t("profile.country")}</Label>
-              <Select defaultValue={profile.address?.country || "US"}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {COUNTRIES.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Input id="displayName" value={editDisplayName} onChange={e => setEditDisplayName(e.target.value)} maxLength={200} />
           </div>
 
           <Separator />
@@ -143,7 +151,7 @@ export function ProfileTab() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{t("profile.locale")}</Label>
-              <Select defaultValue={profile.locale}>
+              <Select value={locale} onValueChange={setLocale}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {LOCALES.map(l => (
@@ -154,7 +162,7 @@ export function ProfileTab() {
             </div>
             <div className="space-y-2">
               <Label>{t("profile.timezone")}</Label>
-              <Select defaultValue={profile.timezone}>
+              <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TIMEZONES.map(tz => (
@@ -165,7 +173,7 @@ export function ProfileTab() {
             </div>
             <div className="space-y-2">
               <Label>{t("profile.currency")}</Label>
-              <Select defaultValue={profile.currencyCode}>
+              <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CURRENCIES.map(c => (
@@ -178,7 +186,9 @@ export function ProfileTab() {
 
           <Separator />
           <div className="flex justify-end">
-            <Button variant="gold" onClick={handleSave}>{t("profile.saveChanges")}</Button>
+            <Button variant="gold" onClick={handleSave} disabled={isPending}>
+              {isPending ? t("profile.saving", { defaultValue: "Saving..." }) : t("profile.saveChanges")}
+            </Button>
           </div>
         </CardContent>
       </Card>

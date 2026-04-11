@@ -5,16 +5,13 @@
 // This enables secure data sharing between users (e.g., spouse, attorney, CPA).
 // ============================================================================
 
-using MemoryPack;
-
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
 ///     Represents a grant of access from one user (Grantor) to another user (Grantee).
 ///     Enables secure data sharing between family members, professionals, etc.
 /// </summary>
-[MemoryPackable]
-public partial class DataAccessGrant
+public class DataAccessGrant
 {
     /// <summary>
     ///     Unique identifier for this grant.

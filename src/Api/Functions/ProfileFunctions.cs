@@ -5,7 +5,9 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
+using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Shared.Contracts.Auth;
 
 namespace RajFinancial.Api.Functions;
 
@@ -24,12 +26,14 @@ namespace RajFinancial.Api.Functions;
 /// <b>Endpoints:</b>
 /// <list type="bullet">
 ///   <item><c>GET /api/profile/me</c> – Returns the authenticated user's persisted profile</item>
+///   <item><c>PUT /api/profile/me</c> – Updates the authenticated user's editable profile fields</item>
 /// </list>
 /// </para>
 /// </remarks>
 public class ProfileFunctions(
     ILogger<ProfileFunctions> logger,
-    IUserProfileService userProfileService)
+    IUserProfileService userProfileService,
+    ISerializationFactory serializationFactory)
 {
     /// <summary>
     /// Returns the persisted <see cref="Shared.Entities.UserProfile"/> for the
@@ -69,36 +73,120 @@ public class ProfileFunctions(
                 "Profile not found for user {UserId}",
                 userIdGuid.Value);
 
-            var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
-            notFoundResponse.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await notFoundResponse.WriteStringAsync(JsonSerializer.Serialize(new
-            {
-                code = "PROFILE_NOT_FOUND",
-                message = "User profile has not been provisioned"
-            }, FunctionHelpers.JsonOptions));
-            return notFoundResponse;
+            return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.NotFound,
+                "PROFILE_NOT_FOUND", "User profile has not been provisioned");
         }
 
         logger.LogInformation(
             "Returning profile for user {UserId}",
             userIdGuid.Value);
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync(JsonSerializer.Serialize(new
+        var prefs = ParsePreferences(profile.PreferencesJson);
+        var responseDto = new UserProfileResponse
         {
-            id = profile.Id.ToString(),
-            email = profile.Email,
-            displayName = profile.DisplayName,
-            role = profile.Role.ToString(),
-            tenantId = profile.TenantId,
-            isActive = profile.IsActive,
-            isProfileComplete = profile.IsProfileComplete,
-            createdAt = profile.CreatedAt,
-            lastLoginAt = profile.LastLoginAt,
-            updatedAt = profile.UpdatedAt
-        }, FunctionHelpers.JsonOptions));
+            UserId = profile.Id.ToString(),
+            DisplayName = profile.DisplayName ?? string.Empty,
+            Locale = prefs.Locale,
+            Timezone = prefs.Timezone,
+            Currency = prefs.Currency,
+            CreatedAt = profile.CreatedAt
+        };
 
-        return response;
+        return await context.CreateSerializedResponseAsync(
+            req, HttpStatusCode.OK, responseDto, serializationFactory);
+    }
+
+    // =========================================================================
+    // PUT /api/profile/me
+    // =========================================================================
+
+    /// <summary>
+    /// Updates the authenticated user's editable profile fields.
+    /// </summary>
+    /// <param name="req">The incoming HTTP request.</param>
+    /// <param name="context">The Azure Functions invocation context.</param>
+    /// <returns>
+    /// <list type="bullet">
+    ///   <item><b>200 OK</b> – Updated <see cref="UserProfileResponse"/>.</item>
+    ///   <item><b>401 Unauthorized</b> – No authenticated user context available.</item>
+    ///   <item><b>404 Not Found</b> – Profile has not been provisioned yet.</item>
+    /// </list>
+    /// </returns>
+    [RequireAuthentication]
+    [Function("UpdateProfileMe")]
+    public async Task<HttpResponseData> UpdateMyProfile(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "profile/me")]
+        HttpRequestData req,
+        FunctionContext context)
+    {
+        var userIdGuid = context.GetUserIdAsGuid();
+
+        if (!userIdGuid.HasValue)
+        {
+            logger.LogWarning("UpdateProfileMe called without UserIdGuid in context");
+            return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
+                "AUTH_REQUIRED", "Authentication is required");
+        }
+
+        var request = await context.GetValidatedBodyAsync<UpdateProfileRequest>();
+
+        var profile = await userProfileService.UpdateProfileAsync(
+            userIdGuid.Value, request);
+
+        if (profile is null)
+        {
+            return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.NotFound,
+                "PROFILE_NOT_FOUND", "User profile has not been provisioned");
+        }
+
+        var updatedPrefs = ParsePreferences(profile.PreferencesJson);
+        var responseDto = new UserProfileResponse
+        {
+            UserId = profile.Id.ToString(),
+            DisplayName = profile.DisplayName ?? string.Empty,
+            Locale = updatedPrefs.Locale,
+            Timezone = updatedPrefs.Timezone,
+            Currency = updatedPrefs.Currency,
+            CreatedAt = profile.CreatedAt
+        };
+
+        logger.LogInformation(
+            "UpdateProfileMe returning updated profile for user {UserId}",
+            userIdGuid.Value);
+
+        return await context.CreateSerializedResponseAsync(
+            req, HttpStatusCode.OK, responseDto, serializationFactory);
+    }
+
+    /// <summary>
+    /// Parses locale, timezone, and currency from the user's PreferencesJson.
+    /// Returns defaults ("en-US", "America/New_York", "USD") if missing or malformed.
+    /// </summary>
+    private static (string Locale, string Timezone, string Currency) ParsePreferences(string? preferencesJson)
+    {
+        const string defaultLocale = "en-US";
+        const string defaultTimezone = "America/New_York";
+        const string defaultCurrency = "USD";
+
+        if (string.IsNullOrWhiteSpace(preferencesJson))
+        {
+            return (defaultLocale, defaultTimezone, defaultCurrency);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(preferencesJson);
+            var root = doc.RootElement;
+
+            var locale = root.TryGetProperty("locale", out var l) ? l.GetString() ?? defaultLocale : defaultLocale;
+            var timezone = root.TryGetProperty("timezone", out var t) ? t.GetString() ?? defaultTimezone : defaultTimezone;
+            var currency = root.TryGetProperty("currency", out var c) ? c.GetString() ?? defaultCurrency : defaultCurrency;
+
+            return (locale, timezone, currency);
+        }
+        catch (JsonException)
+        {
+            return (defaultLocale, defaultTimezone, defaultCurrency);
+        }
     }
 }

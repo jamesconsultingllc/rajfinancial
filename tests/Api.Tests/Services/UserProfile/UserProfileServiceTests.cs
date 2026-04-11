@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
 
 namespace RajFinancial.Api.Tests.Services.UserProfiles;
@@ -120,14 +121,14 @@ public class UserProfileServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var before = DateTimeOffset.UtcNow;
+        var before = DateTime.UtcNow;
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
-        var after = DateTimeOffset.UtcNow;
+        var after = DateTime.UtcNow;
         profile.CreatedAt.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
     }
 
@@ -136,14 +137,14 @@ public class UserProfileServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var before = DateTimeOffset.UtcNow;
+        var before = DateTime.UtcNow;
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
-        var after = DateTimeOffset.UtcNow;
+        var after = DateTime.UtcNow;
         profile.LastLoginAt.Should().NotBeNull();
         profile.LastLoginAt!.Value.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
     }
@@ -295,7 +296,7 @@ public class UserProfileServiceTests : IDisposable
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Set LastLoginAt to a known past time
-        initialProfile.LastLoginAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        initialProfile.LastLoginAt = DateTime.UtcNow.AddMinutes(-10);
         await dbContext.SaveChangesAsync();
 
         // Act
@@ -304,7 +305,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         updatedProfile.LastLoginAt.Should().BeCloseTo(
-            DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+            DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -316,7 +317,7 @@ public class UserProfileServiceTests : IDisposable
             userId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Set LastLoginAt to a known past time so the update is detectable
-        initialProfile.LastLoginAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        initialProfile.LastLoginAt = DateTime.UtcNow.AddMinutes(-1);
         await dbContext.SaveChangesAsync();
         var previousLastLogin = initialProfile.LastLoginAt;
 
@@ -327,7 +328,7 @@ public class UserProfileServiceTests : IDisposable
         // Assert — LastLoginAt should have been updated to now
         updatedProfile.LastLoginAt.Should().BeAfter(previousLastLogin!.Value);
         updatedProfile.LastLoginAt.Should().BeCloseTo(
-            DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+            DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -419,14 +420,14 @@ public class UserProfileServiceTests : IDisposable
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "Old Name", ["Client"]);
-        var before = DateTimeOffset.UtcNow;
+        var before = DateTime.UtcNow;
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
             userId, "user@rajfinancial.com", "New Name", ["Client"]);
 
         // Assert
-        var after = DateTimeOffset.UtcNow;
+        var after = DateTime.UtcNow;
         updatedProfile.UpdatedAt.Should().NotBeNull();
         updatedProfile.UpdatedAt!.Value.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
     }
@@ -486,7 +487,100 @@ public class UserProfileServiceTests : IDisposable
         profile.Role.Should().Be(UserRole.Administrator);
         profile.TenantId.Should().Be(tenantId);
         profile.IsActive.Should().BeTrue();
-        profile.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        profile.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
         profile.LastLoginAt.Should().NotBeNull();
+    }
+
+    // =========================================================================
+    // UpdateProfileAsync
+    // =========================================================================
+
+    [Fact]
+    public async Task UpdateProfile_ExistingUser_UpdatesDisplayName()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "Old Name", ["Client"]);
+        var request = new UpdateProfileRequest
+        {
+            DisplayName = "New Name",
+            Locale = "es-MX",
+            Timezone = "America/Chicago",
+            Currency = "EUR"
+        };
+
+        // Act
+        var result = await service.UpdateProfileAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.DisplayName.Should().Be("New Name");
+    }
+
+    [Fact]
+    public async Task UpdateProfile_ExistingUser_SetsPreferencesJson()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "User", ["Client"]);
+        var request = new UpdateProfileRequest
+        {
+            DisplayName = "User",
+            Locale = "es-MX",
+            Timezone = "America/Chicago",
+            Currency = "EUR"
+        };
+
+        // Act
+        var result = await service.UpdateProfileAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.PreferencesJson.Should().Contain("es-MX");
+        result.PreferencesJson.Should().Contain("America/Chicago");
+        result.PreferencesJson.Should().Contain("EUR");
+    }
+
+    [Fact]
+    public async Task UpdateProfile_ExistingUser_StampsUpdatedAt()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "User", ["Client"]);
+        var request = new UpdateProfileRequest
+        {
+            DisplayName = "User",
+            Locale = "en-US",
+            Timezone = "America/New_York",
+            Currency = "USD"
+        };
+
+        // Act
+        var result = await service.UpdateProfileAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.UpdatedAt.Should().NotBeNull();
+        result.UpdatedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task UpdateProfile_NonExistentUser_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService();
+        var request = new UpdateProfileRequest
+        {
+            DisplayName = "Ghost",
+            Locale = "en-US",
+            Timezone = "America/New_York",
+            Currency = "USD"
+        };
+
+        // Act
+        var result = await service.UpdateProfileAsync(unknownUserId, request);
+
+        // Assert
+        result.Should().BeNull();
     }
 }
