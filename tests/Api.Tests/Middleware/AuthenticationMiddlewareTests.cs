@@ -490,7 +490,9 @@ public class AuthenticationMiddlewareTests
         // Arrange — Production environment; EasyAuth sets HttpContext.User (no bearer token needed)
         var prodEnv = new Mock<IHostEnvironment>();
         prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
-        var prodMiddleware = new AuthenticationMiddleware(loggerMock.Object, prodEnv.Object);
+        // Use a fresh logger mock so previous test runs don't pollute the Times.Never assertion
+        var freshLogger = new Mock<ILogger<AuthenticationMiddleware>>();
+        var prodMiddleware = new AuthenticationMiddleware(freshLogger.Object, prodEnv.Object);
 
         var userId = Guid.NewGuid().ToString();
         var easyAuthPrincipal = CreatePrincipal(objectId: userId);
@@ -501,14 +503,14 @@ public class AuthenticationMiddlewareTests
         // Act
         await prodMiddleware.Invoke(context, Next);
 
-        // Assert — EasyAuth-validated principal accepted; no warning logged
+        // Assert — EasyAuth-validated principal accepted; no "unvalidated token" warning logged
         context.Items["IsAuthenticated"].Should().Be(true);
         context.Items["UserId"].Should().Be(userId);
-        loggerMock.Verify(
+        freshLogger.Verify(
             x => x.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Rejecting unvalidated token")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
