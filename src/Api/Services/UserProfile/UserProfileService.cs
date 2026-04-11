@@ -37,7 +37,7 @@ public class UserProfileService(
     {
         var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
         var mappedRole = MapHighestPriorityRole(roles);
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         if (profile is null)
         {
@@ -154,7 +154,7 @@ public class UserProfileService(
             timezone = request.Timezone,
             currency = request.Currency
         });
-        profile.UpdatedAt = DateTime.UtcNow;
+        profile.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

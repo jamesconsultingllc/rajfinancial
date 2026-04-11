@@ -90,7 +90,7 @@ public class AuthFunctions(
             Locale = "en-US",
             Timezone = "America/New_York",
             Currency = "USD",
-            CreatedAt = profile.CreatedAt,
+            CreatedAt = profile.CreatedAt.UtcDateTime,
         };
 
         logger.LogInformation(

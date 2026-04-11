@@ -76,17 +76,17 @@ public class UserProfile
     /// <summary>
     ///     Date and time the user profile was created.
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
     ///     Date and time the user profile was last updated.
     /// </summary>
-    public DateTime? UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     /// <summary>
     ///     Date and time of the user's last login.
     /// </summary>
-    public DateTime? LastLoginAt { get; set; }
+    public DateTimeOffset? LastLoginAt { get; set; }
 
     /// <summary>
     ///     User preferences stored as JSON (theme, notifications, etc.).
