@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Hosting;
@@ -459,6 +460,144 @@ public class AuthenticationMiddlewareTests
     }
 
     // =========================================================================
+    // EasyAuth via HttpContext.User (ConfigureFunctionsWebApplication)
+    // =========================================================================
+
+    [Fact]
+    public async Task Invoke_WithEasyAuthHttpContextUser_SetsUserContext()
+    {
+        // Arrange — simulate EasyAuth populating HttpContext.User via ConfigureFunctionsWebApplication
+        var userId = Guid.NewGuid().ToString();
+        var easyAuthPrincipal = CreatePrincipal(objectId: userId, email: "easyauth@rajfinancial.com", roles: ["Client"]);
+        var context = CreateContextWithHttpContextUser(easyAuthPrincipal);
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert — claims from HttpContext.User must be used
+        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items["UserId"].Should().Be(userId);
+        context.Items["UserEmail"].Should().Be("easyauth@rajfinancial.com");
+        var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
+        roles.Should().Contain("Client");
+    }
+
+    [Fact]
+    public async Task Invoke_WithEasyAuthHttpContextUser_ProductionNoJwtBypass()
+    {
+        // Arrange — Production environment; EasyAuth sets HttpContext.User (no bearer token needed)
+        var prodEnv = new Mock<IHostEnvironment>();
+        prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
+        var prodMiddleware = new AuthenticationMiddleware(loggerMock.Object, prodEnv.Object);
+
+        var userId = Guid.NewGuid().ToString();
+        var easyAuthPrincipal = CreatePrincipal(objectId: userId);
+        var context = CreateContextWithHttpContextUser(easyAuthPrincipal);
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await prodMiddleware.Invoke(context, Next);
+
+        // Assert — EasyAuth-validated principal accepted; no warning logged
+        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items["UserId"].Should().Be(userId);
+        loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Invoke_WithUnauthenticatedHttpContextUser_FallsThroughToJwt()
+    {
+        // Arrange — HttpContext.User present but not authenticated; should fall through to JWT parsing
+        var unauthenticatedPrincipal = new ClaimsPrincipal(new ClaimsIdentity()); // no auth type → not authenticated
+        var context = CreateContextWithHttpContextUser(unauthenticatedPrincipal);
+
+        // Also add an Authorization header so the JWT path is exercised
+        var handler = new JwtSecurityTokenHandler();
+        var userId = Guid.NewGuid().ToString();
+        var token = handler.CreateEncodedJwt(
+            issuer: "https://fake-issuer",
+            audience: "fake-audience",
+            subject: new ClaimsIdentity([new Claim("oid", userId)]),
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: DateTime.UtcNow.AddHours(1),
+            issuedAt: DateTime.UtcNow,
+            signingCredentials: null);
+
+        var headers = new HttpHeadersCollection();
+        headers.Add("Authorization", $"Bearer {token}");
+        context.SetHttpRequestHeaders(headers);
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act — Development middleware used so JWT fallback is allowed
+        await middleware.Invoke(context, Next);
+
+        // Assert — JWT parsed because HttpContext.User was not authenticated
+        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items["UserId"].Should().Be(userId);
+    }
+
+    [Fact]
+    public async Task Invoke_ItemsClaimsPrincipalTakesPriorityOverHttpContextUser()
+    {
+        // Arrange — both Items["ClaimsPrincipal"] and HttpContext.User are set;
+        // Items["ClaimsPrincipal"] should win (existing behavior preserved)
+        var itemsUserId = Guid.NewGuid().ToString();
+        var httpContextUserId = Guid.NewGuid().ToString();
+
+        var itemsPrincipal = CreatePrincipal(objectId: itemsUserId);
+        var httpContextPrincipal = CreatePrincipal(objectId: httpContextUserId);
+
+        var context = CreateContextWithHttpContextUser(httpContextPrincipal);
+        context.Items["ClaimsPrincipal"] = itemsPrincipal;
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act
+        await middleware.Invoke(context, Next);
+
+        // Assert — the principal from Items takes precedence
+        context.Items["UserId"].Should().Be(itemsUserId);
+    }
+
+    [Fact]
+    public async Task Invoke_WithNullHttpContext_FallsThroughToJwtParsing()
+    {
+        // Arrange — no HttpContext set (non-HTTP trigger or missing context); falls through to JWT path
+        var handler = new JwtSecurityTokenHandler();
+        var userId = Guid.NewGuid().ToString();
+        var token = handler.CreateEncodedJwt(
+            issuer: "https://fake-issuer",
+            audience: "fake-audience",
+            subject: new ClaimsIdentity([new Claim("oid", userId)]),
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: DateTime.UtcNow.AddHours(1),
+            issuedAt: DateTime.UtcNow,
+            signingCredentials: null);
+
+        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
+
+        Task Next(FunctionContext _) => Task.CompletedTask;
+
+        // Act — Development middleware; no Items["ClaimsPrincipal"], no HttpContext in Items
+        await middleware.Invoke(context, Next);
+
+        // Assert — fell through to JWT parsing
+        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items["UserId"].Should().Be(userId);
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
@@ -502,6 +641,22 @@ public class AuthenticationMiddlewareTests
         var headers = new HttpHeadersCollection();
         headers.Add("Authorization", authorizationHeader);
         context.SetHttpRequestHeaders(headers);
+        return context;
+    }
+
+    /// <summary>
+    /// Creates a <see cref="TestFunctionContext"/> that simulates EasyAuth populating
+    /// <see cref="HttpContext.User"/> via <c>ConfigureFunctionsWebApplication()</c>.
+    /// </summary>
+    private static TestFunctionContext CreateContextWithHttpContextUser(ClaimsPrincipal userPrincipal)
+    {
+        var mockHttpContext = new Mock<HttpContext>();
+        mockHttpContext.SetupGet(h => h.User).Returns(userPrincipal);
+
+        var context = new TestFunctionContext();
+        // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
+        // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
+        context.Items["HttpRequestContext"] = mockHttpContext.Object;
         return context;
     }
 }
