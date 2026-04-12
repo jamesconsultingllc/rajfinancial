@@ -443,7 +443,7 @@ Then(
     while (Date.now() - start < maxWaitMs) {
       const url = this.page.url();
       if (isAppUrl(url)) {
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForLoadState("domcontentloaded");
         return;
       }
       await this.page.waitForTimeout(1000);
@@ -457,7 +457,7 @@ Then(
 Then(
   "I should see the client dashboard",
   async function (this: CustomWorld) {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded");
 
     const url = this.page.url();
     const content = await this.page.content();
@@ -473,7 +473,7 @@ Then(
 Then(
   "I should see my username next to the logout button",
   async function (this: CustomWorld) {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded");
     await this.page.waitForTimeout(2000);
 
     const username = this.get<string>("TestUsername");
@@ -524,7 +524,7 @@ When(
       (url) => url.toString().includes(config.baseUrl),
       { timeout: 15000 }
     );
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded");
   }
 );
 
@@ -536,18 +536,18 @@ Then("I should be logged out", async function (this: CustomWorld) {
 
   const url = this.page.url();
   if (isEntraLoginUrl(url)) {
-    await this.page.goto(config.baseUrl, { waitUntil: "networkidle" });
+    await this.page.goto(config.baseUrl, { waitUntil: "domcontentloaded" });
   }
 
   await this.page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
   });
-  await this.page.reload({ waitUntil: "networkidle" });
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 Then("I should be on the home page", async function (this: CustomWorld) {
-  await this.page.waitForLoadState("networkidle");
+  await this.page.waitForLoadState("domcontentloaded");
   const url = this.page.url();
   expect(
     url === config.baseUrl ||
