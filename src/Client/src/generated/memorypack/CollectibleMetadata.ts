@@ -1,7 +1,6 @@
 import { MemoryPackWriter } from "./MemoryPackWriter";
 import { MemoryPackReader } from "./MemoryPackReader";
 import { CollectibleCategory } from "./CollectibleCategory";
-import { ItemCondition } from "./ItemCondition";
 import { IAssetMetadata } from "./IAssetMetadata";
 
 export class CollectibleMetadata implements IAssetMetadata {
