@@ -1,0 +1,6 @@
+# Auto-generated files — collapsed in GitHub PR diffs, excluded from Copilot review
+src/Client/src/generated/** linguist-generated=true
+*.feature.cs linguist-generated=true
+*.designer.cs linguist-generated=true
+*.g.cs linguist-generated=true
+*.AssemblyInfo.cs linguist-generated=true
