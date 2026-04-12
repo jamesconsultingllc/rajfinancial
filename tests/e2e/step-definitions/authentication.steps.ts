@@ -40,8 +40,9 @@ Then(
 
 When(
   "I click the {string} link on Entra page",
+  { timeout: 30_000 },
   async function (this: CustomWorld, _linkText: string) {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
     await this.page.waitForTimeout(1000);
 
     await tryClickUseAnotherAccount(this.page);
@@ -55,23 +56,20 @@ When(
       "p:has-text('No account') a",
     ];
 
-    let clicked = false;
-    for (const selector of signupSelectors) {
-      try {
-        const link = this.page.locator(selector).first();
-        await link.waitFor({ state: "visible", timeout: 2000 });
-        await link.click();
-        clicked = true;
-        break;
-      } catch {
-        // try next
-      }
+    const link = await findClickableEntraControl(
+      this.page,
+      signupSelectors,
+      15_000
+    );
+    if (!link) {
+      const url = this.page.url();
+      const title = await this.page.title().catch(() => "unknown");
+      throw new Error(
+        `Could not find signup link on Entra page. URL: ${url}, Title: ${title}`
+      );
     }
-
-    if (!clicked) {
-      throw new Error("Could not find signup link on Entra page.");
-    }
-    await this.page.waitForLoadState("networkidle");
+    await link.click();
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 );
 
@@ -88,7 +86,7 @@ When(
     this.set("UsernameGuid", guid);
     this.set("TestUserPassword", generateSecurePassword());
 
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     const emailSelectors = [
       "input[name='username']",
@@ -97,24 +95,23 @@ When(
       "input#email",
     ];
 
-    for (const selector of emailSelectors) {
-      try {
-        const field = this.page.locator(selector).first();
-        await field.waitFor({ state: "visible", timeout: 3000 });
-        await field.fill(testEmail);
-        return;
-      } catch {
-        // try next
-      }
+    const field = await findClickableEntraControl(
+      this.page,
+      emailSelectors,
+      10_000
+    );
+    if (!field) {
+      throw new Error("Could not find email input field on signup form.");
     }
-    throw new Error("Could not find email input field on signup form.");
+    await field.fill(testEmail);
   }
 );
 
 When(
   "I click the {string} button on Entra page",
+  { timeout: 30_000 },
   async function (this: CustomWorld, buttonText: string) {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
     await this.page.waitForTimeout(500);
 
     const selectors: string[] = [];
@@ -123,41 +120,38 @@ When(
     if (textLower === "next") {
       selectors.push(
         "button[data-testid='usernamePrimaryButton']",
-        "button[type='submit']",
         "#idSIButton9",
+        "button[type='submit']",
         "input[type='submit']"
       );
     } else if (textLower === "accept") {
       selectors.push(
         "input[type='submit'][value='Accept']",
+        "#acceptButton",
+        "input[value='Accept']",
         "button:has-text('Accept')",
+        "input[type='submit'][value='Yes']",
         "button[type='submit']"
       );
     } else {
       selectors.push(
         `button:has-text('${buttonText}')`,
-        "button[type='submit']",
-        `input[type='submit'][value*='${buttonText}' i]`
+        `input[type='submit'][value*='${buttonText}' i]`,
+        "button[type='submit']"
       );
     }
 
-    let clicked = false;
-    for (const selector of selectors) {
-      try {
-        const btn = this.page.locator(selector).first();
-        await btn.waitFor({ state: "visible", timeout: 3000 });
-        await btn.click();
-        clicked = true;
-        break;
-      } catch {
-        // try next
-      }
+    const btn = await findClickableEntraControl(this.page, selectors, 15_000);
+    if (!btn) {
+      const url = this.page.url();
+      const title = await this.page.title().catch(() => "unknown");
+      throw new Error(
+        `Could not find '${buttonText}' button on Entra page. ` +
+          `URL: ${url}, Title: ${title}, Selectors tried: ${selectors.join(", ")}`
+      );
     }
-
-    if (!clicked) {
-      throw new Error(`Could not find '${buttonText}' button on Entra page.`);
-    }
-    await this.page.waitForLoadState("networkidle");
+    await btn.click();
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 );
 
@@ -166,8 +160,20 @@ When(
 Then(
   "I should see the email verification code input",
   async function (this: CustomWorld) {
-    await this.page.waitForLoadState("networkidle");
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
+
+    const codeField = this.page
+      .locator(
+        "input[name='verificationCode'], input[data-testid='verificationCodeInput'], input[id*='code'], input[placeholder*='code' i]"
+      )
+      .first();
+
+    try {
+      await codeField.waitFor({ state: "visible", timeout: 10_000 });
+      return;
+    } catch {
+      // Fallback: check page content
+    }
 
     const content = await this.page.content();
     const hasVerification =
@@ -197,7 +203,7 @@ When(
     this.set("VerificationCode", verificationCode);
 
     // Enter the code into the Entra verification form
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     const codeSelectors = [
       "input[name='verificationCode']",
@@ -207,44 +213,36 @@ When(
       "input[type='text']",
     ];
 
-    let entered = false;
-    for (const selector of codeSelectors) {
-      try {
-        const field = this.page.locator(selector).first();
-        await field.waitFor({ state: "visible", timeout: 2000 });
-        await field.fill(verificationCode);
-        entered = true;
-        console.log(`✓ Entered code using selector: ${selector}`);
-        break;
-      } catch {
-        // try next
-      }
-    }
-
-    if (!entered) {
+    const field = await findClickableEntraControl(
+      this.page,
+      codeSelectors,
+      10_000
+    );
+    if (!field) {
       throw new Error("Could not find verification code input field.");
     }
+    await field.fill(verificationCode);
+    console.log(`✓ Entered verification code`);
 
     // Click Verify button
     const verifySelectors = [
       "[data-testid='verifyButton']",
       "#verifyButton",
+      "#oneTimeCodePrimaryButton",
       "button:has-text('Verify')",
       "button[type='submit']",
     ];
 
-    for (const selector of verifySelectors) {
-      try {
-        const btn = this.page.locator(selector).first();
-        await btn.waitFor({ state: "visible", timeout: 2000 });
-        await btn.click();
-        break;
-      } catch {
-        // try next
-      }
+    const btn = await findClickableEntraControl(
+      this.page,
+      verifySelectors,
+      10_000
+    );
+    if (btn) {
+      await btn.click();
     }
 
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 );
 
@@ -252,23 +250,37 @@ When(
 
 Then(
   "I should see the password creation form",
+  { timeout: 30_000 },
   async function (this: CustomWorld) {
-    await this.page.waitForLoadState("networkidle");
-    await this.page.waitForTimeout(2000);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
-    const pwdField = this.page
+    // After email verification, Entra may show: password fields, profile fields,
+    // or (rarely) skip directly to consent/redirect. Wait for any valid next state.
+    const passwordField = this.page
       .locator("[data-testid='ipasswordInput'], input[type='password']")
       .first();
+    const profileField = this.page
+      .locator(
+        "input[name='givenName'], [data-testid='igivenNameInput'], input[name='surname']"
+      )
+      .first();
 
-    try {
-      await pwdField.waitFor({ state: "visible", timeout: 5000 });
-    } catch {
-      const content = await this.page.content();
-      if (content.includes("givenName") || content.includes("surname")) {
-        return;
-      }
-      throw new Error("Password creation form not found.");
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      const pwdVisible = await passwordField.isVisible().catch(() => false);
+      if (pwdVisible) return;
+
+      const profileVisible = await profileField.isVisible().catch(() => false);
+      if (profileVisible) return;
+
+      await this.page.waitForTimeout(500);
     }
+
+    const url = this.page.url();
+    const title = await this.page.title().catch(() => "unknown");
+    throw new Error(
+      `Password creation form not found. URL: ${url}, Title: ${title}`
+    );
   }
 );
 
@@ -305,8 +317,7 @@ When("I confirm the password", async function (this: CustomWorld) {
 When(
   "I enter {string} in the {string} field on Entra page",
   async function (this: CustomWorld, value: string, fieldName: string) {
-    await this.page.waitForLoadState("networkidle");
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     const selectors: string[] = [];
     const lower = fieldName.toLowerCase().replace(/ /g, "");
@@ -329,18 +340,20 @@ When(
       );
     }
 
-    for (const selector of selectors) {
-      try {
-        const field = this.page.locator(selector).first();
-        await field.waitFor({ state: "visible", timeout: 3000 });
-        await field.clear();
-        await field.fill(value);
-        return;
-      } catch {
-        // try next
-      }
+    const field = await findClickableEntraControl(
+      this.page,
+      selectors,
+      10_000
+    );
+    if (!field) {
+      const url = this.page.url();
+      const title = await this.page.title().catch(() => "unknown");
+      throw new Error(
+        `Could not find '${fieldName}' field on Entra page. URL: ${url}, Title: ${title}`
+      );
     }
-    throw new Error(`Could not find '${fieldName}' field on Entra page.`);
+    await field.clear();
+    await field.fill(value);
   }
 );
 
@@ -355,57 +368,70 @@ When("I enter a unique username", async function (this: CustomWorld) {
     "input[name='username']",
   ];
 
-  for (const selector of selectors) {
-    try {
-      const field = this.page.locator(selector).first();
-      await field.waitFor({ state: "visible", timeout: 3000 });
-      await field.clear();
-      await field.fill(username);
-      return;
-    } catch {
-      // try next
-    }
+  const field = await findClickableEntraControl(
+    this.page,
+    selectors,
+    10_000
+  );
+  if (!field) {
+    throw new Error("Could not find username field.");
   }
-  throw new Error("Could not find username field.");
+  await field.clear();
+  await field.fill(username);
 });
 
 // ?? Signup: consent ?????????????????????????????????????????????????????????
 
 Then(
   "I should see the permissions consent screen",
+  { timeout: 30_000 },
   async function (this: CustomWorld) {
     // Wait for page to stabilize — the Entra signup flow may still be navigating
-    try {
-      await this.page.waitForLoadState("domcontentloaded", { timeout: 15000 });
-      await this.page.waitForLoadState("networkidle", { timeout: 10000 });
-    } catch {
-      // Page may already be past navigation
-    }
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
-    // The consent screen might have already auto-redirected.
-    // Check if we're still on Entra or already back in the app.
-    const url = this.page.url();
-    if (url.includes("localhost") || url.includes(config.baseUrl)) {
+    // Race: either we see the consent page controls, or we've already redirected
+    const consentLocator = this.page.locator(
+      [
+        "input[type='submit'][value='Accept']",
+        "#acceptButton",
+        "button:has-text('Accept')",
+        "input[value='Accept']",
+      ].join(", ")
+    );
+    const appUrl = config.baseUrl.replace(/\/$/, "");
+
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
       // Already redirected — consent was auto-accepted or skipped
-      return;
+      const url = this.page.url();
+      if (url.includes("localhost") || url.includes(appUrl)) {
+        return;
+      }
+
+      // Check for visible consent controls
+      const acceptVisible = await consentLocator
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (acceptVisible) return;
+
+      await this.page.waitForTimeout(500);
     }
 
-    let content = "";
-    try {
-      content = await this.page.content();
-    } catch {
-      // Page still navigating — wait and retry
-      await this.page.waitForTimeout(2000);
-      content = await this.page.content();
-    }
-
+    // Final fallback: check page content for consent-related text
+    const content = await this.page.content().catch(() => "");
     const hasConsent =
       content.toLowerCase().includes("permission") ||
       content.toLowerCase().includes("consent") ||
       content.toLowerCase().includes("accept");
 
-    expect(hasConsent).toBe(true);
+    if (!hasConsent) {
+      const url = this.page.url();
+      const title = await this.page.title().catch(() => "unknown");
+      throw new Error(
+        `Consent screen not found. URL: ${url}, Title: ${title}`
+      );
+    }
   }
 );
 
@@ -552,7 +578,38 @@ Then(
   }
 );
 
-// ?? Helpers ?????????????????????????????????????????????????????????????????
+// ✦ Helpers ✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦✦
+
+/**
+ * Finds the first visible and enabled element matching any of the given
+ * selectors within a single overall timeout budget. Polls all selectors in
+ * parallel each iteration instead of sequential per-selector waits, avoiding
+ * timeout multiplication across browsers.
+ */
+async function findClickableEntraControl(
+  page: import("playwright").Page,
+  selectors: string[],
+  timeoutMs: number
+): Promise<import("playwright").Locator | null> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    for (const selector of selectors) {
+      try {
+        const locator = page.locator(selector).first();
+        const visible = await locator.isVisible().catch(() => false);
+        if (visible) {
+          const enabled = await locator.isEnabled().catch(() => false);
+          if (enabled) return locator;
+        }
+      } catch {
+        // selector may be invalid on this page — skip
+      }
+    }
+    await page.waitForTimeout(300);
+  }
+  return null;
+}
 
 async function tryClickUseAnotherAccount(
   page: import("playwright").Page

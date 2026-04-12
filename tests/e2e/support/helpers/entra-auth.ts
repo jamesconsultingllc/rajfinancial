@@ -17,8 +17,8 @@ export async function handleEntraLogin(
   email: string,
   password: string
 ): Promise<void> {
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(500);
+  await page.waitForLoadState("domcontentloaded").catch(() => {});
+  await page.waitForTimeout(1000);
 
   // Handle "Pick an account" page when cached accounts exist
   const accountPickerHandled = await tryHandleAccountPicker(page, email);
@@ -55,8 +55,8 @@ export async function handleEntraLogin(
           )
           .first();
         await next.click();
-        await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
+        await page.waitForTimeout(1000);
       }
     }
   }
@@ -69,7 +69,7 @@ export async function handleEntraLogin(
     "input[name='passwd']",
   ];
 
-  const passwordInput = await findVisibleLocator(page, passwordSelectors, 10000);
+  const passwordInput = await findVisibleLocator(page, passwordSelectors, 15000);
   if (!passwordInput) {
     throw new Error(`Password field not found. URL: ${page.url()}`);
   }
@@ -121,7 +121,7 @@ export async function waitForEntraLoginPage(page: Page): Promise<void> {
       url.toString().includes("ciamlogin.com") ||
       url.toString().includes("login.microsoftonline.com") ||
       url.toString().includes("b2clogin.com"),
-    { timeout: 15000 }
+    { timeout: 30000 }
   );
 }
 
@@ -161,8 +161,8 @@ async function tryHandleAccountPicker(
       if (visible) {
         console.log(`✓ Found account tile for ${email} — clicking`);
         await tile.click();
-        await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
+        await page.waitForTimeout(1000);
         return true;
       }
     } catch {
@@ -189,8 +189,8 @@ async function tryHandleAccountPicker(
       await el.waitFor({ state: "visible", timeout: 2000 });
       console.log(`✓ Clicked 'Use another account' using selector: ${selector}`);
       await el.click();
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
+      await page.waitForTimeout(1000);
       return false; // still need email/password entry
     } catch {
       // try next
