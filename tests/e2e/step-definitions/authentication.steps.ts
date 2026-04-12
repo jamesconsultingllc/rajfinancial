@@ -592,7 +592,10 @@ function isAppUrl(urlString: string): boolean {
 
 function secureRandomIndex(max: number): number {
   const buf = new Uint32Array(1);
-  crypto.getRandomValues(buf);
+  const limit = Math.floor(0x100000000 / max) * max;
+  do {
+    crypto.getRandomValues(buf);
+  } while (buf[0] >= limit);
   return buf[0] % max;
 }
 

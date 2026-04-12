@@ -1,6 +1,7 @@
 import { MemoryPackWriter } from "./MemoryPackWriter";
 import { MemoryPackReader } from "./MemoryPackReader";
 import { AssetType } from "./AssetType";
+import { DepreciationMethod } from "./DepreciationMethod";
 import { BeneficiaryAssignmentDto } from "./BeneficiaryAssignmentDto";
 import { IAssetMetadata } from "./IAssetMetadata";
 
