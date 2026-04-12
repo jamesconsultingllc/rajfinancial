@@ -33,10 +33,11 @@ namespace RajFinancial.Api.Middleware;
 /// </list>
 /// </para>
 /// <para>
-/// <b>Authentication Flow:</b>
+/// <b>Authentication Flow (priority order):</b>
 /// <list type="number">
-///   <item>In Azure (App Service): ClaimsPrincipal is populated by the runtime via EasyAuth.</item>
-///   <item>Locally / without EasyAuth: The JWT Bearer token is parsed from the Authorization header.</item>
+///   <item><c>FunctionContext.Items["ClaimsPrincipal"]</c> — explicit principal set by a prior middleware or test harness.</item>
+///   <item><c>HttpContext.User</c> — principal populated by Azure App Service EasyAuth when using <c>ConfigureFunctionsWebApplication()</c>.</item>
+///   <item>Authorization header JWT parse — Development environment only; allows local testing without EasyAuth.</item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -108,6 +109,13 @@ public class AuthenticationMiddleware(
             existingPrincipal is ClaimsPrincipal principal)
         {
             return principal;
+        }
+
+        // Check HttpContext.User — populated by EasyAuth via ConfigureFunctionsWebApplication()
+        var httpContext = context.GetHttpContext();
+        if (httpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            return httpContext.User;
         }
 
         // Extract JWT from Authorization header for local development / standalone hosting
