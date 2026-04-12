@@ -114,10 +114,15 @@ export async function handleEntraLogin(
  */
 export async function waitForEntraLoginPage(page: Page): Promise<void> {
   await page.waitForURL(
-    (url) =>
-      url.toString().includes("ciamlogin.com") ||
-      url.toString().includes("login.microsoftonline.com") ||
-      url.toString().includes("b2clogin.com"),
+    (url) => {
+      const hostname = new URL(url.toString()).hostname;
+      return (
+        hostname.endsWith(".ciamlogin.com") ||
+        hostname.endsWith(".login.microsoftonline.com") ||
+        hostname === "login.microsoftonline.com" ||
+        hostname.endsWith(".b2clogin.com")
+      );
+    },
     { timeout: 30000 }
   );
 }
