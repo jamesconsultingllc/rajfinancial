@@ -34,6 +34,20 @@ let browser: Browser;
 /** Cached storage state paths keyed by role, generated in BeforeAll. */
 const storageStates: Record<string, string> = {};
 
+/** Launches the browser configured via BROWSER env var. */
+async function launchConfiguredBrowser(
+  options: LaunchOptions
+): Promise<Browser> {
+  switch (config.browser) {
+    case "firefox":
+      return firefox.launch(options);
+    case "webkit":
+      return webkit.launch(options);
+    default:
+      return chromium.launch(options);
+  }
+}
+
 export function getBrowser(): Browser {
   return browser;
 }
@@ -47,17 +61,7 @@ BeforeAll({ timeout: 120_000 }, async function () {
     headless: !config.headed,
   };
 
-  switch (config.browser) {
-    case "firefox":
-      browser = await firefox.launch(launchOptions);
-      break;
-    case "webkit":
-      browser = await webkit.launch(launchOptions);
-      break;
-    default:
-      browser = await chromium.launch(launchOptions);
-      break;
-  }
+  browser = await launchConfiguredBrowser(launchOptions);
 
   console.log(
     `🚀 Browser: ${config.browser}, Headless: ${!config.headed}, Base URL: ${config.baseUrl}`
@@ -95,7 +99,7 @@ BeforeAll({ timeout: 120_000 }, async function () {
       await handleEntraLogin(page, userConfig.email, userConfig.password);
 
       // Wait for authenticated state
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
       const maxAttempts = 30;
       for (let i = 0; i < maxAttempts; i++) {
         await page.waitForTimeout(500);
@@ -124,6 +128,18 @@ BeforeAll({ timeout: 120_000 }, async function () {
   }
 });
 
+// Skip @signup scenarios on WebKit — Entra CIAM's JS AJAX calls fail due to
+// SSL incompatibilities in WebKit's headless engine, causing the signup flow
+// to error after email verification (AADSTS50021).
+Before({ tags: "@signup" }, async function (this: CustomWorld, scenario) {
+  if (config.browser === "webkit") {
+    console.log(
+      `⏭️  Skipping "${scenario.pickle.name}" — Entra CIAM signup flow is incompatible with WebKit`
+    );
+    return "skipped";
+  }
+});
+
 Before({ timeout: 30_000 }, async function (this: CustomWorld) {
   try {
     this.context = await browser.newContext({
@@ -135,7 +151,7 @@ Before({ timeout: 30_000 }, async function (this: CustomWorld) {
     // Browser may have crashed — relaunch
     console.warn("⚠️ Browser crashed — re-launching...");
     const launchOptions: LaunchOptions = { headless: !config.headed };
-    browser = await chromium.launch(launchOptions);
+    browser = await launchConfiguredBrowser(launchOptions);
     this.context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       ignoreHTTPSErrors: true,

@@ -15,9 +15,10 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 /// </summary>
 /// <remarks>
 /// These tests hit real HTTP endpoints via the Azure Functions host.
-/// Provisioning is verified through the <c>/api/profile/me</c> endpoint which
-/// returns the persisted <see cref="RajFinancial.Shared.Entities.UserProfile"/> data,
-/// eliminating the need for direct database access in integration tests.
+/// Provisioning is verified through the <c>/api/profile/me</c> endpoint for fields
+/// exposed by <see cref="RajFinancial.Shared.Contracts.Auth.UserProfileResponse"/>.
+/// Auth-concern fields (email, role, isActive, lastLoginAt) were intentionally excluded
+/// from the response DTO and are verified via direct database queries instead.
 /// </remarks>
 [Binding]
 [Scope(Tag = "userprofile")]
@@ -145,26 +146,29 @@ public class UserProfileProvisioningSteps
         var setupResponse = await _client.SendAsync(request);
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
             "initial request to create profile should succeed");
-        var body = await setupResponse.Content.ReadAsStringAsync();
-        var json = JsonDocument.Parse(body).RootElement;
-        _previousLastLoginAt = json.GetProperty("lastLoginAt").GetDateTimeOffset();
 
         // Back-date LastLoginAt >5 minutes so the throttle allows it to advance
         // on the next request (the service throttles updates within 5 minutes).
         var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
-        if (!string.IsNullOrEmpty(connStr))
-        {
-            await using var conn = new SqlConnection(connStr);
-            await conn.OpenAsync();
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE UserProfiles SET LastLoginAt = DATEADD(MINUTE, -6, LastLoginAt) WHERE Id = @id";
-            cmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
-            await cmd.ExecuteNonQueryAsync();
+        connStr.Should().NotBeNullOrEmpty(
+            "SqlConnectionString is required for returning-user provisioning tests");
 
-            // Re-read the back-dated value so _previousLastLoginAt reflects
-            // what the database now holds (the baseline for the Then assertion).
-            _previousLastLoginAt = _previousLastLoginAt.AddMinutes(-6);
-        }
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var updateCmd = conn.CreateCommand();
+        updateCmd.CommandText = "UPDATE UserProfiles SET LastLoginAt = DATEADD(MINUTE, -6, LastLoginAt) WHERE Id = @id";
+        updateCmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+        await updateCmd.ExecuteNonQueryAsync();
+
+        // Re-read the actual back-dated value from DB (avoids drift from app/DB time differences)
+        await using var readCmd = conn.CreateCommand();
+        readCmd.CommandText = "SELECT LastLoginAt FROM UserProfiles WHERE Id = @id";
+        readCmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+        var dbValue = await readCmd.ExecuteScalarAsync();
+        dbValue.Should().NotBeNull("UserProfile should exist after initial request");
+        dbValue.Should().NotBe(DBNull.Value, "LastLoginAt should already be set after the initial request");
+        _previousLastLoginAt = dbValue is DateTimeOffset dto ? dto
+            : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue!, DateTimeKind.Utc), TimeSpan.Zero);
     }
 
     [Given("a UserProfile exists for a user with email {string}")]
@@ -370,58 +374,73 @@ public class UserProfileProvisioningSteps
     }
 
     [Then("the response should contain a persisted UserProfile")]
-    public void ThenTheResponseShouldContainAPersistedUserProfile()
+    public async Task ThenTheResponseShouldContainAPersistedUserProfile()
     {
-        // The /api/profile/me endpoint returns the persisted UserProfile from the database
-        _responseJson.GetProperty("id").GetString()
-            .Should().Be(_testUserId, "the profile ID should match the Entra oid");
-        _responseJson.TryGetProperty("email", out _).Should().BeTrue("response should contain email");
-        _responseJson.TryGetProperty("role", out _).Should().BeTrue("response should contain role");
+        // Verify the API response contains the expected DTO fields
+        _responseJson.GetProperty("userId").GetString()
+            .Should().Be(_testUserId, "the profile userId should match the Entra oid");
+        _responseJson.TryGetProperty("displayName", out _).Should().BeTrue("response should contain displayName");
         _responseJson.TryGetProperty("createdAt", out _).Should().BeTrue("response should contain createdAt");
+
+        // Verify auth-concern fields were persisted (not in API response, verified via DB)
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should be persisted in the database");
+        profile!.Value.Email.Should().NotBeNullOrEmpty("email should be persisted");
+        profile!.Value.Role.Should().NotBeNullOrEmpty("role should be persisted");
     }
 
     [Then("the UserProfile email should match the JWT email claim")]
-    public void ThenTheUserProfileEmailShouldMatchTheJwtEmailClaim()
+    public async Task ThenTheUserProfileEmailShouldMatchTheJwtEmailClaim()
     {
-        _responseJson.GetProperty("email").GetString()
-            .Should().Be(_testUserEmail);
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.Email.Should().Be(_testUserEmail);
     }
 
     [Then("the UserProfile role should be {string}")]
-    public void ThenTheUserProfileRoleShouldBe(string expectedRole)
+    public async Task ThenTheUserProfileRoleShouldBe(string expectedRole)
     {
-        _responseJson.GetProperty("role").GetString()
-            .Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.Role.Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
     }
 
     [Then("the UserProfile should be active")]
-    public void ThenTheUserProfileShouldBeActive()
+    public async Task ThenTheUserProfileShouldBeActive()
     {
-        _responseJson.GetProperty("isActive").GetBoolean()
-            .Should().BeTrue("newly provisioned profiles should be active");
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.IsActive.Should().BeTrue("newly provisioned profiles should be active");
     }
 
     [Then("the UserProfile CreatedAt should be recent")]
     public void ThenTheUserProfileCreatedAtShouldBeRecent()
     {
-        var createdAt = _responseJson.GetProperty("createdAt").GetDateTimeOffset();
+        var createdAtElement = _responseJson.GetProperty("createdAt");
+        var createdAt = new DateTimeOffset(
+            DateTime.SpecifyKind(createdAtElement.GetProperty("value").GetDateTime(), DateTimeKind.Utc),
+            TimeSpan.Zero);
         createdAt.Should().BeCloseTo(_requestTimestamp, TimeSpan.FromSeconds(30),
             "CreatedAt should be set to approximately now");
     }
 
     [Then("the UserProfile LastLoginAt should be recent")]
-    public void ThenTheUserProfileLastLoginAtShouldBeRecent()
+    public async Task ThenTheUserProfileLastLoginAtShouldBeRecent()
     {
-        var lastLoginAt = _responseJson.GetProperty("lastLoginAt").GetDateTimeOffset();
-        lastLoginAt.Should().BeCloseTo(_requestTimestamp, TimeSpan.FromSeconds(30),
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile!.Value.LastLoginAt!.Value.Should().BeCloseTo(_requestTimestamp, TimeSpan.FromSeconds(30),
             "LastLoginAt should be set to approximately now");
     }
 
     [Then("the UserProfile LastLoginAt should be after the previous login")]
-    public void ThenTheUserProfileLastLoginAtShouldBeAfterThePreviousLogin()
+    public async Task ThenTheUserProfileLastLoginAtShouldBeAfterThePreviousLogin()
     {
-        var lastLoginAt = _responseJson.GetProperty("lastLoginAt").GetDateTimeOffset();
-        lastLoginAt.Should().BeAfter(_previousLastLoginAt,
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile!.Value.LastLoginAt!.Value.Should().BeAfter(_previousLastLoginAt,
             "LastLoginAt should advance on subsequent authenticated requests");
     }
 
@@ -436,10 +455,11 @@ public class UserProfileProvisioningSteps
     }
 
     [Then("the UserProfile email should be {string}")]
-    public void ThenTheUserProfileEmailShouldBe(string expectedEmail)
+    public async Task ThenTheUserProfileEmailShouldBe(string expectedEmail)
     {
-        _responseJson.GetProperty("email").GetString()
-            .Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        profile.Should().NotBeNull("UserProfile should exist in the database");
+        profile!.Value.Email.Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
     }
 
     [Then("the UserProfile display name should be {string}")]
@@ -472,5 +492,36 @@ public class UserProfileProvisioningSteps
         cmd.CommandText = "DELETE FROM UserProfiles WHERE Email = @email";
         cmd.Parameters.AddWithValue("@email", email);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Queries the UserProfile table directly for fields not exposed by the API response DTO.
+    /// Used by provisioning verification steps that need to assert on auth-concern fields
+    /// (email, role, isActive, lastLoginAt) which are intentionally excluded from
+    /// <see cref="RajFinancial.Shared.Contracts.Auth.UserProfileResponse"/>.
+    /// </summary>
+    private async Task<(string Email, string Role, bool IsActive, DateTimeOffset? LastLoginAt)?> GetProfileFromDatabaseAsync(Guid userId)
+    {
+        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        connStr.Should().NotBeNullOrEmpty(
+            "SqlConnectionString is required for UserProfile provisioning verification tests");
+
+        await using var conn = new SqlConnection(connStr!);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT Email, Role, IsActive, LastLoginAt FROM UserProfiles WHERE Id = @id";
+        cmd.Parameters.AddWithValue("@id", userId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+            return null;
+
+        return (
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetBoolean(2),
+            reader.IsDBNull(3) ? null : (reader.GetValue(3) is DateTimeOffset dto ? dto
+                : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc), TimeSpan.Zero))
+        );
     }
 }
