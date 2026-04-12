@@ -15,9 +15,10 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 /// </summary>
 /// <remarks>
 /// These tests hit real HTTP endpoints via the Azure Functions host.
-/// Provisioning is verified through the <c>/api/profile/me</c> endpoint which
-/// returns the persisted <see cref="RajFinancial.Shared.Entities.UserProfile"/> data,
-/// eliminating the need for direct database access in integration tests.
+/// Provisioning is verified through the <c>/api/profile/me</c> endpoint for fields
+/// exposed by <see cref="RajFinancial.Shared.Contracts.Auth.UserProfileResponse"/>.
+/// Auth-concern fields (email, role, isActive, lastLoginAt) were intentionally excluded
+/// from the response DTO and are verified via direct database queries instead.
 /// </remarks>
 [Binding]
 [Scope(Tag = "userprofile")]
@@ -165,6 +166,7 @@ public class UserProfileProvisioningSteps
         readCmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
         var dbValue = await readCmd.ExecuteScalarAsync();
         dbValue.Should().NotBeNull("UserProfile should exist after initial request");
+        dbValue.Should().NotBe(DBNull.Value, "LastLoginAt should already be set after the initial request");
         _previousLastLoginAt = dbValue is DateTimeOffset dto ? dto
             : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue!, DateTimeKind.Utc), TimeSpan.Zero);
     }

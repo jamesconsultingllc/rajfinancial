@@ -582,9 +582,9 @@ Then(
 
 /**
  * Finds the first visible and enabled element matching any of the given
- * selectors within a single overall timeout budget. Polls all selectors in
- * parallel each iteration instead of sequential per-selector waits, avoiding
- * timeout multiplication across browsers.
+ * selectors within a single overall timeout budget. Iterates all selectors
+ * each polling cycle with short non-blocking checks, avoiding the timeout
+ * multiplication that sequential per-selector waits would cause.
  */
 async function findClickableEntraControl(
   page: import("playwright").Page,
