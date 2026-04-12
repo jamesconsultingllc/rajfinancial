@@ -42,11 +42,16 @@ public class RopcTokenProvider
                     "in appsettings.json (or Entra__TenantId, Entra__RopcClientId, Entra__ApiScope as environment variables).");
             }
 
+            // Entra External ID tenants use the {tenantSubdomain}.ciamlogin.com authority.
+            // The TenantId value should be the tenant subdomain (e.g., "contoso"), not a GUID.
+            // Strip common suffixes in case the value contains the full domain.
+            var tenantSubdomain = tenantId!
+                .Replace(".onmicrosoft.com", "", StringComparison.OrdinalIgnoreCase)
+                .Replace(".ciamlogin.com", "", StringComparison.OrdinalIgnoreCase);
+
             return PublicClientApplicationBuilder
                 .Create(clientId!)
-                // Entra External ID tenants use the {tenantSubdomain}.ciamlogin.com authority.
-                // The TenantId value should be the tenant subdomain (e.g., "contoso"), not a GUID.
-                .WithAuthority($"https://{tenantId!}.ciamlogin.com/")
+                .WithAuthority($"https://{tenantSubdomain}.ciamlogin.com/")
                 .Build();
         });
     }
