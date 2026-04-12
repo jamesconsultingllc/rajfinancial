@@ -99,10 +99,7 @@ export async function handleEntraLogin(
   // Step 5: Wait for redirect back to app
   try {
     await page.waitForURL(
-      (url) =>
-        !url.toString().includes("ciamlogin.com") &&
-        !url.toString().includes("login.microsoftonline.com") &&
-        !url.toString().includes("b2clogin.com"),
+      (url) => !isEntraHost(url.hostname),
       { timeout: 30000 }
     );
   } catch {
@@ -216,4 +213,12 @@ async function findVisibleLocator(
     }
   }
   return null;
+}
+
+export function isEntraHost(hostname: string): boolean {
+  return (
+    hostname === "ciamlogin.com" || hostname.endsWith(".ciamlogin.com") ||
+    hostname === "login.microsoftonline.com" || hostname.endsWith(".login.microsoftonline.com") ||
+    hostname === "b2clogin.com" || hostname.endsWith(".b2clogin.com")
+  );
 }

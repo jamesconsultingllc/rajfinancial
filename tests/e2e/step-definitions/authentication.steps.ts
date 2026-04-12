@@ -11,6 +11,7 @@ import { config } from "../support/config";
 import {
   handleEntraLogin,
   waitForEntraLoginPage,
+  isEntraHost,
 } from "../support/helpers/entra-auth";
 import {
   generateTestEmail,
@@ -28,11 +29,7 @@ Then(
     await waitForEntraLoginPage(this.page);
 
     const url = this.page.url();
-    expect(
-      url.includes("ciamlogin.com") ||
-        url.includes("login.microsoftonline.com") ||
-        url.includes("b2clogin.com")
-    ).toBe(true);
+    expect(isEntraLoginUrl(url)).toBe(true);
   }
 );
 
@@ -445,7 +442,7 @@ Then(
 
     while (Date.now() - start < maxWaitMs) {
       const url = this.page.url();
-      if (url.includes(config.baseUrl) || url.includes("localhost")) {
+      if (isAppUrl(url)) {
         await this.page.waitForLoadState("networkidle");
         return;
       }
@@ -538,10 +535,7 @@ Then("I should be logged out", async function (this: CustomWorld) {
   await this.page.waitForTimeout(3000);
 
   const url = this.page.url();
-  if (
-    url.includes("ciamlogin.com") ||
-    url.includes("login.microsoftonline.com")
-  ) {
+  if (isEntraLoginUrl(url)) {
     await this.page.goto(config.baseUrl, { waitUntil: "networkidle" });
   }
 
@@ -634,6 +628,31 @@ async function tryClickUseAnotherAccount(
   }
 }
 
+function isEntraLoginUrl(urlString: string): boolean {
+  try {
+    const { hostname } = new URL(urlString);
+    return isEntraHost(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isAppUrl(urlString: string): boolean {
+  try {
+    const { hostname } = new URL(urlString);
+    const baseHostname = new URL(config.baseUrl).hostname;
+    return hostname === baseHostname || hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+function secureRandomIndex(max: number): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] % max;
+}
+
 function generateSecurePassword(): string {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
@@ -641,17 +660,22 @@ function generateSecurePassword(): string {
   const special = "!@#$%^&*";
   const all = upper + lower + digits + special;
 
-  let password = "";
-  password += upper[Math.floor(Math.random() * upper.length)];
-  password += lower[Math.floor(Math.random() * lower.length)];
-  password += digits[Math.floor(Math.random() * digits.length)];
-  password += special[Math.floor(Math.random() * special.length)];
+  const chars: string[] = [
+    upper[secureRandomIndex(upper.length)],
+    lower[secureRandomIndex(lower.length)],
+    digits[secureRandomIndex(digits.length)],
+    special[secureRandomIndex(special.length)],
+  ];
 
   for (let i = 4; i < 16; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
+    chars.push(all[secureRandomIndex(all.length)]);
   }
-  return password
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
+
+  // Fisher-Yates shuffle using crypto.getRandomValues
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = secureRandomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join("");
 }

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import {
   AuthenticatedTemplate,
   UnauthenticatedTemplate,
