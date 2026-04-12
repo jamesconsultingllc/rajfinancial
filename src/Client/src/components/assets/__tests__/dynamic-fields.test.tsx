@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { useForm, FormProvider } from "react-hook-form";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nextProvider } from "react-i18next";
 import i18n from "i18next";
