@@ -49,6 +49,14 @@ public class RopcTokenProvider
                 .Replace(".onmicrosoft.com", "", StringComparison.OrdinalIgnoreCase)
                 .Replace(".ciamlogin.com", "", StringComparison.OrdinalIgnoreCase);
 
+            if (Guid.TryParse(tenantSubdomain, out _))
+            {
+                throw new InvalidOperationException(
+                    $"Entra:TenantId is a GUID ('{tenantId}'). " +
+                    "Entra External ID (CIAM) requires the tenant subdomain (e.g., 'rajfinancialdev'), " +
+                    "not the directory/tenant GUID. Update the ENTRA_TENANT_ID secret to the subdomain value.");
+            }
+
             return PublicClientApplicationBuilder
                 .Create(clientId!)
                 .WithAuthority($"https://{tenantSubdomain}.ciamlogin.com/{tenantSubdomain}.onmicrosoft.com")
