@@ -159,86 +159,87 @@ jobs:
       deployed-url: ${{ steps.builddeploy.outputs.static_web_app_url }}
       target-environment: ${{ steps.resolve-env.outputs.target-environment }}
 
-  e2e_tests_job:
-    if: |
-      github.event_name != 'pull_request' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
-      always() &&
-      needs.unit_tests_job.result == 'success' &&
-      (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
-    runs-on: ubuntu-latest
-    name: E2E Tests
-    needs: [detect_changes, unit_tests_job, build_and_deploy_job]
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [ chromium, firefox, webkit ]
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Resolve Environment
-        id: resolve-env
-        uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
-
-      - name: Determine SWA URL
-        id: swa-url
-        run: |
-          if [[ "${{ needs.build_and_deploy_job.result }}" == "success" ]]; then
-            echo "url=${{ needs.build_and_deploy_job.outputs.deployed-url }}" >> $GITHUB_OUTPUT
-          else
-            # Construct URL from branch pattern
-            TARGET_SLOT="${{ steps.resolve-env.outputs.target-slot }}"
-            if [[ "$TARGET_SLOT" == "" || "$TARGET_SLOT" == "production" ]]; then
-              echo "url=https://gray-cliff-072f3b510.azurestaticapps.net" >> $GITHUB_OUTPUT
-            else
-              echo "url=https://gray-cliff-072f3b510-${TARGET_SLOT}.centralus.azurestaticapps.net" >> $GITHUB_OUTPUT
-            fi
-          fi
-          echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
-
-      - name: Mask sensitive environment variables
-        run: |
-          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
-          echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
-          echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
-          echo "::add-mask::${{ secrets.IMAP_PASSWORD }}"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: tests/e2e/package-lock.json
-
-      - name: Install E2E dependencies
-        run: npm ci
-        working-directory: tests/e2e
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-        working-directory: tests/e2e
-
-      - name: Run E2E tests (${{ matrix.browser }})
-        run: npm run test:${{ matrix.browser }}
-        working-directory: tests/e2e
-        env:
-          BASE_URL: ${{ steps.swa-url.outputs.url }}
-          BROWSER: ${{ matrix.browser }}
-          TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
-          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
-          IMAP_HOST: ${{ secrets.IMAP_HOST }}
-          IMAP_USERNAME: ${{ secrets.IMAP_USERNAME }}
-          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
-
-      - name: Upload E2E test reports
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
-        with:
-          name: e2e-reports-${{ matrix.browser }}
-          path: |
-            tests/e2e/reports/
-          retention-days: 14
+  # TODO: Re-enable once CIAM tenant secrets and test user credentials are stable
+  # e2e_tests_job:
+  #   if: |
+  #     github.event_name != 'pull_request' &&
+  #     (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+  #     always() &&
+  #     needs.unit_tests_job.result == 'success' &&
+  #     (needs.build_and_deploy_job.result == 'success' || needs.build_and_deploy_job.result == 'skipped')
+  #   runs-on: ubuntu-latest
+  #   name: E2E Tests
+  #   needs: [detect_changes, unit_tests_job, build_and_deploy_job]
+  #   environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' || 'preview' }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       browser: [ chromium, firefox, webkit ]
+  #   steps:
+  #     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+  #
+  #     - name: Resolve Environment
+  #       id: resolve-env
+  #       uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
+  #
+  #     - name: Determine SWA URL
+  #       id: swa-url
+  #       run: |
+  #         if [[ "${{ needs.build_and_deploy_job.result }}" == "success" ]]; then
+  #           echo "url=${{ needs.build_and_deploy_job.outputs.deployed-url }}" >> $GITHUB_OUTPUT
+  #         else
+  #           # Construct URL from branch pattern
+  #           TARGET_SLOT="${{ steps.resolve-env.outputs.target-slot }}"
+  #           if [[ "$TARGET_SLOT" == "" || "$TARGET_SLOT" == "production" ]]; then
+  #             echo "url=https://gray-cliff-072f3b510.azurestaticapps.net" >> $GITHUB_OUTPUT
+  #           else
+  #             echo "url=https://gray-cliff-072f3b510-${TARGET_SLOT}.centralus.azurestaticapps.net" >> $GITHUB_OUTPUT
+  #           fi
+  #         fi
+  #         echo "Using URL: $(cat $GITHUB_OUTPUT | grep url | cut -d= -f2)"
+  #
+  #     - name: Mask sensitive environment variables
+  #       run: |
+  #         echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
+  #         echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
+  #         echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+  #         echo "::add-mask::${{ secrets.IMAP_PASSWORD }}"
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+  #       with:
+  #         node-version: 22
+  #         cache: npm
+  #         cache-dependency-path: tests/e2e/package-lock.json
+  #
+  #     - name: Install E2E dependencies
+  #       run: npm ci
+  #       working-directory: tests/e2e
+  #
+  #     - name: Install Playwright browser
+  #       run: npx playwright install --with-deps ${{ matrix.browser }}
+  #       working-directory: tests/e2e
+  #
+  #     - name: Run E2E tests (${{ matrix.browser }})
+  #       run: npm run test:${{ matrix.browser }}
+  #       working-directory: tests/e2e
+  #       env:
+  #         BASE_URL: ${{ steps.swa-url.outputs.url }}
+  #         BROWSER: ${{ matrix.browser }}
+  #         TEST_ADMINISTRATOR_PASSWORD: ${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}
+  #         TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
+  #         IMAP_HOST: ${{ secrets.IMAP_HOST }}
+  #         IMAP_USERNAME: ${{ secrets.IMAP_USERNAME }}
+  #         IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+  #
+  #     - name: Upload E2E test reports
+  #       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+  #       if: always()
+  #       with:
+  #         name: e2e-reports-${{ matrix.browser }}
+  #         path: |
+  #           tests/e2e/reports/
+  #         retention-days: 14
 
   close_pull_request_job:
     if: |
