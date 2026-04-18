@@ -126,6 +126,34 @@ jobs:
           fi
           echo "Created .env.local for ${{ github.ref }} build"
 
+      # The SWA deploy action runs Oryx inside a Docker container that has
+      # Node but NOT the .NET SDK. Our `npm run build` triggers a `prebuild`
+      # hook that calls `dotnet build` to regenerate MemoryPack TS DTOs,
+      # which fails inside that container with `sh: 1: dotnet: not found`.
+      #
+      # Fix: pre-generate the TS DTOs here on the runner (where .NET IS
+      # available), then tell the SWA action to invoke Vite directly via
+      # `app_build_command` — bypassing the npm `prebuild` lifecycle hook.
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/Client/package-lock.json
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Client dependencies
+        run: npm ci
+        working-directory: src/Client
+
+      - name: Pre-generate MemoryPack TypeScript DTOs
+        run: npm run gen:dtos
+        working-directory: src/Client
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1.0.0
@@ -139,6 +167,9 @@ jobs:
           production_branch: main
           skip_app_build: false
           skip_api_build: true
+          # Invoke Vite directly to bypass the `prebuild` hook (which needs
+          # the .NET SDK). DTOs are pre-generated on the runner above.
+          app_build_command: "npx vite build"
 
       - name: Copy Environment Variables from Source
         if: steps.resolve-env.outputs.is-preview == 'true'
