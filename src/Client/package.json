@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "gen:dtos": "dotnet build ../Shared/RajFinancial.Shared.csproj --nologo -v:q",
+    "gen:dtos": "dotnet build ../Shared/RajFinancial.Shared.csproj -f net10.0 --nologo -v:q",
     "predev": "npm run gen:dtos",
     "prebuild": "npm run gen:dtos",
     "prebuild:dev": "npm run gen:dtos",
     "pretest": "npm run gen:dtos",
+    "pretest:watch": "npm run gen:dtos",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
