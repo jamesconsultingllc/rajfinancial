@@ -213,7 +213,11 @@ describe("ApiErrorBoundary", () => {
       );
 
       expect(screen.getByText("Connection Problem")).toBeInTheDocument();
-      expect(screen.getByText(/unable to reach the server/i)).toBeInTheDocument();
+      // Both the translated description and the raw error message contain
+      // "unable to reach the server" text, so use getAllByText.
+      expect(
+        screen.getAllByText(/unable to reach the server/i).length
+      ).toBeGreaterThanOrEqual(1);
     });
 
     it("has Try Again button", () => {

@@ -11,7 +11,12 @@ import type {
   UpdateAssetContactLinkRequest,
 } from "@/types/contacts";
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+/**
+ * Simulated network latency. In test mode the delay collapses to 0 so
+ * the parallel Vitest suite doesn't race against real timers (flakiness).
+ */
+const delay = (ms = 400) =>
+  new Promise((r) => setTimeout(r, import.meta.env.MODE === "test" ? 0 : ms));
 
 /** In-memory store keyed by assetId → links[] */
 const assetLinksStore: Record<string, AssetContactLinkDto[]> = {
