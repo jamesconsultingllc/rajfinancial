@@ -213,11 +213,13 @@ describe("ApiErrorBoundary", () => {
       );
 
       expect(screen.getByText("Connection Problem")).toBeInTheDocument();
-      // Both the translated description and the raw error message contain
-      // "unable to reach the server" text, so use getAllByText.
+      // Exact-string match targets the raw `error.message` paragraph only:
+      // the translated description is "Unable to reach the server. Please
+      // check your internet connection." — a strict superset — so this
+      // assertion fails if the raw message stops rendering.
       expect(
-        screen.getAllByText(/unable to reach the server/i).length
-      ).toBeGreaterThanOrEqual(1);
+        screen.getByText("Unable to reach the server.")
+      ).toBeInTheDocument();
     });
 
     it("has Try Again button", () => {

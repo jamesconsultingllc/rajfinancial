@@ -18,6 +18,15 @@ import type {
 const delay = (ms = 400) =>
   new Promise((r) => setTimeout(r, import.meta.env.MODE === "test" ? 0 : ms));
 
+/**
+ * Monotonic counter for mock link IDs. Previously `Date.now()` was used,
+ * but with delay collapsing to 0ms in test mode, back-to-back creates could
+ * land in the same millisecond and produce duplicate IDs — which would cause
+ * update/delete to target the wrong link.
+ */
+let linkIdCounter = 1000;
+const nextLinkId = () => `lnk-${++linkIdCounter}`;
+
 /** In-memory store keyed by assetId → links[] */
 const assetLinksStore: Record<string, AssetContactLinkDto[]> = {
   "a1b2c3d4-e5f6-7890-abcd-ef1234567890": [
@@ -82,7 +91,7 @@ export async function createAssetLink(
 ): Promise<AssetContactLinkDto> {
   await delay(500);
   const link: AssetContactLinkDto = {
-    id: `lnk-${Date.now()}`,
+    id: nextLinkId(),
     assetId,
     assetName,
     contactId,
