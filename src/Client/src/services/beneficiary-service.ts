@@ -11,7 +11,21 @@ import type {
   UpdateAssetContactLinkRequest,
 } from "@/types/contacts";
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+/**
+ * Simulated network latency. In test mode the delay collapses to 0 so
+ * the parallel Vitest suite doesn't race against real timers (flakiness).
+ */
+const delay = (ms = 400) =>
+  new Promise((r) => setTimeout(r, import.meta.env.MODE === "test" ? 0 : ms));
+
+/**
+ * Monotonic counter for mock link IDs. Previously `Date.now()` was used,
+ * but with delay collapsing to 0ms in test mode, back-to-back creates could
+ * land in the same millisecond and produce duplicate IDs — which would cause
+ * update/delete to target the wrong link.
+ */
+let linkIdCounter = 1000;
+const nextLinkId = () => `lnk-${++linkIdCounter}`;
 
 /** In-memory store keyed by assetId → links[] */
 const assetLinksStore: Record<string, AssetContactLinkDto[]> = {
@@ -77,7 +91,7 @@ export async function createAssetLink(
 ): Promise<AssetContactLinkDto> {
   await delay(500);
   const link: AssetContactLinkDto = {
-    id: `lnk-${Date.now()}`,
+    id: nextLinkId(),
     assetId,
     assetName,
     contactId,
