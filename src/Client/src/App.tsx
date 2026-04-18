@@ -9,6 +9,8 @@ import i18n from "@/lib/i18n";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
+import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
+import { ApiError } from "@/types/api";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -16,6 +18,22 @@ import Settings from "./pages/Settings";
 import Assets from "./pages/Assets";
 import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
+
+/**
+ * Predicate that determines which errors should bubble up to the nearest
+ * error boundary (ApiErrorBoundary) rather than being handled in-component.
+ *
+ * @description Routes 401 (needs silent/interactive refresh), 403 (access
+ * denied UI), and status 0 (network/API unreachable) into the global
+ * boundary. Validation and other 4xx/5xx errors still surface via the
+ * query's `error` property so individual screens can show inline UI.
+ */
+function shouldThrowApiError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === 401 || error.status === 403 || error.status === 0)
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +43,10 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       retry: 1,
+      throwOnError: shouldThrowApiError,
+    },
+    mutations: {
+      throwOnError: shouldThrowApiError,
     },
   },
 });
@@ -54,7 +76,8 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
+              <ApiErrorBoundary>
+                <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
 
@@ -131,7 +154,8 @@ const App = () => (
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+                </Routes>
+              </ApiErrorBoundary>
             </BrowserRouter>
           </TooltipProvider>
         </QueryClientProvider>

@@ -66,7 +66,7 @@ export function ProfileTab() {
 
   // Format member since date from profile createdAt
   const memberSince = apiProfile?.createdAt
-    ? new Date(apiProfile.createdAt).toLocaleDateString("en-US", {
+    ? new Date(apiProfile.createdAt.value).toLocaleDateString("en-US", {
         month: "long",
         year: "numeric",
       })

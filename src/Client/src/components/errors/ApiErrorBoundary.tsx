@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ApiError } from "@/types/api";
 import { msalInstance } from "@/auth/AuthProvider";
 import { apiRequest, loginRequest } from "@/auth/authConfig";
@@ -93,7 +94,7 @@ export class ApiErrorBoundary extends Component<
    * Handles retry button click.
    * Clears error state to re-render children.
    */
-  private handleRetry = (): void => {
+  private readonly handleRetry = (): void => {
     this.setState({ error: null, isRetrying: true });
     // Brief delay to show loading state
     setTimeout(() => {
@@ -104,7 +105,7 @@ export class ApiErrorBoundary extends Component<
   /**
    * Handles sign out for 403 errors.
    */
-  private handleSignOut = async (): Promise<void> => {
+  private readonly handleSignOut = async (): Promise<void> => {
     await msalInstance.logoutRedirect();
   };
 
@@ -136,7 +137,7 @@ export class ApiErrorBoundary extends Component<
         case 403:
           return (
             <ForbiddenError
-              onGoBack={() => window.history.back()}
+              onGoBack={() => globalThis.history.back()}
               onSignOut={this.handleSignOut}
             />
           );
@@ -177,12 +178,21 @@ export class ApiErrorBoundary extends Component<
  * Loading fallback shown during 401 handling.
  */
 function AuthenticatingFallback() {
+  const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div
+      className="flex items-center justify-center min-h-[400px]"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div
+          className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"
+          aria-hidden="true"
+        />
         <p className="text-muted-foreground text-sm">
-          Refreshing authentication...
+          {t("auth.refreshing")}
         </p>
       </div>
     </div>
@@ -195,27 +205,31 @@ function AuthenticatingFallback() {
 function ForbiddenError({
   onGoBack,
   onSignOut,
-}: {
+}: Readonly<{
   onGoBack: () => void;
   onSignOut: () => void;
-}) {
+}>) {
+  const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div
+      className="flex items-center justify-center min-h-[400px]"
+      role="alert"
+      aria-live="assertive"
+    >
       <div className="text-center max-w-md mx-auto p-6">
-        <ShieldX className="w-16 h-16 text-destructive mx-auto mb-4" />
+        <ShieldX className="w-16 h-16 text-destructive mx-auto mb-4" aria-hidden="true" />
         <h2 className="text-xl font-bold text-foreground mb-2">
-          Access Denied
+          {t("auth.accessDenied")}
         </h2>
         <p className="text-muted-foreground mb-6">
-          You don't have permission to access this resource. If you believe this
-          is an error, contact your administrator.
+          {t("auth.accessDeniedDescription")}
         </p>
         <div className="flex gap-3 justify-center">
           <Button variant="outline" onClick={onGoBack}>
-            Go Back
+            {t("auth.goBack")}
           </Button>
           <Button variant="destructive" onClick={onSignOut}>
-            Sign Out
+            {t("auth.signOut")}
           </Button>
         </div>
       </div>
@@ -229,23 +243,31 @@ function ForbiddenError({
 function NetworkError({
   onRetry,
   message,
-}: {
+}: Readonly<{
   onRetry: () => void;
   message: string;
-}) {
+}>) {
+  const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div
+      className="flex items-center justify-center min-h-[400px]"
+      role="alert"
+      aria-live="assertive"
+    >
       <div className="text-center max-w-md mx-auto p-6">
-        <WifiOff className="w-16 h-16 text-warning mx-auto mb-4" />
+        <WifiOff className="w-16 h-16 text-warning mx-auto mb-4" aria-hidden="true" />
         <h2 className="text-xl font-bold text-foreground mb-2">
-          Connection Problem
+          {t("errors.connectionProblem")}
         </h2>
-        <p className="text-muted-foreground mb-6">
-          {message || "Unable to reach the server. Please check your internet connection."}
+        <p className="text-muted-foreground mb-2">
+          {t("errors.connectionProblemDescription")}
         </p>
+        {message && (
+          <p className="text-xs text-muted-foreground mb-6">{message}</p>
+        )}
         <Button onClick={onRetry}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Try Again
+          <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
+          {t("errors.tryAgain")}
         </Button>
       </div>
     </div>
@@ -260,28 +282,33 @@ function GenericError({
   message,
   status,
   onRetry,
-}: {
+}: Readonly<{
   code: string;
   message: string;
   status?: number;
   onRetry: () => void;
-}) {
+}>) {
+  const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div
+      className="flex items-center justify-center min-h-[400px]"
+      role="alert"
+      aria-live="assertive"
+    >
       <div className="text-center max-w-md mx-auto p-6">
-        <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" />
+        <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" aria-hidden="true" />
         <h2 className="text-xl font-bold text-foreground mb-2">
-          Something Went Wrong
+          {t("errors.somethingWentWrong")}
         </h2>
         <p className="text-muted-foreground mb-2">{message}</p>
-        {status && (
+        {status !== undefined && status !== 0 && (
           <p className="text-xs text-muted-foreground mb-6">
-            Error {status}: {code}
+            {t("errors.errorCode", { status, code })}
           </p>
         )}
         <Button onClick={onRetry}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Try Again
+          <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
+          {t("errors.tryAgain")}
         </Button>
       </div>
     </div>

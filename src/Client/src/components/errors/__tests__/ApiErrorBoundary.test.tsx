@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { I18nextProvider } from "react-i18next";
+import type { ReactElement } from "react";
+import type { AccountInfo, AuthenticationResult } from "@azure/msal-browser";
+import i18n from "@/lib/i18n";
 import { ApiError } from "@/types/api";
 
 // Mock MSAL - use factory pattern to avoid hoisting issues
@@ -21,6 +25,11 @@ vi.mock("@/auth/authConfig", () => ({
 import { ApiErrorBoundary } from "../ApiErrorBoundary";
 import { msalInstance } from "@/auth/AuthProvider";
 
+// Helper to render with i18n provider (boundary sub-components use useTranslation)
+function renderWithI18n(ui: ReactElement) {
+  return render(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
+}
+
 // Get typed mock references after import
 const mockLoginRedirect = vi.mocked(msalInstance.loginRedirect);
 const mockLogoutRedirect = vi.mocked(msalInstance.logoutRedirect);
@@ -29,7 +38,7 @@ const mockAcquireTokenRedirect = vi.mocked(msalInstance.acquireTokenRedirect);
 const mockGetActiveAccount = vi.mocked(msalInstance.getActiveAccount);
 
 // Test component that throws errors
-function ThrowError({ error }: { error: Error }) {
+function ThrowError({ error }: { error: Error }): ReactElement {
   throw error;
 }
 
@@ -46,7 +55,7 @@ afterEach(() => {
 describe("ApiErrorBoundary", () => {
   describe("when no error occurs", () => {
     it("renders children normally", () => {
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <div data-testid="child">Hello World</div>
         </ApiErrorBoundary>
@@ -60,7 +69,7 @@ describe("ApiErrorBoundary", () => {
     it("shows authenticating fallback", () => {
       const error = new ApiError("UNAUTHORIZED", "Unauthorized", 401);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -70,12 +79,12 @@ describe("ApiErrorBoundary", () => {
     });
 
     it("attempts silent token refresh when account exists", async () => {
-      mockGetActiveAccount.mockReturnValue({ username: "test@example.com" });
-      mockAcquireTokenSilent.mockResolvedValue({ accessToken: "new-token" });
+      mockGetActiveAccount.mockReturnValue({ username: "test@example.com" } as AccountInfo);
+      mockAcquireTokenSilent.mockResolvedValue({ accessToken: "new-token" } as AuthenticationResult);
 
       const error = new ApiError("UNAUTHORIZED", "Unauthorized", 401);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -95,7 +104,7 @@ describe("ApiErrorBoundary", () => {
 
       const error = new ApiError("UNAUTHORIZED", "Unauthorized", 401);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -109,14 +118,14 @@ describe("ApiErrorBoundary", () => {
     it("falls back to interactive login when silent refresh fails", async () => {
       const { InteractionRequiredAuthError } = await import("@azure/msal-browser");
       
-      mockGetActiveAccount.mockReturnValue({ username: "test@example.com" });
+      mockGetActiveAccount.mockReturnValue({ username: "test@example.com" } as AccountInfo);
       mockAcquireTokenSilent.mockRejectedValue(
         new InteractionRequiredAuthError("interaction_required")
       );
 
       const error = new ApiError("UNAUTHORIZED", "Unauthorized", 401);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -132,7 +141,7 @@ describe("ApiErrorBoundary", () => {
     it("shows Access Denied UI", () => {
       const error = new ApiError("FORBIDDEN", "Forbidden", 403);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -146,7 +155,7 @@ describe("ApiErrorBoundary", () => {
       const mockHistoryBack = vi.spyOn(window.history, "back").mockImplementation(() => {});
       const error = new ApiError("FORBIDDEN", "Forbidden", 403);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -161,7 +170,7 @@ describe("ApiErrorBoundary", () => {
     it("has Sign Out button that triggers logout", async () => {
       const error = new ApiError("FORBIDDEN", "Forbidden", 403);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -177,7 +186,7 @@ describe("ApiErrorBoundary", () => {
     it("does not redirect in a loop", () => {
       const error = new ApiError("FORBIDDEN", "Forbidden", 403);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -197,7 +206,7 @@ describe("ApiErrorBoundary", () => {
         0
       );
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -214,7 +223,7 @@ describe("ApiErrorBoundary", () => {
         0
       );
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -233,7 +242,7 @@ describe("ApiErrorBoundary", () => {
         400
       );
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -251,7 +260,7 @@ describe("ApiErrorBoundary", () => {
         500
       );
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -266,7 +275,7 @@ describe("ApiErrorBoundary", () => {
     it("shows generic error UI", () => {
       const error = new Error("Something unexpected happened");
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary>
           <ThrowError error={error} />
         </ApiErrorBoundary>
@@ -281,7 +290,7 @@ describe("ApiErrorBoundary", () => {
     it("renders custom fallback when provided", () => {
       const error = new ApiError("ERROR", "Error", 500);
 
-      render(
+      renderWithI18n(
         <ApiErrorBoundary fallback={<div data-testid="custom-fallback">Custom Error</div>}>
           <ThrowError error={error} />
         </ApiErrorBoundary>
