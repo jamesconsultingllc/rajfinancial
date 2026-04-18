@@ -11,6 +11,12 @@ obj/
 # Auto-generated (Reqnroll/SpecFlow)
 *.feature.cs
 
+# Auto-generated MemoryPack TypeScript DTOs (regenerated at build time from C# models)
+# Produced by the MemoryPack source generator in src/Shared/RajFinancial.Shared.csproj
+# README.md in this folder is intentionally tracked.
+src/Client/src/generated/memorypack/*.ts
+!src/Client/src/generated/memorypack/README.md
+
 # IDE
 .idea/
 .vs/
@@ -19,6 +25,7 @@ obj/
 # Test results
 TestResults/
 *.trx
+tests/e2e/*.log
 
 # OS
 .DS_Store
