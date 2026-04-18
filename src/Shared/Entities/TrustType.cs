@@ -9,13 +9,14 @@ namespace RajFinancial.Shared.Entities;
 public enum TrustType
 {
     Family = 0,
-    AssetProtection = 1,
-    SpecialNeeds = 2,
-    Charitable = 3,
-    Dynasty = 4,
-    Medicaid = 5,
-    Spendthrift = 6,
-    Land = 7,
-    Gun = 8,
+    Business = 1,
+    AssetProtection = 2,
+    SpecialNeeds = 3,
+    Charitable = 4,
+    Dynasty = 5,
+    Medicaid = 6,
+    Spendthrift = 7,
+    Land = 8,
+    Gun = 9,
     Other = 99,
 }
