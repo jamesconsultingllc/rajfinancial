@@ -16,4 +16,6 @@ public enum TrustFeatures
     PowerOfAppointment = 1 << 5,
     PourOver = 1 << 6,
     IncentiveProvisions = 1 << 7,
+    BypassTrust = 1 << 8,
+    LifeEstate = 1 << 9,
 }
