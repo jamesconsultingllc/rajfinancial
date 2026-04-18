@@ -97,6 +97,7 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { inProgress } = useMsal();
   const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   // Show loading while MSAL is processing
   if (inProgress !== InteractionStatus.None) {
@@ -104,7 +105,7 @@ export function ProtectedRoute({
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Authenticating...</p>
+          <p className="text-muted-foreground text-sm">{t("auth.authenticating")}</p>
         </div>
       </div>
     );
@@ -209,24 +210,24 @@ function SessionExpiredCard() {
  */
 function AccessDenied() {
   const { logout } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="text-center max-w-md mx-auto p-6">
         <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Access Denied
+          {t("auth.accessDenied")}
         </h1>
         <p className="text-muted-foreground mb-6">
-          You don't have permission to access this page. Contact your
-          administrator if you believe this is an error.
+          {t("auth.accessDeniedDescription")}
         </p>
         <div className="flex gap-3 justify-center">
           <Button variant="outline" onClick={() => window.history.back()}>
-            Go Back
+            {t("auth.goBack")}
           </Button>
           <Button variant="destructive" onClick={() => logout()}>
-            Sign Out
+            {t("auth.signOut")}
           </Button>
         </div>
       </div>
