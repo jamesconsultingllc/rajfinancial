@@ -46,7 +46,7 @@ const mockProfile = {
   locale: "en-US",
   timezone: "America/New_York",
   currency: "USD",
-  createdAt: new Date("2026-01-15T00:00:00Z"),
+  createdAt: { value: new Date("2026-01-15T00:00:00Z") },
 } as UserProfileResponse;
 
 describe("useAuthProfile", () => {
