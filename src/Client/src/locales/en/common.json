@@ -4,6 +4,10 @@
     "redirecting": "Redirecting to sign in...",
     "sessionExpired": "Session Expired",
     "sessionExpiredDescription": "Your session has expired. Please sign in again.",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "accessDenied": "Access Denied",
+    "accessDeniedDescription": "You don't have permission to access this page. Contact your administrator if you believe this is an error.",
+    "goBack": "Go Back",
+    "signOut": "Sign Out"
   }
 }
