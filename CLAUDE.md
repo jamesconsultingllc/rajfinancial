@@ -25,9 +25,30 @@
 
 ---
 
-## Branch Plans
+## Branch Plans (Work-Item-Attached)
 
-You may create a temporary `IMPLEMENTATION_PLAN.md` at repo root for the current feature branch. Delete before merging to `develop`.
+**Convention (2026-04-18 onward):** Implementation plans for a feature/bugfix branch are appended to the **Description field of the corresponding ADO work item** (not posted as a comment, not stored as `IMPLEMENTATION_PLAN.md` at repo root).
+
+### Rules
+
+1. Before starting work on a feature/bugfix branch, append an implementation plan section to the Description of the parent Feature or Task work item.
+2. The plan section should contain:
+   - A clear heading (e.g., `## Implementation Plan`)
+   - Goal / scope (1–2 lines)
+   - Numbered task checklist with checkboxes
+   - Files to create/modify
+   - Testing requirements
+   - Acceptance criteria
+3. As work progresses, **edit the Description** to check items off. Do not use comments for plan progress — keep the plan in one place.
+4. **Do not** commit `IMPLEMENTATION_PLAN.md` or similar transient planning files to the repo.
+5. Persistent design/architecture plans still live under `docs/plans/` (these describe multi-phase initiatives, not branch-level tasks).
+
+### Why
+
+- Plan is always visible at the top of the work item, not buried in a comment thread
+- Checklist progress is visible at a glance
+- No stale planning files lingering in branches or getting merged to `develop`
+- Persistent architecture plans stay under `docs/plans/`; ephemeral branch plans stay on the work item
 
 ---
 
