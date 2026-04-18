@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Integration tests for ApiErrorBoundary + TanStack Query.
  *
  * @description Verifies that API errors thrown from `useQuery` propagate up

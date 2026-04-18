@@ -94,7 +94,7 @@ export class ApiErrorBoundary extends Component<
    * Handles retry button click.
    * Clears error state to re-render children.
    */
-  private handleRetry = (): void => {
+  private readonly handleRetry = (): void => {
     this.setState({ error: null, isRetrying: true });
     // Brief delay to show loading state
     setTimeout(() => {
@@ -105,7 +105,7 @@ export class ApiErrorBoundary extends Component<
   /**
    * Handles sign out for 403 errors.
    */
-  private handleSignOut = async (): Promise<void> => {
+  private readonly handleSignOut = async (): Promise<void> => {
     await msalInstance.logoutRedirect();
   };
 
@@ -137,7 +137,7 @@ export class ApiErrorBoundary extends Component<
         case 403:
           return (
             <ForbiddenError
-              onGoBack={() => window.history.back()}
+              onGoBack={() => globalThis.history.back()}
               onSignOut={this.handleSignOut}
             />
           );
@@ -205,10 +205,10 @@ function AuthenticatingFallback() {
 function ForbiddenError({
   onGoBack,
   onSignOut,
-}: {
+}: Readonly<{
   onGoBack: () => void;
   onSignOut: () => void;
-}) {
+}>) {
   const { t } = useTranslation();
   return (
     <div
@@ -243,10 +243,10 @@ function ForbiddenError({
 function NetworkError({
   onRetry,
   message,
-}: {
+}: Readonly<{
   onRetry: () => void;
   message: string;
-}) {
+}>) {
   const { t } = useTranslation();
   return (
     <div
@@ -259,9 +259,12 @@ function NetworkError({
         <h2 className="text-xl font-bold text-foreground mb-2">
           {t("errors.connectionProblem")}
         </h2>
-        <p className="text-muted-foreground mb-6">
-          {message || t("errors.connectionProblemDescription")}
+        <p className="text-muted-foreground mb-2">
+          {t("errors.connectionProblemDescription")}
         </p>
+        {message && (
+          <p className="text-xs text-muted-foreground mb-6">{message}</p>
+        )}
         <Button onClick={onRetry}>
           <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
           {t("errors.tryAgain")}
@@ -279,12 +282,12 @@ function GenericError({
   message,
   status,
   onRetry,
-}: {
+}: Readonly<{
   code: string;
   message: string;
   status?: number;
   onRetry: () => void;
-}) {
+}>) {
   const { t } = useTranslation();
   return (
     <div
