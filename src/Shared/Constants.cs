@@ -1,4 +1,4 @@
-﻿using RajFinancial.Shared.Entities;
+﻿using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Shared;
 

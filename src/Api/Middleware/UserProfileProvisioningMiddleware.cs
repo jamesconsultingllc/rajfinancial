@@ -2,14 +2,14 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
+using RajFinancial.Shared.Entities.Users;
 using SysException = System.Exception;
 
 namespace RajFinancial.Api.Middleware;
 
 /// <summary>
 /// Middleware that ensures an authenticated user has a local
-/// <see cref="Shared.Entities.UserProfile"/> record in the database.
+/// <see cref="UserProfile"/> record in the database.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -55,6 +55,16 @@ public class UserProfileProvisioningMiddleware(
                         email,
                         displayName,
                         roles);
+
+                    // Auto-provision the user's Personal entity.
+                    // Always called (not just for "new" profiles) so the system self-heals
+                    // if the Personal entity is ever missing. The service is idempotent —
+                    // a single indexed lookup on (UserId, Type=Personal) and returns fast
+                    // when the entity already exists.
+                    var entityService = context.InstanceServices
+                        .GetRequiredService<Services.EntityService.IEntityService>();
+
+                    await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
                 }
             }
         }

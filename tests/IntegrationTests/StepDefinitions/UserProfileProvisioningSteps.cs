@@ -61,7 +61,9 @@ public class UserProfileProvisioningSteps
     /// <summary>
     /// Removes any <c>UserProfile</c> rows created during the scenario so that
     /// subsequent runs start from a clean slate. Cleans up by both user ID and
-    /// any emails registered during the scenario.
+    /// any emails registered during the scenario. Deletes auto-provisioned
+    /// Entities (and their EntityRoles) before UserProfiles to satisfy the
+    /// <c>FK_Entities_UserProfiles_UserId</c> restrict constraint.
     /// </summary>
     [AfterScenario]
     public async Task CleanupAfterScenario()
@@ -76,20 +78,51 @@ public class UserProfileProvisioningSteps
         // Delete by user ID (covers the primary profile)
         if (!string.IsNullOrEmpty(_testUserId))
         {
+            var id = Guid.Parse(_testUserId);
+            await DeleteEntitiesByUserIdAsync(conn, id);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM UserProfiles WHERE Id = @id";
-            cmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+            cmd.Parameters.AddWithValue("@id", id);
             await cmd.ExecuteNonQueryAsync();
         }
 
         // Delete by any emails registered during the scenario
         foreach (var email in _emailsToCleanup)
         {
+            await DeleteEntitiesByEmailAsync(conn, email);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM UserProfiles WHERE Email = @email";
             cmd.Parameters.AddWithValue("@email", email);
             await cmd.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task DeleteEntitiesByUserIdAsync(SqlConnection conn, Guid userId)
+    {
+        await using var rolesCmd = conn.CreateCommand();
+        rolesCmd.CommandText = "DELETE FROM EntityRoles WHERE EntityId IN (SELECT Id FROM Entities WHERE UserId = @uid)";
+        rolesCmd.Parameters.AddWithValue("@uid", userId);
+        await rolesCmd.ExecuteNonQueryAsync();
+
+        await using var entCmd = conn.CreateCommand();
+        entCmd.CommandText = "DELETE FROM Entities WHERE UserId = @uid";
+        entCmd.Parameters.AddWithValue("@uid", userId);
+        await entCmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DeleteEntitiesByEmailAsync(SqlConnection conn, string email)
+    {
+        await using var rolesCmd = conn.CreateCommand();
+        rolesCmd.CommandText = @"DELETE FROM EntityRoles WHERE EntityId IN
+            (SELECT e.Id FROM Entities e INNER JOIN UserProfiles u ON u.Id = e.UserId WHERE u.Email = @email)";
+        rolesCmd.Parameters.AddWithValue("@email", email);
+        await rolesCmd.ExecuteNonQueryAsync();
+
+        await using var entCmd = conn.CreateCommand();
+        entCmd.CommandText = @"DELETE FROM Entities WHERE UserId IN
+            (SELECT Id FROM UserProfiles WHERE Email = @email)";
+        entCmd.Parameters.AddWithValue("@email", email);
+        await entCmd.ExecuteNonQueryAsync();
     }
 
     // =========================================================================
@@ -488,6 +521,7 @@ public class UserProfileProvisioningSteps
 
         await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync();
+        await DeleteEntitiesByEmailAsync(conn, email);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM UserProfiles WHERE Email = @email";
         cmd.Parameters.AddWithValue("@email", email);

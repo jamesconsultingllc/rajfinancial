@@ -8,11 +8,12 @@ using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Shared.Contracts.Auth;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Functions;
 
 /// <summary>
-/// Exposes the persisted <see cref="Shared.Entities.UserProfile"/> for the
+/// Exposes the persisted <see cref="UserProfile"/> for the
 /// currently authenticated user.
 /// </summary>
 /// <remarks>
@@ -36,7 +37,7 @@ public class ProfileFunctions(
     ISerializationFactory serializationFactory)
 {
     /// <summary>
-    /// Returns the persisted <see cref="Shared.Entities.UserProfile"/> for the
+    /// Returns the persisted <see cref="UserProfile"/> for the
     /// currently authenticated user.
     /// </summary>
     /// <param name="req">The incoming HTTP request.</param>

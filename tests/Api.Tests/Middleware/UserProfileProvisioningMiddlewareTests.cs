@@ -6,6 +6,7 @@ using Moq;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Middleware;
 
@@ -78,7 +79,7 @@ public class UserProfileProvisioningMiddlewareTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Shared.Entities.UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = testUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -108,7 +109,7 @@ public class UserProfileProvisioningMiddlewareTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Shared.Entities.UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = testUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -139,7 +140,7 @@ public class UserProfileProvisioningMiddlewareTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Shared.Entities.UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = testUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -170,7 +171,7 @@ public class UserProfileProvisioningMiddlewareTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Shared.Entities.UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = testUserId });
 
         var nextCalled = false;
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
@@ -295,7 +296,7 @@ public class UserProfileProvisioningMiddlewareTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Shared.Entities.UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = testUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 

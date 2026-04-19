@@ -1,3 +1,5 @@
+using RajFinancial.Shared.Entities.Access;
+
 namespace RajFinancial.Api.Services.Authorization;
 
 /// <summary>
@@ -11,7 +13,7 @@ public enum AccessDecisionReason
 {
     /// <summary>
     /// Access denied — the user is not the resource owner,
-    /// has no valid <see cref="Shared.Entities.DataAccessGrant"/>,
+    /// has no valid <see cref="DataAccessGrant"/>,
     /// and is not an Administrator.
     /// </summary>
     Denied = 0,
@@ -22,7 +24,7 @@ public enum AccessDecisionReason
     ResourceOwner = 1,
 
     /// <summary>
-    /// Access granted through a valid <see cref="Shared.Entities.DataAccessGrant"/>
+    /// Access granted through a valid <see cref="DataAccessGrant"/>
     /// covering the requested category and access level.
     /// </summary>
     DataAccessGrant = 2,

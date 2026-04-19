@@ -9,6 +9,7 @@ using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Functions;
 

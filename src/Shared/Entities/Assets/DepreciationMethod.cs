@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Assets;
 
 /// <summary>
 ///     Depreciation methods supported for asset valuation.

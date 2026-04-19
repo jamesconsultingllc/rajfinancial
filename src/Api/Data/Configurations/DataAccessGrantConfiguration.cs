@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Data.Configurations;
 

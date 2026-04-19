@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
+using RajFinancial.Shared.Entities.Assets;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Data;
 
@@ -38,6 +41,16 @@ public class ApplicationDbContext : DbContext
     /// Depreciable assets (TPH derived: physical assets that lose value over time).
     /// </summary>
     public DbSet<DepreciableAsset> DepreciableAssets => Set<DepreciableAsset>();
+
+    /// <summary>
+    /// Financial entities (Personal, Business, Trust) owned by users.
+    /// </summary>
+    public DbSet<Entity> Entities => Set<Entity>();
+
+    /// <summary>
+    /// Role assignments linking contacts to entities (owners, trustees, etc.).
+    /// </summary>
+    public DbSet<EntityRole> EntityRoles => Set<EntityRole>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
           base: ${{ github.event.before }}
@@ -91,7 +91,7 @@ jobs:
         uses: jamesconsultingllc/resolve-swa-environment-action@78b07725410b7bae9e35c6ff1aa57fcedecd84a4 # v1.0.1
 
       - name: Azure Login with OIDC
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -184,7 +184,7 @@ jobs:
 
       - name: Azure Login with OIDC (Entra External ID)
         if: steps.resolve-env.outputs.is-preview == 'true'
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.ENTRA_CLIENT_ID }}
           tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
@@ -323,7 +323,7 @@ jobs:
           detect-source: 'false'
 
       - name: Azure Login with OIDC
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -339,7 +339,7 @@ jobs:
 
 
       - name: Azure Login with OIDC (Entra External ID)
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.ENTRA_CLIENT_ID }}
           tenant-id: ${{ secrets.ENTRA_DEV_TENANT_ID }}
@@ -365,7 +365,7 @@ jobs:
       #     origin: ${{ steps.find-slot.outputs.origin }}
 
       - name: Azure Login with OIDC (for SWA delete)
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

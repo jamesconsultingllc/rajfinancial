@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Services.AssetService;
 

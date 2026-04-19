@@ -12,6 +12,7 @@ using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Functions;
 
@@ -182,7 +183,7 @@ public class ProfileFunctionsTests
         var (request, context) = CreateAuthenticatedRequest(testUserId);
         userProfileServiceMock
             .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Shared.Entities.UserProfile?)null);
+            .ReturnsAsync((UserProfile?)null);
 
         // Act
         var response = await functions.GetMyProfile(request, context);
@@ -199,7 +200,7 @@ public class ProfileFunctionsTests
         var (request, context) = CreateAuthenticatedRequest(testUserId);
         userProfileServiceMock
             .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Shared.Entities.UserProfile?)null);
+            .ReturnsAsync((UserProfile?)null);
 
         // Act
         var response = await functions.GetMyProfile(request, context);
@@ -247,9 +248,9 @@ public class ProfileFunctionsTests
     // Helpers
     // =========================================================================
 
-    private static Shared.Entities.UserProfile CreateTestProfile()
+    private static UserProfile CreateTestProfile()
     {
-        return new Shared.Entities.UserProfile
+        return new UserProfile
         {
             Id = testUserId,
             Email = "user@rajfinancial.com",

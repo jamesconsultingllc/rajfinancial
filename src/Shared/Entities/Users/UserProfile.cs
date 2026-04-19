@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // RAJ Financial - User Profile Entity
 // ============================================================================
 // Represents application-specific user data stored in the database.
@@ -6,7 +6,7 @@
 // ClaimsPrincipal at runtime. This entity stores persistent app data not in Entra.
 // ============================================================================
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Users;
 
 /// <summary>
 ///     Represents application-specific user data stored in the database.

@@ -5,6 +5,8 @@ using Moq;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Services.Authorization;
 

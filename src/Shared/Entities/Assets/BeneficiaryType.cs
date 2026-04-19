@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Assets;
 
 /// <summary>
 ///     Known beneficiary types used in allocation assignments.

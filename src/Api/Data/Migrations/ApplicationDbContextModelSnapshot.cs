@@ -22,7 +22,85 @@ namespace RajFinancial.Api.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.Asset", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Access.DataAccessGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AccessType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Categories")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("GranteeEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("GranteeUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("GrantorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("InvitationExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("InvitationToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RelationshipLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GranteeEmail");
+
+                    b.HasIndex("GranteeUserId");
+
+                    b.HasIndex("InvitationToken")
+                        .IsUnique()
+                        .HasFilter("[InvitationToken] IS NOT NULL");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("GrantorUserId", "GranteeUserId");
+
+                    b.ToTable("DataAccessGrants");
+                });
+
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Assets.Asset", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -115,85 +193,117 @@ namespace RajFinancial.Api.Data.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.DataAccessGrant", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Entity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTimeOffset?>("AcceptedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("AccessType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Categories")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset?>("ExpiresAt")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
-                    b.Property<string>("GranteeEmail")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
-                    b.Property<Guid?>("GranteeUserId")
+                    b.Property<Guid?>("ParentEntityId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("GrantorUserId")
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("StorageConnectionId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTimeOffset?>("InvitationExpiresAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("InvitationToken")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("RelationshipLabel")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Status")
+                    b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
+                    b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GranteeEmail");
+                    b.HasIndex("ParentEntityId");
 
-                    b.HasIndex("GranteeUserId");
+                    b.HasIndex("UserId");
 
-                    b.HasIndex("InvitationToken")
-                        .IsUnique()
-                        .HasFilter("[InvitationToken] IS NOT NULL");
+                    b.HasIndex("UserId", "Slug")
+                        .IsUnique();
 
-                    b.HasIndex("Status");
+                    b.HasIndex("UserId", "Type");
 
-                    b.HasIndex("GrantorUserId", "GranteeUserId");
-
-                    b.ToTable("DataAccessGrants");
+                    b.ToTable("Entities", (string)null);
                 });
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.UserProfile", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.EntityRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("BeneficialInterestPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("EffectiveDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSignatory")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal?>("OwnershipPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("RoleType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("EntityId");
+
+                    b.ToTable("EntityRoles", (string)null);
+                });
+
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Users.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -256,9 +366,9 @@ namespace RajFinancial.Api.Data.Migrations
                     b.ToTable("UserProfiles");
                 });
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.DepreciableAsset", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Assets.DepreciableAsset", b =>
                 {
-                    b.HasBaseType("RajFinancial.Shared.Entities.Asset");
+                    b.HasBaseType("RajFinancial.Shared.Entities.Assets.Asset");
 
                     b.Property<string>("DepreciationMethod")
                         .IsRequired()
@@ -278,27 +388,179 @@ namespace RajFinancial.Api.Data.Migrations
                     b.HasDiscriminator().HasValue("DepreciableAsset");
                 });
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.Asset", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Access.DataAccessGrant", b =>
                 {
-                    b.HasOne("RajFinancial.Shared.Entities.UserProfile", null)
+                    b.HasOne("RajFinancial.Shared.Entities.Users.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("GranteeUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RajFinancial.Shared.Entities.Users.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("GrantorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Assets.Asset", b =>
+                {
+                    b.HasOne("RajFinancial.Shared.Entities.Users.UserProfile", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("RajFinancial.Shared.Entities.DataAccessGrant", b =>
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Entity", b =>
                 {
-                    b.HasOne("RajFinancial.Shared.Entities.UserProfile", null)
-                        .WithMany()
-                        .HasForeignKey("GranteeUserId")
+                    b.HasOne("RajFinancial.Shared.Entities.Entity", "ParentEntity")
+                        .WithMany("ChildEntities")
+                        .HasForeignKey("ParentEntityId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("RajFinancial.Shared.Entities.UserProfile", null)
+                    b.HasOne("RajFinancial.Shared.Entities.Users.UserProfile", null)
                         .WithMany()
-                        .HasForeignKey("GrantorUserId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.OwnsOne("RajFinancial.Shared.Entities.Business.BusinessEntityMetadata", "Business", b1 =>
+                        {
+                            b1.Property<Guid>("EntityId");
+
+                            b1.Property<decimal?>("AnnualRevenue");
+
+                            b1.Property<string>("DunsNumber");
+
+                            b1.Property<string>("Ein");
+
+                            b1.Property<int>("EntityFormationType");
+
+                            b1.Property<int?>("FiscalYearEnd");
+
+                            b1.Property<DateTimeOffset?>("FormationDate");
+
+                            b1.Property<string>("Industry");
+
+                            b1.Property<string>("NaicsCode");
+
+                            b1.Property<int?>("NumberOfEmployees");
+
+                            b1.Property<string>("RegisteredAgentName");
+
+                            b1.Property<string>("StateOfFormation");
+
+                            b1.Property<int?>("TaxClassification");
+
+                            b1.HasKey("EntityId");
+
+                            b1.ToTable("Entities");
+
+                            b1
+                                .ToJson("Business")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.WithOwner()
+                                .HasForeignKey("EntityId");
+
+                            b1.OwnsMany("RajFinancial.Shared.Entities.Business.StateRegistration", "Registrations", b2 =>
+                                {
+                                    b2.Property<Guid>("BusinessEntityMetadataEntityId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<DateTimeOffset?>("AnnualReportDueDate");
+
+                                    b2.Property<bool>("IsInGoodStanding");
+
+                                    b2.Property<DateTimeOffset?>("RegisteredDate");
+
+                                    b2.Property<string>("RegistrationNumber");
+
+                                    b2.Property<string>("SosFilingNumber");
+
+                                    b2.Property<string>("State")
+                                        .IsRequired();
+
+                                    b2.HasKey("BusinessEntityMetadataEntityId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("Entities");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("BusinessEntityMetadataEntityId");
+                                });
+
+                            b1.Navigation("Registrations");
+                        });
+
+                    b.OwnsOne("RajFinancial.Shared.Entities.Trust.TrustEntityMetadata", "Trust", b1 =>
+                        {
+                            b1.Property<Guid>("EntityId");
+
+                            b1.Property<int>("Category");
+
+                            b1.Property<int>("CreationMethod");
+
+                            b1.Property<int>("DistributionRule");
+
+                            b1.Property<string>("Ein");
+
+                            b1.Property<int>("Features");
+
+                            b1.Property<decimal?>("FundingAmount");
+
+                            b1.Property<int>("Goal");
+
+                            b1.Property<int?>("IncomeTreatment");
+
+                            b1.Property<string>("Jurisdiction");
+
+                            b1.Property<string>("OtherTypeDescription");
+
+                            b1.Property<string>("SuccessorTrusteePlan");
+
+                            b1.Property<int>("TaxStatus");
+
+                            b1.Property<DateTimeOffset?>("TrustDate");
+
+                            b1.Property<int>("Type");
+
+                            b1.HasKey("EntityId");
+
+                            b1.ToTable("Entities");
+
+                            b1
+                                .ToJson("Trust")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.WithOwner()
+                                .HasForeignKey("EntityId");
+                        });
+
+                    b.Navigation("Business");
+
+                    b.Navigation("ParentEntity");
+
+                    b.Navigation("Trust");
+                });
+
+            modelBuilder.Entity("RajFinancial.Shared.Entities.EntityRole", b =>
+                {
+                    b.HasOne("RajFinancial.Shared.Entities.Entity", "Entity")
+                        .WithMany("Roles")
+                        .HasForeignKey("EntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Entity");
+                });
+
+            modelBuilder.Entity("RajFinancial.Shared.Entities.Entity", b =>
+                {
+                    b.Navigation("ChildEntities");
+
+                    b.Navigation("Roles");
                 });
 #pragma warning restore 612, 618
         }

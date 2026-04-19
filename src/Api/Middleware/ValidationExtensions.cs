@@ -104,13 +104,39 @@ public static class ValidationExtensions
             {
                 return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                return null;
+                // Surface deserialization failures as field-level ValidationExceptions so
+                // callers see `{ field: [message] }` rather than the generic "Request body
+                // is required" that GetValidatedBodyAsync would produce if we returned null.
+                // Uses JsonException.Path (e.g. "$.name") to attribute the error to a field.
+                throw ToValidationException(ex);
             }
         }
 
         return null;
+    }
+
+    private static ValidationException ToValidationException(JsonException ex)
+    {
+        var field = ExtractFieldFromJsonPath(ex.Path) ?? "body";
+        var message = ex.Message;
+        var errors = new Dictionary<string, object>
+        {
+            [field] = new List<string> { message }
+        };
+        return new ValidationException(message, errors);
+    }
+
+    private static string? ExtractFieldFromJsonPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "$")
+            return null;
+
+        // System.Text.Json paths look like "$.name" or "$.items[0].id". Pull the top-level segment.
+        var stripped = path.StartsWith("$.", StringComparison.Ordinal) ? path[2..] : path;
+        var end = stripped.IndexOfAny(new[] { '.', '[' });
+        return end < 0 ? stripped : stripped[..end];
     }
 
     /// <summary>

@@ -13,10 +13,14 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
+using RajFinancial.Api.Services.Contacts;
+using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Validators;
+using RajFinancial.Api.Validators.Entities;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Contracts.Auth;
+using RajFinancial.Shared.Contracts.Entities;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -162,6 +166,45 @@ builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
 // Asset management
 builder.Services.AddScoped<IAssetService, AssetService>();
 
+// Entity management (Personal, Business, Trust) + role assignments
+builder.Services.AddScoped<IEntityService, EntityService>();
+
+// Contact resolver — Phase 1 has no Contacts table, so the prod-default rejects
+// every ContactId to prevent cross-tenant linking via arbitrary client-supplied
+// GUIDs. Integration test runs opt into a seedable resolver via the
+// ENABLE_CONTACT_TEST_SEEDING environment flag (set in src/Api/local.settings.json
+// for local dev, never set in production deployments).
+var enableContactTestSeeding = string.Equals(
+    Environment.GetEnvironmentVariable("ENABLE_CONTACT_TEST_SEEDING"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+
+// Belt-and-suspenders: refuse to boot if the test-seeding flag was ever set
+// outside Development. If this flag were true in prod, SeedableContactResolver
+// would be swapped in AND /api/testing/seed-contact would accept requests —
+// any authenticated caller could then seed arbitrary ContactIds and bypass
+// tenant isolation. Fail fast rather than silently enable the bypass.
+if (enableContactTestSeeding && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        $"ENABLE_CONTACT_TEST_SEEDING is set but the host environment is " +
+        $"'{builder.Environment.EnvironmentName}', not Development. " +
+        "This flag exists only for Phase 1 integration tests and must never " +
+        "be set outside Development. Refusing to start. " +
+        "Remove the env var / Application Setting to continue.");
+}
+
+if (enableContactTestSeeding)
+{
+    builder.Services.AddSingleton<SeedableContactResolver>();
+    builder.Services.AddSingleton<IContactResolver>(sp =>
+        sp.GetRequiredService<SeedableContactResolver>());
+}
+else
+{
+    builder.Services.AddSingleton<IContactResolver, PlaceholderContactResolver>();
+}
+
 // Services will be registered as they are implemented:
 // builder.Services.AddScoped<IAccountService, AccountService>();
 // builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
@@ -174,6 +217,11 @@ builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestVal
 builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+
+// Entity validators
+builder.Services.AddScoped<IValidator<CreateEntityRequest>, CreateEntityRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateEntityRequest>, UpdateEntityRequestValidator>();
+builder.Services.AddScoped<IValidator<CreateEntityRoleRequest>, CreateEntityRoleRequestValidator>();
 
 // Register validators as they are implemented:
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();
