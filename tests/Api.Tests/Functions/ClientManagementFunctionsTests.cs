@@ -25,6 +25,7 @@ using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Tests.Functions;
 

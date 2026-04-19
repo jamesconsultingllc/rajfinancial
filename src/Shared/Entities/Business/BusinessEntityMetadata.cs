@@ -1,6 +1,6 @@
 using MemoryPack;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Business;
 
 /// <summary>
 ///     Business-specific metadata stored as a JSON column on the Entity table.

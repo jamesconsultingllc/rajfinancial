@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Business;
 
 /// <summary>
 ///     Legal formation type for business entities.

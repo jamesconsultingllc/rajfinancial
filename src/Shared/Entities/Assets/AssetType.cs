@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Assets;
 
 /// <summary>
 ///     Classification of asset types for categorization and reporting.

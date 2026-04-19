@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Storage;
 
 /// <summary>
 ///     Cloud storage providers supported for document storage.

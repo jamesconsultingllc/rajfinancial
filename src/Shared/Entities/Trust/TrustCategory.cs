@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Trust;
 
 /// <summary>
 ///     Primary classification of a trust entity by whether it can be amended.

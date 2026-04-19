@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Access;
 
 /// <summary>
 ///     Data categories that can be granted access to.

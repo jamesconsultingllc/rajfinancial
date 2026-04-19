@@ -5,7 +5,7 @@
 // that lose value over time (real estate, vehicles, equipment, etc.).
 // ============================================================================
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Assets;
 
 /// <summary>
 ///     An asset that loses value over time and supports depreciation calculations.

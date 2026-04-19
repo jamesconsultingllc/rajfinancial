@@ -2,14 +2,14 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
+using RajFinancial.Shared.Entities.Users;
 using SysException = System.Exception;
 
 namespace RajFinancial.Api.Middleware;
 
 /// <summary>
 /// Middleware that ensures an authenticated user has a local
-/// <see cref="Shared.Entities.UserProfile"/> record in the database.
+/// <see cref="UserProfile"/> record in the database.
 /// </summary>
 /// <remarks>
 /// <para>

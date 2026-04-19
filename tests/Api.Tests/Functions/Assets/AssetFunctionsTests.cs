@@ -25,6 +25,7 @@ using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Functions.Assets;
 

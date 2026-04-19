@@ -1,10 +1,10 @@
-﻿// ============================================================================
+// ============================================================================
 // RAJ Financial - User Roles
 // ============================================================================
 // This enum defines the roles used within the RAJ Financial system. 
 // ============================================================================
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Users;
 
 /// <summary>
 ///     Defines the roles a user can have in the RAJ Financial system.

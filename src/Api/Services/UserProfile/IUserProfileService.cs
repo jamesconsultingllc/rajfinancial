@@ -1,5 +1,6 @@
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Services.UserProfiles;
 

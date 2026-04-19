@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Trust;
 
 /// <summary>
 ///     Motivations for creating a trust. Multiple goals may apply to a single

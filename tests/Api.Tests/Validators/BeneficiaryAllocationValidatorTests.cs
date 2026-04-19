@@ -3,6 +3,7 @@ using FluentValidation.TestHelper;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Validators;
 

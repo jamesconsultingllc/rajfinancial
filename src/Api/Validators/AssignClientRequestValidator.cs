@@ -9,6 +9,7 @@ using FluentValidation;
 
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Validators;
 
@@ -19,7 +20,7 @@ namespace RajFinancial.Api.Validators;
 ///     <para>Validation rules:</para>
 ///     <list type="bullet">
 ///         <item>ClientEmail: Required, valid email format</item>
-///         <item>AccessType: Required, must be a valid <see cref="Entities.AccessType" /> value (excluding Owner)</item>
+///         <item>AccessType: Required, must be a valid <see cref="AccessType" /> value (excluding Owner)</item>
 ///         <item>Categories: Required, at least one item</item>
 ///     </list>
 /// </remarks>

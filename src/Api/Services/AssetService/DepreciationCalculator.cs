@@ -7,6 +7,7 @@
 // ============================================================================
 
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Services.AssetService;
 

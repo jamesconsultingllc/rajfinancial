@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
+using RajFinancial.Shared.Entities.Assets;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Data;
 

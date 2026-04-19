@@ -5,7 +5,7 @@
 // This enables secure data sharing between users (e.g., spouse, attorney, CPA).
 // ============================================================================
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Access;
 
 /// <summary>
 ///     Represents a grant of access from one user (Grantor) to another user (Grantee).

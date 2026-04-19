@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Access;
 
 /// <summary>
 ///     Status of a data access grant.

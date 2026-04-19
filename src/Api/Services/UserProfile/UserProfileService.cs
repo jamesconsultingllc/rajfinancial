@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Services.UserProfiles;
 

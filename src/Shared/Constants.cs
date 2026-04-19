@@ -1,5 +1,8 @@
 ﻿using RajFinancial.Shared.Entities;
 
+using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Users;
+
 namespace RajFinancial.Shared;
 
 public static class Constants

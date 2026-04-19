@@ -1,6 +1,6 @@
 using MemoryPack;
 
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Trust;
 
 /// <summary>
 ///     Trust-specific metadata stored as a JSON column on the Entity table.

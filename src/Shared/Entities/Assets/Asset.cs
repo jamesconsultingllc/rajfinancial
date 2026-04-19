@@ -6,7 +6,9 @@
 // Uses EF Core TPH (Table Per Hierarchy) with a discriminator column.
 // ============================================================================
 
-namespace RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
+
+namespace RajFinancial.Shared.Entities.Assets;
 
 /// <summary>
 ///     Base class for a manually tracked asset owned by a user.

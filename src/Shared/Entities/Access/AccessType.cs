@@ -1,4 +1,4 @@
-namespace RajFinancial.Shared.Entities;
+namespace RajFinancial.Shared.Entities.Access;
 
 /// <summary>
 ///     Type of access granted to a user.
