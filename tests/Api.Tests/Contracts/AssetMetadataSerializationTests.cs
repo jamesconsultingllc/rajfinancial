@@ -13,6 +13,7 @@ using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Contracts.Assets.Metadata;
 using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
+using StateRegistration = RajFinancial.Shared.Contracts.Assets.Metadata.StateRegistration;
 
 namespace RajFinancial.Api.Tests.Contracts;
 

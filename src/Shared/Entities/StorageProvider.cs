@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
@@ -5,7 +7,12 @@ namespace RajFinancial.Shared.Entities;
 /// </summary>
 public enum StorageProvider
 {
+    [Description("OneDrive — Microsoft 365 personal or business cloud storage.")]
     OneDrive = 0,
+
+    [Description("Google Drive — Google Workspace or consumer cloud storage.")]
     GoogleDrive = 1,
+
+    [Description("Dropbox — Dropbox personal or business cloud storage.")]
     Dropbox = 2,
 }

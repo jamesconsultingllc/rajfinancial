@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
@@ -5,12 +7,12 @@ namespace RajFinancial.Shared.Entities;
 /// </summary>
 public enum EntityType
 {
-    /// <summary>Individual/family finances. One per user, auto-created.</summary>
+    [Description("Personal — individual or family finances; one per user, auto-created.")]
     Personal = 0,
 
-    /// <summary>LLC, corporation, partnership, sole proprietorship.</summary>
+    [Description("Business — LLC, corporation, partnership, or sole proprietorship.")]
     Business = 1,
 
-    /// <summary>Revocable, irrevocable, special needs, charitable trust.</summary>
+    [Description("Trust — revocable, irrevocable, special needs, charitable, or other trust vehicle.")]
     Trust = 2,
 }

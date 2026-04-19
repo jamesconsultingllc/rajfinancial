@@ -1,24 +1,15 @@
+using System.ComponentModel;
+
 namespace RajFinancial.Shared.Entities;
 
 /// <summary>
 ///     When a trust is created.
-///     <list type="bullet">
-///         <item>
-///             <term>InterVivos</term>
-///             <description>"Living trust" — created during the grantor's lifetime.</description>
-///         </item>
-///         <item>
-///             <term>Testamentary</term>
-///             <description>
-///                 Created via the grantor's will; takes effect after death and probate
-///                 approval. Always irrevocable once active (the grantor is no longer
-///                 alive to amend it).
-///             </description>
-///         </item>
-///     </list>
 /// </summary>
 public enum TrustCreationMethod
 {
+    [Description("Inter Vivos — \"living trust\" created during the grantor's lifetime.")]
     InterVivos = 0,
+
+    [Description("Testamentary — created via the grantor's will; takes effect after death and probate. Always irrevocable once active.")]
     Testamentary = 1,
 }
