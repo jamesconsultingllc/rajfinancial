@@ -160,7 +160,12 @@ public partial class EntityService(
         entity.Name = request.Name;
         if (request.IsActive.HasValue)
             entity.IsActive = request.IsActive.Value;
-        entity.StorageConnectionId = request.StorageConnectionId;
+        // Partial-update semantics: only overwrite StorageConnectionId when the caller
+        // supplied a non-null value. Clients sending { name: "..." } must not
+        // inadvertently detach an existing storage connection. A dedicated
+        // "clear storage connection" mechanism can be added if that use case arises.
+        if (request.StorageConnectionId.HasValue)
+            entity.StorageConnectionId = request.StorageConnectionId.Value;
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         switch (entity.Type)
