@@ -6,6 +6,7 @@ using Moq;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
+using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
@@ -37,7 +38,12 @@ public class EntityRoleServiceTests : IDisposable
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner));
 
         var logger = new Mock<ILogger<Api.Services.EntityService.EntityService>>();
-        service = new Api.Services.EntityService.EntityService(dbContext, authMock.Object, logger.Object);
+        var contactMock = new Mock<IContactResolver>();
+        contactMock
+            .Setup(c => c.EnsureOwnedByAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        service = new Api.Services.EntityService.EntityService(dbContext, authMock.Object, contactMock.Object, logger.Object);
     }
 
     public void Dispose()

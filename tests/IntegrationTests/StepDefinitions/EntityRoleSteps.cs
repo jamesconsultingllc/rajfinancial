@@ -30,6 +30,7 @@ public class EntityRoleSteps
     private HttpResponseMessage? response;
     private string? responseBody;
     private string? authToken;
+    private string? authEmail;
     private readonly Dictionary<string, string> entityIds = new();
     private readonly Dictionary<string, Guid> contactIds = new();
     private string? lastRoleId;
@@ -63,6 +64,7 @@ public class EntityRoleSteps
     public async Task GivenIAmAuthenticatedAsUserWithRole(string email, string role)
     {
         authToken = await authHelper.GetTokenForRoleAsync(email, role);
+        authEmail = email;
     }
 
     [Given(@"I have a business entity ""(.*)""")]
@@ -78,10 +80,21 @@ public class EntityRoleSteps
     }
 
     [Given(@"I have a contact ""(.*)""")]
-    public void GivenIHaveAContact(string contactName)
+    public async Task GivenIHaveAContact(string contactName)
     {
-        // Phase 1: Contacts API does not yet exist. Synthesize a stable Guid per name so roles can reference it.
-        contactIds[contactName] = DeterministicGuid(contactName);
+        // Phase 1 has no Contacts table. Seed the host's SeedableContactResolver
+        // so AssignRoleAsync's contact-ownership check passes for the current user.
+        var contactId = DeterministicGuid(contactName);
+        contactIds[contactName] = contactId;
+        await ContactSeedingHelper.SeedAsync(client, contactId, CurrentUserId());
+    }
+
+    [Given(@"a contact ""(.*)"" exists for user ""(.*)""")]
+    public async Task GivenAContactExistsForUser(string contactName, string email)
+    {
+        var contactId = DeterministicGuid(contactName);
+        contactIds[contactName] = contactId;
+        await ContactSeedingHelper.SeedAsync(client, contactId, DeterministicUserId(email));
     }
 
     [Given(@"I have a business entity ""(.*)"" with roles assigned")]
@@ -89,6 +102,7 @@ public class EntityRoleSteps
     {
         entityIds[name] = await CreateEntityWithTokenAsync(authToken!, name, "Business");
         var contactId = DeterministicGuid("Setup Owner");
+        await ContactSeedingHelper.SeedAsync(client, contactId, CurrentUserId());
         await AssignRoleAsync(entityIds[name], contactId, "Owner",
             new Dictionary<string, object> { ["ownershipPercent"] = 100.00m });
     }
@@ -104,6 +118,7 @@ public class EntityRoleSteps
     {
         entityIds[name] = await CreateEntityWithTokenAsync(authToken!, name, "Business");
         var contactId = DeterministicGuid("Existing Owner");
+        await ContactSeedingHelper.SeedAsync(client, contactId, CurrentUserId());
         await AssignRoleAsync(entityIds[name], contactId, "Owner",
             new Dictionary<string, object> { ["ownershipPercent"] = percent });
     }
@@ -123,9 +138,12 @@ public class EntityRoleSteps
         victimEntityId = await CreateEntityWithTokenAsync(otherToken, name, "Business");
         entityIds[name] = victimEntityId;
 
+        var victimContactId = DeterministicGuid("Victim Owner");
+        await ContactSeedingHelper.SeedAsync(client, victimContactId, DeterministicUserId(email));
+
         var body = new
         {
-            contactId = DeterministicGuid("Victim Owner"),
+            contactId = victimContactId,
             roleType = "Owner",
             ownershipPercent = 100.00m
         };
@@ -381,6 +399,19 @@ public class EntityRoleSteps
         var guidBytes = new byte[16];
         Array.Copy(bytes, guidBytes, 16);
         return new Guid(guidBytes);
+    }
+
+    private static Guid DeterministicUserId(string email)
+        => Guid.Parse(TestClaimsBuilder.DeterministicUserId(email));
+
+    private Guid CurrentUserId()
+    {
+        if (string.IsNullOrEmpty(authEmail))
+        {
+            throw new InvalidOperationException(
+                "No authenticated user in scenario. Precede contact-seeding steps with 'Given I am authenticated as user ...'.");
+        }
+        return DeterministicUserId(authEmail);
     }
 
     private string TruncateBody()

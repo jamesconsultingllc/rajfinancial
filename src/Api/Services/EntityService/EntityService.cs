@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
+using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
@@ -16,6 +17,7 @@ namespace RajFinancial.Api.Services.EntityService;
 public partial class EntityService(
     ApplicationDbContext db,
     IAuthorizationService authorizationService,
+    IContactResolver contactResolver,
     ILogger<EntityService> logger) : IEntityService
 {
     // =========================================================================
@@ -237,6 +239,13 @@ public partial class EntityService(
                      ?? throw NotFound(entityId);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+        // Phase 1: there is no Contacts table yet. The production-default
+        // IContactResolver rejects every GUID (PlaceholderContactResolver),
+        // preventing cross-tenant linking via arbitrary client-supplied ids.
+        // Integration tests swap in SeedableContactResolver via the
+        // ENABLE_CONTACT_TEST_SEEDING env flag.
+        await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
         if (!IsRoleCompatibleWithEntity(request.RoleType, entity.Type))
             throw new BusinessRuleException(

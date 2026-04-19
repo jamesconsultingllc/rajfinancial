@@ -13,6 +13,7 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
+using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Validators;
@@ -167,6 +168,27 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 
 // Entity management (Personal, Business, Trust) + role assignments
 builder.Services.AddScoped<IEntityService, EntityService>();
+
+// Contact resolver — Phase 1 has no Contacts table, so the prod-default rejects
+// every ContactId to prevent cross-tenant linking via arbitrary client-supplied
+// GUIDs. Integration test runs opt into a seedable resolver via the
+// ENABLE_CONTACT_TEST_SEEDING environment flag (set in src/Api/local.settings.json
+// for local dev, never set in production deployments).
+var enableContactTestSeeding = string.Equals(
+    Environment.GetEnvironmentVariable("ENABLE_CONTACT_TEST_SEEDING"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+
+if (enableContactTestSeeding)
+{
+    builder.Services.AddSingleton<SeedableContactResolver>();
+    builder.Services.AddSingleton<IContactResolver>(sp =>
+        sp.GetRequiredService<SeedableContactResolver>());
+}
+else
+{
+    builder.Services.AddSingleton<IContactResolver, PlaceholderContactResolver>();
+}
 
 // Services will be registered as they are implemented:
 // builder.Services.AddScoped<IAccountService, AccountService>();
