@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
 
@@ -135,7 +136,7 @@ public class AssetSteps
         await GivenIHaveCreatedAnAssetOfTypeWorth(name, "Vehicle", 10_000m);
 
         // Mark it as disposed directly in the DB (no dispose endpoint exists yet)
-        var connectionString = fixture.Configuration["SqlConnectionString"]
+        var connectionString = fixture.Configuration.GetConnectionString("SqlConnectionString")
                                ?? throw new InvalidOperationException("SqlConnectionString not configured");
 
         await using var conn = new SqlConnection(connectionString);

@@ -33,10 +33,10 @@ internal static class EntityTestDataCleanup
     /// The <see cref="UserProfileProvisioningMiddleware"/> will re-create the Personal entity
     /// on the next authenticated request.
     /// </summary>
-    /// <param name="configuration">Test configuration (reads <c>SqlConnectionString</c>).</param>
+    /// <param name="configuration">Test configuration (reads <c>ConnectionStrings:SqlConnectionString</c>).</param>
     public static async Task CleanupAsync(IConfiguration configuration)
     {
-        var connectionString = configuration["SqlConnectionString"];
+        var connectionString = configuration.GetConnectionString("SqlConnectionString");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
