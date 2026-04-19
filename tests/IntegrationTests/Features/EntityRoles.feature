@@ -82,16 +82,16 @@ Feature: Entity Role Management
         And I have a business entity "Acme LLC"
         And I have a contact "John Doe"
         When I assign role "Grantor" to contact "John Doe" on entity "Acme LLC"
-        Then the response status should be 400
-        And the error code should be "ENTITY_ROLE_INVALID_FOR_TYPE"
+        Then the response status should be 422
+        And the error code should be "ENTITY_ROLE_INVALID_FOR_ENTITY_TYPE"
 
     Scenario: Cannot assign business-only role to trust entity
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
         And I have a trust entity "Family Trust"
         And I have a contact "Jane Smith"
         When I assign role "Officer" to contact "Jane Smith" on entity "Family Trust"
-        Then the response status should be 400
-        And the error code should be "ENTITY_ROLE_INVALID_FOR_TYPE"
+        Then the response status should be 422
+        And the error code should be "ENTITY_ROLE_INVALID_FOR_ENTITY_TYPE"
 
     Scenario: Ownership percent must not exceed 100 across all owners
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
@@ -100,7 +100,7 @@ Feature: Entity Role Management
         When I assign role "Owner" to contact "New Partner" on entity "Acme LLC" with:
             | OwnershipPercent |
             | 30.00            |
-        Then the response status should be 400
+        Then the response status should be 422
         And the error code should be "ENTITY_ROLE_OWNERSHIP_EXCEEDS_100"
 
     # =========================================================================

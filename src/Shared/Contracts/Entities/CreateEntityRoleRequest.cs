@@ -37,15 +37,15 @@ public sealed partial record CreateEntityRoleRequest
 
     /// <summary>Whether this person can sign on behalf of the entity.</summary>
     [MemoryPackOrder(5)]
-    public required bool IsSignatory { get; init; }
+    public bool IsSignatory { get; init; }
 
     /// <summary>Whether this is the primary role holder (e.g., primary trustee).</summary>
     [MemoryPackOrder(6)]
-    public required bool IsPrimary { get; init; }
+    public bool IsPrimary { get; init; }
 
     /// <summary>Sort order for succession planning or display ordering.</summary>
     [MemoryPackOrder(7)]
-    public required int SortOrder { get; init; }
+    public int SortOrder { get; init; }
 
     /// <summary>Date when this role became effective.</summary>
     [MemoryPackOrder(8)]

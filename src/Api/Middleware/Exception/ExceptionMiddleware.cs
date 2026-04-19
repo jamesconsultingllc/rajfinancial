@@ -57,6 +57,11 @@ public class ExceptionMiddleware(
             logger.LogWarning(ex, "Forbidden: {Message}", ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, "AUTH_FORBIDDEN", ex.Message);
         }
+        catch (ConflictException ex)
+        {
+            logger.LogWarning(ex, "Conflict: {Code} - {Message}", ex.ErrorCode, ex.Message);
+            await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.ErrorCode, ex.Message);
+        }
         catch (BusinessRuleException ex)
         {
             logger.LogWarning(ex, "Business rule violation: {Code} - {Message}", ex.ErrorCode, ex.Message);

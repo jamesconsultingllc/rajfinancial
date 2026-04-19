@@ -120,12 +120,12 @@ public class EntityServiceTests : IDisposable
 
         var act = () => service.CreateEntityAsync(ownerId, request);
 
-        var ex = await act.Should().ThrowAsync<BusinessRuleException>();
+        var ex = await act.Should().ThrowAsync<ConflictException>();
         ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PERSONAL_ALREADY_EXISTS);
     }
 
     [Fact]
-    public async Task CreateEntity_DuplicateSlug_ThrowsBusinessRuleException()
+    public async Task CreateEntity_DuplicateSlug_ThrowsConflictException()
     {
         await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business, slug: "acme-llc");
 
@@ -138,7 +138,7 @@ public class EntityServiceTests : IDisposable
 
         var act = () => service.CreateEntityAsync(ownerId, request);
 
-        var ex = await act.Should().ThrowAsync<BusinessRuleException>();
+        var ex = await act.Should().ThrowAsync<ConflictException>();
         ex.Which.ErrorCode.Should().Be(EntityErrorCodes.SLUG_DUPLICATE);
     }
 
@@ -214,13 +214,14 @@ public class EntityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetEntityById_OtherUser_ThrowsForbiddenException()
+    public async Task GetEntityById_OtherUser_ThrowsNotFoundException()
     {
         var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
 
         var act = () => service.GetEntityByIdAsync(strangerId, entity.Id);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     // =========================================================================
@@ -294,13 +295,14 @@ public class EntityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteEntity_OtherUser_ThrowsForbiddenException()
+    public async Task DeleteEntity_OtherUser_ThrowsNotFoundException()
     {
         var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
 
         var act = () => service.DeleteEntityAsync(strangerId, entity.Id);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     // =========================================================================

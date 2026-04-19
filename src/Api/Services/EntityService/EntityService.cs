@@ -72,7 +72,7 @@ public partial class EntityService(
                 .AnyAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
 
             if (personalExists)
-                throw new BusinessRuleException(
+                throw new ConflictException(
                     EntityErrorCodes.PERSONAL_ALREADY_EXISTS,
                     "User already has a Personal entity.");
         }
@@ -99,7 +99,7 @@ public partial class EntityService(
             .AnyAsync(e => e.UserId == userId && e.Slug == slug);
 
         if (slugTaken)
-            throw new BusinessRuleException(
+            throw new ConflictException(
                 EntityErrorCodes.SLUG_DUPLICATE,
                 $"Slug '{slug}' is already in use.");
 
@@ -144,7 +144,8 @@ public partial class EntityService(
                 "Personal entity name cannot be changed.");
 
         entity.Name = request.Name;
-        entity.IsActive = request.IsActive;
+        if (request.IsActive.HasValue)
+            entity.IsActive = request.IsActive.Value;
         entity.StorageConnectionId = request.StorageConnectionId;
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -371,8 +372,11 @@ public partial class EntityService(
         var decision = await authorizationService.CheckAccessAsync(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Read);
 
+        // Return NotFound (not Forbidden) on cross-user access to prevent
+        // resource enumeration (OWASP A01 — IDOR). An attacker guessing IDs
+        // must not be able to distinguish "exists but forbidden" from "does not exist".
         if (!decision.IsGranted)
-            throw new ForbiddenException();
+            throw new NotFoundException(EntityErrorCodes.NOT_FOUND, "Entity was not found.");
     }
 
     private async Task AuthorizeWriteAsync(Guid requestingUserId, Guid ownerUserId)
@@ -381,7 +385,7 @@ public partial class EntityService(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Full);
 
         if (!decision.IsGranted)
-            throw new ForbiddenException();
+            throw new NotFoundException(EntityErrorCodes.NOT_FOUND, "Entity was not found.");
     }
 
     // =========================================================================

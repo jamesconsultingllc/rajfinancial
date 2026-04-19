@@ -103,7 +103,7 @@ Feature: Entity CRUD Operations
         When I create an entity with the following details:
             | Name        | Type     |
             | My Personal | Personal |
-        Then the response status should be 400
+        Then the response status should be 409
         And the error code should be "ENTITY_PERSONAL_ALREADY_EXISTS"
 
     Scenario: Cannot create entity with duplicate slug
@@ -168,7 +168,7 @@ Feature: Entity CRUD Operations
     Scenario: Cannot update Personal entity name
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
         When I update my Personal entity with name "Custom Name"
-        Then the response status should be 400
+        Then the response status should be 422
         And the error code should be "ENTITY_PERSONAL_NAME_IMMUTABLE"
 
     # =========================================================================
@@ -185,7 +185,7 @@ Feature: Entity CRUD Operations
     Scenario: Cannot delete Personal entity
         Given I am authenticated as user "owner@rajfinancial.com" with role "Client"
         When I try to delete my Personal entity
-        Then the response status should be 400
+        Then the response status should be 422
         And the error code should be "ENTITY_PERSONAL_CANNOT_DELETE"
 
     # =========================================================================

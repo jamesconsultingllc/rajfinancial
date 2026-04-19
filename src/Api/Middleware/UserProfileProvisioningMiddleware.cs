@@ -50,21 +50,21 @@ public class UserProfileProvisioningMiddleware(
                     var profileService = context.InstanceServices
                         .GetRequiredService<Services.UserProfiles.IUserProfileService>();
 
-                    var profile = await profileService.EnsureProfileExistsAsync(
+                    await profileService.EnsureProfileExistsAsync(
                         userIdGuid.Value,
                         email,
                         displayName,
                         roles);
 
-                    // Auto-provision the user's Personal entity on first login.
-                    // Detect "just created" via equal CreatedAt/LastLoginAt (set together for new rows).
-                    if (profile.CreatedAt == profile.LastLoginAt)
-                    {
-                        var entityService = context.InstanceServices
-                            .GetRequiredService<Services.EntityService.IEntityService>();
+                    // Auto-provision the user's Personal entity.
+                    // Always called (not just for "new" profiles) so the system self-heals
+                    // if the Personal entity is ever missing. The service is idempotent —
+                    // a single indexed lookup on (UserId, Type=Personal) and returns fast
+                    // when the entity already exists.
+                    var entityService = context.InstanceServices
+                        .GetRequiredService<Services.EntityService.IEntityService>();
 
-                        await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
-                    }
+                    await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
                 }
             }
         }

@@ -25,7 +25,7 @@ public sealed partial record UpdateEntityRequest
 
     /// <summary>Whether this entity is active.</summary>
     [MemoryPackOrder(1)]
-    public required bool IsActive { get; init; }
+    public bool? IsActive { get; init; }
 
     /// <summary>Cloud storage connection for this entity's documents.</summary>
     [MemoryPackOrder(2)]
