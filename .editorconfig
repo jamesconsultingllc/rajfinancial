@@ -4,6 +4,25 @@ root = true
 dotnet_diagnostic.CA1873.severity = warning
 dotnet_diagnostic.CA1848.severity = warning
 
+# SonarAnalyzer.CSharp — architecture/SRP/security rules promoted to error.
+# See AGENT.md "Architecture Conventions (Enforced)" section for rationale.
+# Method too long (default threshold 80 lines).
+dotnet_diagnostic.S138.severity = error
+# Class has too many methods (default 35) — catches god classes.
+dotnet_diagnostic.S1448.severity = error
+# Class depends on too many other types (default 30) — catches kitchen-sink services.
+dotnet_diagnostic.S1200.severity = error
+# Cognitive complexity too high (default 15).
+dotnet_diagnostic.S3776.severity = error
+# Hardcoded credentials.
+dotnet_diagnostic.S2068.severity = error
+# Weak SSL/TLS versions.
+dotnet_diagnostic.S4830.severity = error
+# Weak hashing/cryptography.
+dotnet_diagnostic.S5542.severity = error
+# Symbolic-execution null dereference.
+dotnet_diagnostic.S2259.severity = error
+
 # Naming conventions — align ReSharper/Rider with .NET Framework Design Guidelines.
 # Roslyn analyzers require PascalCase for public const fields and private static readonly
 # fields; Rider's default templates prefer UPPER_CASE / camelCase respectively, which
@@ -30,6 +49,32 @@ dotnet_naming_rule.private_static_readonly_pascal.severity = warning
 # Test projects use NSubstitute.Received() assertions on logger calls which
 # trigger CA1873/CA1848 false positives. Production logging rules apply to
 # src/Api only (see AGENT.md Logging Pattern section).
+# Test methods are also allowed to be long (Gherkin-style arrange/act/assert)
+# and complex; SRP rules only apply to production code.
 [tests/**/*.cs]
 dotnet_diagnostic.CA1873.severity = none
 dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.S138.severity = none
+dotnet_diagnostic.S1448.severity = none
+dotnet_diagnostic.S1200.severity = none
+dotnet_diagnostic.S3776.severity = none
+
+# Auto-generated EF migrations — not hand-written code.
+# Migrations are flat files directly under this folder, so `*.cs` (no `**/`) is the right glob.
+[src/Api/Data/Migrations/*.cs]
+dotnet_diagnostic.S138.severity = none
+dotnet_diagnostic.S1448.severity = none
+dotnet_diagnostic.S1200.severity = none
+dotnet_diagnostic.S3776.severity = none
+
+# MemoryPack-generated TypeScript DTO code (if any C# emits here).
+[src/Client/src/generated/**/*.cs]
+dotnet_diagnostic.S138.severity = none
+dotnet_diagnostic.S1448.severity = none
+dotnet_diagnostic.S1200.severity = none
+dotnet_diagnostic.S3776.severity = none
+
+# Program.cs DI wiring — grandfathered until extracted into IServiceCollection
+# extension methods. Tracked under Feature #619.
+[src/Api/Program.cs]
+dotnet_diagnostic.S3776.severity = none
