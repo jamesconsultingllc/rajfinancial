@@ -1,4 +1,5 @@
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
 
@@ -57,7 +58,7 @@ public partial class ContentNegotiationMiddleware(
         await next(context);
     }
 
-    private static (string? Accept, string? ContentType) ReadContentHeaders(Microsoft.Azure.Functions.Worker.Http.HttpRequestData? httpRequest)
+    private static (string? Accept, string? ContentType) ReadContentHeaders(HttpRequestData? httpRequest)
     {
         if (httpRequest is null)
         {
@@ -81,7 +82,7 @@ public partial class ContentNegotiationMiddleware(
     }
 
     private static async Task CaptureRequestBodyAsync(
-        Microsoft.Azure.Functions.Worker.Http.HttpRequestData httpRequest,
+        HttpRequestData httpRequest,
         FunctionContext context,
         string? contentTypeHeader)
     {

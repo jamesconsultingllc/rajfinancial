@@ -176,7 +176,7 @@ public class EntityServiceTests : IDisposable
         var results = await service.GetEntitiesAsync(OwnerId, OwnerId);
 
         results.Should().HaveCount(2);
-        results.Select(r => r.Name).Should().BeEquivalentTo(new[] { "Personal", "Acme LLC" });
+        results.Select(r => r.Name).Should().BeEquivalentTo("Personal", "Acme LLC");
     }
 
     [Fact]

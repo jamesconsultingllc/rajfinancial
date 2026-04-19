@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
+using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Api.Services.UserProfiles;
 
 namespace RajFinancial.Api.Configuration;
@@ -18,8 +19,8 @@ internal static class ApplicationServicesRegistration
         services.AddScoped<IClientManagementService, ClientManagementService>();
         services.AddScoped<IAssetService, AssetService>();
         services.AddScoped<
-            Services.EntityService.IEntityService,
-            Services.EntityService.EntityService>();
+            IEntityService,
+            EntityService>();
         return services;
     }
 }

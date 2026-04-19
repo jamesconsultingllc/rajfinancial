@@ -103,7 +103,7 @@ internal class TestFunctionContext : FunctionContext
         if (name is not null)
             Items["UserName"] = name;
         if (roles.Length > 0)
-            Items["UserRoles"] = (IReadOnlyList<string>)roles;
+            Items["UserRoles"] = roles;
 
         return this;
     }

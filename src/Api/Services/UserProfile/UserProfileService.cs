@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -36,7 +37,7 @@ public partial class UserProfileService(
         CancellationToken cancellationToken = default)
     {
         var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
-        var mappedRole = MapHighestPriorityRole(roles);
+        var mappedRole = roles.MapHighestPriority();
         var now = DateTimeOffset.UtcNow;
 
         if (profile is null)
@@ -138,7 +139,7 @@ public partial class UserProfileService(
         }
 
         profile.DisplayName = request.DisplayName;
-        profile.PreferencesJson = System.Text.Json.JsonSerializer.Serialize(new
+        profile.PreferencesJson = JsonSerializer.Serialize(new
         {
             locale = request.Locale,
             timezone = request.Timezone,
@@ -151,22 +152,6 @@ public partial class UserProfileService(
         LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
 
         return profile;
-    }
-
-    /// <summary>
-    /// Maps a list of role claim strings to the single highest-priority
-    /// <see cref="UserRole"/>. Priority: Administrator (0) &gt; Advisor (1) &gt; Client (2).
-    /// Defaults to <see cref="UserRole.Client"/> when no recognized roles are present.
-    /// </summary>
-    private static UserRole MapHighestPriorityRole(IReadOnlyList<string> roles)
-    {
-        // Lower enum value = higher priority
-        return roles
-            .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var parsed) ? parsed : (UserRole?)null)
-            .Where(r => r.HasValue)
-            .Select(r => r!.Value)
-            .DefaultIfEmpty(UserRole.Client)
-            .Min();
     }
 
     // =========================================================================

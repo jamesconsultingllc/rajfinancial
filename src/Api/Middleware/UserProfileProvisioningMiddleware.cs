@@ -2,6 +2,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Services.EntityService;
+using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Shared.Entities.Users;
 using SysException = System.Exception;
 
@@ -48,7 +50,7 @@ public partial class UserProfileProvisioningMiddleware(
                     var roles = context.GetUserRoles();
 
                     var profileService = context.InstanceServices
-                        .GetRequiredService<Services.UserProfiles.IUserProfileService>();
+                        .GetRequiredService<IUserProfileService>();
 
                     await profileService.EnsureProfileExistsAsync(
                         userIdGuid.Value,
@@ -62,7 +64,7 @@ public partial class UserProfileProvisioningMiddleware(
                     // a single indexed lookup on (UserId, Type=Personal) and returns fast
                     // when the entity already exists.
                     var entityService = context.InstanceServices
-                        .GetRequiredService<Services.EntityService.IEntityService>();
+                        .GetRequiredService<IEntityService>();
 
                     await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
                 }

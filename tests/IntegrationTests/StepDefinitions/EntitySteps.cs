@@ -10,8 +10,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 

@@ -130,52 +130,8 @@ public partial class AuthorizationService(
                 g.Status == GrantStatus.Active &&
                 (g.ExpiresAt == null || g.ExpiresAt > now))
             .AsAsyncEnumerable()
-            .FirstOrDefaultAsync(g => GrantCoversRequest(g, category, requiredLevel));
+            .FirstOrDefaultAsync(g => g.Covers(category, requiredLevel));
 
         return grant;
-    }
-
-    /// <summary>
-    /// Determines whether a <see cref="DataAccessGrant"/> covers the requested category and access level.
-    /// </summary>
-    /// <remarks>
-    /// <para>Access type hierarchy: Owner > Full > Read > Limited.</para>
-    /// <para>
-    /// <list type="bullet">
-    ///   <item><b>Full</b> grants cover all categories at Read and Full levels.</item>
-    ///   <item><b>Read</b> grants cover all categories at Read level only.</item>
-    ///   <item><b>Limited</b> grants cover only specific categories at Read level.</item>
-    /// </list>
-    /// </para>
-    /// </remarks>
-    private static bool GrantCoversRequest(DataAccessGrant grant, string category, AccessType requiredLevel)
-    {
-        return grant.AccessType switch
-        {
-            // Full access: covers all categories, grants Read and Full
-            AccessType.Full => requiredLevel is AccessType.Read or AccessType.Full,
-
-            // Read access: covers all categories, grants Read-only
-            AccessType.Read => requiredLevel == AccessType.Read,
-
-            // Limited access: covers only specified categories, grants Read-only
-            AccessType.Limited => requiredLevel == AccessType.Read && GrantCoversCategory(grant, category),
-
-            // Owner access type cannot be granted to others
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Checks whether a Limited grant's category list includes the requested category.
-    /// </summary>
-    private static bool GrantCoversCategory(DataAccessGrant grant, string category)
-    {
-        // "all" category matches any grant
-        if (string.Equals(category, DataCategories.All, StringComparison.OrdinalIgnoreCase))
-            return false; // Limited grants cannot cover "all" — that requires Full/Read
-
-        return grant.Categories.Any(c =>
-            string.Equals(c, category, StringComparison.OrdinalIgnoreCase));
     }
 }

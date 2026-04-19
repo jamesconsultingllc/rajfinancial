@@ -104,7 +104,7 @@ public sealed partial class DtoDateTime : IEquatable<DtoDateTime>, IComparable<D
     public int CompareTo(DtoDateTime? other) => other is null ? 1 : Value.CompareTo(other.Value);
 
     public static bool operator ==(DtoDateTime? left, DtoDateTime? right) =>
-        left is null ? right is null : left.Equals(right);
+        left?.Equals(right) ?? right is null;
     public static bool operator !=(DtoDateTime? left, DtoDateTime? right) => !(left == right);
 
     // =========================================================================

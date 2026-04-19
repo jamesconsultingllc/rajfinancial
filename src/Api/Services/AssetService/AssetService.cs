@@ -47,7 +47,7 @@ public partial class AssetService(
             .OrderBy(a => a.Name)
             .ToListAsync();
 
-        return assets.Select(MapToDto).ToList();
+        return assets.Select(a => a.ToDto()).ToList();
     }
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(Guid requestingUserId, Guid assetId)
@@ -61,7 +61,7 @@ public partial class AssetService(
 
         await AuthorizeReadAsync(requestingUserId, asset.UserId);
 
-        return MapToDetailDto(asset);
+        return asset.ToDetailDto();
     }
 
     public async Task<AssetDto> CreateAssetAsync(Guid userId, CreateAssetRequest request)
@@ -76,18 +76,18 @@ public partial class AssetService(
                 UserId = userId,
                 Name = request.Name,
                 Type = request.Type,
-                CurrentValue = ToMoney(request.CurrentValue),
-                PurchasePrice = ToMoney(request.PurchasePrice),
+                CurrentValue = request.CurrentValue.ToMoney(),
+                PurchasePrice = request.PurchasePrice.ToMoney(),
                 PurchaseDate = request.PurchaseDate,
                 Description = request.Description,
                 Location = request.Location,
                 AccountNumber = request.AccountNumber,
                 InstitutionName = request.InstitutionName,
-                MarketValue = ToMoney(request.MarketValue),
+                MarketValue = request.MarketValue.ToMoney(),
                 LastValuationDate = request.LastValuationDate,
                 CreatedAt = DateTimeOffset.UtcNow,
                 DepreciationMethod = request.DepreciationMethod!.Value,
-                SalvageValue = ToMoney(request.SalvageValue),
+                SalvageValue = request.SalvageValue.ToMoney(),
                 UsefulLifeMonths = request.UsefulLifeMonths,
                 InServiceDate = request.InServiceDate
             }
@@ -97,14 +97,14 @@ public partial class AssetService(
                 UserId = userId,
                 Name = request.Name,
                 Type = request.Type,
-                CurrentValue = ToMoney(request.CurrentValue),
-                PurchasePrice = ToMoney(request.PurchasePrice),
+                CurrentValue = request.CurrentValue.ToMoney(),
+                PurchasePrice = request.PurchasePrice.ToMoney(),
                 PurchaseDate = request.PurchaseDate,
                 Description = request.Description,
                 Location = request.Location,
                 AccountNumber = request.AccountNumber,
                 InstitutionName = request.InstitutionName,
-                MarketValue = ToMoney(request.MarketValue),
+                MarketValue = request.MarketValue.ToMoney(),
                 LastValuationDate = request.LastValuationDate,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -114,7 +114,7 @@ public partial class AssetService(
 
         LogAssetCreated(asset.Id, userId);
 
-        return MapToDto(asset);
+        return asset.ToDto();
     }
 
     public async Task<AssetDto> UpdateAssetAsync(Guid requestingUserId, Guid assetId, UpdateAssetRequest request)
@@ -135,7 +135,7 @@ public partial class AssetService(
         // (e.g., two requests both attempting to switch the same asset's type simultaneously).
         if (nowIsDepreciable != wasDepreciable)
         {
-            var newAsset = RecreateAssetWithNewType(asset, request, nowIsDepreciable);
+            var newAsset = asset.Recreate(request, nowIsDepreciable);
 
             try
             {
@@ -158,20 +158,20 @@ public partial class AssetService(
 
             LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
 
-            return MapToDto(newAsset);
+            return newAsset.ToDto();
         }
 
         // Update common fields
         asset.Name = request.Name;
         asset.Type = request.Type;
-        asset.CurrentValue = ToMoney(request.CurrentValue);
-        asset.PurchasePrice = ToMoney(request.PurchasePrice);
+        asset.CurrentValue = request.CurrentValue.ToMoney();
+        asset.PurchasePrice = request.PurchasePrice.ToMoney();
         asset.PurchaseDate = request.PurchaseDate;
         asset.Description = request.Description;
         asset.Location = request.Location;
         asset.AccountNumber = request.AccountNumber;
         asset.InstitutionName = request.InstitutionName;
-        asset.MarketValue = ToMoney(request.MarketValue);
+        asset.MarketValue = request.MarketValue.ToMoney();
         asset.LastValuationDate = request.LastValuationDate;
         asset.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -179,7 +179,7 @@ public partial class AssetService(
         if (asset is DepreciableAsset depreciable && nowIsDepreciable)
         {
             depreciable.DepreciationMethod = request.DepreciationMethod!.Value;
-            depreciable.SalvageValue = ToMoney(request.SalvageValue);
+            depreciable.SalvageValue = request.SalvageValue.ToMoney();
             depreciable.UsefulLifeMonths = request.UsefulLifeMonths;
             depreciable.InServiceDate = request.InServiceDate;
         }
@@ -188,7 +188,7 @@ public partial class AssetService(
 
         LogAssetUpdated(assetId, requestingUserId);
 
-        return MapToDto(asset);
+        return asset.ToDto();
     }
 
     public async Task DeleteAssetAsync(Guid requestingUserId, Guid assetId)
@@ -227,146 +227,6 @@ public partial class AssetService(
     }
 
     // =========================================================================
-    // Mapping helpers
-    // =========================================================================
-
-    private static AssetDto MapToDto(Asset asset) => new()
-    {
-        Id = asset.Id,
-        Name = asset.Name,
-        Type = asset.Type,
-        CurrentValue = FromMoney(asset.CurrentValue),
-        PurchasePrice = FromMoney(asset.PurchasePrice),
-        PurchaseDate = asset.PurchaseDate?.UtcDateTime,
-        Description = asset.Description,
-        Location = asset.Location,
-        AccountNumber = asset.AccountNumber,
-        InstitutionName = asset.InstitutionName,
-        IsDepreciable = asset is DepreciableAsset,
-        IsDisposed = asset.IsDisposed,
-        HasBeneficiaries = false, // TODO: populate when beneficiary feature is implemented
-        CreatedAt = asset.CreatedAt.UtcDateTime,
-        UpdatedAt = asset.UpdatedAt?.UtcDateTime
-    };
-
-    private static AssetDetailDto MapToDetailDto(Asset asset)
-    {
-        var isDepreciable = asset is DepreciableAsset;
-        var depreciable = asset as DepreciableAsset;
-
-        DepreciationResult? depreciation = null;
-        if (depreciable is not null)
-            depreciation = DepreciationCalculator.Calculate(depreciable);
-
-        return new AssetDetailDto
-        {
-            Id = asset.Id,
-            Name = asset.Name,
-            Type = asset.Type,
-            CurrentValue = FromMoney(asset.CurrentValue),
-            PurchasePrice = FromMoney(asset.PurchasePrice),
-            PurchaseDate = asset.PurchaseDate?.UtcDateTime,
-            Description = asset.Description,
-            Location = asset.Location,
-            AccountNumber = asset.AccountNumber,
-            InstitutionName = asset.InstitutionName,
-
-            // Depreciation input fields
-            IsDepreciable = isDepreciable,
-            DepreciationMethod = depreciable?.DepreciationMethod,
-            SalvageValue = FromMoney(depreciable?.SalvageValue),
-            UsefulLifeMonths = depreciable?.UsefulLifeMonths,
-            InServiceDate = depreciable?.InServiceDate?.UtcDateTime,
-
-            // Depreciation computed fields
-            AccumulatedDepreciation = FromMoney(depreciation?.AccumulatedDepreciation),
-            BookValue = FromMoney(depreciation?.BookValue),
-            MonthlyDepreciation = FromMoney(depreciation?.MonthlyDepreciation),
-            DepreciationPercentComplete = (double?)depreciation?.DepreciationPercentComplete,
-
-            // Disposal
-            IsDisposed = asset.IsDisposed,
-            DisposalDate = asset.DisposalDate?.UtcDateTime,
-            DisposalPrice = FromMoney(asset.DisposalPrice),
-            DisposalNotes = asset.DisposalNotes,
-
-            // Valuation
-            MarketValue = FromMoney(asset.MarketValue),
-            LastValuationDate = asset.LastValuationDate?.UtcDateTime,
-
-            // Beneficiaries — TODO: populate when beneficiary feature is implemented
-            HasBeneficiaries = false,
-            Beneficiaries = [],
-
-            // Audit
-            CreatedAt = asset.CreatedAt.UtcDateTime,
-            UpdatedAt = asset.UpdatedAt?.UtcDateTime
-        };
-    }
-
-    private static Asset RecreateAssetWithNewType(Asset existing, UpdateAssetRequest request, bool nowIsDepreciable)
-    {
-        Asset newAsset = nowIsDepreciable
-            ? new DepreciableAsset
-            {
-                DepreciationMethod = request.DepreciationMethod!.Value,
-                SalvageValue = ToMoney(request.SalvageValue),
-                UsefulLifeMonths = request.UsefulLifeMonths,
-                InServiceDate = request.InServiceDate
-            }
-            : new Asset();
-
-        // Preserve identity and audit fields
-        newAsset.Id = existing.Id;
-        newAsset.UserId = existing.UserId;
-        newAsset.CreatedAt = existing.CreatedAt;
-        newAsset.UpdatedAt = DateTimeOffset.UtcNow;
-
-        // Preserve disposal state
-        newAsset.IsDisposed = existing.IsDisposed;
-        newAsset.DisposalDate = existing.DisposalDate;
-        newAsset.DisposalPrice = existing.DisposalPrice;
-        newAsset.DisposalNotes = existing.DisposalNotes;
-
-        // Apply updated fields from request
-        newAsset.Name = request.Name;
-        newAsset.Type = request.Type;
-        newAsset.CurrentValue = ToMoney(request.CurrentValue);
-        newAsset.PurchasePrice = ToMoney(request.PurchasePrice);
-        newAsset.PurchaseDate = request.PurchaseDate;
-        newAsset.Description = request.Description;
-        newAsset.Location = request.Location;
-        newAsset.AccountNumber = request.AccountNumber;
-        newAsset.InstitutionName = request.InstitutionName;
-        newAsset.MarketValue = ToMoney(request.MarketValue);
-        newAsset.LastValuationDate = request.LastValuationDate;
-
-        return newAsset;
-    }
-
-    /// <summary>
-    ///     Converts a double money value to decimal, rounding to 2 decimal places
-    ///     to avoid floating-point artifacts (e.g. 0.1 → 0.100000000000000005...).
-    /// </summary>
-    private static decimal ToMoney(double value) =>
-        Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero);
-
-    /// <inheritdoc cref="ToMoney(double)"/>
-    private static decimal? ToMoney(double? value) =>
-        value.HasValue ? ToMoney(value.Value) : null;
-
-    /// <summary>
-    ///     Converts a decimal money value to double, rounding to 2 decimal places
-    ///     to avoid floating-point representation artifacts in API responses.
-    /// </summary>
-    private static double FromMoney(decimal value) =>
-        (double)Math.Round(value, 2, MidpointRounding.AwayFromZero);
-
-    /// <inheritdoc cref="FromMoney(decimal)"/>
-    private static double? FromMoney(decimal? value) =>
-        value.HasValue ? FromMoney(value.Value) : null;
-
-    // =========================================================================
     // Source-generated logging (EventId 2000-2999)
     // =========================================================================
 
@@ -398,5 +258,5 @@ public partial class AssetService(
         EventId = 2010,
         Level = LogLevel.Warning,
         Message = "Concurrent type-switch conflict for asset {AssetId}. Client should retry.")]
-    private partial void LogAssetConcurrentTypeSwitch(System.Exception exception, Guid assetId);
+    private partial void LogAssetConcurrentTypeSwitch(Exception exception, Guid assetId);
 }
