@@ -50,11 +50,21 @@ public class UserProfileProvisioningMiddleware(
                     var profileService = context.InstanceServices
                         .GetRequiredService<Services.UserProfiles.IUserProfileService>();
 
-                    await profileService.EnsureProfileExistsAsync(
+                    var profile = await profileService.EnsureProfileExistsAsync(
                         userIdGuid.Value,
                         email,
                         displayName,
                         roles);
+
+                    // Auto-provision the user's Personal entity on first login.
+                    // Detect "just created" via equal CreatedAt/LastLoginAt (set together for new rows).
+                    if (profile.CreatedAt == profile.LastLoginAt)
+                    {
+                        var entityService = context.InstanceServices
+                            .GetRequiredService<Services.EntityService.IEntityService>();
+
+                        await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
+                    }
                 }
             }
         }

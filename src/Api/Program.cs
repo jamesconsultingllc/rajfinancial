@@ -13,10 +13,13 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
+using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Validators;
+using RajFinancial.Api.Validators.Entities;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Contracts.Auth;
+using RajFinancial.Shared.Contracts.Entities;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -162,6 +165,9 @@ builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
 // Asset management
 builder.Services.AddScoped<IAssetService, AssetService>();
 
+// Entity management (Personal, Business, Trust) + role assignments
+builder.Services.AddScoped<IEntityService, EntityService>();
+
 // Services will be registered as they are implemented:
 // builder.Services.AddScoped<IAccountService, AccountService>();
 // builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
@@ -174,6 +180,11 @@ builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestVal
 builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+
+// Entity validators
+builder.Services.AddScoped<IValidator<CreateEntityRequest>, CreateEntityRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateEntityRequest>, UpdateEntityRequestValidator>();
+builder.Services.AddScoped<IValidator<CreateEntityRoleRequest>, CreateEntityRoleRequestValidator>();
 
 // Register validators as they are implemented:
 // builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();
