@@ -8,7 +8,6 @@
 using FluentValidation;
 
 using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Validators;

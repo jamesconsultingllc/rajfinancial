@@ -1,5 +1,4 @@
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Entities.Assets;
 

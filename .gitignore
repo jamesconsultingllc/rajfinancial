@@ -79,3 +79,11 @@ docs/session.md
 
 # AI tool scratch
 .ai/
+
+# Code inspection artifacts
+rider-analysis.xml
+hook-test.xml
+inspectcode.sarif
+build.log
+src-build.log
+tests-build.log

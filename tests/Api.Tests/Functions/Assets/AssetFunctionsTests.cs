@@ -13,7 +13,6 @@
 using System.Collections.Specialized;
 using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,7 +23,6 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Functions.Assets;

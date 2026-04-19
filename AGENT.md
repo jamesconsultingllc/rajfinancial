@@ -289,6 +289,46 @@ For every feature, follow this exact sequence:
 - Prefer **pattern matching** over type checks + casts
 - Use **primary constructors** where appropriate
 
+#### No Magic Strings or Numbers
+
+**Rule:** Any string or numeric literal that carries meaning and/or appears in more than one place **MUST** be declared as a `const` (or `static readonly` for reference types) and referenced by name. Never inline the literal.
+
+**Applies to:**
+- `FunctionContext.Items` keys (e.g., `"UserId"`, `"ClaimsPrincipal"`, `"RequestBodyBytes"`)
+- HTTP header names (`"Authorization"`, `"Accept"`, `"Content-Type"`)
+- Claim type URIs and claim names
+- Cache keys, queue names, topic names, blob container names
+- Content-type strings, error codes, status strings
+- Magic numbers (limits, timeouts, retry counts, port numbers, buffer sizes)
+
+**Organize by domain:**
+- Group related constants into a dedicated static class (e.g., `FunctionContextKeys`, `ClaimTypes`, `HeaderNames`, `ErrorCodes`).
+- Place the class next to its primary producer/consumer in the same folder.
+- Public constants go in `Shared/`; internal-only go in the consuming project.
+
+**✅ Correct:**
+```csharp
+public static class FunctionContextKeys
+{
+    public const string UserId = "UserId";
+    public const string ClaimsPrincipal = "ClaimsPrincipal";
+    public const string IsAuthenticated = "IsAuthenticated";
+}
+
+context.Items[FunctionContextKeys.UserId] = userId;
+if (context.Items.TryGetValue(FunctionContextKeys.ClaimsPrincipal, out var p)) { ... }
+```
+
+**❌ Wrong:**
+```csharp
+context.Items["UserId"] = userId;                          // magic string
+if (context.Items.TryGetValue("ClaimsPrincipal", out ...)) // typo risk, no rename safety
+```
+
+**Why:** Typos in string literals compile silently and fail at runtime (e.g., the EasyAuth `"HttpContext"` vs `"HttpRequestContext"` bug). Constants give compile-time safety, IDE rename refactoring, Find-All-References, and a single source of truth.
+
+**PR review gate:** A reviewer finding any duplicated string/number literal that represents a domain concept **must** block the PR until extracted to a constant.
+
 ---
 
 ## Code Documentation
@@ -699,14 +739,86 @@ Standard codes: `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDA
 
 ## Observability
 
-### Application Insights
+**All new code MUST be born instrumented.** Retrofitting observability is painful (see CA1873 migration). The full [.NET diagnostics stack](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/) is mandatory, not optional.
 
-- All API functions emit structured telemetry
-- Custom metrics for business events (account created, transaction processed)
-- Exception tracking with correlation IDs
-- Dependency tracking (SQL, external APIs)
+### The Three Pillars
 
-### Logging Pattern
+| Pillar | Answers | Our API |
+|---|---|---|
+| **Logs** | *What happened?* | `ILogger<T>` via `[LoggerMessage]` source-gen partial methods |
+| **Metrics** | *How much / how often?* | `System.Diagnostics.Metrics.Meter` → `Counter<T>`, `Histogram<T>`, `UpDownCounter<T>` |
+| **Traces** | *Where did time go? What called what?* | `System.Diagnostics.ActivitySource` → `StartActivity(...)` |
+
+### Stack: OpenTelemetry + Application Insights
+
+**OpenTelemetry is the instrumentation API. Application Insights is the backend.** They are **not alternatives**; we use both.
+
+- **Instrument with OpenTelemetry** (`OpenTelemetry.Extensions.Hosting`, `OpenTelemetry.Instrumentation.*`). Vendor-neutral, standard semantic conventions, auto-instruments EF Core / HttpClient / Azure SDK.
+- **Export to Application Insights** via `Azure.Monitor.OpenTelemetry.AspNetCore`. Gives us KQL, Application Map, Live Metrics, alerting.
+- **Never use the classic `TelemetryClient` / `TrackDependency()` API** — it's maintenance mode. Microsoft's direction is OpenTelemetry-first.
+
+### Required Instrumentation (per new service/module)
+
+Every new service, middleware, function group, or domain module must:
+
+1. **Declare a named `ActivitySource`** scoped to the module (e.g., `RajFinancial.Api.Entities`, `RajFinancial.Api.Auth`). One per logical domain — not one per class.
+2. **Wrap external boundaries** (`StartActivity`): DB calls, HTTP calls, message publishes, cache ops, auth checks. Internal code: trace hot paths only.
+3. **Declare a named `Meter`** and emit at least one domain-relevant metric (counter of operations, histogram of duration, gauge of size). Name metrics with dotted lowercase: `entities.created.count`, `auth.failures.count`, `db.query.duration.ms`.
+4. **Wire the `ActivitySource` and `Meter` into the OTel pipeline** in `Program.cs` (`.AddSource("...")`, `.AddMeter("...")`).
+5. **Emit source-gen logs** per the Logging Pattern below — every log site gets an `EventId` in a reserved range.
+6. **Tag activities with standard attributes** — prefer OpenTelemetry semantic conventions (`db.system`, `http.method`, `user.id`) over ad-hoc names.
+
+### Reserved Domain Names
+
+| Domain | `ActivitySource` / `Meter` | EventId range |
+|---|---|---|
+| Auth / Authentication | `RajFinancial.Api.Auth` | `1000–1999` |
+| Assets | `RajFinancial.Api.Assets` | `2000–2999` |
+| Entities | `RajFinancial.Api.Entities` | `3000–3999` |
+| User Profile | `RajFinancial.Api.UserProfile` | `4000–4999` |
+| Middleware | `RajFinancial.Api.Middleware` | `5000–5999` |
+| Client Management | `RajFinancial.Api.ClientManagement` | `6000–6999` |
+| Authorization | `RajFinancial.Api.Authorization` | `7000–7999` |
+| Testing / diagnostics | `RajFinancial.Api.Testing` | `9000–9999` |
+
+### Log Level Policy by Environment
+
+**Strict rule — enforced via `appsettings.{Environment}.json`:**
+
+| Environment | Default | Microsoft.* | EF Core | Our code |
+|---|---|---|---|---|
+| **Development** | `Debug` | `Information` | `Information` | `Debug` / `Trace` allowed |
+| **Staging** | `Information` | `Warning` | `Warning` | `Information` |
+| **Production** | `Warning` | `Warning` | `Warning` | `Warning` or above |
+
+**Rationale:** Verbose/Informational logs in prod bloat Application Insights ingestion (cost) and drown signal in noise. Anything needed in prod should be `Warning+` or a metric/trace — not a log.
+
+### Local Development: File Logging, Not Cloud
+
+**Development runs MUST log to a rolling file, not to Application Insights.** This avoids:
+- Bloating Azure ingestion costs during day-to-day dev
+- Polluting production dashboards and alerts with dev traffic
+- Leaking local test data (fake PII, seed data) into cloud retention
+
+**Implementation:**
+- Add a file-logger provider (e.g., `NReco.Logging.File` or Serilog with file sink) wired **only** when `IHostEnvironment.IsDevelopment()`.
+- Write to `logs/rajfinancial-{Date}.log` at the repo root (gitignored).
+- Skip `AddOpenTelemetryExporter(Azure Monitor)` and `AddApplicationInsights*` in Development.
+- Keep OTel's **Console** exporter on in Dev for traces/metrics — cheap, useful, and local-only.
+
+### Health Checks
+
+- **Every service MUST expose** `/health/live` (process alive) and `/health/ready` (can serve traffic — DB reachable, config loaded, required dependencies up).
+- Azure Front Door / Container Apps / App Service probes wire to `/health/ready` so broken instances drop out of rotation automatically.
+- Add checks via `AddHealthChecks()` with DB/Cosmos/Redis probes as appropriate.
+
+### Profiling & Runtime Diagnostics
+
+- Every deployable service must support `dotnet-counters` and `dotnet-trace` attach without redeploy. Document how in the service README.
+- Enable [EventPipe](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/eventpipe) (on by default in .NET 10) — do not disable.
+- For on-call incident response, prefer pulling a 30-second `dotnet-trace` over log-grepping.
+
+### Logging Pattern (Source-Generated)
 
 **All logging MUST use source-generated `[LoggerMessage]` partial methods** to eliminate boxing, `params object?[]` allocation, and pre-`IsEnabled` template parsing. This is enforced by analyzer rules **CA1873** (*Avoid potentially expensive logging*) and **CA1848** (*Use LoggerMessage delegates*), both treated as warnings.
 
@@ -718,15 +830,7 @@ Standard codes: `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDA
 2. **Declare the containing class `partial`** and place the logging methods at the bottom of the same file — not in a shared `LoggerExtensions.cs` or `CommonLogging` class. Co-location keeps call + template greppable together and preserves the `ILogger<T>` category for per-category filtering.
 3. **Instance `private partial void LogXxx(...)`** methods (not static extensions). The source generator resolves the `ILogger` field from the class, including primary-constructor fields.
 4. **Keep field names domain-specific** (`{AssetId}`, `{EntityId}`, `{ClientUserId}`, `{Function}`). Do **not** collapse them into a generic `{ResourceId}` just to share a method — that breaks Application Insights pivot queries.
-5. **Assign `EventId` from a reserved range** so event IDs remain stable across deployments and correlateable in App Insights:
-   - `1000–1999` Auth / Authentication
-   - `2000–2999` Assets
-   - `3000–3999` Entities
-   - `4000–4999` User Profile
-   - `5000–5999` Middleware (exception, validation, content)
-   - `6000–6999` Client Management
-   - `7000–7999` Authorization
-   - `9000–9999` Testing / diagnostic endpoints
+5. **Assign `EventId` from the reserved range** for the domain (see table above).
 6. **Exception overloads** take an `Exception` parameter — the generator automatically emits the `ex`-accepting overload.
 7. **Do not share log methods across classes.** If two classes need the same shape, each keeps its own `[LoggerMessage]` — duplication is cheap, shared extensions are expensive (lost `ILogger<T>` category, awkward disambiguating names).
 
@@ -736,9 +840,18 @@ Standard codes: `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDA
 // ✅ Correct — source-generated, zero allocation when level is disabled
 public partial class AssetFunctions(IAssetService assetService, ILogger<AssetFunctions> logger)
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Assets");
+    private static readonly Meter Meter = new("RajFinancial.Api.Assets");
+    private static readonly Counter<long> AssetsCreated = Meter.CreateCounter<long>("assets.created.count");
+
     public async Task<HttpResponseData> Create(...)
     {
+        using var activity = ActivitySource.StartActivity("Assets.Create");
+        activity?.SetTag("user.id", userId);
+
         // ... work ...
+
+        AssetsCreated.Add(1);
         LogAssetCreated(asset.Id, userId);
         return response;
     }
@@ -768,9 +881,15 @@ Even with structured templates, direct `logger.LogX(template, args)` calls:
 
 Source-gen emits a cached delegate with an `IsEnabled` guard before argument evaluation. Disabled level ≈ zero allocation; enabled level = direct typed call, no boxing.
 
-#### PR review gate
+### PR Review Gate (Observability)
 
-Code review must reject any PR introducing direct `logger.LogX(...)` calls in `src/Api`. The analyzer will also flag them as build warnings.
+Reviewers **MUST** block PRs that:
+- Introduce direct `logger.LogX(...)` calls in `src/Api` (enforced by CA1848/CA1873 analyzers too).
+- Add a new service/module without declaring an `ActivitySource` and `Meter`.
+- Add an external call (DB, HTTP, queue, cache) without wrapping in `ActivitySource.StartActivity(...)`.
+- Raise default log level in `appsettings.Production.json` above `Warning` without explicit justification.
+- Wire Application Insights exporter for Development environment.
+- Expose a new deployable without `/health/live` + `/health/ready` endpoints.
 
 ---
 

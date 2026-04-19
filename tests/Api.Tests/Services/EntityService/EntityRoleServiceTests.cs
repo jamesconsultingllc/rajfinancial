@@ -7,7 +7,6 @@ using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.Contacts;
-using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;

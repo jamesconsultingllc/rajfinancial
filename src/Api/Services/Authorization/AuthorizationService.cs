@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Entities.Users;
 

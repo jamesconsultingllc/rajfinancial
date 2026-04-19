@@ -21,7 +21,7 @@ namespace RajFinancial.Api.Middleware;
 /// <para>
 /// This middleware must execute <b>after</b> <see cref="AuthenticationMiddleware"/>
 /// (so claim-based context items are available) and <b>before</b>
-/// <see cref="AuthorizationMiddleware"/> (so authorization can rely on the
+/// <see cref="Authorization.AuthorizationMiddleware"/> (so authorization can rely on the
 /// persisted profile).
 /// </para>
 /// <para>
@@ -29,7 +29,7 @@ namespace RajFinancial.Api.Middleware;
 /// the request pipeline.
 /// </para>
 /// </remarks>
-public class UserProfileProvisioningMiddleware(
+public partial class UserProfileProvisioningMiddleware(
     ILogger<UserProfileProvisioningMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     /// <inheritdoc/>
@@ -75,14 +75,15 @@ public class UserProfileProvisioningMiddleware(
                 throw;
             }
 
-            logger.LogWarning(
-                ex,
-                "UserProfile provisioning failed for request {InvocationId}; continuing pipeline",
-                context.InvocationId);
+            LogProvisioningFailed(ex, context.InvocationId);
         }
 
         await next(context);
     }
+
+    [LoggerMessage(EventId = 5100, Level = LogLevel.Warning,
+        Message = "UserProfile provisioning failed for request {InvocationId}; continuing pipeline")]
+    private partial void LogProvisioningFailed(SysException ex, string invocationId);
 
     /// <summary>
     /// Returns <c>true</c> for fatal/system exceptions that must never be swallowed.

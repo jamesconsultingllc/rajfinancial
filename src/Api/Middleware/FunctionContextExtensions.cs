@@ -15,7 +15,7 @@ public static class FunctionContextExtensions
     /// <returns>The user ID, or null if not authenticated.</returns>
     public static string? GetUserId(this FunctionContext context)
     {
-        return context.Items.TryGetValue("UserId", out var userId) ? userId as string : null;
+        return context.Items.TryGetValue(FunctionContextKeys.UserId, out var userId) ? userId as string : null;
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ public static class FunctionContextExtensions
     /// <returns>The user ID as a Guid, or null if not authenticated or not a valid Guid.</returns>
     public static Guid? GetUserIdAsGuid(this FunctionContext context)
     {
-        return context.Items.TryGetValue("UserIdGuid", out var guid) ? guid as Guid? : null;
+        return context.Items.TryGetValue(FunctionContextKeys.UserIdGuid, out var guid) ? guid as Guid? : null;
     }
 
     /// <summary>
@@ -36,7 +36,7 @@ public static class FunctionContextExtensions
     /// <returns>The user email, or null if not authenticated.</returns>
     public static string? GetUserEmail(this FunctionContext context)
     {
-        return context.Items.TryGetValue("UserEmail", out var email) ? email as string : null;
+        return context.Items.TryGetValue(FunctionContextKeys.UserEmail, out var email) ? email as string : null;
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public static class FunctionContextExtensions
     /// <returns>The user name, or null if not authenticated.</returns>
     public static string? GetUserName(this FunctionContext context)
     {
-        return context.Items.TryGetValue("UserName", out var name) ? name as string : null;
+        return context.Items.TryGetValue(FunctionContextKeys.UserName, out var name) ? name as string : null;
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public static class FunctionContextExtensions
     /// <returns>The user's roles, or an empty collection if not authenticated.</returns>
     public static IReadOnlyList<string> GetUserRoles(this FunctionContext context)
     {
-        return context.Items.TryGetValue("UserRoles", out var roles)
+        return context.Items.TryGetValue(FunctionContextKeys.UserRoles, out var roles)
             ? roles as IReadOnlyList<string> ?? []
             : [];
     }
@@ -68,7 +68,7 @@ public static class FunctionContextExtensions
     /// <returns>True if authenticated, false otherwise.</returns>
     public static bool IsAuthenticated(this FunctionContext context)
     {
-        return context.Items.TryGetValue("IsAuthenticated", out var isAuth) &&
+        return context.Items.TryGetValue(FunctionContextKeys.IsAuthenticated, out var isAuth) &&
                isAuth is true;
     }
 
@@ -100,7 +100,7 @@ public static class FunctionContextExtensions
     /// <returns>The ClaimsPrincipal, or null if not authenticated.</returns>
     public static ClaimsPrincipal? GetClaimsPrincipal(this FunctionContext context)
     {
-        return context.Items.TryGetValue("ClaimsPrincipal", out var principal)
+        return context.Items.TryGetValue(FunctionContextKeys.ClaimsPrincipal, out var principal)
             ? principal as ClaimsPrincipal
             : null;
     }

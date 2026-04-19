@@ -1,0 +1,35 @@
+root = true
+
+[*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+dotnet_diagnostic.CA1848.severity = warning
+
+# Naming conventions — align ReSharper/Rider with .NET Framework Design Guidelines.
+# Roslyn analyzers require PascalCase for public const fields and private static readonly
+# fields; Rider's default templates prefer UPPER_CASE / camelCase respectively, which
+# conflicts. These rules make Rider agree with Roslyn.
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+dotnet_naming_symbols.public_const_fields.applicable_kinds = field
+dotnet_naming_symbols.public_const_fields.applicable_accessibilities = public, internal, protected, protected_internal
+dotnet_naming_symbols.public_const_fields.required_modifiers = const
+
+dotnet_naming_rule.public_const_pascal.symbols = public_const_fields
+dotnet_naming_rule.public_const_pascal.style = pascal_case_style
+dotnet_naming_rule.public_const_pascal.severity = warning
+
+dotnet_naming_symbols.private_static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_readonly_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_readonly_fields.required_modifiers = static, readonly
+
+dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly_fields
+dotnet_naming_rule.private_static_readonly_pascal.style = pascal_case_style
+dotnet_naming_rule.private_static_readonly_pascal.severity = warning
+
+# Test projects use NSubstitute.Received() assertions on logger calls which
+# trigger CA1873/CA1848 false positives. Production logging rules apply to
+# src/Api only (see AGENT.md Logging Pattern section).
+[tests/**/*.cs]
+dotnet_diagnostic.CA1873.severity = none
+dotnet_diagnostic.CA1848.severity = none

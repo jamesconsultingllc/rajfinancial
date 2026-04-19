@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.UserProfiles;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Middleware;
@@ -20,11 +19,12 @@ public class UserProfileProvisioningMiddlewareTests
     private readonly Mock<ILogger<UserProfileProvisioningMiddleware>> loggerMock;
     private readonly Mock<IUserProfileService> userProfileServiceMock;
 
-    private static readonly Guid testUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid TestUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
 
     public UserProfileProvisioningMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<UserProfileProvisioningMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         userProfileServiceMock = new Mock<IUserProfileService>();
     }
 
@@ -73,13 +73,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -89,7 +89,7 @@ public class UserProfileProvisioningMiddlewareTests
         // Assert
         userProfileServiceMock.Verify(
             s => s.EnsureProfileExistsAsync(
-                testUserId,
+                TestUserId,
                 "user@rajfinancial.com",
                 "John Doe",
                 It.Is<IReadOnlyList<string>>(r => r.Contains("Client")),
@@ -103,13 +103,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId, email: "custom@example.com");
+        var context = CreateAuthenticatedContext(TestUserId, email: "custom@example.com");
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -134,13 +134,13 @@ public class UserProfileProvisioningMiddlewareTests
         // Arrange
         var middleware = CreateMiddleware();
         var context = CreateAuthenticatedContext(
-            testUserId, roles: ["Administrator", "Advisor"]);
+            TestUserId, roles: ["Administrator", "Advisor"]);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -165,13 +165,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         var nextCalled = false;
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
@@ -234,7 +234,7 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
@@ -257,7 +257,7 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
@@ -290,13 +290,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId, email: null);
+        var context = CreateAuthenticatedContext(TestUserId, email: null);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 

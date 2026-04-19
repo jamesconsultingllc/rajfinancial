@@ -1,4 +1,3 @@
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Services.Authorization;

@@ -42,7 +42,7 @@ namespace RajFinancial.Api.Middleware.Authorization;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : IFunctionsWorkerMiddleware
+public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     private readonly ConcurrentDictionary<string, MethodInfo?> methodCache = new();
 
@@ -61,9 +61,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
                 EnsureAuthenticated(context);
                 EnsureHasRole(context, requireRole.Roles);
 
-                logger.LogDebug(
-                    "Authorization passed for {Function}: user has required role",
-                    context.FunctionDefinition?.Name ?? "unknown");
+                LogAuthorizationPassed(context.FunctionDefinition.Name);
             }
             else
             {
@@ -75,9 +73,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
                 {
                     EnsureAuthenticated(context);
 
-                    logger.LogDebug(
-                        "Authentication verified for {Function}",
-                        context.FunctionDefinition?.Name ?? "unknown");
+                    LogAuthenticationVerified(context.FunctionDefinition.Name);
                 }
             }
         }
@@ -91,17 +87,17 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
     /// </summary>
     private MethodInfo? GetTargetMethod(FunctionContext context)
     {
-        var entryPoint = context.FunctionDefinition?.EntryPoint;
+        var entryPoint = context.FunctionDefinition.EntryPoint;
         if (string.IsNullOrEmpty(entryPoint))
             return null;
 
-        var assemblyPath = context.FunctionDefinition?.PathToAssembly;
+        var assemblyPath = context.FunctionDefinition.PathToAssembly;
         return methodCache.GetOrAdd(entryPoint, ep => ResolveMethod(ep, assemblyPath));
     }
 
     /// <summary>
     /// Parses the entry point string ("Namespace.Class.Method") and resolves the MethodInfo
-    /// by searching loaded assemblies, falling back to <see cref="Assembly.LoadFrom"/>.
+    /// by searching loaded assemblies, falling back to <see cref="Assembly.Load(string)"/>.
     /// </summary>
     private MethodInfo? ResolveMethod(string entryPoint, string? assemblyPath)
     {
@@ -121,7 +117,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
             // Fall back to loading from PathToAssembly if type not found
             if (targetType is null && !string.IsNullOrEmpty(assemblyPath))
             {
-                var assembly = Assembly.LoadFrom(assemblyPath);
+                var assembly = Assembly.Load(assemblyPath);
                 targetType = assembly.GetType(typeName);
             }
 
@@ -130,7 +126,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
         }
         catch (System.Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException or TypeLoadException)
         {
-            logger.LogWarning(ex, "Failed to resolve target method for entry point: {EntryPoint}", entryPoint);
+            LogMethodResolveFailed(ex, entryPoint);
             return null;
         }
     }
@@ -142,7 +138,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
     /// <exception cref="UnauthorizedException">Thrown when the user is not authenticated.</exception>
     private static void EnsureAuthenticated(FunctionContext context)
     {
-        var isAuthenticated = context.Items.TryGetValue("IsAuthenticated", out var authValue)
+        var isAuthenticated = context.Items.TryGetValue(FunctionContextKeys.IsAuthenticated, out var authValue)
                               && authValue is true;
 
         if (!isAuthenticated)
@@ -156,7 +152,7 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
     /// <exception cref="ForbiddenException">Thrown when the user lacks all required roles.</exception>
     private void EnsureHasRole(FunctionContext context, string[] requiredRoles)
     {
-        var userRoles = context.Items.TryGetValue("UserRoles", out var rolesObj)
+        var userRoles = context.Items.TryGetValue(FunctionContextKeys.UserRoles, out var rolesObj)
             ? rolesObj as IReadOnlyList<string> ?? []
             : [];
 
@@ -167,12 +163,25 @@ public class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> logger) : 
 
         if (!hasRole)
         {
-            logger.LogWarning(
-                "User lacks required roles [{Roles}] for {Function}",
-                string.Join(", ", requiredRoles),
-                context.FunctionDefinition?.Name ?? "unknown");
+            LogUserLacksRoles(string.Join(", ", requiredRoles), context.FunctionDefinition.Name);
 
             throw new ForbiddenException();
         }
     }
+
+    [LoggerMessage(EventId = 5301, Level = LogLevel.Debug,
+        Message = "Authorization passed for {Function}: user has required role")]
+    private partial void LogAuthorizationPassed(string function);
+
+    [LoggerMessage(EventId = 5302, Level = LogLevel.Debug,
+        Message = "Authentication verified for {Function}")]
+    private partial void LogAuthenticationVerified(string function);
+
+    [LoggerMessage(EventId = 5303, Level = LogLevel.Warning,
+        Message = "Failed to resolve target method for entry point: {EntryPoint}")]
+    private partial void LogMethodResolveFailed(System.Exception ex, string entryPoint);
+
+    [LoggerMessage(EventId = 5304, Level = LogLevel.Warning,
+        Message = "User lacks required roles [{Roles}] for {Function}")]
+    private partial void LogUserLacksRoles(string roles, string function);
 }

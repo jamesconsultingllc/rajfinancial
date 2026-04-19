@@ -12,19 +12,16 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using FluentValidation;
 using RajFinancial.Api.Functions;
-using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Tests.Functions;

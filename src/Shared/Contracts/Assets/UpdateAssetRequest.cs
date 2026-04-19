@@ -1,6 +1,5 @@
 using MemoryPack;
 using RajFinancial.Shared.Contracts.Assets.Metadata;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Shared.Contracts.Assets;

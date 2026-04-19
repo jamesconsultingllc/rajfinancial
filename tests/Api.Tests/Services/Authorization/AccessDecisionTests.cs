@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RajFinancial.Api.Services.Authorization;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Tests.Services.Authorization;

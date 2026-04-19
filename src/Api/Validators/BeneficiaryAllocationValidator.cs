@@ -1,6 +1,5 @@
 using FluentValidation;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Validators;

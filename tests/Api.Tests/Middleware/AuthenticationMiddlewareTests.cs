@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net;
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +24,7 @@ public class AuthenticationMiddlewareTests
     public AuthenticationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         environmentMock = new Mock<IHostEnvironment>();
         environmentMock.Setup(e => e.EnvironmentName).Returns("Development");
         middleware = new AuthenticationMiddleware(loggerMock.Object, environmentMock.Object);
@@ -492,6 +492,7 @@ public class AuthenticationMiddlewareTests
         prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
         // Use a fresh logger mock so previous test runs don't pollute the Times.Never assertion
         var freshLogger = new Mock<ILogger<AuthenticationMiddleware>>();
+        freshLogger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         var prodMiddleware = new AuthenticationMiddleware(freshLogger.Object, prodEnv.Object);
 
         var userId = Guid.NewGuid().ToString();

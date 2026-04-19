@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 using RajFinancial.Shared.Validators;
 

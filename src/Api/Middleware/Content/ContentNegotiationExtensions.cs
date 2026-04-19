@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -22,14 +22,14 @@ public static class ContentNegotiationExtensions
         ISerializationFactory serializationFactory,
         CancellationToken cancellationToken = default) where T : class
     {
-        if (!context.Items.TryGetValue("RequestBodyBytes", out var bodyObj) ||
+        if (!context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bodyObj) ||
             bodyObj is not byte[] bodyBytes ||
             bodyBytes.Length == 0)
         {
             return null;
         }
 
-        var contentType = context.Items.TryGetValue("RequestContentType", out var ct)
+        var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ct)
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
 
@@ -55,7 +55,7 @@ public static class ContentNegotiationExtensions
         ISerializationFactory serializationFactory,
         CancellationToken cancellationToken = default)
     {
-        var contentType = context.Items.TryGetValue("ResponseContentType", out var ct)
+        var contentType = context.Items.TryGetValue(FunctionContextKeys.ResponseContentType, out var ct)
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
 
@@ -75,7 +75,7 @@ public static class ContentNegotiationExtensions
     /// <returns>The content type string.</returns>
     public static string GetResponseContentType(this FunctionContext context)
     {
-        return context.Items.TryGetValue("ResponseContentType", out var ct)
+        return context.Items.TryGetValue(FunctionContextKeys.ResponseContentType, out var ct)
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
     }

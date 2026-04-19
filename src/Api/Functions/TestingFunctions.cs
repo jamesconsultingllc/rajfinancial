@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.Contacts;
 
 namespace RajFinancial.Api.Functions;
@@ -48,7 +49,7 @@ public class TestingFunctions(
         string bodyText = string.Empty;
         try
         {
-            if (req.FunctionContext.Items.TryGetValue("RequestBody", out var bodyObj)
+            if (req.FunctionContext.Items.TryGetValue(FunctionContextKeys.RequestBody, out var bodyObj)
                 && bodyObj is string stashed
                 && !string.IsNullOrWhiteSpace(stashed))
             {

@@ -1,14 +1,11 @@
 using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Functions;
-using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Services.UserProfiles;
 using RajFinancial.Api.Tests.Middleware;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Functions;

@@ -20,6 +20,7 @@ public class AuthorizationMiddlewareTests
     public AuthorizationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthorizationMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         middleware = new AuthorizationMiddleware(loggerMock.Object);
     }
 
@@ -444,8 +445,6 @@ public class AuthorizationMiddlewareTests
     {
         [RequireAuthentication]
         public void ProtectedEndpoint() { }
-
-        public void PublicEndpoint() { }
     }
 
     /// <summary>Class-level [RequireAuthentication].</summary>
@@ -463,8 +462,6 @@ public class AuthorizationMiddlewareTests
 
         [RequireRole("Administrator", "Client")]
         public void MultiRoleEndpoint() { }
-
-        public void PublicEndpoint() { }
     }
 
     /// <summary>Class-level [RequireRole].</summary>

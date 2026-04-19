@@ -7,7 +7,6 @@
 // ============================================================================
 
 using MemoryPack;
-using RajFinancial.Shared;
 
 namespace RajFinancial.Shared.Contracts.Auth;
 
