@@ -146,8 +146,10 @@ public class RopcTokenProvider
             }
         }
 
-        // ROPC with exponential backoff + jitter for throttling errors
-        for (int attempt = 0; ; attempt++)
+        // ROPC with exponential backoff + jitter for throttling errors.
+        // Loop bound by MAX_RETRIES; the catch's when-clause lets the final throttling
+        // exception propagate once attempts are exhausted.
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++)
         {
             try
             {
@@ -162,6 +164,8 @@ public class RopcTokenProvider
                 await Task.Delay(delay);
             }
         }
+
+        throw new InvalidOperationException("Unreachable: ROPC retry loop exited without returning or throwing.");
     }
 
     /// <summary>
