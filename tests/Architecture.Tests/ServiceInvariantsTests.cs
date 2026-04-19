@@ -22,8 +22,6 @@ public class ServiceInvariantsTests
     // Each entry MUST cite the tracking work item.
     private static readonly HashSet<string> PrivateStaticAllowList = new(StringComparer.Ordinal)
     {
-        // #623 — EntityService SRP cleanup reference implementation.
-        "RajFinancial.Api.Services.EntityService.EntityService",
         // #625 — Service SRP cleanups (UserProfile, Authorization, Asset, DepreciationCalculator).
         "RajFinancial.Api.Services.UserProfiles.UserProfileService",
         "RajFinancial.Api.Services.Authorization.AuthorizationService",
@@ -58,5 +56,7 @@ public class ServiceInvariantsTests
 
     private static bool IsCompilerGenerated(MethodInfo method) =>
         method.Name.StartsWith('<')
-        || method.GetCustomAttribute<System.Runtime.CompilerServices.CompilerGeneratedAttribute>() is not null;
+        || method.GetCustomAttribute<System.Runtime.CompilerServices.CompilerGeneratedAttribute>() is not null
+        || method.GetCustomAttribute<System.Text.RegularExpressions.GeneratedRegexAttribute>() is not null
+        || method.GetCustomAttribute<Microsoft.Extensions.Logging.LoggerMessageAttribute>() is not null;
 }

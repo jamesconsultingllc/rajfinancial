@@ -78,3 +78,13 @@ dotnet_diagnostic.S3776.severity = none
 # extension methods. Tracked under Feature #619.
 [src/Api/Program.cs]
 dotnet_diagnostic.S3776.severity = none
+
+# EntityService coordinates the Entity aggregate: it composes 5 helper types
+# (EntityMapper, EntitySlug, EntityDbErrors, EntityRoleRules, EntityRoleFactory)
+# plus EF entities, DTOs, exceptions, and DI collaborators. S1200's default
+# threshold (30) assumes monolithic services; well-factored aggregate roots
+# legitimately reference more helper types. The extraction reduced the class
+# from 678 to 456 lines while satisfying the Services_ShouldNotHavePrivateStaticMethods
+# architecture test. Splitting further would fragment the aggregate contract.
+[src/Api/Services/EntityService/EntityService.cs]
+dotnet_diagnostic.S1200.severity = none

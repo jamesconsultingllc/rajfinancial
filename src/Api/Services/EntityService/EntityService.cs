@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -44,7 +42,7 @@ public partial class EntityService(
             .ThenBy(e => e.Name)
             .ToListAsync();
 
-        return entities.Select(MapToDto).ToList();
+        return entities.Select(e => e.ToDto()).ToList();
     }
 
     public async Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
@@ -54,7 +52,7 @@ public partial class EntityService(
             .Where(e => e.Id == entityId)
             .Select(e => (Guid?)e.UserId)
             .FirstOrDefaultAsync()
-            ?? throw NotFound(entityId);
+            ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeReadAsync(requestingUserId, ownerId);
 
@@ -63,9 +61,9 @@ public partial class EntityService(
             .Include(e => e.Roles)
             .Include(e => e.ChildEntities)
             .FirstOrDefaultAsync(e => e.Id == entityId)
-            ?? throw NotFound(entityId);
+            ?? throw EntityDbErrors.NotFound(entityId);
 
-        return MapToDetailDto(entity);
+        return entity.ToDetailDto();
     }
 
     // =========================================================================
@@ -107,7 +105,7 @@ public partial class EntityService(
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
         {
             // Concurrent caller inserted the same (UserId, Slug) between the
             // AnyAsync pre-check and SaveChangesAsync. Translate the SQL-level
@@ -121,7 +119,7 @@ public partial class EntityService(
 
         LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     private async Task ValidatePersonalUniquenessAsync(Guid userId, EntityType requestedType)
@@ -158,8 +156,8 @@ public partial class EntityService(
     private async Task<string> ResolveUniqueSlugAsync(Guid userId, string name, string? explicitSlug)
     {
         var slug = !string.IsNullOrWhiteSpace(explicitSlug)
-            ? NormalizeSlug(explicitSlug)
-            : GenerateSlug(name);
+            ? EntitySlug.Normalize(explicitSlug)
+            : EntitySlug.Generate(name);
 
         if (string.IsNullOrWhiteSpace(slug))
             throw new BusinessRuleException(
@@ -183,7 +181,7 @@ public partial class EntityService(
         UpdateEntityRequest request)
     {
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw NotFound(entityId);
+                     ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -217,13 +215,13 @@ public partial class EntityService(
 
         LogEntityUpdated(entity.Id, requestingUserId);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     public async Task DeleteEntityAsync(Guid requestingUserId, Guid entityId)
     {
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw NotFound(entityId);
+                     ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -254,7 +252,7 @@ public partial class EntityService(
             .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
 
         if (existing is not null)
-            return MapToDto(existing);
+            return existing.ToDto();
 
         var entity = new Entity
         {
@@ -273,7 +271,7 @@ public partial class EntityService(
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
         {
             // Concurrent first-auth requests for the same brand-new user can both
             // pass the "no existing Personal" check and race to insert. The unique
@@ -290,12 +288,12 @@ public partial class EntityService(
 
             LogPersonalEntityConcurrentlyProvisioned(winner.Id, userId);
 
-            return MapToDto(winner);
+            return winner.ToDto();
         }
 
         LogPersonalEntityProvisioned(entity.Id, userId);
 
-        return MapToDto(entity);
+        return entity.ToDto();
     }
 
     // =========================================================================
@@ -308,7 +306,7 @@ public partial class EntityService(
         CreateEntityRoleRequest request)
     {
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw NotFound(entityId);
+                     ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -325,42 +323,19 @@ public partial class EntityService(
         // ENABLE_CONTACT_TEST_SEEDING env flag.
         await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
-        ValidateRoleCompatibility(roleType, entity.Type, request);
+        EntityRoleRules.ValidateRoleCompatibility(roleType, entity.Type, request);
         await ValidateOwnershipAsync(entityId, roleType, request.OwnershipPercent);
         await ValidateBeneficialInterestAsync(entityId, roleType, request.BeneficialInterestPercent);
-        ValidateRoleDateRange(request.EffectiveDate, request.EndDate);
+        EntityRoleRules.ValidateRoleDateRange(request.EffectiveDate, request.EndDate);
 
-        var role = BuildEntityRole(entityId, roleType, request);
+        var role = EntityRoleFactory.Build(entityId, roleType, request);
 
         db.EntityRoles.Add(role);
         await db.SaveChangesAsync();
 
         LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
 
-        return MapToRoleDto(role);
-    }
-
-    private static void ValidateRoleCompatibility(
-        EntityRoleType roleType,
-        EntityType entityType,
-        CreateEntityRoleRequest request)
-    {
-        if (!IsRoleCompatibleWithEntity(roleType, entityType))
-            throw new BusinessRuleException(
-                EntityErrorCodes.RoleInvalidForEntityType,
-                $"Role '{roleType}' is not valid for entity type '{entityType}'.");
-
-        // Field-level role compatibility: reject percent fields on roles that don't own them.
-        if (request.OwnershipPercent.HasValue && roleType != EntityRoleType.Owner)
-            throw new BusinessRuleException(
-                EntityErrorCodes.RoleOwnershipNotAllowed,
-                $"OwnershipPercent is only valid for Owner roles; received on '{roleType}'.");
-
-        if (request.BeneficialInterestPercent.HasValue && roleType != EntityRoleType.Beneficiary)
-            throw new BusinessRuleException(
-                EntityErrorCodes.RoleBeneficialInterestNotAllowed,
-                $"BeneficialInterestPercent is only valid for Beneficiary roles; " +
-                $"received on '{roleType}'.");
+        return role.ToRoleDto();
     }
 
     private async Task ValidateOwnershipAsync(Guid entityId, EntityRoleType roleType, double? ownershipPercent)
@@ -416,48 +391,12 @@ public partial class EntityService(
                 "Total beneficial interest across all Beneficiary roles would exceed 100%.");
     }
 
-    private static void ValidateRoleDateRange(DateTime? effectiveDate, DateTime? endDate)
-    {
-        if (effectiveDate.HasValue && endDate.HasValue && endDate.Value < effectiveDate.Value)
-            throw new BusinessRuleException(
-                EntityErrorCodes.RoleDateRangeInvalid,
-                "End date cannot precede effective date.");
-    }
-
-    private static EntityRole BuildEntityRole(
-        Guid entityId,
-        EntityRoleType roleType,
-        CreateEntityRoleRequest request) => new()
-    {
-        Id = Guid.NewGuid(),
-        EntityId = entityId,
-        ContactId = request.ContactId,
-        RoleType = roleType,
-        Title = request.Title,
-        OwnershipPercent = request.OwnershipPercent.HasValue
-            ? (decimal)request.OwnershipPercent.Value
-            : null,
-        BeneficialInterestPercent = request.BeneficialInterestPercent.HasValue
-            ? (decimal)request.BeneficialInterestPercent.Value
-            : null,
-        IsSignatory = request.IsSignatory,
-        IsPrimary = request.IsPrimary,
-        SortOrder = request.SortOrder,
-        EffectiveDate = request.EffectiveDate.HasValue
-            ? new DateTimeOffset(DateTime.SpecifyKind(request.EffectiveDate.Value, DateTimeKind.Utc))
-            : null,
-        EndDate = request.EndDate.HasValue
-            ? new DateTimeOffset(DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc))
-            : null,
-        Notes = request.Notes
-    };
-
     public async Task<IReadOnlyList<EntityRoleDto>> GetRolesAsync(Guid requestingUserId, Guid entityId)
     {
         var entity = await db.Entities
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == entityId)
-            ?? throw NotFound(entityId);
+            ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
@@ -468,13 +407,13 @@ public partial class EntityService(
             .ThenBy(r => r.RoleType)
             .ToListAsync();
 
-        return roles.Select(MapToRoleDto).ToList();
+        return roles.Select(r => r.ToRoleDto()).ToList();
     }
 
     public async Task RemoveRoleAsync(Guid requestingUserId, Guid entityId, Guid roleId)
     {
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw NotFound(entityId);
+                     ?? throw EntityDbErrors.NotFound(entityId);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -514,163 +453,4 @@ public partial class EntityService(
             throw new NotFoundException(EntityErrorCodes.NotFound, "Entity was not found.");
     }
 
-    // =========================================================================
-    // Role/entity compatibility
-    // =========================================================================
-
-    private static bool IsRoleCompatibleWithEntity(EntityRoleType roleType, EntityType entityType)
-    {
-        if (entityType == EntityType.Personal)
-            return false;
-
-        if (roleType == EntityRoleType.Other)
-            return true;
-
-        var code = (int)roleType;
-
-        return entityType switch
-        {
-            EntityType.Business => code is >= 0 and <= 9,
-            EntityType.Trust => code is >= 10 and <= 19,
-            _ => false
-        };
-    }
-
-    // =========================================================================
-    // Slug helpers
-    // =========================================================================
-
-    [GeneratedRegex(@"[^a-z0-9\s-]+")]
-    private static partial Regex NonAlphaNumRegex();
-
-    [GeneratedRegex(@"[\s-]+")]
-    private static partial Regex WhitespaceRegex();
-
-    private static string GenerateSlug(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return string.Empty;
-
-        var lower = name.Trim().ToLowerInvariant();
-        var cleaned = NonAlphaNumRegex().Replace(lower, "");
-        var hyphenated = WhitespaceRegex().Replace(cleaned, "-").Trim('-');
-        return hyphenated;
-    }
-
-    private static string NormalizeSlug(string slug) => GenerateSlug(slug);
-
-    // =========================================================================
-    // Not-found factory
-    // =========================================================================
-
-    private static NotFoundException NotFound(Guid entityId) =>
-        new(EntityErrorCodes.NotFound, $"Entity with ID {entityId} was not found.");
-
-    // SQL Server error numbers:
-    //   2601 — Cannot insert duplicate key row in object with unique index.
-    //   2627 — Violation of UNIQUE KEY / PRIMARY KEY constraint.
-    // Both indicate a unique-index/key collision on the underlying table.
-    private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
-        ex.InnerException is SqlException sql
-        && (sql.Number == 2601 || sql.Number == 2627);
-
-    // =========================================================================
-    // Mapping helpers
-    // =========================================================================
-
-    private static EntityDto MapToDto(Entity entity) => new()
-    {
-        Id = entity.Id,
-        Type = entity.Type,
-        Name = entity.Name,
-        Slug = entity.Slug,
-        ParentEntityId = entity.ParentEntityId,
-        IsActive = entity.IsActive,
-        CreatedAt = entity.CreatedAt.UtcDateTime,
-        UpdatedAt = entity.UpdatedAt?.UtcDateTime,
-        Business = entity.Type == EntityType.Business ? entity.Business : null,
-        Trust = entity.Type == EntityType.Trust ? entity.Trust : null
-    };
-
-    private static EntityDetailDto MapToDetailDto(Entity entity) => new()
-    {
-        Id = entity.Id,
-        Type = entity.Type,
-        Name = entity.Name,
-        Slug = entity.Slug,
-        ParentEntityId = entity.ParentEntityId,
-        StorageConnectionId = entity.StorageConnectionId,
-        IsActive = entity.IsActive,
-        CreatedAt = entity.CreatedAt.UtcDateTime,
-        UpdatedAt = entity.UpdatedAt?.UtcDateTime,
-        Business = entity.Type == EntityType.Business ? entity.Business : null,
-        Trust = entity.Type == EntityType.Trust ? entity.Trust : null,
-        Roles = entity.Roles.Select(MapToRoleDto).ToArray(),
-        ChildEntityCount = entity.ChildEntities.Count
-    };
-
-    private static EntityRoleDto MapToRoleDto(EntityRole role) => new()
-    {
-        Id = role.Id,
-        EntityId = role.EntityId,
-        ContactId = role.ContactId,
-        RoleType = role.RoleType,
-        Title = role.Title,
-        OwnershipPercent = role.OwnershipPercent.HasValue ? (double)role.OwnershipPercent.Value : null,
-        BeneficialInterestPercent = role.BeneficialInterestPercent.HasValue
-            ? (double)role.BeneficialInterestPercent.Value
-            : null,
-        IsSignatory = role.IsSignatory,
-        IsPrimary = role.IsPrimary,
-        SortOrder = role.SortOrder,
-        EffectiveDate = role.EffectiveDate?.UtcDateTime,
-        EndDate = role.EndDate?.UtcDateTime,
-        Notes = role.Notes
-    };
-
-    // =========================================================================
-    // Source-generated logging (EventId 3000-3999)
-    // =========================================================================
-
-    [LoggerMessage(
-        EventId = 3001,
-        Level = LogLevel.Information,
-        Message = "Entity {EntityId} ({EntityType} '{EntityName}') created for user {UserId}")]
-    private partial void LogEntityCreated(Guid entityId, EntityType entityType, string entityName, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3002,
-        Level = LogLevel.Information,
-        Message = "Entity {EntityId} updated by user {UserId}")]
-    private partial void LogEntityUpdated(Guid entityId, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3003,
-        Level = LogLevel.Information,
-        Message = "Entity {EntityId} deleted by user {UserId}")]
-    private partial void LogEntityDeleted(Guid entityId, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3004,
-        Level = LogLevel.Information,
-        Message = "Personal entity {EntityId} was concurrently provisioned for user {UserId}")]
-    private partial void LogPersonalEntityConcurrentlyProvisioned(Guid entityId, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3005,
-        Level = LogLevel.Information,
-        Message = "Personal entity {EntityId} auto-provisioned for user {UserId}")]
-    private partial void LogPersonalEntityProvisioned(Guid entityId, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3010,
-        Level = LogLevel.Information,
-        Message = "Role {RoleId} ({RoleType}) assigned to entity {EntityId} by user {UserId}")]
-    private partial void LogRoleAssigned(Guid roleId, EntityRoleType roleType, Guid entityId, Guid userId);
-
-    [LoggerMessage(
-        EventId = 3011,
-        Level = LogLevel.Information,
-        Message = "Role {RoleId} removed from entity {EntityId} by user {UserId}")]
-    private partial void LogRoleRemoved(Guid roleId, Guid entityId, Guid userId);
 }
