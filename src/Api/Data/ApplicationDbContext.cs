@@ -42,6 +42,16 @@ public class ApplicationDbContext : DbContext
     /// </summary>
     public DbSet<DepreciableAsset> DepreciableAssets => Set<DepreciableAsset>();
 
+    /// <summary>
+    /// Financial entities (Personal, Business, Trust) owned by users.
+    /// </summary>
+    public DbSet<Entity> Entities => Set<Entity>();
+
+    /// <summary>
+    /// Role assignments linking contacts to entities (owners, trustees, etc.).
+    /// </summary>
+    public DbSet<EntityRole> EntityRoles => Set<EntityRole>();
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
