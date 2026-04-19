@@ -20,7 +20,7 @@ public enum TaxClassification
     CCorporation = 3,
 
     [Description("Non-Profit 501(c)(3) — tax-exempt charitable, religious, or educational organization.")]
-    NonProfit501c3 = 4,
+    NonProfit501C3 = 4,
 
     [Description("Disregarded Entity — separate legal entity that is ignored for federal tax (typically single-member LLCs).")]
     DisregardedEntity = 5,

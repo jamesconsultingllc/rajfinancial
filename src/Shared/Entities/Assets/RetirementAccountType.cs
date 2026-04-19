@@ -11,13 +11,13 @@ public enum RetirementAccountType
 {
     /// <summary>401(k) employer-sponsored plan.</summary>
     [JsonStringEnumMemberName("401k")]
-    Plan401k,
+    Plan401K,
 
     /// <summary>Traditional Individual Retirement Account.</summary>
-    IRA,
+    Ira,
 
     /// <summary>Roth Individual Retirement Account.</summary>
-    RothIRA,
+    RothIra,
 
     /// <summary>Simplified Employee Pension IRA.</summary>
     [JsonStringEnumMemberName("sep_ira")]
@@ -28,7 +28,7 @@ public enum RetirementAccountType
 
     /// <summary>403(b) tax-sheltered annuity plan.</summary>
     [JsonStringEnumMemberName("403b")]
-    Plan403b,
+    Plan403B,
 
     /// <summary>Other retirement account type.</summary>
     Other

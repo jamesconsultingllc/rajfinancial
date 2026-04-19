@@ -18,7 +18,7 @@ public enum InvestmentAccountType
     Trust,
 
     /// <summary>Restricted Stock Unit grant.</summary>
-    RSU,
+    Rsu,
 
     /// <summary>Other investment account type.</summary>
     Other

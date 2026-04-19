@@ -8,18 +8,18 @@ namespace RajFinancial.Api.Validators;
 /// </summary>
 public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
 {
-    private static readonly string[] VALID_LOCALES =
+    private static readonly string[] ValidLocales =
     [
         "en-US", "es-MX", "es-ES", "fr-FR", "pt-BR"
     ];
 
-    private static readonly string[] VALID_TIMEZONES =
+    private static readonly string[] ValidTimezones =
     [
         "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
         "America/Anchorage", "Pacific/Honolulu", "Europe/London", "Europe/Paris", "Asia/Tokyo"
     ];
 
-    private static readonly string[] VALID_CURRENCIES =
+    private static readonly string[] ValidCurrencies =
     [
         "USD", "EUR", "GBP", "MXN", "BRL", "CAD"
     ];
@@ -38,15 +38,15 @@ public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequ
             .NotEmpty()
             .WithErrorCode("LOCALE_REQUIRED")
             .WithMessage("Locale is required")
-            .Must(locale => VALID_LOCALES.Contains(locale))
+            .Must(locale => ValidLocales.Contains(locale))
             .WithErrorCode("LOCALE_INVALID")
-            .WithMessage("Locale must be one of: " + string.Join(", ", VALID_LOCALES));
+            .WithMessage("Locale must be one of: " + string.Join(", ", ValidLocales));
 
         RuleFor(x => x.Timezone)
             .NotEmpty()
             .WithErrorCode("TIMEZONE_REQUIRED")
             .WithMessage("Timezone is required")
-            .Must(tz => VALID_TIMEZONES.Contains(tz))
+            .Must(tz => ValidTimezones.Contains(tz))
             .WithErrorCode("TIMEZONE_INVALID")
             .WithMessage("Timezone must be a valid IANA timezone");
 
@@ -54,8 +54,8 @@ public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequ
             .NotEmpty()
             .WithErrorCode("CURRENCY_REQUIRED")
             .WithMessage("Currency is required")
-            .Must(c => VALID_CURRENCIES.Contains(c))
+            .Must(c => ValidCurrencies.Contains(c))
             .WithErrorCode("CURRENCY_INVALID")
-            .WithMessage("Currency must be one of: " + string.Join(", ", VALID_CURRENCIES));
+            .WithMessage("Currency must be one of: " + string.Join(", ", ValidCurrencies));
     }
 }

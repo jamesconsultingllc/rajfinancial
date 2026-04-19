@@ -5,6 +5,6 @@ namespace RajFinancial.Shared.Entities.Assets;
 /// </summary>
 public static class BeneficiaryType
 {
-    public const string PRIMARY = "Primary";
-    public const string CONTINGENT = "Contingent";
+    public const string Primary = "Primary";
+    public const string Contingent = "Contingent";
 }

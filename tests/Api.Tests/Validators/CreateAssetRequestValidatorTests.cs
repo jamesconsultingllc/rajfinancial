@@ -290,7 +290,7 @@ public class CreateAssetRequestValidatorTests
         var request = new CreateAssetRequest { Name = "", Type = AssetType.BankAccount, CurrentValue = 100 };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Name)
-            .WithErrorCode(AssetErrorCodes.NAME_REQUIRED);
+            .WithErrorCode(AssetErrorCodes.NameRequired);
     }
 
     [Fact]
@@ -299,7 +299,7 @@ public class CreateAssetRequestValidatorTests
         var request = new CreateAssetRequest { Name = new string('A', 201), Type = AssetType.BankAccount, CurrentValue = 100 };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Name)
-            .WithErrorCode(AssetErrorCodes.NAME_MAX_LENGTH);
+            .WithErrorCode(AssetErrorCodes.NameMaxLength);
     }
 
     [Fact]
@@ -308,7 +308,7 @@ public class CreateAssetRequestValidatorTests
         var request = new CreateAssetRequest { Name = "Test", Type = AssetType.BankAccount, CurrentValue = -1 };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.CurrentValue)
-            .WithErrorCode(AssetErrorCodes.VALUE_NEGATIVE);
+            .WithErrorCode(AssetErrorCodes.ValueNegative);
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public class CreateAssetRequestValidatorTests
         var request = new CreateAssetRequest { Name = "Test", Type = AssetType.Vehicle, CurrentValue = 100, SalvageValue = -1 };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.SalvageValue)
-            .WithErrorCode(AssetErrorCodes.SALVAGE_VALUE_NEGATIVE);
+            .WithErrorCode(AssetErrorCodes.SalvageValueNegative);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public class CreateAssetRequestValidatorTests
         };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.UsefulLifeMonths)
-            .WithErrorCode(AssetErrorCodes.USEFUL_LIFE_REQUIRED);
+            .WithErrorCode(AssetErrorCodes.UsefulLifeRequired);
     }
 
     [Fact]
@@ -348,6 +348,6 @@ public class CreateAssetRequestValidatorTests
         };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Description)
-            .WithErrorCode(AssetErrorCodes.DESCRIPTION_MAX_LENGTH);
+            .WithErrorCode(AssetErrorCodes.DescriptionMaxLength);
     }
 }

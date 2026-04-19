@@ -161,7 +161,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new InvestmentMetadata
         {
-            AccountType = InvestmentAccountType.RSU,
+            AccountType = InvestmentAccountType.Rsu,
             GrantDate = new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Utc),
             TotalSharesGranted = 1000,
             SharesVested = 250,
@@ -198,7 +198,7 @@ public class AssetMetadataSerializationTests
                 new Holding
                 {
                     Ticker = "SPY",
-                    HoldingType = HoldingType.ETF,
+                    HoldingType = HoldingType.Etf,
                     Shares = 200
                 }
             ]
@@ -219,7 +219,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new RetirementMetadata
         {
-            AccountType = RetirementAccountType.Plan401k,
+            AccountType = RetirementAccountType.Plan401K,
             EmployerMatchTiers =
             [
                 new EmployerMatchTier { MatchPercent = 100, OnFirst = 6.0 },
@@ -241,7 +241,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new RetirementMetadata
         {
-            AccountType = RetirementAccountType.RothIRA
+            AccountType = RetirementAccountType.RothIra
         };
 
         var result = RoundTripUnion(original);
@@ -259,7 +259,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new BankAccountMetadata
         {
-            BankAccountType = BankAccountType.CD,
+            BankAccountType = BankAccountType.Cd,
             RoutingNumber = "021000021",
             Apy = 5.25,
             MaturityDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -277,7 +277,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new BankAccountMetadata
         {
-            BankAccountType = BankAccountType.HYSA,
+            BankAccountType = BankAccountType.Hysa,
             Apy = 4.5
         };
 
@@ -367,7 +367,7 @@ public class AssetMetadataSerializationTests
     {
         var original = new BusinessMetadata
         {
-            EntityType = BusinessEntityType.LLC,
+            EntityType = BusinessEntityType.Llc,
             OwnershipPercent = 51.0,
             Ein = "12-3456789",
             NaicsCode = "541511",
@@ -760,7 +760,7 @@ public class AssetMetadataSerializationTests
             InstitutionName = "Chase",
             Metadata = new BankAccountMetadata
             {
-                BankAccountType = BankAccountType.HYSA,
+                BankAccountType = BankAccountType.Hysa,
                 Apy = 4.5,
                 IsJointAccount = true
             }
@@ -824,10 +824,10 @@ public class AssetMetadataSerializationTests
         { new VehicleMetadata { Make = "Honda", Model = "Civic", Year = 2023 }, typeof(VehicleMetadata) },
         { new RealEstateMetadata { Address = "1 Main St", City = "A", State = "TX", ZipCode = "00000", PropertyType = PropertyType.Land }, typeof(RealEstateMetadata) },
         { new InvestmentMetadata { AccountType = InvestmentAccountType.Individual }, typeof(InvestmentMetadata) },
-        { new RetirementMetadata { AccountType = RetirementAccountType.IRA }, typeof(RetirementMetadata) },
+        { new RetirementMetadata { AccountType = RetirementAccountType.Ira }, typeof(RetirementMetadata) },
         { new BankAccountMetadata { BankAccountType = BankAccountType.Checking }, typeof(BankAccountMetadata) },
         { new InsuranceMetadata { PolicyType = InsurancePolicyType.WholeLife }, typeof(InsuranceMetadata) },
-        { new BusinessMetadata { EntityType = BusinessEntityType.LLC, OwnershipPercent = 100 }, typeof(BusinessMetadata) },
+        { new BusinessMetadata { EntityType = BusinessEntityType.Llc, OwnershipPercent = 100 }, typeof(BusinessMetadata) },
         { new PersonalPropertyMetadata { Category = PersonalPropertyCategory.Jewelry }, typeof(PersonalPropertyMetadata) },
         { new CollectibleMetadata { Category = CollectibleCategory.Coins }, typeof(CollectibleMetadata) },
         { new CryptocurrencyMetadata { WalletType = CryptoWalletType.Exchange, Holdings = [new CryptoHolding { CoinSymbol = "BTC", Quantity = 1 }] }, typeof(CryptocurrencyMetadata) },

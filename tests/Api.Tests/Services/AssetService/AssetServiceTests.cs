@@ -22,9 +22,9 @@ public class AssetServiceTests : IDisposable
     private readonly Mock<IAuthorizationService> authMock;
     private readonly Api.Services.AssetService.AssetService service;
 
-    private static readonly Guid ownerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-    private static readonly Guid advisorId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
-    private static readonly Guid strangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
+    private static readonly Guid OwnerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid AdvisorId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
+    private static readonly Guid StrangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
 
     public AssetServiceTests()
     {
@@ -38,17 +38,17 @@ public class AssetServiceTests : IDisposable
         var logger = new Mock<ILogger<Api.Services.AssetService.AssetService>>();
 
         // Default: owner always granted
-        authMock.Setup(a => a.CheckAccessAsync(ownerId, ownerId, DataCategories.Assets, It.IsAny<AccessType>()))
+        authMock.Setup(a => a.CheckAccessAsync(OwnerId, OwnerId, DataCategories.Assets, It.IsAny<AccessType>()))
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner));
 
         // Advisor granted read, denied write
-        authMock.Setup(a => a.CheckAccessAsync(advisorId, ownerId, DataCategories.Assets, AccessType.Read))
+        authMock.Setup(a => a.CheckAccessAsync(AdvisorId, OwnerId, DataCategories.Assets, AccessType.Read))
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, AccessType.Read));
-        authMock.Setup(a => a.CheckAccessAsync(advisorId, ownerId, DataCategories.Assets, AccessType.Full))
+        authMock.Setup(a => a.CheckAccessAsync(AdvisorId, OwnerId, DataCategories.Assets, AccessType.Full))
             .ReturnsAsync(AccessDecision.Deny());
 
         // Stranger denied everything
-        authMock.Setup(a => a.CheckAccessAsync(strangerId, ownerId, DataCategories.Assets, It.IsAny<AccessType>()))
+        authMock.Setup(a => a.CheckAccessAsync(StrangerId, OwnerId, DataCategories.Assets, It.IsAny<AccessType>()))
             .ReturnsAsync(AccessDecision.Deny());
 
         service = new Api.Services.AssetService.AssetService(dbContext, authMock.Object, logger.Object);
@@ -74,7 +74,7 @@ public class AssetServiceTests : IDisposable
             CurrentValue = 5000
         };
 
-        var result = await service.CreateAssetAsync(ownerId, request);
+        var result = await service.CreateAssetAsync(OwnerId, request);
 
         result.Should().NotBeNull();
         result.Id.Should().NotBeEmpty();
@@ -100,7 +100,7 @@ public class AssetServiceTests : IDisposable
             SalvageValue = 5000
         };
 
-        var result = await service.CreateAssetAsync(ownerId, request);
+        var result = await service.CreateAssetAsync(OwnerId, request);
 
         result.IsDepreciable.Should().BeTrue();
     }
@@ -116,7 +116,7 @@ public class AssetServiceTests : IDisposable
             DepreciationMethod = DepreciationMethod.None
         };
 
-        var result = await service.CreateAssetAsync(ownerId, request);
+        var result = await service.CreateAssetAsync(OwnerId, request);
 
         result.IsDepreciable.Should().BeFalse();
     }
@@ -131,12 +131,12 @@ public class AssetServiceTests : IDisposable
             CurrentValue = 1000
         };
 
-        var result = await service.CreateAssetAsync(ownerId, request);
+        var result = await service.CreateAssetAsync(OwnerId, request);
 
         var inDb = await dbContext.Assets.FindAsync(result.Id);
         inDb.Should().NotBeNull();
         inDb!.Name.Should().Be("Test Asset");
-        inDb.UserId.Should().Be(ownerId);
+        inDb.UserId.Should().Be(OwnerId);
     }
 
     // =========================================================================
@@ -147,10 +147,10 @@ public class AssetServiceTests : IDisposable
     public async Task GetAssets_ReturnsOnlyOwnerAssets()
     {
         var otherId = Guid.NewGuid();
-        await SeedAssetAsync(ownerId, "Owner Asset");
+        await SeedAssetAsync(OwnerId, "Owner Asset");
         await SeedAssetAsync(otherId, "Other Asset");
 
-        var results = await service.GetAssetsAsync(ownerId, ownerId);
+        var results = await service.GetAssetsAsync(OwnerId, OwnerId);
 
         results.Should().HaveCount(1);
         results[0].Name.Should().Be("Owner Asset");
@@ -159,10 +159,10 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_ExcludesDisposedByDefault()
     {
-        await SeedAssetAsync(ownerId, "Active");
-        await SeedAssetAsync(ownerId, "Disposed", isDisposed: true);
+        await SeedAssetAsync(OwnerId, "Active");
+        await SeedAssetAsync(OwnerId, "Disposed", isDisposed: true);
 
-        var results = await service.GetAssetsAsync(ownerId, ownerId);
+        var results = await service.GetAssetsAsync(OwnerId, OwnerId);
 
         results.Should().HaveCount(1);
         results[0].Name.Should().Be("Active");
@@ -171,10 +171,10 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_IncludesDisposedWhenRequested()
     {
-        await SeedAssetAsync(ownerId, "Active");
-        await SeedAssetAsync(ownerId, "Disposed", isDisposed: true);
+        await SeedAssetAsync(OwnerId, "Active");
+        await SeedAssetAsync(OwnerId, "Disposed", isDisposed: true);
 
-        var results = await service.GetAssetsAsync(ownerId, ownerId, includeDisposed: true);
+        var results = await service.GetAssetsAsync(OwnerId, OwnerId, includeDisposed: true);
 
         results.Should().HaveCount(2);
     }
@@ -182,10 +182,10 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_FiltersByType()
     {
-        await SeedAssetAsync(ownerId, "Checking", assetType: AssetType.BankAccount);
-        await SeedAssetAsync(ownerId, "Car", assetType: AssetType.Vehicle);
+        await SeedAssetAsync(OwnerId, "Checking", assetType: AssetType.BankAccount);
+        await SeedAssetAsync(OwnerId, "Car", assetType: AssetType.Vehicle);
 
-        var results = await service.GetAssetsAsync(ownerId, ownerId, filterType: AssetType.Vehicle);
+        var results = await service.GetAssetsAsync(OwnerId, OwnerId, filterType: AssetType.Vehicle);
 
         results.Should().HaveCount(1);
         results[0].Name.Should().Be("Car");
@@ -194,9 +194,9 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_UnauthorizedUser_ThrowsForbidden()
     {
-        await SeedAssetAsync(ownerId, "Asset");
+        await SeedAssetAsync(OwnerId, "Asset");
 
-        var act = () => service.GetAssetsAsync(strangerId, ownerId);
+        var act = () => service.GetAssetsAsync(StrangerId, OwnerId);
 
         await act.Should().ThrowAsync<ForbiddenException>();
     }
@@ -208,9 +208,9 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssetById_ExistingAsset_ReturnsDetailDto()
     {
-        var asset = await SeedAssetAsync(ownerId, "My Asset");
+        var asset = await SeedAssetAsync(OwnerId, "My Asset");
 
-        var result = await service.GetAssetByIdAsync(ownerId, asset.Id);
+        var result = await service.GetAssetByIdAsync(OwnerId, asset.Id);
 
         result.Should().NotBeNull();
         result!.Name.Should().Be("My Asset");
@@ -220,10 +220,10 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssetById_DepreciableAsset_IncludesComputedFields()
     {
-        var asset = await SeedDepreciableAssetAsync(ownerId, "Car", 30000, 5000, 60,
+        var asset = await SeedDepreciableAssetAsync(OwnerId, "Car", 30000, 5000, 60,
             new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-        var result = await service.GetAssetByIdAsync(ownerId, asset.Id);
+        var result = await service.GetAssetByIdAsync(OwnerId, asset.Id);
 
         result.Should().NotBeNull();
         result!.IsDepreciable.Should().BeTrue();
@@ -236,16 +236,16 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssetById_NotFound_ReturnsNull()
     {
-        var result = await service.GetAssetByIdAsync(ownerId, Guid.NewGuid());
+        var result = await service.GetAssetByIdAsync(OwnerId, Guid.NewGuid());
         result.Should().BeNull();
     }
 
     [Fact]
     public async Task GetAssetById_UnauthorizedUser_ThrowsForbidden()
     {
-        var asset = await SeedAssetAsync(ownerId, "Asset");
+        var asset = await SeedAssetAsync(OwnerId, "Asset");
 
-        var act = () => service.GetAssetByIdAsync(strangerId, asset.Id);
+        var act = () => service.GetAssetByIdAsync(StrangerId, asset.Id);
 
         await act.Should().ThrowAsync<ForbiddenException>();
     }
@@ -257,7 +257,7 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsset_UpdatesFields()
     {
-        var asset = await SeedAssetAsync(ownerId, "Old Name");
+        var asset = await SeedAssetAsync(OwnerId, "Old Name");
         var request = new UpdateAssetRequest
         {
             Name = "New Name",
@@ -265,7 +265,7 @@ public class AssetServiceTests : IDisposable
             CurrentValue = 99999
         };
 
-        var result = await service.UpdateAssetAsync(ownerId, asset.Id, request);
+        var result = await service.UpdateAssetAsync(OwnerId, asset.Id, request);
 
         result.Name.Should().Be("New Name");
         result.Type.Should().Be(AssetType.Investment);
@@ -278,7 +278,7 @@ public class AssetServiceTests : IDisposable
     {
         var request = new UpdateAssetRequest { Name = "X", Type = AssetType.BankAccount, CurrentValue = 1 };
 
-        var act = () => service.UpdateAssetAsync(ownerId, Guid.NewGuid(), request);
+        var act = () => service.UpdateAssetAsync(OwnerId, Guid.NewGuid(), request);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -286,10 +286,10 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsset_UnauthorizedUser_ThrowsForbidden()
     {
-        var asset = await SeedAssetAsync(ownerId, "Asset");
+        var asset = await SeedAssetAsync(OwnerId, "Asset");
         var request = new UpdateAssetRequest { Name = "X", Type = AssetType.BankAccount, CurrentValue = 1 };
 
-        var act = () => service.UpdateAssetAsync(advisorId, asset.Id, request);
+        var act = () => service.UpdateAssetAsync(AdvisorId, asset.Id, request);
 
         await act.Should().ThrowAsync<ForbiddenException>();
     }
@@ -297,7 +297,7 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsset_BaseToDepreciable_SwitchesType()
     {
-        var asset = await SeedAssetAsync(ownerId, "Bank Account");
+        var asset = await SeedAssetAsync(OwnerId, "Bank Account");
         var request = new UpdateAssetRequest
         {
             Name = "Now A Car",
@@ -309,7 +309,7 @@ public class AssetServiceTests : IDisposable
             SalvageValue = 5000
         };
 
-        var result = await service.UpdateAssetAsync(ownerId, asset.Id, request);
+        var result = await service.UpdateAssetAsync(OwnerId, asset.Id, request);
 
         result.IsDepreciable.Should().BeTrue();
         result.Name.Should().Be("Now A Car");
@@ -322,7 +322,7 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsset_DepreciableToBase_SwitchesType()
     {
-        var asset = await SeedDepreciableAssetAsync(ownerId, "Car", 30000, 5000, 60,
+        var asset = await SeedDepreciableAssetAsync(OwnerId, "Car", 30000, 5000, 60,
             new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var request = new UpdateAssetRequest
         {
@@ -331,7 +331,7 @@ public class AssetServiceTests : IDisposable
             CurrentValue = 5000
         };
 
-        var result = await service.UpdateAssetAsync(ownerId, asset.Id, request);
+        var result = await service.UpdateAssetAsync(OwnerId, asset.Id, request);
 
         result.IsDepreciable.Should().BeFalse();
         result.Name.Should().Be("Now A Bank Account");
@@ -344,7 +344,7 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsset_TypeSwitch_PreservesAuditFields()
     {
-        var asset = await SeedAssetAsync(ownerId, "Original");
+        var asset = await SeedAssetAsync(OwnerId, "Original");
         var originalCreatedAt = asset.CreatedAt;
 
         var request = new UpdateAssetRequest
@@ -357,7 +357,7 @@ public class AssetServiceTests : IDisposable
             SalvageValue = 2000
         };
 
-        var result = await service.UpdateAssetAsync(ownerId, asset.Id, request);
+        var result = await service.UpdateAssetAsync(OwnerId, asset.Id, request);
 
         result.CreatedAt.Should().Be(originalCreatedAt.UtcDateTime);
         result.UpdatedAt.Should().NotBeNull();
@@ -371,9 +371,9 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task DeleteAsset_RemovesFromDatabase()
     {
-        var asset = await SeedAssetAsync(ownerId, "To Delete");
+        var asset = await SeedAssetAsync(OwnerId, "To Delete");
 
-        await service.DeleteAssetAsync(ownerId, asset.Id);
+        await service.DeleteAssetAsync(OwnerId, asset.Id);
 
         var inDb = await dbContext.Assets.FindAsync(asset.Id);
         inDb.Should().BeNull();
@@ -382,16 +382,16 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task DeleteAsset_NotFound_ThrowsNotFound()
     {
-        var act = () => service.DeleteAssetAsync(ownerId, Guid.NewGuid());
+        var act = () => service.DeleteAssetAsync(OwnerId, Guid.NewGuid());
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Fact]
     public async Task DeleteAsset_UnauthorizedUser_ThrowsForbidden()
     {
-        var asset = await SeedAssetAsync(ownerId, "Asset");
+        var asset = await SeedAssetAsync(OwnerId, "Asset");
 
-        var act = () => service.DeleteAssetAsync(advisorId, asset.Id);
+        var act = () => service.DeleteAssetAsync(AdvisorId, asset.Id);
 
         await act.Should().ThrowAsync<ForbiddenException>();
     }
@@ -403,9 +403,9 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_AdvisorWithReadAccess_Succeeds()
     {
-        await SeedAssetAsync(ownerId, "Owner Asset");
+        await SeedAssetAsync(OwnerId, "Owner Asset");
 
-        var results = await service.GetAssetsAsync(advisorId, ownerId);
+        var results = await service.GetAssetsAsync(AdvisorId, OwnerId);
 
         results.Should().HaveCount(1);
         results[0].Name.Should().Be("Owner Asset");
@@ -414,9 +414,9 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssetById_AdvisorWithReadAccess_Succeeds()
     {
-        var asset = await SeedAssetAsync(ownerId, "Owner Asset");
+        var asset = await SeedAssetAsync(OwnerId, "Owner Asset");
 
-        var result = await service.GetAssetByIdAsync(advisorId, asset.Id);
+        var result = await service.GetAssetByIdAsync(AdvisorId, asset.Id);
 
         result.Should().NotBeNull();
         result!.Name.Should().Be("Owner Asset");
@@ -429,11 +429,11 @@ public class AssetServiceTests : IDisposable
     [Fact]
     public async Task GetAssets_ReturnsOrderedByName()
     {
-        await SeedAssetAsync(ownerId, "Zebra Fund");
-        await SeedAssetAsync(ownerId, "Alpha Account");
-        await SeedAssetAsync(ownerId, "Middle Investment");
+        await SeedAssetAsync(OwnerId, "Zebra Fund");
+        await SeedAssetAsync(OwnerId, "Alpha Account");
+        await SeedAssetAsync(OwnerId, "Middle Investment");
 
-        var results = await service.GetAssetsAsync(ownerId, ownerId);
+        var results = await service.GetAssetsAsync(OwnerId, OwnerId);
 
         results.Should().HaveCount(3);
         results[0].Name.Should().Be("Alpha Account");

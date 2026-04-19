@@ -10,18 +10,18 @@ public static class AllocationErrorCodes
     // Allocation totals
     // =========================================================================
 
-    public const string PRIMARY_TOTAL_INVALID = "ALLOCATION_PRIMARY_TOTAL_INVALID";
-    public const string CONTINGENT_TOTAL_INVALID = "ALLOCATION_CONTINGENT_TOTAL_INVALID";
+    public const string PrimaryTotalInvalid = "ALLOCATION_PRIMARY_TOTAL_INVALID";
+    public const string ContingentTotalInvalid = "ALLOCATION_CONTINGENT_TOTAL_INVALID";
 
     // =========================================================================
     // Individual allocation constraints
     // =========================================================================
 
-    public const string PERCENT_OUT_OF_RANGE = "ALLOCATION_PERCENT_OUT_OF_RANGE";
+    public const string PercentOutOfRange = "ALLOCATION_PERCENT_OUT_OF_RANGE";
 
     // =========================================================================
     // Duplicates
     // =========================================================================
 
-    public const string DUPLICATE_BENEFICIARY = "ALLOCATION_DUPLICATE_BENEFICIARY";
+    public const string DuplicateBeneficiary = "ALLOCATION_DUPLICATE_BENEFICIARY";
 }

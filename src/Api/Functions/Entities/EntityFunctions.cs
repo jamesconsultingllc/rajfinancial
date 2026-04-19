@@ -83,7 +83,7 @@ public class EntityFunctions(
 
         var entity = await entityService.GetEntityByIdAsync(userId, entityId)
                      ?? throw new NotFoundException(
-                         EntityErrorCodes.NOT_FOUND,
+                         EntityErrorCodes.NotFound,
                          $"Entity with ID {entityId} was not found.");
 
         return await context.CreateSerializedResponseAsync(

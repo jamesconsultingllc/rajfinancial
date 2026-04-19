@@ -14,31 +14,31 @@ public class CreateEntityRequestValidator : AbstractValidator<CreateEntityReques
     {
         RuleFor(x => x.Name)
             .NotEmpty()
-            .WithErrorCode(EntityErrorCodes.NAME_REQUIRED)
+            .WithErrorCode(EntityErrorCodes.NameRequired)
             .WithMessage("Entity name is required")
             .MaximumLength(200)
-            .WithErrorCode(EntityErrorCodes.NAME_MAX_LENGTH)
+            .WithErrorCode(EntityErrorCodes.NameMaxLength)
             .WithMessage("Entity name must not exceed 200 characters");
 
         RuleFor(x => x.Type)
             .NotNull()
-            .WithErrorCode(EntityErrorCodes.TYPE_REQUIRED)
+            .WithErrorCode(EntityErrorCodes.TypeRequired)
             .WithMessage("Entity type is required")
             .IsInEnum()
             .When(x => x.Type.HasValue)
-            .WithErrorCode(EntityErrorCodes.TYPE_INVALID)
+            .WithErrorCode(EntityErrorCodes.TypeInvalid)
             .WithMessage("Invalid entity type");
 
         RuleFor(x => x.Slug)
             .MaximumLength(200)
             .When(x => !string.IsNullOrWhiteSpace(x.Slug))
-            .WithErrorCode(EntityErrorCodes.SLUG_MAX_LENGTH)
+            .WithErrorCode(EntityErrorCodes.SlugMaxLength)
             .WithMessage("Slug must not exceed 200 characters");
 
         RuleFor(x => x.Slug)
             .Matches("^[a-z0-9-]+$")
             .When(x => !string.IsNullOrWhiteSpace(x.Slug))
-            .WithErrorCode(EntityErrorCodes.SLUG_INVALID)
+            .WithErrorCode(EntityErrorCodes.SlugInvalid)
             .WithMessage("Slug must contain only lowercase letters, digits, and hyphens");
 
         // Trust cross-field invariants
@@ -46,21 +46,21 @@ public class CreateEntityRequestValidator : AbstractValidator<CreateEntityReques
             .Must(t => !(t.CreationMethod == TrustCreationMethod.Testamentary
                          && t.Category != TrustCategory.Irrevocable))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
-            .WithErrorCode(EntityErrorCodes.TRUST_TESTAMENTARY_MUST_BE_IRREVOCABLE)
+            .WithErrorCode(EntityErrorCodes.TrustTestamentaryMustBeIrrevocable)
             .WithMessage("Testamentary trusts must be irrevocable");
 
         RuleFor(x => x.Trust!)
             .Must(t => t.Type != TrustType.Other
                        || !string.IsNullOrWhiteSpace(t.OtherTypeDescription))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
-            .WithErrorCode(EntityErrorCodes.TRUST_OTHER_TYPE_DESCRIPTION_REQUIRED)
+            .WithErrorCode(EntityErrorCodes.TrustOtherTypeDescriptionRequired)
             .WithMessage("OtherTypeDescription is required when Trust.Type is Other");
 
         RuleFor(x => x.Trust!)
             .Must(t => !(t.TaxStatus == TrustTaxStatus.Grantor
                          && t.IncomeTreatment.HasValue))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
-            .WithErrorCode(EntityErrorCodes.TRUST_GRANTOR_CANNOT_HAVE_INCOME_TREATMENT)
+            .WithErrorCode(EntityErrorCodes.TrustGrantorCannotHaveIncomeTreatment)
             .WithMessage("IncomeTreatment does not apply to grantor trusts");
     }
 }

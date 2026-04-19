@@ -31,8 +31,7 @@ public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) 
         // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
         // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
         if (context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) &&
-            bytesObj is byte[] bodyBytes &&
-            bodyBytes.Length > 0)
+            bytesObj is byte[] { Length: > 0 } bodyBytes)
         {
             var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ctObj)
                 ? ctObj as string ?? SerializationFactory.JsonContentType

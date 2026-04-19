@@ -12,7 +12,7 @@ public enum BusinessEntityType
     Partnership,
 
     /// <summary>Limited Liability Company.</summary>
-    LLC,
+    Llc,
 
     /// <summary>C-Corporation.</summary>
     Corporation,

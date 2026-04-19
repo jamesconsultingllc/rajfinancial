@@ -20,7 +20,7 @@ public class TestAuthHelper
     /// <summary>
     /// Maps logical test role names to environment variable names for passwords.
     /// </summary>
-    private static readonly Dictionary<string, string> roleToPasswordEnvVar = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> RoleToPasswordEnvVar = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Client"] = "TEST_CLIENT_PASSWORD",
         ["Administrator"] = "TEST_ADMINISTRATOR_PASSWORD",
@@ -74,7 +74,7 @@ public class TestAuthHelper
                 $"Entra test user email not configured for role '{role}'. " +
                 $"Set Entra:TestUsers:{role} in appsettings.json or Entra__TestUsers__{role} as an environment variable.");
 
-        var passwordEnvVar = roleToPasswordEnvVar.GetValueOrDefault(role)
+        var passwordEnvVar = RoleToPasswordEnvVar.GetValueOrDefault(role)
             ?? throw new InvalidOperationException($"No password env var mapped for role '{role}'");
 
         // Passwords are read from CI environment variables that are masked by the workflow.

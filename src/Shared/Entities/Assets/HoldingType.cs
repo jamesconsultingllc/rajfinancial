@@ -15,7 +15,7 @@ public enum HoldingType
     MutualFunds,
 
     /// <summary>Exchange-traded funds.</summary>
-    ETF,
+    Etf,
 
     /// <summary>Options contracts.</summary>
     Options,

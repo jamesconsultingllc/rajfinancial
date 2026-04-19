@@ -17,6 +17,6 @@ internal sealed class PlaceholderContactResolver : IContactResolver
 {
     public Task EnsureOwnedByAsync(Guid contactId, Guid userId, CancellationToken ct = default)
         => throw new NotFoundException(
-            EntityErrorCodes.ROLE_CONTACT_NOT_FOUND,
+            EntityErrorCodes.RoleContactNotFound,
             $"Contact {contactId} was not found.");
 }

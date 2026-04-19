@@ -5,7 +5,7 @@ namespace RajFinancial.Shared.Contracts.Assets.Metadata;
 
 /// <summary>
 ///     Metadata for investment/brokerage account assets.
-///     When <see cref="AccountType"/> is <see cref="InvestmentAccountType.RSU"/>,
+///     When <see cref="AccountType"/> is <see cref="InvestmentAccountType.Rsu"/>,
 ///     RSU-specific fields are populated instead of <see cref="Holdings"/>.
 /// </summary>
 [MemoryPackable(SerializeLayout.Explicit)]

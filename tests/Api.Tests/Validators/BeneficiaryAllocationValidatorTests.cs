@@ -21,8 +21,8 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 60, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 40, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 60, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 40, BeneficiaryType.Primary)
         };
 
         var result = validator.TestValidate(list);
@@ -34,9 +34,9 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 60, BeneficiaryType.CONTINGENT),
-            MakeAssignment("Carol", 40, BeneficiaryType.CONTINGENT)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 60, BeneficiaryType.Contingent),
+            MakeAssignment("Carol", 40, BeneficiaryType.Contingent)
         };
 
         var result = validator.TestValidate(list);
@@ -55,12 +55,12 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", percent, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", percent, BeneficiaryType.Primary)
         };
 
         var result = validator.TestValidate(list);
         result.ShouldHaveValidationErrorFor("list[0].AllocationPercent")
-            .WithErrorCode(AllocationErrorCodes.PERCENT_OUT_OF_RANGE);
+            .WithErrorCode(AllocationErrorCodes.PercentOutOfRange);
     }
 
     // =========================================================================
@@ -72,13 +72,13 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 40, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 40, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 40, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 40, BeneficiaryType.Primary)
         };
 
         var result = validator.TestValidate(list);
         result.ShouldHaveValidationErrorFor(x => x)
-            .WithErrorCode(AllocationErrorCodes.PRIMARY_TOTAL_INVALID);
+            .WithErrorCode(AllocationErrorCodes.PrimaryTotalInvalid);
     }
 
     // =========================================================================
@@ -90,13 +90,13 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Carol", 30, BeneficiaryType.CONTINGENT)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Carol", 30, BeneficiaryType.Contingent)
         };
 
         var result = validator.TestValidate(list);
         result.ShouldHaveValidationErrorFor(x => x)
-            .WithErrorCode(AllocationErrorCodes.CONTINGENT_TOTAL_INVALID);
+            .WithErrorCode(AllocationErrorCodes.ContingentTotalInvalid);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class BeneficiaryAllocationValidatorTests
     {
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary)
         };
 
         var result = validator.TestValidate(list);
@@ -121,13 +121,13 @@ public class BeneficiaryAllocationValidatorTests
         var id = Guid.NewGuid();
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY, id),
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY, id)
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary, id),
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary, id)
         };
 
         var result = validator.TestValidate(list);
         result.ShouldHaveValidationErrorFor(x => x)
-            .WithErrorCode(AllocationErrorCodes.DUPLICATE_BENEFICIARY);
+            .WithErrorCode(AllocationErrorCodes.DuplicateBeneficiary);
     }
 
     [Fact]
@@ -136,14 +136,14 @@ public class BeneficiaryAllocationValidatorTests
         var id = Guid.NewGuid();
         var list = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 50, BeneficiaryType.CONTINGENT, id),
-            MakeAssignment("Bob", 50, BeneficiaryType.CONTINGENT, id)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 50, BeneficiaryType.Contingent, id),
+            MakeAssignment("Bob", 50, BeneficiaryType.Contingent, id)
         };
 
         var result = validator.TestValidate(list);
         result.ShouldHaveValidationErrorFor(x => x)
-            .WithErrorCode(AllocationErrorCodes.DUPLICATE_BENEFICIARY);
+            .WithErrorCode(AllocationErrorCodes.DuplicateBeneficiary);
     }
 
     // =========================================================================

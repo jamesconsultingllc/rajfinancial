@@ -25,8 +25,8 @@ public class EntityServiceTests : IDisposable
     private readonly Mock<IAuthorizationService> authMock;
     private readonly Api.Services.EntityService.EntityService service;
 
-    private static readonly Guid ownerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-    private static readonly Guid strangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
+    private static readonly Guid OwnerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid StrangerId = Guid.Parse("dddd0000-0000-0000-0000-000000000004");
 
     public EntityServiceTests()
     {
@@ -39,10 +39,10 @@ public class EntityServiceTests : IDisposable
         authMock = new Mock<IAuthorizationService>();
         var logger = new Mock<ILogger<Api.Services.EntityService.EntityService>>();
 
-        authMock.Setup(a => a.CheckAccessAsync(ownerId, ownerId, DataCategories.Entities, It.IsAny<AccessType>()))
+        authMock.Setup(a => a.CheckAccessAsync(OwnerId, OwnerId, DataCategories.Entities, It.IsAny<AccessType>()))
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner));
 
-        authMock.Setup(a => a.CheckAccessAsync(strangerId, ownerId, DataCategories.Entities, It.IsAny<AccessType>()))
+        authMock.Setup(a => a.CheckAccessAsync(StrangerId, OwnerId, DataCategories.Entities, It.IsAny<AccessType>()))
             .ReturnsAsync(AccessDecision.Deny());
 
         var contactMock = new Mock<IContactResolver>();
@@ -72,12 +72,12 @@ public class EntityServiceTests : IDisposable
             Type = EntityType.Business,
             Business = new BusinessEntityMetadata
             {
-                EntityFormationType = BusinessFormationType.SingleMemberLLC,
+                EntityFormationType = BusinessFormationType.SingleMemberLlc,
                 Ein = "12-3456789"
             }
         };
 
-        var result = await service.CreateEntityAsync(ownerId, request);
+        var result = await service.CreateEntityAsync(OwnerId, request);
 
         result.Should().NotBeNull();
         result.Id.Should().NotBeEmpty();
@@ -105,7 +105,7 @@ public class EntityServiceTests : IDisposable
             }
         };
 
-        var result = await service.CreateEntityAsync(ownerId, request);
+        var result = await service.CreateEntityAsync(OwnerId, request);
 
         result.Type.Should().Be(EntityType.Trust);
         result.Trust.Should().NotBeNull();
@@ -115,7 +115,7 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task CreateEntity_PersonalAlreadyExists_ThrowsBusinessRuleException()
     {
-        await SeedEntityAsync(ownerId, "Personal", EntityType.Personal);
+        await SeedEntityAsync(OwnerId, "Personal", EntityType.Personal);
 
         var request = new CreateEntityRequest
         {
@@ -123,28 +123,28 @@ public class EntityServiceTests : IDisposable
             Type = EntityType.Personal
         };
 
-        var act = () => service.CreateEntityAsync(ownerId, request);
+        var act = () => service.CreateEntityAsync(OwnerId, request);
 
         var ex = await act.Should().ThrowAsync<ConflictException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PERSONAL_ALREADY_EXISTS);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PersonalAlreadyExists);
     }
 
     [Fact]
     public async Task CreateEntity_DuplicateSlug_ThrowsConflictException()
     {
-        await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business, slug: "acme-llc");
+        await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business, slug: "acme-llc");
 
         var request = new CreateEntityRequest
         {
             Name = "Acme LLC",
             Type = EntityType.Business,
-            Business = new BusinessEntityMetadata { EntityFormationType = BusinessFormationType.SingleMemberLLC }
+            Business = new BusinessEntityMetadata { EntityFormationType = BusinessFormationType.SingleMemberLlc }
         };
 
-        var act = () => service.CreateEntityAsync(ownerId, request);
+        var act = () => service.CreateEntityAsync(OwnerId, request);
 
         var ex = await act.Should().ThrowAsync<ConflictException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.SLUG_DUPLICATE);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.SlugDuplicate);
     }
 
     [Fact]
@@ -154,10 +154,10 @@ public class EntityServiceTests : IDisposable
         {
             Name = "Acme Holdings, LLC!",
             Type = EntityType.Business,
-            Business = new BusinessEntityMetadata { EntityFormationType = BusinessFormationType.SingleMemberLLC }
+            Business = new BusinessEntityMetadata { EntityFormationType = BusinessFormationType.SingleMemberLlc }
         };
 
-        var result = await service.CreateEntityAsync(ownerId, request);
+        var result = await service.CreateEntityAsync(OwnerId, request);
 
         result.Slug.Should().Be("acme-holdings-llc");
     }
@@ -169,11 +169,11 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task GetEntities_ReturnsAllUserEntities()
     {
-        await SeedEntityAsync(ownerId, "Personal", EntityType.Personal);
-        await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        await SeedEntityAsync(OwnerId, "Personal", EntityType.Personal);
+        await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
         await SeedEntityAsync(Guid.NewGuid(), "Other User's Trust", EntityType.Trust);
 
-        var results = await service.GetEntitiesAsync(ownerId, ownerId);
+        var results = await service.GetEntitiesAsync(OwnerId, OwnerId);
 
         results.Should().HaveCount(2);
         results.Select(r => r.Name).Should().BeEquivalentTo(new[] { "Personal", "Acme LLC" });
@@ -182,11 +182,11 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task GetEntities_FilterByType_ReturnsFiltered()
     {
-        await SeedEntityAsync(ownerId, "Personal", EntityType.Personal);
-        await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
-        await SeedEntityAsync(ownerId, "Family Trust", EntityType.Trust);
+        await SeedEntityAsync(OwnerId, "Personal", EntityType.Personal);
+        await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
+        await SeedEntityAsync(OwnerId, "Family Trust", EntityType.Trust);
 
-        var results = await service.GetEntitiesAsync(ownerId, ownerId, EntityType.Trust);
+        var results = await service.GetEntitiesAsync(OwnerId, OwnerId, EntityType.Trust);
 
         results.Should().HaveCount(1);
         results[0].Type.Should().Be(EntityType.Trust);
@@ -200,9 +200,9 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task GetEntityById_Exists_ReturnsDetailDto()
     {
-        var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
-        var result = await service.GetEntityByIdAsync(ownerId, entity.Id);
+        var result = await service.GetEntityByIdAsync(OwnerId, entity.Id);
 
         result.Should().NotBeNull();
         result!.Id.Should().Be(entity.Id);
@@ -213,7 +213,7 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task GetEntityById_NotFound_ThrowsNotFoundException()
     {
-        var act = () => service.GetEntityByIdAsync(ownerId, Guid.NewGuid());
+        var act = () => service.GetEntityByIdAsync(OwnerId, Guid.NewGuid());
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -221,9 +221,9 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task GetEntityById_OtherUser_ThrowsNotFoundException()
     {
-        var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
-        var act = () => service.GetEntityByIdAsync(strangerId, entity.Id);
+        var act = () => service.GetEntityByIdAsync(StrangerId, entity.Id);
 
         // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
         await act.Should().ThrowAsync<NotFoundException>();
@@ -236,7 +236,7 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task UpdateEntity_Business_UpdatesMetadata()
     {
-        var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
         var request = new UpdateEntityRequest
         {
@@ -244,12 +244,12 @@ public class EntityServiceTests : IDisposable
             IsActive = true,
             Business = new BusinessEntityMetadata
             {
-                EntityFormationType = BusinessFormationType.SingleMemberLLC,
+                EntityFormationType = BusinessFormationType.SingleMemberLlc,
                 Ein = "99-8877665"
             }
         };
 
-        var result = await service.UpdateEntityAsync(ownerId, entity.Id, request);
+        var result = await service.UpdateEntityAsync(OwnerId, entity.Id, request);
 
         result.Name.Should().Be("Acme Holdings LLC");
         result.Business!.Ein.Should().Be("99-8877665");
@@ -259,7 +259,7 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task UpdateEntity_PersonalName_ThrowsBusinessRuleException()
     {
-        var personal = await SeedEntityAsync(ownerId, "Personal", EntityType.Personal);
+        var personal = await SeedEntityAsync(OwnerId, "Personal", EntityType.Personal);
 
         var request = new UpdateEntityRequest
         {
@@ -267,10 +267,10 @@ public class EntityServiceTests : IDisposable
             IsActive = true
         };
 
-        var act = () => service.UpdateEntityAsync(ownerId, personal.Id, request);
+        var act = () => service.UpdateEntityAsync(OwnerId, personal.Id, request);
 
         var ex = await act.Should().ThrowAsync<BusinessRuleException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PERSONAL_NAME_IMMUTABLE);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PersonalNameImmutable);
     }
 
     // =========================================================================
@@ -280,9 +280,9 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task DeleteEntity_Business_Succeeds()
     {
-        var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
-        await service.DeleteEntityAsync(ownerId, entity.Id);
+        await service.DeleteEntityAsync(OwnerId, entity.Id);
 
         var inDb = await dbContext.Entities.FindAsync(entity.Id);
         inDb.Should().BeNull();
@@ -291,20 +291,20 @@ public class EntityServiceTests : IDisposable
     [Fact]
     public async Task DeleteEntity_Personal_ThrowsBusinessRuleException()
     {
-        var personal = await SeedEntityAsync(ownerId, "Personal", EntityType.Personal);
+        var personal = await SeedEntityAsync(OwnerId, "Personal", EntityType.Personal);
 
-        var act = () => service.DeleteEntityAsync(ownerId, personal.Id);
+        var act = () => service.DeleteEntityAsync(OwnerId, personal.Id);
 
         var ex = await act.Should().ThrowAsync<BusinessRuleException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PERSONAL_CANNOT_DELETE);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PersonalCannotDelete);
     }
 
     [Fact]
     public async Task DeleteEntity_OtherUser_ThrowsNotFoundException()
     {
-        var entity = await SeedEntityAsync(ownerId, "Acme LLC", EntityType.Business);
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
-        var act = () => service.DeleteEntityAsync(strangerId, entity.Id);
+        var act = () => service.DeleteEntityAsync(StrangerId, entity.Id);
 
         // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
         await act.Should().ThrowAsync<NotFoundException>();
