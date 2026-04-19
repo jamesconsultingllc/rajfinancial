@@ -23,9 +23,9 @@ public sealed partial record CreateEntityRequest
     [MemoryPackOrder(0)]
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>Entity classification.</summary>
+    /// <summary>Entity classification. Validated via FluentValidation (NotNull + IsInEnum).</summary>
     [MemoryPackOrder(1)]
-    public EntityType Type { get; init; }
+    public EntityType? Type { get; init; }
 
     /// <summary>Optional explicit slug. If omitted, the server generates one from <see cref="Name" />.</summary>
     [MemoryPackOrder(2)]
@@ -39,11 +39,11 @@ public sealed partial record CreateEntityRequest
     [MemoryPackOrder(4)]
     public Guid? StorageConnectionId { get; init; }
 
-    /// <summary>Business-specific metadata. Required when <see cref="Type" /> is Business.</summary>
+    /// <summary>Business-specific metadata. Optional at creation (may be populated via update).</summary>
     [MemoryPackOrder(5)]
     public BusinessEntityMetadata? Business { get; init; }
 
-    /// <summary>Trust-specific metadata. Required when <see cref="Type" /> is Trust.</summary>
+    /// <summary>Trust-specific metadata. Optional at creation (may be populated via update).</summary>
     [MemoryPackOrder(6)]
     public TrustEntityMetadata? Trust { get; init; }
 }

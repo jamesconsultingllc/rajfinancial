@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -75,7 +76,12 @@ public partial class EntityService(
     {
         await AuthorizeWriteAsync(userId, userId);
 
-        if (request.Type == EntityType.Personal)
+        // Validator guarantees Type.HasValue; treat absence as an internal bug.
+        var requestedType = request.Type
+            ?? throw new InvalidOperationException(
+                "CreateEntityRequest.Type was null despite validation; validator likely misconfigured.");
+
+        if (requestedType == EntityType.Personal)
         {
             var personalExists = await db.Entities
                 .AnyAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
@@ -121,19 +127,34 @@ public partial class EntityService(
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Type = request.Type,
+            Type = requestedType,
             Name = request.Name,
             Slug = slug,
             ParentEntityId = request.ParentEntityId,
             StorageConnectionId = request.StorageConnectionId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
-            Business = request.Type == EntityType.Business ? request.Business : null,
-            Trust = request.Type == EntityType.Trust ? request.Trust : null
+            Business = requestedType == EntityType.Business ? request.Business : null,
+            Trust = requestedType == EntityType.Trust ? request.Trust : null
         };
 
         db.Entities.Add(entity);
-        await db.SaveChangesAsync();
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // Concurrent caller inserted the same (UserId, Slug) between the
+            // AnyAsync pre-check and SaveChangesAsync. Translate the SQL-level
+            // unique-index violation into the domain 409 ENTITY_SLUG_DUPLICATE
+            // rather than letting a raw 500 surface.
+            db.Entities.Remove(entity);
+            throw new ConflictException(
+                EntityErrorCodes.SLUG_DUPLICATE,
+                $"Slug '{slug}' is already in use.");
+        }
 
         logger.LogInformation(
             "Entity {EntityId} ({EntityType} '{EntityName}') created for user {UserId}",
@@ -235,7 +256,32 @@ public partial class EntityService(
         };
 
         db.Entities.Add(entity);
-        await db.SaveChangesAsync();
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // Concurrent first-auth requests for the same brand-new user can both
+            // pass the "no existing Personal" check and race to insert. The unique
+            // (UserId, Slug) index raises SqlException 2601/2627 — treat that as
+            // "someone else just provisioned it" and return the winner instead of
+            // bubbling a 500.
+            db.Entities.Remove(entity);
+            var winner = await db.Entities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal)
+                ?? throw new InvalidOperationException(
+                    "Unique constraint violation on Personal entity insert, but no " +
+                    "Personal entity exists for the user. Database state is inconsistent.");
+
+            logger.LogInformation(
+                "Personal entity {EntityId} was concurrently provisioned for user {UserId}",
+                winner.Id, userId);
+
+            return MapToDto(winner);
+        }
 
         logger.LogInformation("Personal entity {EntityId} auto-provisioned for user {UserId}",
             entity.Id, userId);
@@ -257,6 +303,12 @@ public partial class EntityService(
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
+        // Validator guarantees RoleType.HasValue; treat absence as an internal bug.
+        var roleType = request.RoleType
+            ?? throw new InvalidOperationException(
+                "CreateEntityRoleRequest.RoleType was null despite validation; " +
+                "validator likely misconfigured.");
+
         // Phase 1: there is no Contacts table yet. The production-default
         // IContactResolver rejects every GUID (PlaceholderContactResolver),
         // preventing cross-tenant linking via arbitrary client-supplied ids.
@@ -264,10 +316,22 @@ public partial class EntityService(
         // ENABLE_CONTACT_TEST_SEEDING env flag.
         await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
-        if (!IsRoleCompatibleWithEntity(request.RoleType, entity.Type))
+        if (!IsRoleCompatibleWithEntity(roleType, entity.Type))
             throw new BusinessRuleException(
                 EntityErrorCodes.ROLE_INVALID_FOR_ENTITY_TYPE,
-                $"Role '{request.RoleType}' is not valid for entity type '{entity.Type}'.");
+                $"Role '{roleType}' is not valid for entity type '{entity.Type}'.");
+
+        // Field-level role compatibility: reject percent fields on roles that don't own them.
+        if (request.OwnershipPercent.HasValue && roleType != EntityRoleType.Owner)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_OWNERSHIP_NOT_ALLOWED,
+                $"OwnershipPercent is only valid for Owner roles; received on '{roleType}'.");
+
+        if (request.BeneficialInterestPercent.HasValue && roleType != EntityRoleType.Beneficiary)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_NOT_ALLOWED,
+                $"BeneficialInterestPercent is only valid for Beneficiary roles; " +
+                $"received on '{roleType}'.");
 
         if (request.OwnershipPercent.HasValue)
         {
@@ -282,7 +346,7 @@ public partial class EntityService(
                             && r.OwnershipPercent.HasValue)
                 .SumAsync(r => r.OwnershipPercent!.Value);
 
-            if (request.RoleType == EntityRoleType.Owner
+            if (roleType == EntityRoleType.Owner
                 && existingOwnership + (decimal)request.OwnershipPercent.Value > 100m)
                 throw new BusinessRuleException(
                     EntityErrorCodes.ROLE_OWNERSHIP_EXCEEDS_100,
@@ -302,7 +366,7 @@ public partial class EntityService(
                             && r.BeneficialInterestPercent.HasValue)
                 .SumAsync(r => r.BeneficialInterestPercent!.Value);
 
-            if (request.RoleType == EntityRoleType.Beneficiary
+            if (roleType == EntityRoleType.Beneficiary
                 && existingInterest + (decimal)request.BeneficialInterestPercent.Value > 100m)
                 throw new BusinessRuleException(
                     EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_EXCEEDS_100,
@@ -320,7 +384,7 @@ public partial class EntityService(
             Id = Guid.NewGuid(),
             EntityId = entityId,
             ContactId = request.ContactId,
-            RoleType = request.RoleType,
+            RoleType = roleType,
             Title = request.Title,
             OwnershipPercent = request.OwnershipPercent.HasValue
                 ? (decimal)request.OwnershipPercent.Value
@@ -465,6 +529,14 @@ public partial class EntityService(
 
     private static NotFoundException NotFound(Guid entityId) =>
         new(EntityErrorCodes.NOT_FOUND, $"Entity with ID {entityId} was not found.");
+
+    // SQL Server error numbers:
+    //   2601 — Cannot insert duplicate key row in object with unique index.
+    //   2627 — Violation of UNIQUE KEY / PRIMARY KEY constraint.
+    // Both indicate a unique-index/key collision on the underlying table.
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
+        ex.InnerException is SqlException sql
+        && (sql.Number == 2601 || sql.Number == 2627);
 
     // =========================================================================
     // Mapping helpers

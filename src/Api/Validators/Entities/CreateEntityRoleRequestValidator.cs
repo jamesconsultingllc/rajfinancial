@@ -16,7 +16,11 @@ public class CreateEntityRoleRequestValidator : AbstractValidator<CreateEntityRo
             .WithMessage("ContactId is required");
 
         RuleFor(x => x.RoleType)
+            .NotNull()
+            .WithErrorCode(EntityErrorCodes.ROLE_TYPE_REQUIRED)
+            .WithMessage("Role type is required")
             .IsInEnum()
+            .When(x => x.RoleType.HasValue)
             .WithErrorCode(EntityErrorCodes.ROLE_TYPE_REQUIRED)
             .WithMessage("Invalid role type");
 

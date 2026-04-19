@@ -19,9 +19,9 @@ public sealed partial record CreateEntityRoleRequest
     [MemoryPackOrder(0)]
     public Guid ContactId { get; init; }
 
-    /// <summary>Type of role to assign. Validated via <c>CreateEntityRoleRequestValidator</c>.</summary>
+    /// <summary>Type of role to assign. Validated via <c>CreateEntityRoleRequestValidator</c> (NotNull + IsInEnum).</summary>
     [MemoryPackOrder(1)]
-    public EntityRoleType RoleType { get; init; }
+    public EntityRoleType? RoleType { get; init; }
 
     /// <summary>Display title (e.g., "CEO", "Primary Trustee").</summary>
     [MemoryPackOrder(2)]

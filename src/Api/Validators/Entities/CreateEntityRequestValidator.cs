@@ -20,7 +20,11 @@ public class CreateEntityRequestValidator : AbstractValidator<CreateEntityReques
             .WithMessage("Entity name must not exceed 200 characters");
 
         RuleFor(x => x.Type)
+            .NotNull()
+            .WithErrorCode(EntityErrorCodes.TYPE_REQUIRED)
+            .WithMessage("Entity type is required")
             .IsInEnum()
+            .When(x => x.Type.HasValue)
             .WithErrorCode(EntityErrorCodes.TYPE_INVALID)
             .WithMessage("Invalid entity type");
 
