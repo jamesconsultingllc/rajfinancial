@@ -76,3 +76,6 @@ docs/session.md
 # tools/insomnia/
 /src/Client/coverage
 *.vite
+
+# AI tool scratch
+.ai/
