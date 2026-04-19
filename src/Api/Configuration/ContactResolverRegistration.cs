@@ -11,7 +11,7 @@ namespace RajFinancial.Api.Configuration;
 /// </summary>
 internal static class ContactResolverRegistration
 {
-    private const string ContactTestSeedingEnvVar = "RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING";
+    private const string CONTACT_TEST_SEEDING_ENV_VAR = "RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING";
 
     public static IServiceCollection AddContactResolver(
         this IServiceCollection services,
@@ -28,7 +28,7 @@ internal static class ContactResolverRegistration
     private static bool ShouldUseSeedableResolver(IHostEnvironment environment)
     {
         var seedingEnabled = string.Equals(
-            Environment.GetEnvironmentVariable(ContactTestSeedingEnvVar),
+            Environment.GetEnvironmentVariable(CONTACT_TEST_SEEDING_ENV_VAR),
             bool.TrueString,
             StringComparison.OrdinalIgnoreCase);
 
@@ -37,7 +37,7 @@ internal static class ContactResolverRegistration
 
         if (environment.IsProduction())
             throw new InvalidOperationException(
-                $"{ContactTestSeedingEnvVar} must never be enabled in Production.");
+                $"{CONTACT_TEST_SEEDING_ENV_VAR} must never be enabled in Production.");
 
         return true;
     }

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RajFinancial.Api.Data;
-using RajFinancial.Api.Middleware.Authorization;
 
 namespace RajFinancial.Api.Configuration;
 
@@ -14,20 +13,20 @@ namespace RajFinancial.Api.Configuration;
 /// </summary>
 internal static class DatabaseRegistration
 {
-    private const string SqlConnectionStringKey = "SqlConnectionString";
-    private const string UseManagedIdentityKey = "UseManagedIdentity";
-    private const string InMemoryDatabaseName = "RajFinancial_Dev";
-    private const int SqlMaxRetryCount = 3;
-    private const int SqlMaxRetryDelaySeconds = 10;
-    private const int SqlCommandTimeoutSeconds = 30;
+    private const string SQL_CONNECTION_STRING_KEY = "SqlConnectionString";
+    private const string USE_MANAGED_IDENTITY_KEY = "UseManagedIdentity";
+    private const string IN_MEMORY_DATABASE_NAME = "RajFinancial_Dev";
+    private const int SQL_MAX_RETRY_COUNT = 3;
+    private const int SQL_MAX_RETRY_DELAY_SECONDS = 10;
+    private const int SQL_COMMAND_TIMEOUT_SECONDS = 30;
 
     public static IServiceCollection AddApplicationDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        var sqlConnectionString = configuration[SqlConnectionStringKey]
-                                  ?? configuration.GetConnectionString(SqlConnectionStringKey);
+        var sqlConnectionString = configuration[SQL_CONNECTION_STRING_KEY]
+                                  ?? configuration.GetConnectionString(SQL_CONNECTION_STRING_KEY);
 
         if (string.IsNullOrEmpty(sqlConnectionString))
         {
@@ -35,7 +34,7 @@ internal static class DatabaseRegistration
             return services;
         }
 
-        var useManagedIdentity = configuration.GetValue(UseManagedIdentityKey, defaultValue: true);
+        var useManagedIdentity = configuration.GetValue(USE_MANAGED_IDENTITY_KEY, defaultValue: true);
         if (useManagedIdentity)
             services.AddSingleton<ManagedIdentityConnectionInterceptor>();
 
@@ -49,7 +48,7 @@ internal static class DatabaseRegistration
     {
         services.AddDbContext<ApplicationDbContext>(options =>
         {
-            options.UseInMemoryDatabase(InMemoryDatabaseName);
+            options.UseInMemoryDatabase(IN_MEMORY_DATABASE_NAME);
             ApplyDevelopmentOptions(options, environment);
         });
     }
@@ -64,10 +63,10 @@ internal static class DatabaseRegistration
         options.UseSqlServer(sqlConnectionString, sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: SqlMaxRetryCount,
-                maxRetryDelay: TimeSpan.FromSeconds(SqlMaxRetryDelaySeconds),
+                maxRetryCount: SQL_MAX_RETRY_COUNT,
+                maxRetryDelay: TimeSpan.FromSeconds(SQL_MAX_RETRY_DELAY_SECONDS),
                 errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(SqlCommandTimeoutSeconds);
+            sqlOptions.CommandTimeout(SQL_COMMAND_TIMEOUT_SECONDS);
         });
 
         if (useManagedIdentity)
