@@ -38,7 +38,15 @@ internal static class EntityTestDataCleanup
     {
         var connectionString = configuration["SqlConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
-            return; // no DB configured — skip silently (e.g., remote test runs)
+        {
+            throw new InvalidOperationException(
+                "SqlConnectionString is not configured. Set it in appsettings.local.json or the " +
+                "SqlConnectionString environment variable. This helper issues destructive DELETE " +
+                "statements and must never silently skip cleanup — a misconfigured CI run would " +
+                "then corrupt scenarios with stale rows from previous runs.");
+        }
+
+        EnsureConnectionStringTargetsLocalDatabase(connectionString);
 
         var userIds = KnownTestEmails
             .Select(email => Guid.Parse(TestClaimsBuilder.DeterministicUserId(email)))
@@ -68,6 +76,42 @@ internal static class EntityTestDataCleanup
             }
 
             await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// Safety guard: refuse to run destructive DELETE statements against anything other than
+    /// a local/ephemeral SQL Server instance. Parses the connection string and requires the
+    /// DataSource to be an explicitly-allowed local value.
+    /// </summary>
+    private static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        var dataSource = builder.DataSource?.Trim() ?? string.Empty;
+
+        // Strip named-instance and port qualifiers (e.g., "localhost,1433" or "localhost\\SQLEXPRESS").
+        var host = dataSource
+            .Split(',')[0]
+            .Split('\\')[0]
+            .Trim();
+
+        var allowed = new[]
+        {
+            "localhost",
+            "127.0.0.1",
+            "(local)",
+            "."
+        };
+
+        var isAllowed = allowed.Any(a => string.Equals(host, a, StringComparison.OrdinalIgnoreCase))
+            || host.StartsWith("(localdb)", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAllowed)
+        {
+            throw new InvalidOperationException(
+                $"Refusing to run destructive test cleanup against non-local data source '{dataSource}'. " +
+                "EntityTestDataCleanup issues unguarded DELETE statements and is only safe against a " +
+                "local or ephemeral database. Allowed hosts: localhost, 127.0.0.1, (local), ., (localdb)\\*.");
         }
     }
 }

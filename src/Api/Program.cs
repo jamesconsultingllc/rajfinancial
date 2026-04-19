@@ -179,6 +179,21 @@ var enableContactTestSeeding = string.Equals(
     "true",
     StringComparison.OrdinalIgnoreCase);
 
+// Belt-and-suspenders: refuse to boot if the test-seeding flag was ever set
+// outside Development. If this flag were true in prod, SeedableContactResolver
+// would be swapped in AND /api/testing/seed-contact would accept requests —
+// any authenticated caller could then seed arbitrary ContactIds and bypass
+// tenant isolation. Fail fast rather than silently enable the bypass.
+if (enableContactTestSeeding && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        $"ENABLE_CONTACT_TEST_SEEDING is set but the host environment is " +
+        $"'{builder.Environment.EnvironmentName}', not Development. " +
+        "This flag exists only for Phase 1 integration tests and must never " +
+        "be set outside Development. Refusing to start. " +
+        "Remove the env var / Application Setting to continue.");
+}
+
 if (enableContactTestSeeding)
 {
     builder.Services.AddSingleton<SeedableContactResolver>();

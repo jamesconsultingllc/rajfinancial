@@ -1,7 +1,4 @@
-﻿using RajFinancial.Shared.Entities;
-
-using RajFinancial.Shared.Entities;
-using RajFinancial.Shared.Entities.Users;
+﻿using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Shared;
 

@@ -135,7 +135,7 @@ public class AssetSteps
         await GivenIHaveCreatedAnAssetOfTypeWorth(name, "Vehicle", 10_000m);
 
         // Mark it as disposed directly in the DB (no dispose endpoint exists yet)
-        var connectionString = fixture.Configuration.GetSection("ConnectionStrings")["SqlConnectionString"]
+        var connectionString = fixture.Configuration["SqlConnectionString"]
                                ?? throw new InvalidOperationException("SqlConnectionString not configured");
 
         await using var conn = new SqlConnection(connectionString);

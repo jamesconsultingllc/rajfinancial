@@ -12,14 +12,8 @@ public sealed class EntityTestHooks(FunctionsHostFixture fixture)
 {
     [BeforeScenario(Order = 10)]
     [Scope(Tag = "entities")]
-    public async Task CleanupBeforeEntityScenarioAsync()
-    {
-        await EntityTestDataCleanup.CleanupAsync(fixture.Configuration);
-    }
-
-    [BeforeScenario(Order = 10)]
     [Scope(Tag = "entity-roles")]
-    public async Task CleanupBeforeEntityRoleScenarioAsync()
+    public async Task CleanupBeforeEntityScenarioAsync()
     {
         await EntityTestDataCleanup.CleanupAsync(fixture.Configuration);
     }

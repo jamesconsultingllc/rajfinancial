@@ -10,9 +10,10 @@ namespace RajFinancial.Shared.Contracts.Entities;
 /// </summary>
 /// <remarks>
 ///     Used by <c>POST /api/entities</c>. The entity is automatically assigned
-///     to the authenticated user. When <see cref="Type" /> is Business,
-///     <see cref="Business" /> must be provided; when Trust, <see cref="Trust" />
-///     must be provided; Personal entities use neither.
+///     to the authenticated user. <see cref="Business" /> and <see cref="Trust" />
+///     metadata are optional at creation — Personal entities use neither, while
+///     Business/Trust entities may be created with just a name/type and have
+///     metadata populated by a later update.
 /// </remarks>
 [MemoryPackable(SerializeLayout.Explicit)]
 [GenerateTypeScript]

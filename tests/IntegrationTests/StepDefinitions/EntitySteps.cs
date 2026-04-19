@@ -372,7 +372,8 @@ public class EntitySteps
     {
         response.Should().NotBeNull();
         var status = (int)response!.StatusCode;
-        status.Should().BeOneOf([403, 404], "cross-user entity access should be denied");
+        status.Should().Be(404,
+            "cross-user entity access must return 404 (not 403) to avoid leaking resource existence (OWASP A01).");
     }
 
     // =========================================================================

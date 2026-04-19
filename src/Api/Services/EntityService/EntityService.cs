@@ -48,14 +48,21 @@ public partial class EntityService(
 
     public async Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
     {
+        var ownerId = await db.Entities
+            .AsNoTracking()
+            .Where(e => e.Id == entityId)
+            .Select(e => (Guid?)e.UserId)
+            .FirstOrDefaultAsync()
+            ?? throw NotFound(entityId);
+
+        await AuthorizeReadAsync(requestingUserId, ownerId);
+
         var entity = await db.Entities
             .AsNoTracking()
             .Include(e => e.Roles)
             .Include(e => e.ChildEntities)
             .FirstOrDefaultAsync(e => e.Id == entityId)
             ?? throw NotFound(entityId);
-
-        await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
         return MapToDetailDto(entity);
     }
@@ -96,6 +103,11 @@ public partial class EntityService(
         var slug = !string.IsNullOrWhiteSpace(request.Slug)
             ? NormalizeSlug(request.Slug)
             : GenerateSlug(request.Name);
+
+        if (string.IsNullOrWhiteSpace(slug))
+            throw new BusinessRuleException(
+                EntityErrorCodes.SLUG_INVALID,
+                "Slug could not be generated from the provided name. Supply an explicit ASCII slug.");
 
         var slugTaken = await db.Entities
             .AnyAsync(e => e.UserId == userId && e.Slug == slug);

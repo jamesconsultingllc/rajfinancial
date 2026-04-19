@@ -21,6 +21,7 @@ public class EntityRoleServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Api.Services.EntityService.EntityService service;
+    private readonly Mock<IContactResolver> contactMock;
 
     private static readonly Guid ownerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
 
@@ -38,7 +39,7 @@ public class EntityRoleServiceTests : IDisposable
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner));
 
         var logger = new Mock<ILogger<Api.Services.EntityService.EntityService>>();
-        var contactMock = new Mock<IContactResolver>();
+        contactMock = new Mock<IContactResolver>();
         contactMock
             .Setup(c => c.EnsureOwnedByAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -235,6 +236,116 @@ public class EntityRoleServiceTests : IDisposable
         var act = () => service.RemoveRoleAsync(ownerId, entity.Id, Guid.NewGuid());
 
         await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    // =========================================================================
+    // IContactResolver integration (Phase 1 cross-tenant guard)
+    // =========================================================================
+
+    [Fact]
+    public async Task AssignRole_ResolverRejectsContact_ThrowsRoleContactNotFound()
+    {
+        // Re-stub the resolver to reject every id (prod-default behavior)
+        contactMock.Reset();
+        contactMock
+            .Setup(c => c.EnsureOwnedByAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotFoundException(
+                EntityErrorCodes.ROLE_CONTACT_NOT_FOUND, "Contact not found."));
+
+        var entity = await SeedEntityAsync(EntityType.Business, "Acme LLC");
+        var request = new CreateEntityRoleRequest
+        {
+            ContactId = Guid.NewGuid(),
+            RoleType = EntityRoleType.Owner,
+            IsSignatory = false,
+            IsPrimary = false,
+            SortOrder = 0,
+            OwnershipPercent = 50
+        };
+
+        var act = () => service.AssignRoleAsync(ownerId, entity.Id, request);
+
+        var ex = await act.Should().ThrowAsync<NotFoundException>();
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.ROLE_CONTACT_NOT_FOUND);
+
+        // Role must not have been persisted
+        dbContext.EntityRoles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AssignRole_ResolverCalledWithSuppliedContactIdAndEntityOwner()
+    {
+        // Verify the service passes the caller-supplied ContactId *and* the
+        // entity's owner userId (not the request's userId, not a hardcoded one).
+        Guid? capturedContactId = null;
+        Guid? capturedUserId = null;
+        contactMock.Reset();
+        contactMock
+            .Setup(c => c.EnsureOwnedByAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, Guid, CancellationToken>((cid, uid, _) =>
+            {
+                capturedContactId = cid;
+                capturedUserId = uid;
+            })
+            .Returns(Task.CompletedTask);
+
+        var entity = await SeedEntityAsync(EntityType.Business, "Acme LLC");
+        var suppliedContactId = Guid.NewGuid();
+        var request = new CreateEntityRoleRequest
+        {
+            ContactId = suppliedContactId,
+            RoleType = EntityRoleType.Owner,
+            IsSignatory = false,
+            IsPrimary = false,
+            SortOrder = 0,
+            OwnershipPercent = 50
+        };
+
+        await service.AssignRoleAsync(ownerId, entity.Id, request);
+
+        capturedContactId.Should().Be(suppliedContactId);
+        capturedUserId.Should().Be(ownerId);
+    }
+
+    [Fact]
+    public async Task AssignRole_ResolverNotConsultedWhenAuthorizationDenies()
+    {
+        // Ordering guard: if auth fails, the resolver must not be called —
+        // otherwise a caller could probe contact existence without being
+        // authorized for the target entity.
+        var strangerAuthMock = new Mock<IAuthorizationService>();
+        strangerAuthMock
+            .Setup(a => a.CheckAccessAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(),
+                DataCategories.Entities, It.IsAny<AccessType>()))
+            .ReturnsAsync(AccessDecision.Deny());
+
+        // Strict mock with no setup — any invocation fails the test.
+        var strictContactMock = new Mock<IContactResolver>(MockBehavior.Strict);
+
+        var strangerService = new Api.Services.EntityService.EntityService(
+            dbContext,
+            strangerAuthMock.Object,
+            strictContactMock.Object,
+            Mock.Of<ILogger<Api.Services.EntityService.EntityService>>());
+
+        var entity = await SeedEntityAsync(EntityType.Business, "Acme LLC");
+        var stranger = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
+        var request = new CreateEntityRoleRequest
+        {
+            ContactId = Guid.NewGuid(),
+            RoleType = EntityRoleType.Owner,
+            IsSignatory = false,
+            IsPrimary = false,
+            SortOrder = 0,
+            OwnershipPercent = 50
+        };
+
+        var act = () => strangerService.AssignRoleAsync(stranger, entity.Id, request);
+
+        // Auth denial surfaces as NotFound (IDOR defense). Resolver never called.
+        await act.Should().ThrowAsync<NotFoundException>();
+        strictContactMock.VerifyNoOtherCalls();
     }
 
     private async Task<Entity> SeedEntityAsync(EntityType type, string name)
