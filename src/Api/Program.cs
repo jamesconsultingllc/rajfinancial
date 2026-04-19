@@ -1,55 +1,38 @@
-using FluentValidation;
 using Microsoft.Azure.Functions.Worker.Builder;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RajFinancial.Api.Configuration;
-using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
-using RajFinancial.Api.Services.AssetService;
-using RajFinancial.Api.Services.Authorization;
-using RajFinancial.Api.Services.ClientManagement;
-using RajFinancial.Api.Services.Contacts;
-using RajFinancial.Api.Services.EntityService;
-using RajFinancial.Api.Services.UserProfiles;
-using RajFinancial.Api.Validators;
-using RajFinancial.Api.Validators.Entities;
-using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Contracts.Entities;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
 // ============================================================================
 // Configuration Sources (order matters - later sources override earlier)
 // ============================================================================
-// Azure Functions automatically loads:
-// - local.settings.json (local dev)
-// - Environment variables (Azure App Settings in production)
-// We add appsettings.json for additional flexibility
+// Azure Functions automatically loads local.settings.json (local dev) and
+// Environment variables (Azure App Settings in production). We add
+// appsettings.json for additional flexibility.
 // ============================================================================
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
-    .AddEnvironmentVariables(); // Ensure environment variables (Azure App Settings) always take precedence
+    .AddEnvironmentVariables();
 
-// Configure Functions web application for HTTP triggers
 builder.ConfigureFunctionsWebApplication();
 
 // ============================================================================
 // Middleware Pipeline (order matters!)
-// ============================================================================
-// 1. Exception handling - catches all errors and formats responses
-// 2. Authentication - extracts user context from JWT
-// 3. UserProfile provisioning - JIT creates/syncs local DB shadow of Entra user
-// 4. Authorization - enforces [RequireAuthentication] and [RequireRole] attributes
-// 5. Content negotiation - handles JSON/MemoryPack serialization
-// 6. Validation - validates request bodies
+// 1. Exception handling        — catches all errors and formats responses
+// 2. Authentication            — extracts user context from JWT
+// 3. UserProfile provisioning  — JIT creates/syncs local shadow of Entra user
+// 4. Authorization             — enforces [RequireAuthentication] / [RequireRole]
+// 5. Content negotiation       — handles JSON/MemoryPack serialization
+// 6. Validation                — validates request bodies
 // ============================================================================
 builder.UseMiddleware<ExceptionMiddleware>();
 builder.UseMiddleware<AuthenticationMiddleware>();
@@ -65,167 +48,17 @@ builder.UseMiddleware<ValidationMiddleware>();
 // builder.Services.ConfigureFunctionsApplicationInsights();
 
 // ============================================================================
-// Serialization
+// Service registrations (grouped in ServiceCollectionExtensions)
 // ============================================================================
-
-// Register serialization factory for JSON/MemoryPack content negotiation
-// Development: Always JSON for easy debugging
-// Production: MemoryPack for 7-8x faster serialization, 60% smaller payloads
 builder.Services.AddSingleton<ISerializationFactory, SerializationFactory>();
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-// Configure AppRoleOptions from configuration (used for role claim validation)
 builder.Services.Configure<AppRoleOptions>(
     builder.Configuration.GetSection(AppRoleOptions.SectionName));
-
-// Make configuration available for dependency injection
 builder.Services.AddSingleton(builder.Configuration);
 
-// ============================================================================
-// Database (Entity Framework Core with Managed Identity)
-// ============================================================================
-
-// Azure Functions infra sets this as an app setting (not under ConnectionStrings section)
-var sqlConnectionString = builder.Configuration["SqlConnectionString"]
-                          ?? builder.Configuration.GetConnectionString("SqlConnectionString");
-var useManagedIdentity = builder.Configuration.GetValue("UseManagedIdentity", defaultValue: true);
-
-if (!string.IsNullOrEmpty(sqlConnectionString))
-{
-    // Register the Managed Identity interceptor for Azure AD authentication
-    // Uses DefaultAzureCredential which works with:
-    // - Managed Identity (in Azure)
-    // - Azure CLI (local development)
-    // - Visual Studio credentials (local development)
-    if (useManagedIdentity)
-    {
-        builder.Services.AddSingleton<ManagedIdentityConnectionInterceptor>();
-    }
-
-    builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
-    {
-        options.UseSqlServer(sqlConnectionString, sqlOptions =>
-        {
-            // Enable retry on failure for transient errors (Azure SQL best practice)
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
-
-            // Command timeout for long-running queries
-            sqlOptions.CommandTimeout(30);
-        });
-
-        // Add the Managed Identity interceptor if enabled
-        if (useManagedIdentity)
-        {
-            var interceptor = serviceProvider.GetRequiredService<ManagedIdentityConnectionInterceptor>();
-            options.AddInterceptors(interceptor);
-        }
-
-        // Enable detailed errors and sensitive data logging in development only
-        if (builder.Environment.IsDevelopment())
-        {
-            options.EnableDetailedErrors();
-            options.EnableSensitiveDataLogging();
-        }
-    });
-}
-else
-{
-    // For local development without Azure SQL, use in-memory database
-    // This should only happen during local development
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    {
-        options.UseInMemoryDatabase("RajFinancial_Dev");
-
-        if (builder.Environment.IsDevelopment())
-        {
-            options.EnableDetailedErrors();
-            options.EnableSensitiveDataLogging();
-        }
-    });
-}
-
-// ============================================================================
-// Application Services
-// ============================================================================
-
-// JIT user profile provisioning (creates/syncs local shadow of Entra user)
-builder.Services.AddScoped<IUserProfileService, UserProfileService>();
-
-// Resource-level authorization (three-tier: owner → grant → admin)
-builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
-
-// Advisor–client data-access grant management
-builder.Services.AddScoped<IClientManagementService, ClientManagementService>();
-
-// Asset management
-builder.Services.AddScoped<IAssetService, AssetService>();
-
-// Entity management (Personal, Business, Trust) + role assignments
-builder.Services.AddScoped<IEntityService, EntityService>();
-
-// Contact resolver — Phase 1 has no Contacts table, so the prod-default rejects
-// every ContactId to prevent cross-tenant linking via arbitrary client-supplied
-// GUIDs. Integration test runs opt into a seedable resolver via the
-// ENABLE_CONTACT_TEST_SEEDING environment flag (set in src/Api/local.settings.json
-// for local dev, never set in production deployments).
-var enableContactTestSeeding = string.Equals(
-    Environment.GetEnvironmentVariable("ENABLE_CONTACT_TEST_SEEDING"),
-    "true",
-    StringComparison.OrdinalIgnoreCase);
-
-// Belt-and-suspenders: refuse to boot if the test-seeding flag was ever set
-// outside Development. If this flag were true in prod, SeedableContactResolver
-// would be swapped in AND /api/testing/seed-contact would accept requests —
-// any authenticated caller could then seed arbitrary ContactIds and bypass
-// tenant isolation. Fail fast rather than silently enable the bypass.
-if (enableContactTestSeeding && !builder.Environment.IsDevelopment())
-{
-    throw new InvalidOperationException(
-        $"ENABLE_CONTACT_TEST_SEEDING is set but the host environment is " +
-        $"'{builder.Environment.EnvironmentName}', not Development. " +
-        "This flag exists only for Phase 1 integration tests and must never " +
-        "be set outside Development. Refusing to start. " +
-        "Remove the env var / Application Setting to continue.");
-}
-
-if (enableContactTestSeeding)
-{
-    builder.Services.AddSingleton<SeedableContactResolver>();
-    builder.Services.AddSingleton<IContactResolver>(sp =>
-        sp.GetRequiredService<SeedableContactResolver>());
-}
-else
-{
-    builder.Services.AddSingleton<IContactResolver, PlaceholderContactResolver>();
-}
-
-// Services will be registered as they are implemented:
-// builder.Services.AddScoped<IAccountService, AccountService>();
-// builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
-
-// ============================================================================
-// Validators (FluentValidation)
-// ============================================================================
-
-builder.Services.AddScoped<IValidator<CreateAssetRequest>, CreateAssetRequestValidator>();
-builder.Services.AddScoped<IValidator<UpdateAssetRequest>, UpdateAssetRequestValidator>();
-builder.Services.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
-builder.Services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
-
-// Entity validators
-builder.Services.AddScoped<IValidator<CreateEntityRequest>, CreateEntityRequestValidator>();
-builder.Services.AddScoped<IValidator<UpdateEntityRequest>, UpdateEntityRequestValidator>();
-builder.Services.AddScoped<IValidator<CreateEntityRoleRequest>, CreateEntityRoleRequestValidator>();
-
-// Register validators as they are implemented:
-// builder.Services.AddScoped<IValidator<CreateBeneficiaryRequest>, CreateBeneficiaryRequestValidator>();
-// builder.Services.AddScoped<IValidator<DebtPayoffRequest>, DebtPayoffRequestValidator>();
+builder.Services.AddApplicationDatabase(builder.Configuration, builder.Environment);
+builder.Services.AddContactResolver(builder.Environment);
+builder.Services.AddApplicationServices();
+builder.Services.AddApplicationValidators();
 
 var host = builder.Build();
 await host.RunAsync();

@@ -74,11 +74,6 @@ dotnet_diagnostic.S1448.severity = none
 dotnet_diagnostic.S1200.severity = none
 dotnet_diagnostic.S3776.severity = none
 
-# Program.cs DI wiring — grandfathered until extracted into IServiceCollection
-# extension methods. Tracked under Feature #619.
-[src/Api/Program.cs]
-dotnet_diagnostic.S3776.severity = none
-
 # EntityService coordinates the Entity aggregate: it composes 5 helper types
 # (EntityMapper, EntitySlug, EntityDbErrors, EntityRoleRules, EntityRoleFactory)
 # plus EF entities, DTOs, exceptions, and DI collaborators. S1200's default
