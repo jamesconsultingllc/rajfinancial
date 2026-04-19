@@ -45,5 +45,5 @@ public sealed partial record BusinessEntityMetadata
     public TaxClassification? TaxClassification { get; init; }
 
     /// <summary>State registrations (SOS filings, annual reports).</summary>
-    public StateRegistration[]? Registrations { get; init; }
+    public List<StateRegistration>? Registrations { get; init; }
 }

@@ -11,6 +11,7 @@ public static class DataCategories
     public const string Beneficiaries = "beneficiaries";
     public const string Documents = "documents";
     public const string Analysis = "analysis";
+    public const string Entities = "entities";
     public const string All = "all";
 
     public static readonly string[] AllCategories =
@@ -20,6 +21,7 @@ public static class DataCategories
         Liabilities,
         Beneficiaries,
         Documents,
-        Analysis
+        Analysis,
+        Entities
     ];
 }

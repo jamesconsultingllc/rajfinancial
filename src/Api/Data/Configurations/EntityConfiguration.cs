@@ -25,8 +25,14 @@ public class EntityConfiguration : IEntityTypeConfiguration<Entity>
         builder.Property(e => e.Slug).IsRequired().HasMaxLength(200);
         builder.Property(e => e.Type).HasConversion<string>().HasMaxLength(20);
 
-        // Type-specific metadata stored as JSON columns
-        builder.OwnsOne(e => e.Business, b => b.ToJson());
+        // Type-specific metadata stored as JSON columns.
+        // Nested collections of complex types inside JSON-owned entities
+        // must be declared with OwnsMany so EF treats them as part of the JSON document.
+        builder.OwnsOne(e => e.Business, b =>
+        {
+            b.ToJson();
+            b.OwnsMany(x => x.Registrations);
+        });
         builder.OwnsOne(e => e.Trust, t => t.ToJson());
 
         // Self-referencing parent-child
