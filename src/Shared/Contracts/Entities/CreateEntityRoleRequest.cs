@@ -15,13 +15,13 @@ namespace RajFinancial.Shared.Contracts.Entities;
 [GenerateTypeScript]
 public sealed partial record CreateEntityRoleRequest
 {
-    /// <summary>The contact being assigned (required).</summary>
+    /// <summary>The contact being assigned. Validated via <c>CreateEntityRoleRequestValidator</c>.</summary>
     [MemoryPackOrder(0)]
-    public required Guid ContactId { get; init; }
+    public Guid ContactId { get; init; }
 
-    /// <summary>Type of role to assign (required).</summary>
+    /// <summary>Type of role to assign. Validated via <c>CreateEntityRoleRequestValidator</c>.</summary>
     [MemoryPackOrder(1)]
-    public required EntityRoleType RoleType { get; init; }
+    public EntityRoleType RoleType { get; init; }
 
     /// <summary>Display title (e.g., "CEO", "Primary Trustee").</summary>
     [MemoryPackOrder(2)]

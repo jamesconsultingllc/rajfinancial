@@ -17,4 +17,15 @@ public sealed class EntityTestHooks(FunctionsHostFixture fixture)
     {
         await EntityTestDataCleanup.CleanupAsync(fixture.Configuration);
     }
+
+    [BeforeScenario(Order = 11)]
+    [Scope(Tag = "entity-roles")]
+    public async Task ResetSeededContactsAsync()
+    {
+        // The SeedableContactResolver is process-scoped: contacts seeded by a prior
+        // scenario remain in memory and could mask "this contactId is not seeded"
+        // assertions in subsequent scenarios. Reset between role scenarios so
+        // each test starts from an empty contact map.
+        await ContactSeedingHelper.ResetAsync(fixture.Client);
+    }
 }

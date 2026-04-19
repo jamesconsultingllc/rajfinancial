@@ -40,8 +40,9 @@ internal static class EntityTestDataCleanup
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "SqlConnectionString is not configured. Set it in appsettings.local.json or the " +
-                "SqlConnectionString environment variable. This helper issues destructive DELETE " +
+                "SqlConnectionString is not configured. Set it in appsettings.local.json under " +
+                "ConnectionStrings:SqlConnectionString, or via the ConnectionStrings__SqlConnectionString " +
+                "environment variable. This helper issues destructive DELETE " +
                 "statements and must never silently skip cleanup — a misconfigured CI run would " +
                 "then corrupt scenarios with stale rows from previous runs.");
         }

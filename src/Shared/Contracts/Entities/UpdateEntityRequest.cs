@@ -19,9 +19,9 @@ namespace RajFinancial.Shared.Contracts.Entities;
 [GenerateTypeScript]
 public sealed partial record UpdateEntityRequest
 {
-    /// <summary>Display name (required, max 200 characters).</summary>
+    /// <summary>Display name. Validated via FluentValidation; see <c>UpdateEntityRequestValidator</c>.</summary>
     [MemoryPackOrder(0)]
-    public required string Name { get; init; }
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>Whether this entity is active.</summary>
     [MemoryPackOrder(1)]

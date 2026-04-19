@@ -19,13 +19,13 @@ namespace RajFinancial.Shared.Contracts.Entities;
 [GenerateTypeScript]
 public sealed partial record CreateEntityRequest
 {
-    /// <summary>Display name (required, max 200 characters).</summary>
+    /// <summary>Display name. Validated via FluentValidation; see <c>CreateEntityRequestValidator</c>.</summary>
     [MemoryPackOrder(0)]
-    public required string Name { get; init; }
+    public string Name { get; init; } = string.Empty;
 
-    /// <summary>Entity classification (required).</summary>
+    /// <summary>Entity classification.</summary>
     [MemoryPackOrder(1)]
-    public required EntityType Type { get; init; }
+    public EntityType Type { get; init; }
 
     /// <summary>Optional explicit slug. If omitted, the server generates one from <see cref="Name" />.</summary>
     [MemoryPackOrder(2)]
