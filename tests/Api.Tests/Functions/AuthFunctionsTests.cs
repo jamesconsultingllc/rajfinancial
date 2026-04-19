@@ -148,7 +148,7 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/me");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetMe(request, context);
@@ -162,7 +162,7 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/me");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetMe(request, context);
@@ -342,7 +342,7 @@ public class AuthFunctionsTests
             roles: ["Client"]);
 
         SetupEnsureProfileExists("newuser@rajfinancial.com", "New User", ["Client"],
-            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User", UserRole.Client));
+            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User"));
 
         // Act
         await functions.GetMe(request, context);
@@ -372,7 +372,7 @@ public class AuthFunctionsTests
             roles: ["Client"]);
 
         SetupEnsureProfileExists("newuser@rajfinancial.com", "New User", ["Client"],
-            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User", UserRole.Client));
+            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User"));
 
         // Act
         var response = await functions.GetMe(request, context);

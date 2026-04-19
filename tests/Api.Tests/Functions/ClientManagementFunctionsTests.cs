@@ -10,13 +10,14 @@
 // ============================================================================
 
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using FluentValidation;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using FluentValidation;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Tests.Middleware;
@@ -120,7 +121,7 @@ public class ClientManagementFunctionsTests
         // Setup Body stream for POST requests
         if (requestBody is not null)
         {
-            var bodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(requestBody));
+            var bodyStream = new MemoryStream(Encoding.UTF8.GetBytes(requestBody));
             mockRequest.SetupGet(r => r.Body).Returns(bodyStream);
         }
 
@@ -225,7 +226,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.AssignClient(request, context);
@@ -239,7 +240,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.AssignClient(request, context);
@@ -666,7 +667,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetClients(request, context);
@@ -680,7 +681,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetClients(request, context);

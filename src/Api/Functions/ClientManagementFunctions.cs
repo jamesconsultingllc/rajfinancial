@@ -115,7 +115,7 @@ public class ClientManagementFunctions(
         }
 
         var grant = await clientManagementService.AssignClientAsync(
-            userIdGuid.Value, assignRequest, default);
+            userIdGuid.Value, assignRequest);
 
         var responseDto = MapToResponse(grant);
 
@@ -179,7 +179,7 @@ public class ClientManagementFunctions(
         var isAdmin = context.IsAdministrator();
 
         var grants = await clientManagementService.GetClientAssignmentsAsync(
-            userIdGuid.Value, isAdmin, default);
+            userIdGuid.Value, isAdmin);
 
         var responseDtos = grants.Select(MapToResponse).ToArray();
 
@@ -257,7 +257,7 @@ public class ClientManagementFunctions(
                 "VALIDATION_FAILED", "Invalid grant ID format");
         }
 
-        var grant = await clientManagementService.GetGrantByIdAsync(grantId, default);
+        var grant = await clientManagementService.GetGrantByIdAsync(grantId);
 
         if (grant is null)
         {
@@ -276,7 +276,7 @@ public class ClientManagementFunctions(
                 "You do not have permission to remove this assignment");
         }
 
-        await clientManagementService.RemoveClientAccessAsync(grantId, default);
+        await clientManagementService.RemoveClientAccessAsync(grantId);
 
         logger.LogInformation(
             "Client assignment removed: Grant {GrantId} by user {UserId}",

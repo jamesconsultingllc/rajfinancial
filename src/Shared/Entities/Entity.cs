@@ -1,5 +1,4 @@
 using MemoryPack;
-
 using RajFinancial.Shared.Entities.Business;
 using RajFinancial.Shared.Entities.Trust;
 

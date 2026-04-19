@@ -155,10 +155,10 @@ public partial class AuthorizationService(
             // Full access: covers all categories, grants Read and Full
             AccessType.Full => requiredLevel is AccessType.Read or AccessType.Full,
 
-            // Read access: covers all categories, grants Read only
+            // Read access: covers all categories, grants Read-only
             AccessType.Read => requiredLevel == AccessType.Read,
 
-            // Limited access: covers only specified categories, grants Read only
+            // Limited access: covers only specified categories, grants Read-only
             AccessType.Limited => requiredLevel == AccessType.Read && GrantCoversCategory(grant, category),
 
             // Owner access type cannot be granted to others

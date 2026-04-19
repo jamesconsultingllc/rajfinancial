@@ -1,6 +1,7 @@
 using FluentValidation;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Trust;
 
 namespace RajFinancial.Api.Validators.Entities;
 
@@ -42,21 +43,21 @@ public class CreateEntityRequestValidator : AbstractValidator<CreateEntityReques
 
         // Trust cross-field invariants
         RuleFor(x => x.Trust!)
-            .Must(t => !(t.CreationMethod == Shared.Entities.Trust.TrustCreationMethod.Testamentary
-                         && t.Category != Shared.Entities.Trust.TrustCategory.Irrevocable))
+            .Must(t => !(t.CreationMethod == TrustCreationMethod.Testamentary
+                         && t.Category != TrustCategory.Irrevocable))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
             .WithErrorCode(EntityErrorCodes.TRUST_TESTAMENTARY_MUST_BE_IRREVOCABLE)
             .WithMessage("Testamentary trusts must be irrevocable");
 
         RuleFor(x => x.Trust!)
-            .Must(t => t.Type != Shared.Entities.Trust.TrustType.Other
+            .Must(t => t.Type != TrustType.Other
                        || !string.IsNullOrWhiteSpace(t.OtherTypeDescription))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
             .WithErrorCode(EntityErrorCodes.TRUST_OTHER_TYPE_DESCRIPTION_REQUIRED)
             .WithMessage("OtherTypeDescription is required when Trust.Type is Other");
 
         RuleFor(x => x.Trust!)
-            .Must(t => !(t.TaxStatus == Shared.Entities.Trust.TrustTaxStatus.Grantor
+            .Must(t => !(t.TaxStatus == TrustTaxStatus.Grantor
                          && t.IncomeTreatment.HasValue))
             .When(x => x.Type == EntityType.Trust && x.Trust is not null)
             .WithErrorCode(EntityErrorCodes.TRUST_GRANTOR_CANNOT_HAVE_INCOME_TREATMENT)
