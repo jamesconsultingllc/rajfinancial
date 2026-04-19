@@ -708,11 +708,69 @@ Standard codes: `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDA
 
 ### Logging Pattern
 
+**All logging MUST use source-generated `[LoggerMessage]` partial methods** to eliminate boxing, `params object?[]` allocation, and pre-`IsEnabled` template parsing. This is enforced by analyzer rules **CA1873** (*Avoid potentially expensive logging*) and **CA1848** (*Use LoggerMessage delegates*), both treated as warnings.
+
+**References:** [CA1873](https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1873) · [High-performance logging](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/high-performance-logging) · [Source generation for logging](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/source-generation)
+
+#### Rules
+
+1. **Never call `logger.LogInformation`/`LogWarning`/`LogError` directly in new code.** Every log site must route through a `[LoggerMessage]`-annotated `partial` method.
+2. **Declare the containing class `partial`** and place the logging methods at the bottom of the same file — not in a shared `LoggerExtensions.cs` or `CommonLogging` class. Co-location keeps call + template greppable together and preserves the `ILogger<T>` category for per-category filtering.
+3. **Instance `private partial void LogXxx(...)`** methods (not static extensions). The source generator resolves the `ILogger` field from the class, including primary-constructor fields.
+4. **Keep field names domain-specific** (`{AssetId}`, `{EntityId}`, `{ClientUserId}`, `{Function}`). Do **not** collapse them into a generic `{ResourceId}` just to share a method — that breaks Application Insights pivot queries.
+5. **Assign `EventId` from a reserved range** so event IDs remain stable across deployments and correlateable in App Insights:
+   - `1000–1999` Auth / Authentication
+   - `2000–2999` Assets
+   - `3000–3999` Entities
+   - `4000–4999` User Profile
+   - `5000–5999` Middleware (exception, validation, content)
+   - `6000–6999` Client Management
+   - `7000–7999` Authorization
+   - `9000–9999` Testing / diagnostic endpoints
+6. **Exception overloads** take an `Exception` parameter — the generator automatically emits the `ex`-accepting overload.
+7. **Do not share log methods across classes.** If two classes need the same shape, each keeps its own `[LoggerMessage]` — duplication is cheap, shared extensions are expensive (lost `ILogger<T>` category, awkward disambiguating names).
+
+#### Pattern
+
 ```csharp
-// Structured logging with named parameters
-_logger.LogInformation("Account {AccountId} created for user {UserId}", accountId, userId);
-_logger.LogWarning("Authorization denied: {UserId} attempted {Action} on {Resource}", userId, action, resourceId);
+// ✅ Correct — source-generated, zero allocation when level is disabled
+public partial class AssetFunctions(IAssetService assetService, ILogger<AssetFunctions> logger)
+{
+    public async Task<HttpResponseData> Create(...)
+    {
+        // ... work ...
+        LogAssetCreated(asset.Id, userId);
+        return response;
+    }
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Information,
+        Message = "Asset {AssetId} created for user {UserId}")]
+    private partial void LogAssetCreated(Guid assetId, Guid userId);
+
+    [LoggerMessage(EventId = 2099, Level = LogLevel.Error,
+        Message = "Failed to create asset for user {UserId}")]
+    private partial void LogAssetCreateFailed(Exception ex, Guid userId);
+}
 ```
+
+```csharp
+// ❌ Do NOT use — boxes userId/accountId, allocates params array, parses template on every call
+_logger.LogInformation("Account {AccountId} created for user {UserId}", accountId, userId);
+```
+
+#### Why
+
+Even with structured templates, direct `logger.LogX(template, args)` calls:
+- Allocate a `params object?[]` per call
+- **Box** every value-type arg (`Guid`, `int`, `bool`, enums)
+- Re-parse the template at runtime
+- Pay all of the above **before** the `IsEnabled(level)` gate
+
+Source-gen emits a cached delegate with an `IsEnabled` guard before argument evaluation. Disabled level ≈ zero allocation; enabled level = direct typed call, no boxing.
+
+#### PR review gate
+
+Code review must reject any PR introducing direct `logger.LogX(...)` calls in `src/Api`. The analyzer will also flag them as build warnings.
 
 ---
 
