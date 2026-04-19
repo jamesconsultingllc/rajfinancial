@@ -81,47 +81,10 @@ public partial class EntityService(
             ?? throw new InvalidOperationException(
                 "CreateEntityRequest.Type was null despite validation; validator likely misconfigured.");
 
-        if (requestedType == EntityType.Personal)
-        {
-            var personalExists = await db.Entities
-                .AnyAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
+        await ValidatePersonalUniquenessAsync(userId, requestedType);
+        await ValidateParentEntityAsync(userId, request.ParentEntityId);
 
-            if (personalExists)
-                throw new ConflictException(
-                    EntityErrorCodes.PERSONAL_ALREADY_EXISTS,
-                    "User already has a Personal entity.");
-        }
-
-        if (request.ParentEntityId.HasValue)
-        {
-            var parent = await db.Entities
-                .FirstOrDefaultAsync(e => e.Id == request.ParentEntityId.Value)
-                ?? throw new BusinessRuleException(
-                    EntityErrorCodes.PARENT_NOT_FOUND,
-                    $"Parent entity {request.ParentEntityId.Value} was not found.");
-
-            if (parent.UserId != userId)
-                throw new BusinessRuleException(
-                    EntityErrorCodes.PARENT_NOT_FOUND,
-                    $"Parent entity {request.ParentEntityId.Value} was not found.");
-        }
-
-        var slug = !string.IsNullOrWhiteSpace(request.Slug)
-            ? NormalizeSlug(request.Slug)
-            : GenerateSlug(request.Name);
-
-        if (string.IsNullOrWhiteSpace(slug))
-            throw new BusinessRuleException(
-                EntityErrorCodes.SLUG_INVALID,
-                "Slug could not be generated from the provided name. Supply an explicit ASCII slug.");
-
-        var slugTaken = await db.Entities
-            .AnyAsync(e => e.UserId == userId && e.Slug == slug);
-
-        if (slugTaken)
-            throw new ConflictException(
-                EntityErrorCodes.SLUG_DUPLICATE,
-                $"Slug '{slug}' is already in use.");
+        var slug = await ResolveUniqueSlugAsync(userId, request.Name, request.Slug);
 
         var entity = new Entity
         {
@@ -156,11 +119,62 @@ public partial class EntityService(
                 $"Slug '{slug}' is already in use.");
         }
 
-        logger.LogInformation(
-            "Entity {EntityId} ({EntityType} '{EntityName}') created for user {UserId}",
-            entity.Id, entity.Type, entity.Name, userId);
+        LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
 
         return MapToDto(entity);
+    }
+
+    private async Task ValidatePersonalUniquenessAsync(Guid userId, EntityType requestedType)
+    {
+        if (requestedType != EntityType.Personal)
+            return;
+
+        var personalExists = await db.Entities
+            .AnyAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
+
+        if (personalExists)
+            throw new ConflictException(
+                EntityErrorCodes.PERSONAL_ALREADY_EXISTS,
+                "User already has a Personal entity.");
+    }
+
+    private async Task ValidateParentEntityAsync(Guid userId, Guid? parentEntityId)
+    {
+        if (!parentEntityId.HasValue)
+            return;
+
+        var parent = await db.Entities
+            .FirstOrDefaultAsync(e => e.Id == parentEntityId.Value)
+            ?? throw new BusinessRuleException(
+                EntityErrorCodes.PARENT_NOT_FOUND,
+                $"Parent entity {parentEntityId.Value} was not found.");
+
+        if (parent.UserId != userId)
+            throw new BusinessRuleException(
+                EntityErrorCodes.PARENT_NOT_FOUND,
+                $"Parent entity {parentEntityId.Value} was not found.");
+    }
+
+    private async Task<string> ResolveUniqueSlugAsync(Guid userId, string name, string? explicitSlug)
+    {
+        var slug = !string.IsNullOrWhiteSpace(explicitSlug)
+            ? NormalizeSlug(explicitSlug)
+            : GenerateSlug(name);
+
+        if (string.IsNullOrWhiteSpace(slug))
+            throw new BusinessRuleException(
+                EntityErrorCodes.SLUG_INVALID,
+                "Slug could not be generated from the provided name. Supply an explicit ASCII slug.");
+
+        var slugTaken = await db.Entities
+            .AnyAsync(e => e.UserId == userId && e.Slug == slug);
+
+        if (slugTaken)
+            throw new ConflictException(
+                EntityErrorCodes.SLUG_DUPLICATE,
+                $"Slug '{slug}' is already in use.");
+
+        return slug;
     }
 
     public async Task<EntityDto> UpdateEntityAsync(
@@ -201,8 +215,7 @@ public partial class EntityService(
 
         await db.SaveChangesAsync();
 
-        logger.LogInformation(
-            "Entity {EntityId} updated by user {UserId}", entity.Id, requestingUserId);
+        LogEntityUpdated(entity.Id, requestingUserId);
 
         return MapToDto(entity);
     }
@@ -232,8 +245,7 @@ public partial class EntityService(
         db.Entities.Remove(entity);
         await db.SaveChangesAsync();
 
-        logger.LogInformation(
-            "Entity {EntityId} deleted by user {UserId}", entityId, requestingUserId);
+        LogEntityDeleted(entityId, requestingUserId);
     }
 
     public async Task<EntityDto> EnsurePersonalEntityAsync(Guid userId)
@@ -276,15 +288,12 @@ public partial class EntityService(
                     "Unique constraint violation on Personal entity insert, but no " +
                     "Personal entity exists for the user. Database state is inconsistent.");
 
-            logger.LogInformation(
-                "Personal entity {EntityId} was concurrently provisioned for user {UserId}",
-                winner.Id, userId);
+            LogPersonalEntityConcurrentlyProvisioned(winner.Id, userId);
 
             return MapToDto(winner);
         }
 
-        logger.LogInformation("Personal entity {EntityId} auto-provisioned for user {UserId}",
-            entity.Id, userId);
+        LogPersonalEntityProvisioned(entity.Id, userId);
 
         return MapToDto(entity);
     }
@@ -316,10 +325,30 @@ public partial class EntityService(
         // ENABLE_CONTACT_TEST_SEEDING env flag.
         await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
-        if (!IsRoleCompatibleWithEntity(roleType, entity.Type))
+        ValidateRoleCompatibility(roleType, entity.Type, request);
+        await ValidateOwnershipAsync(entityId, roleType, request.OwnershipPercent);
+        await ValidateBeneficialInterestAsync(entityId, roleType, request.BeneficialInterestPercent);
+        ValidateRoleDateRange(request.EffectiveDate, request.EndDate);
+
+        var role = BuildEntityRole(entityId, roleType, request);
+
+        db.EntityRoles.Add(role);
+        await db.SaveChangesAsync();
+
+        LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
+
+        return MapToRoleDto(role);
+    }
+
+    private static void ValidateRoleCompatibility(
+        EntityRoleType roleType,
+        EntityType entityType,
+        CreateEntityRoleRequest request)
+    {
+        if (!IsRoleCompatibleWithEntity(roleType, entityType))
             throw new BusinessRuleException(
                 EntityErrorCodes.ROLE_INVALID_FOR_ENTITY_TYPE,
-                $"Role '{roleType}' is not valid for entity type '{entity.Type}'.");
+                $"Role '{roleType}' is not valid for entity type '{entityType}'.");
 
         // Field-level role compatibility: reject percent fields on roles that don't own them.
         if (request.OwnershipPercent.HasValue && roleType != EntityRoleType.Owner)
@@ -332,87 +361,96 @@ public partial class EntityService(
                 EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_NOT_ALLOWED,
                 $"BeneficialInterestPercent is only valid for Beneficiary roles; " +
                 $"received on '{roleType}'.");
+    }
 
-        if (request.OwnershipPercent.HasValue)
-        {
-            if (request.OwnershipPercent < 0 || request.OwnershipPercent > 100)
-                throw new BusinessRuleException(
-                    EntityErrorCodes.ROLE_OWNERSHIP_OUT_OF_RANGE,
-                    "Ownership percent must be between 0 and 100.");
+    private async Task ValidateOwnershipAsync(Guid entityId, EntityRoleType roleType, double? ownershipPercent)
+    {
+        if (!ownershipPercent.HasValue)
+            return;
 
-            var existingOwnership = await db.EntityRoles
-                .Where(r => r.EntityId == entityId
-                            && r.RoleType == EntityRoleType.Owner
-                            && r.OwnershipPercent.HasValue)
-                .SumAsync(r => r.OwnershipPercent!.Value);
+        if (ownershipPercent < 0 || ownershipPercent > 100)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_OWNERSHIP_OUT_OF_RANGE,
+                "Ownership percent must be between 0 and 100.");
 
-            if (roleType == EntityRoleType.Owner
-                && existingOwnership + (decimal)request.OwnershipPercent.Value > 100m)
-                throw new BusinessRuleException(
-                    EntityErrorCodes.ROLE_OWNERSHIP_EXCEEDS_100,
-                    "Total ownership across all Owner roles would exceed 100%.");
-        }
+        if (roleType != EntityRoleType.Owner)
+            return;
 
-        if (request.BeneficialInterestPercent.HasValue)
-        {
-            if (request.BeneficialInterestPercent < 0 || request.BeneficialInterestPercent > 100)
-                throw new BusinessRuleException(
-                    EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_OUT_OF_RANGE,
-                    "Beneficial interest percent must be between 0 and 100.");
+        var existingOwnership = await db.EntityRoles
+            .Where(r => r.EntityId == entityId
+                        && r.RoleType == EntityRoleType.Owner
+                        && r.OwnershipPercent.HasValue)
+            .SumAsync(r => r.OwnershipPercent!.Value);
 
-            var existingInterest = await db.EntityRoles
-                .Where(r => r.EntityId == entityId
-                            && r.RoleType == EntityRoleType.Beneficiary
-                            && r.BeneficialInterestPercent.HasValue)
-                .SumAsync(r => r.BeneficialInterestPercent!.Value);
+        if (existingOwnership + (decimal)ownershipPercent.Value > 100m)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_OWNERSHIP_EXCEEDS_100,
+                "Total ownership across all Owner roles would exceed 100%.");
+    }
 
-            if (roleType == EntityRoleType.Beneficiary
-                && existingInterest + (decimal)request.BeneficialInterestPercent.Value > 100m)
-                throw new BusinessRuleException(
-                    EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_EXCEEDS_100,
-                    "Total beneficial interest across all Beneficiary roles would exceed 100%.");
-        }
+    private async Task ValidateBeneficialInterestAsync(
+        Guid entityId,
+        EntityRoleType roleType,
+        double? beneficialInterestPercent)
+    {
+        if (!beneficialInterestPercent.HasValue)
+            return;
 
-        if (request.EffectiveDate.HasValue && request.EndDate.HasValue
-            && request.EndDate.Value < request.EffectiveDate.Value)
+        if (beneficialInterestPercent < 0 || beneficialInterestPercent > 100)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_OUT_OF_RANGE,
+                "Beneficial interest percent must be between 0 and 100.");
+
+        if (roleType != EntityRoleType.Beneficiary)
+            return;
+
+        var existingInterest = await db.EntityRoles
+            .Where(r => r.EntityId == entityId
+                        && r.RoleType == EntityRoleType.Beneficiary
+                        && r.BeneficialInterestPercent.HasValue)
+            .SumAsync(r => r.BeneficialInterestPercent!.Value);
+
+        if (existingInterest + (decimal)beneficialInterestPercent.Value > 100m)
+            throw new BusinessRuleException(
+                EntityErrorCodes.ROLE_BENEFICIAL_INTEREST_EXCEEDS_100,
+                "Total beneficial interest across all Beneficiary roles would exceed 100%.");
+    }
+
+    private static void ValidateRoleDateRange(DateTime? effectiveDate, DateTime? endDate)
+    {
+        if (effectiveDate.HasValue && endDate.HasValue && endDate.Value < effectiveDate.Value)
             throw new BusinessRuleException(
                 EntityErrorCodes.ROLE_DATE_RANGE_INVALID,
                 "End date cannot precede effective date.");
-
-        var role = new EntityRole
-        {
-            Id = Guid.NewGuid(),
-            EntityId = entityId,
-            ContactId = request.ContactId,
-            RoleType = roleType,
-            Title = request.Title,
-            OwnershipPercent = request.OwnershipPercent.HasValue
-                ? (decimal)request.OwnershipPercent.Value
-                : null,
-            BeneficialInterestPercent = request.BeneficialInterestPercent.HasValue
-                ? (decimal)request.BeneficialInterestPercent.Value
-                : null,
-            IsSignatory = request.IsSignatory,
-            IsPrimary = request.IsPrimary,
-            SortOrder = request.SortOrder,
-            EffectiveDate = request.EffectiveDate.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(request.EffectiveDate.Value, DateTimeKind.Utc))
-                : null,
-            EndDate = request.EndDate.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc))
-                : null,
-            Notes = request.Notes
-        };
-
-        db.EntityRoles.Add(role);
-        await db.SaveChangesAsync();
-
-        logger.LogInformation(
-            "Role {RoleId} ({RoleType}) assigned to entity {EntityId} by user {UserId}",
-            role.Id, role.RoleType, entityId, requestingUserId);
-
-        return MapToRoleDto(role);
     }
+
+    private static EntityRole BuildEntityRole(
+        Guid entityId,
+        EntityRoleType roleType,
+        CreateEntityRoleRequest request) => new()
+    {
+        Id = Guid.NewGuid(),
+        EntityId = entityId,
+        ContactId = request.ContactId,
+        RoleType = roleType,
+        Title = request.Title,
+        OwnershipPercent = request.OwnershipPercent.HasValue
+            ? (decimal)request.OwnershipPercent.Value
+            : null,
+        BeneficialInterestPercent = request.BeneficialInterestPercent.HasValue
+            ? (decimal)request.BeneficialInterestPercent.Value
+            : null,
+        IsSignatory = request.IsSignatory,
+        IsPrimary = request.IsPrimary,
+        SortOrder = request.SortOrder,
+        EffectiveDate = request.EffectiveDate.HasValue
+            ? new DateTimeOffset(DateTime.SpecifyKind(request.EffectiveDate.Value, DateTimeKind.Utc))
+            : null,
+        EndDate = request.EndDate.HasValue
+            ? new DateTimeOffset(DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc))
+            : null,
+        Notes = request.Notes
+    };
 
     public async Task<IReadOnlyList<EntityRoleDto>> GetRolesAsync(Guid requestingUserId, Guid entityId)
     {
@@ -448,9 +486,7 @@ public partial class EntityService(
         db.EntityRoles.Remove(role);
         await db.SaveChangesAsync();
 
-        logger.LogInformation(
-            "Role {RoleId} removed from entity {EntityId} by user {UserId}",
-            roleId, entityId, requestingUserId);
+        LogRoleRemoved(roleId, entityId, requestingUserId);
     }
 
     // =========================================================================
@@ -591,4 +627,50 @@ public partial class EntityService(
         EndDate = role.EndDate?.UtcDateTime,
         Notes = role.Notes
     };
+
+    // =========================================================================
+    // Source-generated logging (EventId 3000-3999)
+    // =========================================================================
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Information,
+        Message = "Entity {EntityId} ({EntityType} '{EntityName}') created for user {UserId}")]
+    private partial void LogEntityCreated(Guid entityId, EntityType entityType, string entityName, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3002,
+        Level = LogLevel.Information,
+        Message = "Entity {EntityId} updated by user {UserId}")]
+    private partial void LogEntityUpdated(Guid entityId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3003,
+        Level = LogLevel.Information,
+        Message = "Entity {EntityId} deleted by user {UserId}")]
+    private partial void LogEntityDeleted(Guid entityId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3004,
+        Level = LogLevel.Information,
+        Message = "Personal entity {EntityId} was concurrently provisioned for user {UserId}")]
+    private partial void LogPersonalEntityConcurrentlyProvisioned(Guid entityId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3005,
+        Level = LogLevel.Information,
+        Message = "Personal entity {EntityId} auto-provisioned for user {UserId}")]
+    private partial void LogPersonalEntityProvisioned(Guid entityId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3010,
+        Level = LogLevel.Information,
+        Message = "Role {RoleId} ({RoleType}) assigned to entity {EntityId} by user {UserId}")]
+    private partial void LogRoleAssigned(Guid roleId, EntityRoleType roleType, Guid entityId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 3011,
+        Level = LogLevel.Information,
+        Message = "Role {RoleId} removed from entity {EntityId} by user {UserId}")]
+    private partial void LogRoleRemoved(Guid roleId, Guid entityId, Guid userId);
 }

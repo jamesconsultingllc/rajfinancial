@@ -20,7 +20,7 @@ namespace RajFinancial.Api.Services.AssetService;
 /// <summary>
 ///     EF Core implementation of <see cref="IAssetService"/>.
 /// </summary>
-public class AssetService(
+public partial class AssetService(
     ApplicationDbContext db,
     IAuthorizationService authorizationService,
     ILogger<AssetService> logger) : IAssetService
@@ -112,7 +112,7 @@ public class AssetService(
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Asset {AssetId} created for user {UserId}", asset.Id, userId);
+        LogAssetCreated(asset.Id, userId);
 
         return MapToDto(asset);
     }
@@ -149,17 +149,14 @@ public class AssetService(
             }
             catch (DbUpdateException ex)
             {
-                logger.LogWarning(ex,
-                    "Concurrent type-switch conflict for asset {AssetId}. Client should retry.",
-                    assetId);
+                LogAssetConcurrentTypeSwitch(ex, assetId);
 
                 throw new BusinessRuleException(
                     "ASSET_CONCURRENT_MODIFICATION",
                     $"Asset '{assetId}' was modified by another request. Please retry.");
             }
 
-            logger.LogInformation("Asset {AssetId} type changed (depreciable={IsDepreciable}) for user {UserId}",
-                assetId, nowIsDepreciable, asset.UserId);
+            LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
 
             return MapToDto(newAsset);
         }
@@ -189,7 +186,7 @@ public class AssetService(
 
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Asset {AssetId} updated by user {UserId}", assetId, requestingUserId);
+        LogAssetUpdated(assetId, requestingUserId);
 
         return MapToDto(asset);
     }
@@ -204,7 +201,7 @@ public class AssetService(
         db.Assets.Remove(asset);
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Asset {AssetId} deleted by user {UserId}", assetId, requestingUserId);
+        LogAssetDeleted(assetId, requestingUserId);
     }
 
     // =========================================================================
@@ -368,4 +365,38 @@ public class AssetService(
     /// <inheritdoc cref="FromMoney(decimal)"/>
     private static double? FromMoney(decimal? value) =>
         value.HasValue ? FromMoney(value.Value) : null;
+
+    // =========================================================================
+    // Source-generated logging (EventId 2000-2999)
+    // =========================================================================
+
+    [LoggerMessage(
+        EventId = 2001,
+        Level = LogLevel.Information,
+        Message = "Asset {AssetId} created for user {UserId}")]
+    private partial void LogAssetCreated(Guid assetId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 2002,
+        Level = LogLevel.Information,
+        Message = "Asset {AssetId} updated by user {UserId}")]
+    private partial void LogAssetUpdated(Guid assetId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 2003,
+        Level = LogLevel.Information,
+        Message = "Asset {AssetId} deleted by user {UserId}")]
+    private partial void LogAssetDeleted(Guid assetId, Guid userId);
+
+    [LoggerMessage(
+        EventId = 2004,
+        Level = LogLevel.Information,
+        Message = "Asset {AssetId} type changed (depreciable={IsDepreciable}) for user {UserId}")]
+    private partial void LogAssetTypeChanged(Guid assetId, bool isDepreciable, Guid userId);
+
+    [LoggerMessage(
+        EventId = 2010,
+        Level = LogLevel.Warning,
+        Message = "Concurrent type-switch conflict for asset {AssetId}. Client should retry.")]
+    private partial void LogAssetConcurrentTypeSwitch(System.Exception exception, Guid assetId);
 }

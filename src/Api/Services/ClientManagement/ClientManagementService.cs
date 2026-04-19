@@ -33,7 +33,7 @@ namespace RajFinancial.Api.Services.ClientManagement;
 ///         <see cref="DataAccessGrant.RevokedAt"/>.
 ///     </para>
 /// </remarks>
-public class ClientManagementService(
+public partial class ClientManagementService(
     ApplicationDbContext dbContext,
     ILogger<ClientManagementService> logger) : IClientManagementService
 {
@@ -65,10 +65,7 @@ public class ClientManagementService(
         dbContext.DataAccessGrants.Add(grant);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Client assigned: Grant {GrantId} from {GrantorId} ({AccessType})",
-            grant.Id, grantorUserId, accessType);
-
+        LogClientAssigned(grant.Id, grantorUserId, accessType);
         return grant;
     }
 
@@ -91,10 +88,7 @@ public class ClientManagementService(
             .OrderByDescending(g => g.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        logger.LogInformation(
-            "GetClientAssignments returning {Count} grant(s) for user {UserId} (admin={IsAdmin})",
-            grants.Count, userId, isAdmin);
-
+        LogGetClientAssignments(grants.Count, userId, isAdmin);
         return grants;
     }
 
@@ -117,8 +111,7 @@ public class ClientManagementService(
 
         if (grant is null)
         {
-            logger.LogWarning(
-                "RemoveClientAccess called for non-existent grant {GrantId}", grantId);
+            LogGrantNotFoundForRemoval(grantId);
             throw new InvalidOperationException(
                 $"Grant '{grantId}' not found. The caller should verify existence before revoking.");
         }
@@ -130,8 +123,22 @@ public class ClientManagementService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Client access revoked: Grant {GrantId}",
-            grantId);
+        LogClientAccessRevoked(grantId);
     }
+
+    [LoggerMessage(EventId = 6001, Level = LogLevel.Information,
+        Message = "Client assigned: Grant {GrantId} from {GrantorId} ({AccessType})")]
+    private partial void LogClientAssigned(Guid grantId, Guid grantorId, AccessType accessType);
+
+    [LoggerMessage(EventId = 6002, Level = LogLevel.Information,
+        Message = "GetClientAssignments returning {Count} grant(s) for user {UserId} (admin={IsAdmin})")]
+    private partial void LogGetClientAssignments(int count, Guid userId, bool isAdmin);
+
+    [LoggerMessage(EventId = 6003, Level = LogLevel.Information,
+        Message = "Client access revoked: Grant {GrantId}")]
+    private partial void LogClientAccessRevoked(Guid grantId);
+
+    [LoggerMessage(EventId = 6010, Level = LogLevel.Warning,
+        Message = "RemoveClientAccess called for non-existent grant {GrantId}")]
+    private partial void LogGrantNotFoundForRemoval(Guid grantId);
 }

@@ -30,7 +30,7 @@ namespace RajFinancial.Api.Services.Authorization;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthorizationService(
+public partial class AuthorizationService(
     ApplicationDbContext dbContext,
     ILogger<AuthorizationService> logger) : IAuthorizationService
 {
@@ -52,10 +52,7 @@ public class AuthorizationService(
         // =====================================================================
         if (requestingUserId == resourceOwnerId)
         {
-            logger.LogDebug(
-                "Access granted (ResourceOwner): user {UserId} owns the resource",
-                requestingUserId);
-
+            LogAccessGrantedOwner(requestingUserId);
             return AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner);
         }
 
@@ -66,10 +63,7 @@ public class AuthorizationService(
 
         if (grant is not null)
         {
-            logger.LogDebug(
-                "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}",
-                requestingUserId, grant.AccessType, resourceOwnerId);
-
+            LogAccessGrantedGrant(requestingUserId, grant.AccessType, resourceOwnerId);
             return AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, grant.AccessType);
         }
 
@@ -82,23 +76,32 @@ public class AuthorizationService(
 
         if (isAdmin)
         {
-            logger.LogDebug(
-                "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}",
-                requestingUserId, resourceOwnerId);
-
+            LogAccessGrantedAdmin(requestingUserId, resourceOwnerId);
             return AccessDecision.Grant(AccessDecisionReason.Administrator, AccessType.Full);
         }
 
         // =====================================================================
         // Denied: No matching tier
         // =====================================================================
-        logger.LogWarning(
-            "Access denied: user {UserId} attempted to access resource owned by {OwnerId} " +
-            "in category {Category} requiring {RequiredLevel}",
-            requestingUserId, resourceOwnerId, category, requiredLevel);
-
+        LogAccessDenied(requestingUserId, resourceOwnerId, category, requiredLevel);
         return AccessDecision.Deny();
     }
+
+    [LoggerMessage(EventId = 7001, Level = LogLevel.Debug,
+        Message = "Access granted (ResourceOwner): user {UserId} owns the resource")]
+    private partial void LogAccessGrantedOwner(Guid userId);
+
+    [LoggerMessage(EventId = 7002, Level = LogLevel.Debug,
+        Message = "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}")]
+    private partial void LogAccessGrantedGrant(Guid userId, AccessType accessType, Guid ownerId);
+
+    [LoggerMessage(EventId = 7003, Level = LogLevel.Debug,
+        Message = "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}")]
+    private partial void LogAccessGrantedAdmin(Guid userId, Guid ownerId);
+
+    [LoggerMessage(EventId = 7010, Level = LogLevel.Warning,
+        Message = "Access denied: user {UserId} attempted to access resource owned by {OwnerId} in category {Category} requiring {RequiredLevel}")]
+    private partial void LogAccessDenied(Guid userId, Guid ownerId, string category, AccessType requiredLevel);
 
     /// <summary>
     /// Finds a valid <see cref="DataAccessGrant"/> from the resource owner to the requesting user

@@ -96,13 +96,14 @@ public partial class AuthenticationMiddleware(
 
         if (string.IsNullOrEmpty(email) && logger.IsEnabled(LogLevel.Warning))
         {
-            var claimTypeNames = principal.Claims.Select(c => c.Type);
-            LogMissingEmailClaim(userId, string.Join("; ", claimTypeNames));
+            var claimTypeNames = string.Join("; ", principal.Claims.Select(c => c.Type));
+            LogMissingEmailClaim(userId, claimTypeNames);
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            LogAuthenticatedUser(userId, string.Join(", ", roles));
+            var roleList = string.Join(", ", roles);
+            LogAuthenticatedUser(userId, roleList);
         }
     }
 

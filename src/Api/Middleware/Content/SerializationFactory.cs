@@ -26,7 +26,7 @@ namespace RajFinancial.Api.Middleware.Content;
 /// </list>
 /// </para>
 /// </remarks>
-public class SerializationFactory(
+public partial class SerializationFactory(
     IConfiguration configuration,
     ILogger<SerializationFactory> logger)
     : ISerializationFactory
@@ -60,7 +60,7 @@ public class SerializationFactory(
         // In development, always prefer JSON for debugging
         if (Environment.Equals("Development", StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogDebug("Development environment: using JSON serialization");
+            LogDevelopmentJsonSelected();
             return JsonContentType;
         }
 
@@ -105,12 +105,12 @@ public class SerializationFactory(
 
         if (contentType.Equals(MemoryPackContentType, StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogDebug("Serializing {Type} with MemoryPack", typeof(T).Name);
+            LogSerializeMemoryPack(typeof(T).Name);
             await MemoryPackSerializer.SerializeAsync(stream, value, cancellationToken: cancellationToken);
         }
         else
         {
-            logger.LogDebug("Serializing {Type} with JSON", typeof(T).Name);
+            LogSerializeJson(typeof(T).Name);
             await JsonSerializer.SerializeAsync(stream, value, jsonOptions, cancellationToken);
         }
 
@@ -129,11 +129,31 @@ public class SerializationFactory(
 
         if (contentType.Equals(MemoryPackContentType, StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogDebug("Deserializing {Type} with MemoryPack", typeof(T).Name);
+            LogDeserializeMemoryPack(typeof(T).Name);
             return await MemoryPackSerializer.DeserializeAsync<T>(stream, cancellationToken: cancellationToken);
         }
 
-        logger.LogDebug("Deserializing {Type} with JSON", typeof(T).Name);
+        LogDeserializeJson(typeof(T).Name);
         return await JsonSerializer.DeserializeAsync<T>(stream, jsonOptions, cancellationToken);
     }
+
+    [LoggerMessage(EventId = 5101, Level = LogLevel.Debug,
+        Message = "Development environment: using JSON serialization")]
+    private partial void LogDevelopmentJsonSelected();
+
+    [LoggerMessage(EventId = 5102, Level = LogLevel.Debug,
+        Message = "Serializing {TypeName} with MemoryPack")]
+    private partial void LogSerializeMemoryPack(string typeName);
+
+    [LoggerMessage(EventId = 5103, Level = LogLevel.Debug,
+        Message = "Serializing {TypeName} with JSON")]
+    private partial void LogSerializeJson(string typeName);
+
+    [LoggerMessage(EventId = 5104, Level = LogLevel.Debug,
+        Message = "Deserializing {TypeName} with MemoryPack")]
+    private partial void LogDeserializeMemoryPack(string typeName);
+
+    [LoggerMessage(EventId = 5105, Level = LogLevel.Debug,
+        Message = "Deserializing {TypeName} with JSON")]
+    private partial void LogDeserializeJson(string typeName);
 }
