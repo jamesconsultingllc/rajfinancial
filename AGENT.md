@@ -331,6 +331,57 @@ if (context.Items.TryGetValue("ClaimsPrincipal", out ...)) // typo risk, no rena
 
 ---
 
+## Architecture Conventions (Enforced)
+
+These rules are mechanically enforced via `SonarAnalyzer.CSharp` (build errors) + `NetArchTest` in `tests/Architecture.Tests/`. Violations fail the build or tests.
+
+### Partial files
+
+- `{ClassName}.Logging.cs` — **allowed.** Used exclusively for source-generated `[LoggerMessage]` methods. These must be partial instance methods on the owning class (mechanical necessity of the logging source generator). Co-locate in a `.Logging.cs` sibling file.
+- `{ClassName}.Helper.cs` / `{ClassName}.Extensions.cs` / `{ClassName}.Utils.cs` — **not allowed.** Junk-drawer partials violate SRP by grouping unrelated methods under a meaningless name. Extract each concern to its own noun-named class.
+
+### Pure utility code
+
+- Pure static helpers (mappers, validators, slug generators, format converters, rule evaluators) belong in their own noun-named class, not as private statics on a service.
+- **Good:** `EntityMapper`, `EntitySlug`, `EntityRoleRules`, `AssetDepreciation`, `MoneyConversion`.
+- **Bad:** `EntityService.MapToDto(...)`, `EntityService.NormalizeSlug(...)` as private statics on the service.
+
+### Service classes
+
+- `*Service` classes may not contain private static methods. If you need a pure function, it's a utility — extract it to its own class.
+- Enforced by `Services_ShouldNotHavePrivateStaticMethods` in `tests/Architecture.Tests/ServiceInvariantsTests.cs`.
+- Services in the allow-list have pending SRP cleanup tasks cited in the test file (see ADO #623, #625).
+
+### Mapper classes
+
+- Any type named `*Mapper` must be a static class (`abstract sealed`).
+- Enforced by `Mappers_ShouldBeStaticClasses` in `tests/Architecture.Tests/MapperInvariantsTests.cs`.
+
+### Dependency boundaries
+
+- `RajFinancial.Shared.Contracts.*` (wire DTOs) must **not** reference `RajFinancial.Shared.Entities.*` classes. Entity enums are allowed (wire protocol legitimately mirrors enum values).
+- `RajFinancial.Api.Functions.*` must **not** reference `ApplicationDbContext` directly — always go through a service. `HealthCheckFunction` is the sole allow-listed exception (liveness probe).
+- Enforced by `Contracts_ShouldNotDependOnEntityClasses` and `Functions_ShouldNotReferenceApplicationDbContext`.
+
+### Sonar severity=error rules
+
+The following Sonar rules are escalated to build errors in `.editorconfig`:
+
+| Rule | Description |
+|------|-------------|
+| S138 | Method length limit |
+| S1448 | Too many methods per class |
+| S1200 | Too many type fan-out dependencies |
+| S3776 | Cognitive complexity (threshold 15) |
+| S2068 | Hardcoded credentials |
+| S4830 | Server certificate validation disabled |
+| S5542 | Weak cipher modes |
+| S2259 | Null dereference |
+
+Scoped suppressions apply to `tests/**`, EF migrations, generated code, and `Program.cs` (tracked under #624).
+
+---
+
 ## Code Documentation
 
 ### Requirements
