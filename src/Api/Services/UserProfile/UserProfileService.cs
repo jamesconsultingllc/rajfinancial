@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,6 +29,21 @@ public partial class UserProfileService(
     ApplicationDbContext dbContext,
     ILogger<UserProfileService> logger) : IUserProfileService
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.UserProfile");
+    private static readonly Meter Meter = new("RajFinancial.Api.UserProfile");
+
+    private static readonly Counter<long> UserProfileJitProvisioned =
+        Meter.CreateCounter<long>("userprofile.jit.provisioned.count");
+
+    private static readonly Counter<long> UserProfileSyncCount =
+        Meter.CreateCounter<long>("userprofile.sync.count");
+
+    private static readonly Counter<long> UserProfileConcurrentConflicts =
+        Meter.CreateCounter<long>("userprofile.concurrent.conflicts.count");
+
+    private static readonly Histogram<double> UserProfileSyncDuration =
+        Meter.CreateHistogram<double>("userprofile.sync.duration.ms");
+
     /// <inheritdoc/>
     public async Task<Shared.Entities.Users.UserProfile> EnsureProfileExistsAsync(
         Guid userId,
@@ -36,49 +53,97 @@ public partial class UserProfileService(
         Guid? tenantId = null,
         CancellationToken cancellationToken = default)
     {
-        var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
-        var mappedRole = roles.MapHighestPriority();
-        var now = DateTimeOffset.UtcNow;
-
-        if (profile is null)
+        using var activity = ActivitySource.StartActivity("UserProfile.EnsureProfileExists");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("user.oid", userId);
+        if (tenantId.HasValue)
         {
-            // JIT provisioning — first authenticated request
-            profile = new Shared.Entities.Users.UserProfile
-            {
-                Id = userId,
-                Email = email,
-                DisplayName = displayName ?? string.Empty,
-                Role = mappedRole,
-                TenantId = tenantId ?? Guid.Empty,
-                CreatedAt = now,
-                LastLoginAt = now
-            };
-
-            try
-            {
-                dbContext.UserProfiles.Add(profile);
-                await dbContext.SaveChangesAsync(cancellationToken);
-
-                LogJitProvisioned(userId, mappedRole);
-
-                return profile;
-            }
-            catch (DbUpdateException)
-            {
-                // Concurrent request already created this profile — detach and reload
-                LogConcurrentJitDetected(userId);
-
-                dbContext.Entry(profile).State = EntityState.Detached;
-                profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
-
-                if (profile is null)
-                {
-                    throw; // Re-throw if reload also fails — something is truly wrong
-                }
-            }
+            activity?.SetTag("user.tenant_id", tenantId.Value);
         }
 
-        // Returning user — sync mutable claim data
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+            var mappedRole = roles.MapHighestPriority();
+            var now = DateTimeOffset.UtcNow;
+
+            if (profile is null)
+            {
+                profile = await JitProvisionAsync(userId, email, displayName, mappedRole, tenantId, now, cancellationToken);
+                if (profile.CreatedAt == now)
+                {
+                    return profile;
+                }
+            }
+
+            await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
+            UserProfileSyncCount.Add(1);
+            return profile;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            UserProfileSyncDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    private async Task<Shared.Entities.Users.UserProfile> JitProvisionAsync(
+        Guid userId,
+        string email,
+        string? displayName,
+        UserRole mappedRole,
+        Guid? tenantId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var profile = new Shared.Entities.Users.UserProfile
+        {
+            Id = userId,
+            Email = email,
+            DisplayName = displayName ?? string.Empty,
+            Role = mappedRole,
+            TenantId = tenantId ?? Guid.Empty,
+            CreatedAt = now,
+            LastLoginAt = now
+        };
+
+        try
+        {
+            dbContext.UserProfiles.Add(profile);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            UserProfileJitProvisioned.Add(1);
+            LogJitProvisioned(userId, mappedRole);
+
+            return profile;
+        }
+        catch (DbUpdateException)
+        {
+            UserProfileConcurrentConflicts.Add(1);
+            LogConcurrentJitDetected(userId);
+
+            dbContext.Entry(profile).State = EntityState.Detached;
+            var reloaded = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+
+            if (reloaded is null)
+            {
+                throw;
+            }
+
+            return reloaded;
+        }
+    }
+
+    private async Task SyncClaimsAsync(
+        Shared.Entities.Users.UserProfile profile,
+        Guid userId,
+        string email,
+        string? displayName,
+        UserRole mappedRole,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
         var changed = false;
 
         if (!string.Equals(profile.Email, email, StringComparison.Ordinal))
@@ -103,7 +168,6 @@ public partial class UserProfileService(
             changed = true;
         }
 
-        // Always stamp LastLoginAt on every authenticated request
         profile.LastLoginAt = now;
 
         if (changed)
@@ -111,9 +175,15 @@ public partial class UserProfileService(
             profile.UpdatedAt = now;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return profile;
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            UserProfileConcurrentConflicts.Add(1);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -121,6 +191,10 @@ public partial class UserProfileService(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UserProfile.GetById");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("user.oid", userId);
+
         return await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
     }
 
@@ -130,6 +204,10 @@ public partial class UserProfileService(
         UpdateProfileRequest request,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UserProfile.UpdateProfile");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("user.oid", userId);
+
         var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
 
         if (profile is null)
@@ -147,7 +225,15 @@ public partial class UserProfileService(
         });
         profile.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            UserProfileConcurrentConflicts.Add(1);
+            throw;
+        }
 
         LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
 

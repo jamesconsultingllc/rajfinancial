@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
@@ -36,6 +38,12 @@ public partial class ProfileFunctions(
     IUserProfileService userProfileService,
     ISerializationFactory serializationFactory)
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.UserProfile");
+    private static readonly Meter Meter = new("RajFinancial.Api.UserProfile");
+
+    private static readonly Counter<long> UserProfileSyncCount =
+        Meter.CreateCounter<long>("userprofile.sync.count");
+
     /// <summary>
     /// Returns the persisted <see cref="UserProfile"/> for the
     /// currently authenticated user.
@@ -57,6 +65,8 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = ActivitySource.StartActivity("UserProfile.GetMyProfile");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -65,6 +75,8 @@ public partial class ProfileFunctions(
             var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
             return unauthorizedResponse;
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         var profile = await userProfileService.GetByIdAsync(userIdGuid.Value);
 
@@ -116,6 +128,8 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = ActivitySource.StartActivity("UserProfile.UpdateMyProfile");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -124,6 +138,8 @@ public partial class ProfileFunctions(
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         var request = await context.GetValidatedBodyAsync<UpdateProfileRequest>();
 
@@ -148,6 +164,7 @@ public partial class ProfileFunctions(
         };
 
         LogUpdateProfileReturning(userIdGuid.Value);
+        UserProfileSyncCount.Add(1);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, responseDto, serializationFactory);
@@ -185,18 +202,18 @@ public partial class ProfileFunctions(
         }
     }
 
-    [LoggerMessage(EventId = 7001, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4001, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
     private partial void LogProfileMeMissingContext();
 
-    [LoggerMessage(EventId = 7002, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
+    [LoggerMessage(EventId = 4002, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
     private partial void LogProfileNotFound(Guid userId);
 
-    [LoggerMessage(EventId = 7003, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
+    [LoggerMessage(EventId = 4003, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
     private partial void LogProfileMeReturning(Guid userId);
 
-    [LoggerMessage(EventId = 7004, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4004, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
     private partial void LogUpdateProfileMissingContext();
 
-    [LoggerMessage(EventId = 7005, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
+    [LoggerMessage(EventId = 4005, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
     private partial void LogUpdateProfileReturning(Guid userId);
 }
