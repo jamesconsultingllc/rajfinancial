@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -28,6 +29,11 @@ namespace RajFinancial.Api.Services.Authorization;
 /// <b>OWASP A01:2025 — Broken Access Control:</b> Prevents IDOR by requiring explicit
 /// ownership, grant, or admin role before any data access is permitted.
 /// </para>
+/// <para>
+/// OpenTelemetry instrumentation (ActivitySource + Meter) is centralized in
+/// <see cref="AuthorizationTelemetry"/> to keep the service free of private static
+/// helpers (enforced by <c>ServiceInvariantsTests</c>).
+/// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthorizationService(
@@ -47,61 +53,65 @@ public partial class AuthorizationService(
                 "AccessType.Owner cannot be used as a required level. Owner access is implicit via Tier 1 (resource ownership).",
                 nameof(requiredLevel));
 
-        // =====================================================================
-        // Tier 1: Resource Owner — immediate grant, no DB query needed
-        // =====================================================================
-        if (requestingUserId == resourceOwnerId)
+        using var activity = AuthorizationTelemetry.StartCheckAccess(
+            requestingUserId, category, resourceOwnerId, requiredLevel);
+
+        var sw = Stopwatch.StartNew();
+        try
         {
-            LogAccessGrantedOwner(requestingUserId);
-            return AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner);
+            // =====================================================================
+            // Tier 1: Resource Owner — immediate grant, no DB query needed
+            // =====================================================================
+            if (requestingUserId == resourceOwnerId)
+            {
+                AuthorizationTelemetry.RecordAllowed(
+                    activity, AuthorizationTelemetry.TIER_OWNER, AccessDecisionReason.ResourceOwner);
+                LogAccessGrantedOwner(requestingUserId);
+                return AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner);
+            }
+
+            // =====================================================================
+            // Tier 2: Data Access Grant — query for a valid grant
+            // =====================================================================
+            var grant = await FindValidGrantAsync(requestingUserId, resourceOwnerId, category, requiredLevel);
+
+            if (grant is not null)
+            {
+                AuthorizationTelemetry.SetGrantedLevel(activity, grant.AccessType);
+                AuthorizationTelemetry.RecordAllowed(
+                    activity, AuthorizationTelemetry.TIER_GRANT, AccessDecisionReason.DataAccessGrant);
+                LogAccessGrantedGrant(requestingUserId, grant.AccessType, resourceOwnerId);
+                return AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, grant.AccessType);
+            }
+
+            // =====================================================================
+            // Tier 3: Administrator — check user role
+            // =====================================================================
+            var isAdmin = await dbContext.UserProfiles
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == requestingUserId && u.Role == UserRole.Administrator);
+
+            if (isAdmin)
+            {
+                AuthorizationTelemetry.RecordAllowed(
+                    activity, AuthorizationTelemetry.TIER_ADMIN, AccessDecisionReason.Administrator);
+                LogAccessGrantedAdmin(requestingUserId, resourceOwnerId);
+                return AccessDecision.Grant(AccessDecisionReason.Administrator, AccessType.Full);
+            }
+
+            // =====================================================================
+            // Denied: No matching tier
+            // =====================================================================
+            AuthorizationTelemetry.RecordDenied(activity, AccessDecisionReason.Denied);
+            LogAccessDenied(requestingUserId, resourceOwnerId, category, requiredLevel);
+            return AccessDecision.Deny();
         }
-
-        // =====================================================================
-        // Tier 2: Data Access Grant — query for a valid grant
-        // =====================================================================
-        var grant = await FindValidGrantAsync(requestingUserId, resourceOwnerId, category, requiredLevel);
-
-        if (grant is not null)
+        finally
         {
-            LogAccessGrantedGrant(requestingUserId, grant.AccessType, resourceOwnerId);
-            return AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, grant.AccessType);
+            sw.Stop();
+            AuthorizationTelemetry.RecordCheckDuration(sw.Elapsed.TotalMilliseconds);
         }
-
-        // =====================================================================
-        // Tier 3: Administrator — check user role
-        // =====================================================================
-        var isAdmin = await dbContext.UserProfiles
-            .AsNoTracking()
-            .AnyAsync(u => u.Id == requestingUserId && u.Role == UserRole.Administrator);
-
-        if (isAdmin)
-        {
-            LogAccessGrantedAdmin(requestingUserId, resourceOwnerId);
-            return AccessDecision.Grant(AccessDecisionReason.Administrator, AccessType.Full);
-        }
-
-        // =====================================================================
-        // Denied: No matching tier
-        // =====================================================================
-        LogAccessDenied(requestingUserId, resourceOwnerId, category, requiredLevel);
-        return AccessDecision.Deny();
     }
-
-    [LoggerMessage(EventId = 7001, Level = LogLevel.Debug,
-        Message = "Access granted (ResourceOwner): user {UserId} owns the resource")]
-    private partial void LogAccessGrantedOwner(Guid userId);
-
-    [LoggerMessage(EventId = 7002, Level = LogLevel.Debug,
-        Message = "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}")]
-    private partial void LogAccessGrantedGrant(Guid userId, AccessType accessType, Guid ownerId);
-
-    [LoggerMessage(EventId = 7003, Level = LogLevel.Debug,
-        Message = "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}")]
-    private partial void LogAccessGrantedAdmin(Guid userId, Guid ownerId);
-
-    [LoggerMessage(EventId = 7010, Level = LogLevel.Warning,
-        Message = "Access denied: user {UserId} attempted to access resource owned by {OwnerId} in category {Category} requiring {RequiredLevel}")]
-    private partial void LogAccessDenied(Guid userId, Guid ownerId, string category, AccessType requiredLevel);
 
     /// <summary>
     /// Finds a valid <see cref="DataAccessGrant"/> from the resource owner to the requesting user
@@ -134,4 +144,20 @@ public partial class AuthorizationService(
 
         return grant;
     }
+
+    [LoggerMessage(EventId = 7001, Level = LogLevel.Debug,
+        Message = "Access granted (ResourceOwner): user {UserId} owns the resource")]
+    private partial void LogAccessGrantedOwner(Guid userId);
+
+    [LoggerMessage(EventId = 7002, Level = LogLevel.Debug,
+        Message = "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}")]
+    private partial void LogAccessGrantedGrant(Guid userId, AccessType accessType, Guid ownerId);
+
+    [LoggerMessage(EventId = 7003, Level = LogLevel.Debug,
+        Message = "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}")]
+    private partial void LogAccessGrantedAdmin(Guid userId, Guid ownerId);
+
+    [LoggerMessage(EventId = 7010, Level = LogLevel.Warning,
+        Message = "Access denied: user {UserId} attempted to access resource owned by {OwnerId} in category {Category} requiring {RequiredLevel}")]
+    private partial void LogAccessDenied(Guid userId, Guid ownerId, string category, AccessType requiredLevel);
 }
