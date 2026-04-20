@@ -4,19 +4,17 @@ using RajFinancial.Api.HealthChecks;
 namespace RajFinancial.Api.Configuration;
 
 /// <summary>
-///     Registers application health checks. Tag <c>ready</c> is filtered by the
-///     <c>/health/ready</c> endpoint; unchecked probes stay out of the liveness path.
+///     Registers application health checks. Tag <see cref="HealthCheckTags.Ready"/> is
+///     filtered by <c>/health/ready</c>; unchecked probes stay out of the liveness path.
 /// </summary>
 internal static class HealthCheckRegistration
 {
-    private const string ReadyTag = "ready";
-
     internal static IServiceCollection AddApplicationHealthChecks(this IServiceCollection services)
     {
         services
             .AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database", tags: [ReadyTag])
-            .AddCheck<ConfigHealthCheck>("config", tags: [ReadyTag]);
+            .AddCheck<DatabaseHealthCheck>("database", tags: [HealthCheckTags.Ready])
+            .AddCheck<ConfigHealthCheck>("config", tags: [HealthCheckTags.Ready]);
 
         return services;
     }

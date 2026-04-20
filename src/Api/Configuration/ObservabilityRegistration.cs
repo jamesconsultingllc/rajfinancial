@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -77,7 +78,19 @@ internal static class ObservabilityRegistration
                 .AddSource(DomainSources);
 
             if (env.IsDevelopment())
+            {
+                // Dev: sample everything so local debugging sees every span.
                 tracing.AddConsoleExporter();
+            }
+            else
+            {
+                // Non-Dev: 10% parent-based sampling keeps Azure Monitor ingestion cost
+                // predictable while preserving trace coherency (all spans in a given
+                // request are kept or dropped together via ParentBased). Tune ratio as
+                // traffic grows; override via a ParentBasedSampler configured from
+                // App Settings if needed.
+                tracing.SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)));
+            }
         });
 
         otelBuilder.WithMetrics(metrics =>

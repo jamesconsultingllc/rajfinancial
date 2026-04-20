@@ -3,7 +3,9 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.HealthChecks;
 
 namespace RajFinancial.Api.Functions;
 
@@ -13,13 +15,15 @@ namespace RajFinancial.Api.Functions;
 ///         <item><c>/health/live</c> — process alive. Always 200 unless the host is gone.</item>
 ///         <item><c>/health/ready</c> — runs all checks tagged <c>ready</c>; 200 healthy, 503 otherwise.</item>
 ///     </list>
+///     Response bodies include per-check detail ONLY in Development; outside Dev only
+///     the overall status and total duration are returned to avoid disclosing internal
+///     dependency names / config structure to anonymous callers.
 /// </summary>
 public partial class HealthCheckFunction(
     HealthCheckService healthCheckService,
+    IHostEnvironment environment,
     ILogger<HealthCheckFunction> logger)
 {
-    private const string ReadyTag = "ready";
-
     [Function("HealthLive")]
     public async Task<HttpResponseData> Live(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health/live")]
@@ -38,7 +42,7 @@ public partial class HealthCheckFunction(
         CancellationToken cancellationToken)
     {
         var report = await healthCheckService.CheckHealthAsync(
-            r => r.Tags.Contains(ReadyTag),
+            r => r.Tags.Contains(HealthCheckTags.Ready),
             cancellationToken);
 
         if (report.Status != HealthStatus.Healthy)
@@ -51,18 +55,30 @@ public partial class HealthCheckFunction(
         var response = req.CreateResponse(statusCode);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
 
-        var payload = new
+        object payload;
+        if (environment.IsDevelopment())
         {
-            status = report.Status.ToString().ToLowerInvariant(),
-            totalDuration = report.TotalDuration.TotalMilliseconds,
-            checks = report.Entries.Select(e => new
+            payload = new
             {
-                name = e.Key,
-                status = e.Value.Status.ToString().ToLowerInvariant(),
-                description = e.Value.Description,
-                duration = e.Value.Duration.TotalMilliseconds,
-            }),
-        };
+                status = report.Status.ToString().ToLowerInvariant(),
+                totalDuration = report.TotalDuration.TotalMilliseconds,
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString().ToLowerInvariant(),
+                    description = e.Value.Description,
+                    duration = e.Value.Duration.TotalMilliseconds,
+                }),
+            };
+        }
+        else
+        {
+            payload = new
+            {
+                status = report.Status.ToString().ToLowerInvariant(),
+                totalDuration = report.TotalDuration.TotalMilliseconds,
+            };
+        }
 
         await response.WriteStringAsync(JsonSerializer.Serialize(payload));
         return response;

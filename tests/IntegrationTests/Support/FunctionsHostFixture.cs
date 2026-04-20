@@ -56,7 +56,7 @@ public class FunctionsHostFixture
     {
         try
         {
-            var response = await Client.GetAsync("/api/health");
+            var response = await Client.GetAsync("/api/health/live");
             if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.ServiceUnavailable)
                 return;
         }

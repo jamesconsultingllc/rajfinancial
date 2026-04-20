@@ -15,16 +15,17 @@ namespace RajFinancial.Api.HealthChecks;
 ///     rotation automatically.
 /// </remarks>
 public sealed partial class DatabaseHealthCheck(
-    ApplicationDbContext context,
+    ApplicationDbContext dbContext,
     ILogger<DatabaseHealthCheck> logger) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context1,
+        HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        _ = context;
         try
         {
-            var canConnect = await context.Database.CanConnectAsync(cancellationToken);
+            var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
             return canConnect
                 ? HealthCheckResult.Healthy("Database reachable")
                 : HealthCheckResult.Unhealthy("Database.CanConnectAsync returned false");
