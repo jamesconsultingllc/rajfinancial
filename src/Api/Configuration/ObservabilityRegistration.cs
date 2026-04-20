@@ -25,16 +25,12 @@ namespace RajFinancial.Api.Configuration;
 /// </remarks>
 internal static class ObservabilityRegistration
 {
-    private static readonly string[] DomainSources =
-    [
-        "RajFinancial.Api.Auth",
-        "RajFinancial.Api.Assets",
-        "RajFinancial.Api.Entities",
-        "RajFinancial.Api.UserProfile",
-        "RajFinancial.Api.Middleware",
-        "RajFinancial.Api.ClientManagement",
-        "RajFinancial.Api.Authorization",
-    ];
+    /// <summary>
+    ///     Backing array passed to <c>AddSource</c>/<c>AddMeter</c>. Individual names are
+    ///     declared as <c>internal const</c> in <see cref="ObservabilityDomains"/> so
+    ///     domain classes can reference them without duplicating string literals.
+    /// </summary>
+    private static readonly string[] DomainSources = ObservabilityDomains.All;
 
     /// <summary>
     ///     Adds OpenTelemetry tracing + metrics and environment-aware logging to the DI container.
