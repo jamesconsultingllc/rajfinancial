@@ -48,11 +48,15 @@ public partial class AuthorizationService(
     private static readonly Histogram<double> AuthzCheckDuration =
         Meter.CreateHistogram<double>("authorization.check.duration.ms");
 
+    // Tag keys — kept as constants so counter and activity tags stay in lockstep.
+    private const string AUTHZ_TIER_TAG = "authz.tier";
+    private const string AUTHZ_REASON_TAG = "authz.reason";
+
     // Authorization tier tag values — emitted on activities and counters as `authz.tier`.
-    private const string TierOwner = "owner";
-    private const string TierGrant = "grant";
-    private const string TierAdmin = "admin";
-    private const string TierDenied = "denied";
+    private const string TIER_OWNER = "owner";
+    private const string TIER_GRANT = "grant";
+    private const string TIER_ADMIN = "admin";
+    private const string TIER_DENIED = "denied";
 
     /// <inheritdoc />
     public async Task<AccessDecision> CheckAccessAsync(
@@ -70,7 +74,6 @@ public partial class AuthorizationService(
         using var activity = ActivitySource.StartActivity("Authorization.CheckAccess");
         activity?.SetTag("user.id", requestingUserId);
         activity?.SetTag("resource.type", category);
-        activity?.SetTag("resource.id", resourceOwnerId);
         activity?.SetTag("resource.owner.id", resourceOwnerId);
         activity?.SetTag("authz.required_level", requiredLevel.ToString());
 
@@ -82,10 +85,7 @@ public partial class AuthorizationService(
             // =====================================================================
             if (requestingUserId == resourceOwnerId)
             {
-                activity?.SetTag("authz.tier", TierOwner);
-                AuthzAllowed.Add(1,
-                    new KeyValuePair<string, object?>("authz.tier", TierOwner),
-                    new KeyValuePair<string, object?>("authz.reason", AccessDecisionReason.ResourceOwner.ToString()));
+                RecordAllowed(activity, TIER_OWNER, AccessDecisionReason.ResourceOwner);
                 LogAccessGrantedOwner(requestingUserId);
                 return AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner);
             }
@@ -97,11 +97,8 @@ public partial class AuthorizationService(
 
             if (grant is not null)
             {
-                activity?.SetTag("authz.tier", TierGrant);
                 activity?.SetTag("authz.granted_level", grant.AccessType.ToString());
-                AuthzAllowed.Add(1,
-                    new KeyValuePair<string, object?>("authz.tier", TierGrant),
-                    new KeyValuePair<string, object?>("authz.reason", AccessDecisionReason.DataAccessGrant.ToString()));
+                RecordAllowed(activity, TIER_GRANT, AccessDecisionReason.DataAccessGrant);
                 LogAccessGrantedGrant(requestingUserId, grant.AccessType, resourceOwnerId);
                 return AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, grant.AccessType);
             }
@@ -115,10 +112,7 @@ public partial class AuthorizationService(
 
             if (isAdmin)
             {
-                activity?.SetTag("authz.tier", TierAdmin);
-                AuthzAllowed.Add(1,
-                    new KeyValuePair<string, object?>("authz.tier", TierAdmin),
-                    new KeyValuePair<string, object?>("authz.reason", AccessDecisionReason.Administrator.ToString()));
+                RecordAllowed(activity, TIER_ADMIN, AccessDecisionReason.Administrator);
                 LogAccessGrantedAdmin(requestingUserId, resourceOwnerId);
                 return AccessDecision.Grant(AccessDecisionReason.Administrator, AccessType.Full);
             }
@@ -126,11 +120,8 @@ public partial class AuthorizationService(
             // =====================================================================
             // Denied: No matching tier
             // =====================================================================
-            activity?.SetTag("authz.tier", TierDenied);
             activity?.SetStatus(ActivityStatusCode.Error, "Access denied");
-            AuthzDenied.Add(1,
-                new KeyValuePair<string, object?>("authz.tier", TierDenied),
-                new KeyValuePair<string, object?>("authz.reason", AccessDecisionReason.Denied.ToString()));
+            RecordDenied(activity, AccessDecisionReason.Denied);
             LogAccessDenied(requestingUserId, resourceOwnerId, category, requiredLevel);
             return AccessDecision.Deny();
         }
@@ -139,6 +130,36 @@ public partial class AuthorizationService(
             sw.Stop();
             AuthzCheckDuration.Record(sw.Elapsed.TotalMilliseconds);
         }
+    }
+
+    /// <summary>
+    /// Tags the activity with the deciding tier and emits an allowed-count increment
+    /// with the same tier + reason. Uses <see cref="TagList"/> to avoid the params
+    /// array allocation on every call.
+    /// </summary>
+    private static void RecordAllowed(Activity? activity, string tier, AccessDecisionReason reason)
+    {
+        activity?.SetTag(AUTHZ_TIER_TAG, tier);
+        var tags = new TagList
+        {
+            { AUTHZ_TIER_TAG, tier },
+            { AUTHZ_REASON_TAG, reason.ToString() },
+        };
+        AuthzAllowed.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Tags the activity with the denied tier and emits a denied-count increment.
+    /// </summary>
+    private static void RecordDenied(Activity? activity, AccessDecisionReason reason)
+    {
+        activity?.SetTag(AUTHZ_TIER_TAG, TIER_DENIED);
+        var tags = new TagList
+        {
+            { AUTHZ_TIER_TAG, TIER_DENIED },
+            { AUTHZ_REASON_TAG, reason.ToString() },
+        };
+        AuthzDenied.Add(1, tags);
     }
 
     /// <summary>
