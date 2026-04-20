@@ -10,6 +10,8 @@
 //   DELETE /api/auth/clients/{id} — Remove a client assignment
 // ============================================================================
 
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
@@ -52,6 +54,17 @@ public partial class ClientManagementFunctions(
     ILogger<ClientManagementFunctions> logger,
     IClientManagementService clientManagementService)
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.ClientManagement");
+    private static readonly Meter Meter = new("RajFinancial.Api.ClientManagement");
+
+    private static readonly Counter<long> GrantsCreated =
+        Meter.CreateCounter<long>("clientmgmt.grants.created.count");
+
+    private static readonly Counter<long> GrantsRevoked =
+        Meter.CreateCounter<long>("clientmgmt.grants.revoked.count");
+
+    private static readonly Counter<long> SelfAssignmentBlocked =
+        Meter.CreateCounter<long>("clientmgmt.self_assignment.blocked.count");
 
     /// <summary>
     /// Assigns a client to the calling advisor by creating a new
@@ -78,6 +91,8 @@ public partial class ClientManagementFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.AssignClient");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -86,6 +101,8 @@ public partial class ClientManagementFunctions(
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
@@ -105,6 +122,7 @@ public partial class ClientManagementFunctions(
         if (string.Equals(userEmail, assignRequest.ClientEmail,
                 StringComparison.OrdinalIgnoreCase))
         {
+            SelfAssignmentBlocked.Add(1);
             LogSelfAssignmentRejected(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.BadRequest,
                 "SELF_ASSIGNMENT_NOT_ALLOWED",
@@ -116,6 +134,10 @@ public partial class ClientManagementFunctions(
 
         var responseDto = MapToResponse(grant);
 
+        activity?.SetTag("grant.id", grant.Id);
+        activity?.SetTag("grant.type", grant.AccessType.ToString());
+
+        GrantsCreated.Add(1);
         LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
@@ -149,6 +171,8 @@ public partial class ClientManagementFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.GetClients");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -157,6 +181,8 @@ public partial class ClientManagementFunctions(
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
@@ -170,12 +196,14 @@ public partial class ClientManagementFunctions(
         }
 
         var isAdmin = context.IsAdministrator();
+        activity?.SetTag("user.is_admin", isAdmin);
 
         var grants = await clientManagementService.GetClientAssignmentsAsync(
             userIdGuid.Value, isAdmin);
 
         var responseDtos = grants.Select(MapToResponse).ToArray();
 
+        activity?.SetTag("grants.count", responseDtos.Length);
         LogGetClientsReturning(responseDtos.Length, userIdGuid.Value, isAdmin);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -219,6 +247,8 @@ public partial class ClientManagementFunctions(
         string id,
         FunctionContext context)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.RemoveClient");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -227,6 +257,8 @@ public partial class ClientManagementFunctions(
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
@@ -246,6 +278,8 @@ public partial class ClientManagementFunctions(
                 MiddlewareErrorCodes.ValidationFailed, "Invalid grant ID format");
         }
 
+        activity?.SetTag("grant.id", grantId);
+
         var grant = await clientManagementService.GetGrantByIdAsync(grantId);
 
         if (grant is null)
@@ -253,6 +287,9 @@ public partial class ClientManagementFunctions(
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.NotFound,
                 "RESOURCE_NOT_FOUND", "Client assignment not found");
         }
+
+        activity?.SetTag("grant.type", grant.AccessType.ToString());
+        activity?.SetTag("client.user_id", grant.GrantorUserId);
 
         // Ownership check: only the grantor or an administrator may remove
         if (grant.GrantorUserId != userIdGuid.Value && !context.IsAdministrator())
@@ -265,6 +302,7 @@ public partial class ClientManagementFunctions(
 
         await clientManagementService.RemoveClientAccessAsync(grantId);
 
+        GrantsRevoked.Add(1);
         LogClientRemoved(grantId, userIdGuid.Value);
 
         return req.CreateResponse(HttpStatusCode.NoContent);
@@ -285,40 +323,40 @@ public partial class ClientManagementFunctions(
         CreatedAt = grant.CreatedAt.UtcDateTime
     };
 
-    [LoggerMessage(EventId = 5001, Level = LogLevel.Warning, Message = "AssignClient called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 6100, Level = LogLevel.Warning, Message = "AssignClient called without UserIdGuid in context")]
     private partial void LogAssignClientMissingContext();
 
-    [LoggerMessage(EventId = 5002, Level = LogLevel.Warning, Message = "AssignClient forbidden for user {UserId} — missing Advisor/Administrator role")]
+    [LoggerMessage(EventId = 6101, Level = LogLevel.Warning, Message = "AssignClient forbidden for user {UserId} — missing Advisor/Administrator role")]
     private partial void LogAssignClientForbidden(Guid userId);
 
-    [LoggerMessage(EventId = 5003, Level = LogLevel.Warning, Message = "AssignClient self-assignment rejected for user {UserId}")]
+    [LoggerMessage(EventId = 6102, Level = LogLevel.Warning, Message = "AssignClient self-assignment rejected for user {UserId}")]
     private partial void LogSelfAssignmentRejected(Guid userId);
 
-    [LoggerMessage(EventId = 5004, Level = LogLevel.Information, Message = "Client assigned: Grant {GrantId} from {UserId}")]
+    [LoggerMessage(EventId = 6103, Level = LogLevel.Information, Message = "Client assigned: Grant {GrantId} from {UserId}")]
     private partial void LogClientAssigned(Guid grantId, Guid userId);
 
-    [LoggerMessage(EventId = 5005, Level = LogLevel.Warning, Message = "GetClients called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 6104, Level = LogLevel.Warning, Message = "GetClients called without UserIdGuid in context")]
     private partial void LogGetClientsMissingContext();
 
-    [LoggerMessage(EventId = 5006, Level = LogLevel.Warning, Message = "GetClients forbidden for user {UserId} — missing Advisor/Administrator role")]
+    [LoggerMessage(EventId = 6105, Level = LogLevel.Warning, Message = "GetClients forbidden for user {UserId} — missing Advisor/Administrator role")]
     private partial void LogGetClientsForbidden(Guid userId);
 
-    [LoggerMessage(EventId = 5007, Level = LogLevel.Information, Message = "GetClients returning {Count} assignment(s) for user {UserId} (admin={IsAdmin})")]
+    [LoggerMessage(EventId = 6106, Level = LogLevel.Information, Message = "GetClients returning {Count} assignment(s) for user {UserId} (admin={IsAdmin})")]
     private partial void LogGetClientsReturning(int count, Guid userId, bool isAdmin);
 
-    [LoggerMessage(EventId = 5008, Level = LogLevel.Warning, Message = "RemoveClient called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 6107, Level = LogLevel.Warning, Message = "RemoveClient called without UserIdGuid in context")]
     private partial void LogRemoveClientMissingContext();
 
-    [LoggerMessage(EventId = 5009, Level = LogLevel.Warning, Message = "RemoveClient forbidden for user {UserId} — missing Advisor/Administrator role")]
+    [LoggerMessage(EventId = 6108, Level = LogLevel.Warning, Message = "RemoveClient forbidden for user {UserId} — missing Advisor/Administrator role")]
     private partial void LogRemoveClientForbidden(Guid userId);
 
-    [LoggerMessage(EventId = 5010, Level = LogLevel.Warning, Message = "RemoveClient received invalid GUID: {Id}")]
+    [LoggerMessage(EventId = 6109, Level = LogLevel.Warning, Message = "RemoveClient received invalid GUID: {Id}")]
     private partial void LogRemoveClientInvalidGuid(string id);
 
-    [LoggerMessage(EventId = 5011, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 6110, Level = LogLevel.Warning,
         Message = "RemoveClient ownership denied: user {UserId} attempted to remove grant {GrantId} owned by {GrantorId}")]
     private partial void LogRemoveClientOwnershipDenied(Guid userId, Guid grantId, Guid grantorId);
 
-    [LoggerMessage(EventId = 5012, Level = LogLevel.Information, Message = "Client assignment removed: Grant {GrantId} by user {UserId}")]
+    [LoggerMessage(EventId = 6111, Level = LogLevel.Information, Message = "Client assignment removed: Grant {GrantId} by user {UserId}")]
     private partial void LogClientRemoved(Guid grantId, Guid userId);
 }

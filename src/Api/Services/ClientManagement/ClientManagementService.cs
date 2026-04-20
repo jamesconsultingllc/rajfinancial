@@ -5,6 +5,8 @@
 // Operations: assign, list, lookup, and soft-delete client relationships.
 // ============================================================================
 
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -37,12 +39,24 @@ public partial class ClientManagementService(
     ApplicationDbContext dbContext,
     ILogger<ClientManagementService> logger) : IClientManagementService
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.ClientManagement");
+    private static readonly Meter Meter = new("RajFinancial.Api.ClientManagement");
+
+    private static readonly Counter<long> GrantsCreated =
+        Meter.CreateCounter<long>("clientmgmt.grants.created.count");
+
+    private static readonly Counter<long> GrantsRevoked =
+        Meter.CreateCounter<long>("clientmgmt.grants.revoked.count");
+
     /// <inheritdoc/>
     public async Task<DataAccessGrant> AssignClientAsync(
         Guid grantorUserId,
         AssignClientRequest request,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.AssignClient");
+        activity?.SetTag("user.id", grantorUserId);
+
         if (!Enum.TryParse<AccessType>(request.AccessType, ignoreCase: true, out var accessType))
         {
             throw new ArgumentException(
@@ -65,6 +79,10 @@ public partial class ClientManagementService(
         dbContext.DataAccessGrants.Add(grant);
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        activity?.SetTag("grant.id", grant.Id);
+        activity?.SetTag("grant.type", accessType.ToString());
+
+        GrantsCreated.Add(1);
         LogClientAssigned(grant.Id, grantorUserId, accessType);
         return grant;
     }
@@ -75,6 +93,10 @@ public partial class ClientManagementService(
         bool isAdmin,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.GetClientAssignments");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("user.is_admin", isAdmin);
+
         IQueryable<DataAccessGrant> query = dbContext.DataAccessGrants
             .Where(g => g.Status != GrantStatus.Revoked);
 
@@ -88,6 +110,7 @@ public partial class ClientManagementService(
             .OrderByDescending(g => g.CreatedAt)
             .ToListAsync(cancellationToken);
 
+        activity?.SetTag("grants.count", grants.Count);
         LogGetClientAssignments(grants.Count, userId, isAdmin);
         return grants;
     }
@@ -97,6 +120,9 @@ public partial class ClientManagementService(
         Guid grantId,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.GetGrantById");
+        activity?.SetTag("grant.id", grantId);
+
         return await dbContext.DataAccessGrants.FindAsync(
             [grantId], cancellationToken);
     }
@@ -106,6 +132,9 @@ public partial class ClientManagementService(
         Guid grantId,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ClientMgmt.RemoveClientAccess");
+        activity?.SetTag("grant.id", grantId);
+
         var grant = await dbContext.DataAccessGrants.FindAsync(
             [grantId], cancellationToken);
 
@@ -116,6 +145,9 @@ public partial class ClientManagementService(
                 $"Grant '{grantId}' not found. The caller should verify existence before revoking.");
         }
 
+        activity?.SetTag("grant.type", grant.AccessType.ToString());
+        activity?.SetTag("user.id", grant.GrantorUserId);
+
         // Soft-delete: revoke the grant
         grant.Status = GrantStatus.Revoked;
         grant.RevokedAt = DateTimeOffset.UtcNow;
@@ -123,6 +155,7 @@ public partial class ClientManagementService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        GrantsRevoked.Add(1);
         LogClientAccessRevoked(grantId);
     }
 
