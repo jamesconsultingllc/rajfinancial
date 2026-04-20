@@ -5,6 +5,12 @@
 // names for the Assets domain. Extracted out of AssetService / AssetFunctions
 // to satisfy the Services_ShouldNotHavePrivateStaticMethods architecture
 // invariant and the AGENT.md "No Magic Strings or Numbers" rule.
+//
+// TODO(ADO #628): Replace per-call RecordCreated/Updated/Deleted helpers with
+// a single SaveChangesInterceptor, and delete the Assets.Http.* activity
+// names once TelemetryEnrichmentMiddleware adds domain tags to the
+// auto-emitted Functions Invoke span. Do not add new per-domain counter
+// helpers or *.Http.* activities before that consolidation lands.
 // ============================================================================
 
 using System.Diagnostics;
@@ -38,7 +44,7 @@ internal static class AssetsTelemetry
     internal const string TagAssetId = "asset.id";
     internal const string TagAssetType = "asset.type";
     internal const string TagAssetsCount = "assets.count";
-    internal const string TagTypeSwitch = "type_switch";
+    internal const string TagTypeSwitch = "asset.type_switch";
 
     // Metric instrument names
     private const string METRIC_ASSETS_CREATED = "assets.created.count";
