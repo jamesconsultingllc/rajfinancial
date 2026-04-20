@@ -37,7 +37,6 @@ public sealed partial class ConfigHealthCheck(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        _ = context;
         var missing = new List<string>();
 
         foreach (var key in RequiredKeys)
@@ -65,7 +64,8 @@ public sealed partial class ConfigHealthCheck(
             ? "Missing or placeholder configuration: " + string.Join(", ", missing)
             : $"Required configuration missing ({missing.Count} key(s))";
 
-        return Task.FromResult(HealthCheckResult.Unhealthy(description));
+        return Task.FromResult(new HealthCheckResult(
+            context.Registration.FailureStatus, description));
     }
 
     [LoggerMessage(EventId = 9902, Level = LogLevel.Warning,

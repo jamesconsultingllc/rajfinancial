@@ -1,5 +1,6 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NReco.Logging.File;
@@ -18,8 +19,8 @@ namespace RajFinancial.Api.Configuration;
 ///     Uses <c>UseFunctionsWorkerDefaults()</c> (not AspNetCore instrumentation) because the
 ///     isolated worker does not run an ASP.NET Core server; host/worker trace correlation is
 ///     provided by the Functions.Worker.OpenTelemetry package.
-///     Sources and meters for all 7 reserved domains are registered here so domain classes
-///     can reference them before this wiring runs.
+///     Sources and meters for every domain listed in <see cref="ObservabilityDomains.All"/>
+///     are registered here so domain classes can reference them before this wiring runs.
 /// </remarks>
 internal static class ObservabilityRegistration
 {
@@ -37,13 +38,19 @@ internal static class ObservabilityRegistration
     /// </summary>
     /// <param name="services">The application service collection.</param>
     /// <param name="env">The hosting environment used to gate Dev-only providers.</param>
+    /// <param name="configuration">
+    ///     Configuration source used to validate the Azure Monitor connection string at startup
+    ///     (non-Dev environments only) so a missing value fails host boot loudly instead of
+    ///     silently producing zero telemetry.
+    /// </param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
     internal static IServiceCollection AddApplicationObservability(
         this IServiceCollection services,
-        IHostEnvironment env)
+        IHostEnvironment env,
+        IConfiguration configuration)
     {
         ConfigureFileLogging(services, env);
-        ConfigureOpenTelemetry(services, env);
+        ConfigureOpenTelemetry(services, env, configuration);
         return services;
     }
 
@@ -62,7 +69,10 @@ internal static class ObservabilityRegistration
         });
     }
 
-    private static void ConfigureOpenTelemetry(IServiceCollection services, IHostEnvironment env)
+    private static void ConfigureOpenTelemetry(
+        IServiceCollection services,
+        IHostEnvironment env,
+        IConfiguration configuration)
     {
         var otelBuilder = services.AddOpenTelemetry();
 
@@ -104,8 +114,21 @@ internal static class ObservabilityRegistration
         otelBuilder.UseFunctionsWorkerDefaults();
 
         // Azure Monitor exporter — non-Dev only. Reads APPLICATIONINSIGHTS_CONNECTION_STRING
-        // from App Settings (Azure) or environment variable (local non-Dev).
+        // from App Settings (Azure) or environment variable (local non-Dev). We validate it
+        // here so a misconfigured deployment fails boot with a clear error rather than
+        // running "healthy" while emitting zero telemetry.
         if (!env.IsDevelopment())
+        {
+            var connectionString = configuration[ConfigurationKeys.ApplicationInsightsConnectionString];
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    $"{ConfigurationKeys.ApplicationInsightsConnectionString} is required in " +
+                    $"'{env.EnvironmentName}' but is missing or empty. Set it in App Settings " +
+                    "(Azure) or the environment before starting the host.");
+            }
+
             otelBuilder.UseAzureMonitorExporter();
+        }
     }
 }

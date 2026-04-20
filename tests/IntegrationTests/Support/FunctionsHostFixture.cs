@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 
 namespace RajFinancial.IntegrationTests.Support;
@@ -59,18 +60,20 @@ public class FunctionsHostFixture
             var response = await Client.GetAsync("/api/health/live");
             if (response.StatusCode == HttpStatusCode.OK)
                 return;
-        }
-        catch
-        {
-            // fall through to throw
-        }
 
-        throw new InvalidOperationException(
-            $"Functions host is not reachable at {BaseUrl}. " +
-            (IsLocalhost(BaseUrl)
-                ? "Start it manually: cd src/Api && func start"
-                : "Ensure the target environment is deployed and accessible."));
+            throw new InvalidOperationException(UnreachableMessage());
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or SocketException)
+        {
+            throw new InvalidOperationException(UnreachableMessage(), ex);
+        }
     }
+
+    private string UnreachableMessage() =>
+        $"Functions host is not reachable at {BaseUrl}. " +
+        (IsLocalhost(BaseUrl)
+            ? "Start it manually: cd src/Api && func start"
+            : "Ensure the target environment is deployed and accessible.");
 
     /// <summary>
     /// Whether tests are running against a local Functions host (dev mode).

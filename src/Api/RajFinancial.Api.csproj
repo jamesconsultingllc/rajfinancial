@@ -8,6 +8,11 @@
     <ProjectReference Include="..\Shared\RajFinancial.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="RajFinancial.Api.Tests" />
+    <InternalsVisibleTo Include="RajFinancial.Architecture.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <AzureFunctionsVersion>v4</AzureFunctionsVersion>

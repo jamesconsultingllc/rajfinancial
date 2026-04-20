@@ -21,23 +21,26 @@ public sealed partial class DatabaseHealthCheck(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        _ = context;
         try
         {
             var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
             return canConnect
                 ? HealthCheckResult.Healthy("Database reachable")
-                : HealthCheckResult.Unhealthy("Database.CanConnectAsync returned false");
+                : new HealthCheckResult(
+                    context.Registration.FailureStatus,
+                    "Database.CanConnectAsync returned false");
         }
         catch (DbException ex)
         {
             LogDatabaseUnreachable(ex);
-            return HealthCheckResult.Unhealthy("Database unreachable", ex);
+            return new HealthCheckResult(
+                context.Registration.FailureStatus, "Database unreachable", ex);
         }
         catch (InvalidOperationException ex)
         {
             LogDatabaseUnreachable(ex);
-            return HealthCheckResult.Unhealthy("Database unreachable", ex);
+            return new HealthCheckResult(
+                context.Registration.FailureStatus, "Database unreachable", ex);
         }
     }
 
