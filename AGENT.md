@@ -805,7 +805,8 @@ Standard codes: `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDA
 **OpenTelemetry is the instrumentation API. Application Insights is the backend.** They are **not alternatives**; we use both.
 
 - **Instrument with OpenTelemetry** (`OpenTelemetry.Extensions.Hosting`, `OpenTelemetry.Instrumentation.*`). Vendor-neutral, standard semantic conventions, auto-instruments EF Core / HttpClient / Azure SDK.
-- **Export to Application Insights** via `Azure.Monitor.OpenTelemetry.AspNetCore`. Gives us KQL, Application Map, Live Metrics, alerting.
+- **Export to Application Insights** via `Azure.Monitor.OpenTelemetry.Exporter` paired with `Microsoft.Azure.Functions.Worker.OpenTelemetry` (the Functions isolated worker correlation package). Do **not** use `Azure.Monitor.OpenTelemetry.AspNetCore` — the isolated worker doesn't run an ASP.NET Core server, and the AspNetCore meta-package adds instrumentation that never fires. Gives us KQL, Application Map, Live Metrics, alerting.
+- **Set `"telemetryMode": "OpenTelemetry"` in `host.json`.** Without this, the Functions host emits telemetry through the legacy Application Insights pipeline and host↔worker correlation breaks. The `logging.applicationInsights` block is ignored in this mode and should be removed.
 - **Never use the classic `TelemetryClient` / `TrackDependency()` API** — it's maintenance mode. Microsoft's direction is OpenTelemetry-first.
 
 ### Required Instrumentation (per new service/module)
