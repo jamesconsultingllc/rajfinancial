@@ -34,7 +34,7 @@ namespace RajFinancial.Api.Functions.Assets;
 ///         </list>
 ///     </para>
 /// </remarks>
-public class AssetFunctions(
+public partial class AssetFunctions(
     IAssetService assetService,
     ISerializationFactory serializationFactory,
     ILogger<AssetFunctions> logger)
@@ -73,13 +73,11 @@ public class AssetFunctions(
         var filterType = ParseAssetType(req);
         var includeDisposed = ParseBool(req, "includeDisposed");
 
-        logger.LogInformation(
-            "Fetching assets for owner {OwnerUserId} (requested by {UserId}, type={FilterType}, includeDisposed={IncludeDisposed})",
-            ownerUserId, userId, filterType, includeDisposed);
+        LogFetchingAssets(ownerUserId, userId, filterType, includeDisposed);
 
         var assets = await assetService.GetAssetsAsync(userId, ownerUserId, filterType, includeDisposed);
 
-        logger.LogInformation("Returned {Count} assets for owner {OwnerUserId}", assets.Count, ownerUserId);
+        LogAssetsReturned(assets.Count, ownerUserId);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, assets, serializationFactory);
@@ -115,13 +113,12 @@ public class AssetFunctions(
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
 
-        logger.LogInformation("Fetching asset {AssetId} for user {UserId}", assetId, userId);
+        LogFetchingAssetById(assetId, userId);
 
         var asset = await assetService.GetAssetByIdAsync(userId, assetId)
                     ?? throw NotFoundException.Asset(assetId);
 
-        logger.LogInformation("Returned asset {AssetId} ({AssetName}) for user {UserId}",
-            asset.Id, asset.Name, userId);
+        LogAssetByIdReturned(asset.Id, asset.Name, userId);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, asset, serializationFactory);
@@ -155,12 +152,11 @@ public class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateAssetRequest>();
 
-        logger.LogInformation("Creating asset for user {UserId}: {AssetName} ({AssetType})",
-            userId, request.Name, request.Type);
+        LogCreatingAsset(userId, request.Name, request.Type);
 
         var asset = await assetService.CreateAssetAsync(userId, request);
 
-        logger.LogInformation("Asset {AssetId} created for user {UserId}", asset.Id, userId);
+        LogAssetCreated(asset.Id, userId);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.Created, asset, serializationFactory);
@@ -201,12 +197,11 @@ public class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<UpdateAssetRequest>();
 
-        logger.LogInformation("Updating asset {AssetId} for user {UserId}: {AssetName} ({AssetType})",
-            assetId, userId, request.Name, request.Type);
+        LogUpdatingAsset(assetId, userId, request.Name, request.Type);
 
         var asset = await assetService.UpdateAssetAsync(userId, assetId, request);
 
-        logger.LogInformation("Asset {AssetId} updated by user {UserId}", assetId, userId);
+        LogAssetUpdated(assetId, userId);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, asset, serializationFactory);
@@ -242,11 +237,11 @@ public class AssetFunctions(
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
 
-        logger.LogInformation("Deleting asset {AssetId} for user {UserId}", assetId, userId);
+        LogDeletingAsset(assetId, userId);
 
         await assetService.DeleteAssetAsync(userId, assetId);
 
-        logger.LogInformation("Asset {AssetId} deleted by user {UserId}", assetId, userId);
+        LogAssetDeleted(assetId, userId);
 
         return req.CreateResponse(HttpStatusCode.NoContent);
     }
@@ -290,4 +285,35 @@ public class AssetFunctions(
         var value = req.Query[name];
         return bool.TryParse(value, out var parsed) && parsed;
     }
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Information,
+        Message = "Fetching assets for owner {OwnerUserId} (requested by {UserId}, type={FilterType}, includeDisposed={IncludeDisposed})")]
+    private partial void LogFetchingAssets(Guid ownerUserId, Guid userId, AssetType? filterType, bool includeDisposed);
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Information, Message = "Returned {Count} assets for owner {OwnerUserId}")]
+    private partial void LogAssetsReturned(int count, Guid ownerUserId);
+
+    [LoggerMessage(EventId = 2003, Level = LogLevel.Information, Message = "Fetching asset {AssetId} for user {UserId}")]
+    private partial void LogFetchingAssetById(Guid assetId, Guid userId);
+
+    [LoggerMessage(EventId = 2004, Level = LogLevel.Information, Message = "Returned asset {AssetId} ({AssetName}) for user {UserId}")]
+    private partial void LogAssetByIdReturned(Guid assetId, string assetName, Guid userId);
+
+    [LoggerMessage(EventId = 2005, Level = LogLevel.Information, Message = "Creating asset for user {UserId}: {AssetName} ({AssetType})")]
+    private partial void LogCreatingAsset(Guid userId, string assetName, AssetType assetType);
+
+    [LoggerMessage(EventId = 2006, Level = LogLevel.Information, Message = "Asset {AssetId} created for user {UserId}")]
+    private partial void LogAssetCreated(Guid assetId, Guid userId);
+
+    [LoggerMessage(EventId = 2007, Level = LogLevel.Information, Message = "Updating asset {AssetId} for user {UserId}: {AssetName} ({AssetType})")]
+    private partial void LogUpdatingAsset(Guid assetId, Guid userId, string assetName, AssetType assetType);
+
+    [LoggerMessage(EventId = 2008, Level = LogLevel.Information, Message = "Asset {AssetId} updated by user {UserId}")]
+    private partial void LogAssetUpdated(Guid assetId, Guid userId);
+
+    [LoggerMessage(EventId = 2009, Level = LogLevel.Information, Message = "Deleting asset {AssetId} for user {UserId}")]
+    private partial void LogDeletingAsset(Guid assetId, Guid userId);
+
+    [LoggerMessage(EventId = 2010, Level = LogLevel.Information, Message = "Asset {AssetId} deleted by user {UserId}")]
+    private partial void LogAssetDeleted(Guid assetId, Guid userId);
 }

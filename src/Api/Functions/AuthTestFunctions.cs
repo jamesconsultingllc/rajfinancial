@@ -25,7 +25,7 @@ namespace RajFinancial.Api.Functions;
 ///         </list>
 ///     </para>
 /// </remarks>
-public class AuthTestFunctions(
+public partial class AuthTestFunctions(
     ILogger<AuthTestFunctions> logger,
     IOptions<AppRoleOptions> appRoleOptions)
 {
@@ -52,7 +52,7 @@ public class AuthTestFunctions(
         var name = context.GetUserName();
         var roles = context.GetUserRoles();
 
-        logger.LogInformation("User {UserId} accessed /api/auth/me", userId);
+        LogAuthStatusAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
@@ -84,7 +84,7 @@ public class AuthTestFunctions(
         FunctionContext context)
     {
         var userId = context.GetUserId();
-        logger.LogInformation("Client {UserId} accessed /api/auth/client", userId);
+        LogClientEndpointAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
@@ -114,7 +114,7 @@ public class AuthTestFunctions(
         FunctionContext context)
     {
         var adminUserId = context.GetUserId();
-        logger.LogInformation("Administrator {UserId} accessed /api/auth/admin", adminUserId);
+        LogAdminEndpointAccessed(adminUserId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
@@ -146,7 +146,7 @@ public class AuthTestFunctions(
         var isAuthenticated = context.IsAuthenticated();
         var userId = isAuthenticated ? context.GetUserId() : null;
 
-        logger.LogInformation("Public endpoint accessed. Authenticated: {IsAuthenticated}", isAuthenticated);
+        LogPublicEndpointAccessed(isAuthenticated);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
@@ -164,4 +164,16 @@ public class AuthTestFunctions(
 
         return response;
     }
+
+    [LoggerMessage(EventId = 9001, Level = LogLevel.Information, Message = "User {UserId} accessed /api/auth/status")]
+    private partial void LogAuthStatusAccessed(string? userId);
+
+    [LoggerMessage(EventId = 9002, Level = LogLevel.Information, Message = "Client {UserId} accessed /api/auth/client")]
+    private partial void LogClientEndpointAccessed(string? userId);
+
+    [LoggerMessage(EventId = 9003, Level = LogLevel.Information, Message = "Administrator {UserId} accessed /api/auth/admin")]
+    private partial void LogAdminEndpointAccessed(string? userId);
+
+    [LoggerMessage(EventId = 9004, Level = LogLevel.Information, Message = "Public endpoint accessed. Authenticated: {IsAuthenticated}")]
+    private partial void LogPublicEndpointAccessed(bool isAuthenticated);
 }

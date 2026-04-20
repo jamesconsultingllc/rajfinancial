@@ -20,7 +20,7 @@ namespace RajFinancial.Api.Functions;
 ///     <c>Given a contact "x" exists for user "y"</c> steps seed the
 ///     <see cref="SeedableContactResolver" /> via an HTTP POST.
 /// </remarks>
-public class TestingFunctions(
+public partial class TestingFunctions(
     ILogger<TestingFunctions> logger,
     IContactResolver contactResolver)
 {
@@ -67,7 +67,7 @@ public class TestingFunctions(
         }
         catch (JsonException ex)
         {
-            logger.LogWarning(ex, "Invalid JSON on seed-contact request");
+            LogInvalidSeedJson(ex);
             var errResp = req.CreateResponse(HttpStatusCode.BadRequest);
             await errResp.WriteStringAsync($"Invalid JSON: {ex.Message}");
             return errResp;
@@ -82,9 +82,7 @@ public class TestingFunctions(
         }
 
         seedable.Seed(payload.ContactId, payload.UserId);
-        logger.LogInformation(
-            "Seeded test contact {ContactId} -> user {UserId}",
-            payload.ContactId, payload.UserId);
+        LogContactSeeded(payload.ContactId, payload.UserId);
 
         return req.CreateResponse(HttpStatusCode.NoContent);
     }
@@ -110,9 +108,11 @@ public class TestingFunctions(
             "true",
             StringComparison.OrdinalIgnoreCase);
 
-    private sealed class SeedContactRequest
-    {
-        public Guid ContactId { get; set; }
-        public Guid UserId { get; set; }
-    }
+    private sealed record SeedContactRequest(Guid ContactId, Guid UserId);
+
+    [LoggerMessage(EventId = 9501, Level = LogLevel.Warning, Message = "Invalid JSON on seed-contact request")]
+    private partial void LogInvalidSeedJson(Exception ex);
+
+    [LoggerMessage(EventId = 9502, Level = LogLevel.Information, Message = "Seeded test contact {ContactId} -> user {UserId}")]
+    private partial void LogContactSeeded(Guid contactId, Guid userId);
 }

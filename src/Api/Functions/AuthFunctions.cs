@@ -37,7 +37,7 @@ namespace RajFinancial.Api.Functions;
 ///         <see cref="UserProfileResponse"/> contract shaped for client consumption.
 ///     </para>
 /// </remarks>
-public class AuthFunctions(
+public partial class AuthFunctions(
     ILogger<AuthFunctions> logger,
     IUserProfileService userProfileService)
 {
@@ -66,7 +66,7 @@ public class AuthFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("AuthMe called without UserIdGuid in context");
+            LogAuthMeMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -93,13 +93,11 @@ public class AuthFunctions(
             CreatedAt = profile.CreatedAt,  // Implicit DateTimeOffset → DtoDateTime
         };
 
-        logger.LogInformation(
-            "AuthMe returning profile for user {UserId}",
-            userIdGuid.Value);
+        LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        // TODO: Align with ContentNegotiationMiddleware for MemoryPack support
+        // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
 
@@ -134,7 +132,7 @@ public class AuthFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("AuthRoles called without UserIdGuid in context");
+            LogAuthRolesMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -148,17 +146,26 @@ public class AuthFunctions(
             IsAdministrator = isAdministrator
         };
 
-        logger.LogInformation(
-            "AuthRoles returning {RoleCount} role(s) for user {UserId}",
-            roles.Count,
-            userIdGuid.Value);
+        LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        // TODO: Align with ContentNegotiationMiddleware for MemoryPack support
+        // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
 
         return response;
     }
+
+    [LoggerMessage(EventId = 9101, Level = LogLevel.Warning, Message = "AuthMe called without UserIdGuid in context")]
+    private partial void LogAuthMeMissingContext();
+
+    [LoggerMessage(EventId = 9102, Level = LogLevel.Information, Message = "AuthMe returning profile for user {UserId}")]
+    private partial void LogAuthMeReturning(Guid userId);
+
+    [LoggerMessage(EventId = 9103, Level = LogLevel.Warning, Message = "AuthRoles called without UserIdGuid in context")]
+    private partial void LogAuthRolesMissingContext();
+
+    [LoggerMessage(EventId = 9104, Level = LogLevel.Information, Message = "AuthRoles returning {RoleCount} role(s) for user {UserId}")]
+    private partial void LogAuthRolesReturning(int roleCount, Guid userId);
 }

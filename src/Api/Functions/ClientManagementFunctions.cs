@@ -47,7 +47,7 @@ namespace RajFinancial.Api.Functions;
 ///     </para>
 /// </remarks>
 [RequireRole("Advisor", "Administrator")]
-public class ClientManagementFunctions(
+public partial class ClientManagementFunctions(
     ILogger<ClientManagementFunctions> logger,
     IClientManagementService clientManagementService)
 {
@@ -81,7 +81,7 @@ public class ClientManagementFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("AssignClient called without UserIdGuid in context");
+            LogAssignClientMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -92,9 +92,7 @@ public class ClientManagementFunctions(
         // keeps the 403 response testable in isolation.
         if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
         {
-            logger.LogWarning(
-                "AssignClient forbidden for user {UserId} — missing Advisor/Administrator role",
-                userIdGuid.Value);
+            LogAssignClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
                 "AUTH_FORBIDDEN", "Insufficient permissions");
         }
@@ -106,9 +104,7 @@ public class ClientManagementFunctions(
         if (string.Equals(userEmail, assignRequest.ClientEmail,
                 StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogWarning(
-                "AssignClient self-assignment rejected for user {UserId}",
-                userIdGuid.Value);
+            LogSelfAssignmentRejected(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.BadRequest,
                 "SELF_ASSIGNMENT_NOT_ALLOWED",
                 "Cannot assign yourself as a client");
@@ -119,13 +115,11 @@ public class ClientManagementFunctions(
 
         var responseDto = MapToResponse(grant);
 
-        logger.LogInformation(
-            "Client assigned: Grant {GrantId} from {UserId}",
-            grant.Id, userIdGuid.Value);
+        LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        // TODO: Align with ContentNegotiationMiddleware for MemoryPack support
+        // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
 
@@ -158,7 +152,7 @@ public class ClientManagementFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("GetClients called without UserIdGuid in context");
+            LogGetClientsMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -169,9 +163,7 @@ public class ClientManagementFunctions(
         // keeps the 403 response testable in isolation.
         if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
         {
-            logger.LogWarning(
-                "GetClients forbidden for user {UserId} — missing Advisor/Administrator role",
-                userIdGuid.Value);
+            LogGetClientsForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
                 "AUTH_FORBIDDEN", "Insufficient permissions");
         }
@@ -183,13 +175,11 @@ public class ClientManagementFunctions(
 
         var responseDtos = grants.Select(MapToResponse).ToArray();
 
-        logger.LogInformation(
-            "GetClients returning {Count} assignment(s) for user {UserId} (admin={IsAdmin})",
-            responseDtos.Length, userIdGuid.Value, isAdmin);
+        LogGetClientsReturning(responseDtos.Length, userIdGuid.Value, isAdmin);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        // TODO: Align with ContentNegotiationMiddleware for MemoryPack support
+        // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDtos, FunctionHelpers.JsonOptions));
 
@@ -232,7 +222,7 @@ public class ClientManagementFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("RemoveClient called without UserIdGuid in context");
+            LogRemoveClientMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -243,16 +233,14 @@ public class ClientManagementFunctions(
         // keeps the 403 response testable in isolation.
         if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
         {
-            logger.LogWarning(
-                "RemoveClient forbidden for user {UserId} — missing Advisor/Administrator role",
-                userIdGuid.Value);
+            LogRemoveClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
                 "AUTH_FORBIDDEN", "Insufficient permissions");
         }
 
         if (!Guid.TryParse(id, out var grantId))
         {
-            logger.LogWarning("RemoveClient received invalid GUID: {Id}", id);
+            LogRemoveClientInvalidGuid(id);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.BadRequest,
                 "VALIDATION_FAILED", "Invalid grant ID format");
         }
@@ -268,9 +256,7 @@ public class ClientManagementFunctions(
         // Ownership check: only the grantor or an administrator may remove
         if (grant.GrantorUserId != userIdGuid.Value && !context.IsAdministrator())
         {
-            logger.LogWarning(
-                "RemoveClient ownership denied: user {UserId} attempted to remove grant {GrantId} owned by {GrantorId}",
-                userIdGuid.Value, grantId, grant.GrantorUserId);
+            LogRemoveClientOwnershipDenied(userIdGuid.Value, grantId, grant.GrantorUserId);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
                 "AUTH_FORBIDDEN",
                 "You do not have permission to remove this assignment");
@@ -278,9 +264,7 @@ public class ClientManagementFunctions(
 
         await clientManagementService.RemoveClientAccessAsync(grantId);
 
-        logger.LogInformation(
-            "Client assignment removed: Grant {GrantId} by user {UserId}",
-            grantId, userIdGuid.Value);
+        LogClientRemoved(grantId, userIdGuid.Value);
 
         return req.CreateResponse(HttpStatusCode.NoContent);
     }
@@ -299,4 +283,41 @@ public class ClientManagementFunctions(
         Status = grant.Status.ToString(),
         CreatedAt = grant.CreatedAt.UtcDateTime
     };
+
+    [LoggerMessage(EventId = 5001, Level = LogLevel.Warning, Message = "AssignClient called without UserIdGuid in context")]
+    private partial void LogAssignClientMissingContext();
+
+    [LoggerMessage(EventId = 5002, Level = LogLevel.Warning, Message = "AssignClient forbidden for user {UserId} — missing Advisor/Administrator role")]
+    private partial void LogAssignClientForbidden(Guid userId);
+
+    [LoggerMessage(EventId = 5003, Level = LogLevel.Warning, Message = "AssignClient self-assignment rejected for user {UserId}")]
+    private partial void LogSelfAssignmentRejected(Guid userId);
+
+    [LoggerMessage(EventId = 5004, Level = LogLevel.Information, Message = "Client assigned: Grant {GrantId} from {UserId}")]
+    private partial void LogClientAssigned(Guid grantId, Guid userId);
+
+    [LoggerMessage(EventId = 5005, Level = LogLevel.Warning, Message = "GetClients called without UserIdGuid in context")]
+    private partial void LogGetClientsMissingContext();
+
+    [LoggerMessage(EventId = 5006, Level = LogLevel.Warning, Message = "GetClients forbidden for user {UserId} — missing Advisor/Administrator role")]
+    private partial void LogGetClientsForbidden(Guid userId);
+
+    [LoggerMessage(EventId = 5007, Level = LogLevel.Information, Message = "GetClients returning {Count} assignment(s) for user {UserId} (admin={IsAdmin})")]
+    private partial void LogGetClientsReturning(int count, Guid userId, bool isAdmin);
+
+    [LoggerMessage(EventId = 5008, Level = LogLevel.Warning, Message = "RemoveClient called without UserIdGuid in context")]
+    private partial void LogRemoveClientMissingContext();
+
+    [LoggerMessage(EventId = 5009, Level = LogLevel.Warning, Message = "RemoveClient forbidden for user {UserId} — missing Advisor/Administrator role")]
+    private partial void LogRemoveClientForbidden(Guid userId);
+
+    [LoggerMessage(EventId = 5010, Level = LogLevel.Warning, Message = "RemoveClient received invalid GUID: {Id}")]
+    private partial void LogRemoveClientInvalidGuid(string id);
+
+    [LoggerMessage(EventId = 5011, Level = LogLevel.Warning,
+        Message = "RemoveClient ownership denied: user {UserId} attempted to remove grant {GrantId} owned by {GrantorId}")]
+    private partial void LogRemoveClientOwnershipDenied(Guid userId, Guid grantId, Guid grantorId);
+
+    [LoggerMessage(EventId = 5012, Level = LogLevel.Information, Message = "Client assignment removed: Grant {GrantId} by user {UserId}")]
+    private partial void LogClientRemoved(Guid grantId, Guid userId);
 }
