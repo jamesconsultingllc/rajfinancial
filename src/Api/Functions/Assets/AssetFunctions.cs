@@ -167,6 +167,7 @@ public partial class AssetFunctions(
 
         using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpCreate);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
         LogCreatingAsset(userId, request.Name, request.Type);

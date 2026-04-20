@@ -51,10 +51,18 @@ public partial class AssetService(
             query = query.Where(a => !a.IsDisposed);
 
         var sw = Stopwatch.StartNew();
-        var assets = await query
-            .OrderBy(a => a.Name)
-            .ToListAsync();
-        AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationList, sw.Elapsed.TotalMilliseconds);
+        List<Asset> assets;
+        try
+        {
+            assets = await query
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+        finally
+        {
+            sw.Stop();
+            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationList, sw.Elapsed.TotalMilliseconds);
+        }
 
         activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
         return assets.Select(a => a.ToDto()).ToList();
@@ -67,15 +75,24 @@ public partial class AssetService(
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
         var sw = Stopwatch.StartNew();
-        var asset = await db.Assets
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == assetId);
-        AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationGet, sw.Elapsed.TotalMilliseconds);
+        Asset? asset;
+        try
+        {
+            asset = await db.Assets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == assetId);
+        }
+        finally
+        {
+            sw.Stop();
+            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationGet, sw.Elapsed.TotalMilliseconds);
+        }
 
         if (asset is null)
             return null;
 
         activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
         await AuthorizeReadAsync(requestingUserId, asset.UserId);
 
@@ -86,6 +103,7 @@ public partial class AssetService(
     {
         using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityCreate);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
         var isDepreciable = request.DepreciationMethod.HasValue
@@ -150,6 +168,8 @@ public partial class AssetService(
 
         var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                     ?? throw NotFoundException.Asset(assetId);
+
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
         await AuthorizeWriteAsync(requestingUserId, asset.UserId);
 
@@ -233,6 +253,7 @@ public partial class AssetService(
                     ?? throw NotFoundException.Asset(assetId);
 
         activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
         await AuthorizeWriteAsync(requestingUserId, asset.UserId);
 
