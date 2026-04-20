@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -19,6 +21,17 @@ public partial class EntityService(
     IContactResolver contactResolver,
     ILogger<EntityService> logger) : IEntityService
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Entities");
+    private static readonly Meter Meter = new("RajFinancial.Api.Entities");
+
+    private static readonly Counter<long> EntitiesCreated =
+        Meter.CreateCounter<long>("entities.created.count");
+
+    private static readonly Counter<long> EntityRolesAssigned =
+        Meter.CreateCounter<long>("entities.roles.assigned.count");
+
+    private static readonly Histogram<double> EntitiesQueryDuration =
+        Meter.CreateHistogram<double>("entities.query.duration.ms");
     // =========================================================================
     // Entity queries
     // =========================================================================
@@ -28,6 +41,14 @@ public partial class EntityService(
         Guid ownerUserId,
         EntityType? filterType = null)
     {
+        using var activity = ActivitySource.StartActivity("Entities.GetEntities");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.owner.id", ownerUserId);
+        if (filterType.HasValue)
+            activity?.SetTag("entity.type", filterType.Value.ToString());
+
+        var stopwatch = Stopwatch.StartNew();
+
         await AuthorizeReadAsync(requestingUserId, ownerUserId);
 
         var query = db.Entities
@@ -42,11 +63,22 @@ public partial class EntityService(
             .ThenBy(e => e.Name)
             .ToListAsync();
 
+        stopwatch.Stop();
+        EntitiesQueryDuration.Record(
+            stopwatch.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("entities.query.op", "list"));
+
         return entities.Select(e => e.ToDto()).ToList();
     }
 
     public async Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
     {
+        using var activity = ActivitySource.StartActivity("Entities.GetEntityById");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+
+        var stopwatch = Stopwatch.StartNew();
+
         var ownerId = await db.Entities
             .AsNoTracking()
             .Where(e => e.Id == entityId)
@@ -63,6 +95,14 @@ public partial class EntityService(
             .FirstOrDefaultAsync(e => e.Id == entityId)
             ?? throw EntityDbErrors.NotFound(entityId);
 
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
+
+        stopwatch.Stop();
+        EntitiesQueryDuration.Record(
+            stopwatch.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("entities.query.op", "get"));
+
         return entity.ToDetailDto();
     }
 
@@ -72,6 +112,11 @@ public partial class EntityService(
 
     public async Task<EntityDto> CreateEntityAsync(Guid userId, CreateEntityRequest request)
     {
+        using var activity = ActivitySource.StartActivity("Entities.CreateEntity");
+        activity?.SetTag("user.id", userId);
+        if (request.Type.HasValue)
+            activity?.SetTag("entity.type", request.Type.Value.ToString());
+
         await AuthorizeWriteAsync(userId, userId);
 
         // Validator guarantees Type.HasValue; treat absence as an internal bug.
@@ -116,6 +161,13 @@ public partial class EntityService(
                 EntityErrorCodes.SlugDuplicate,
                 $"Slug '{slug}' is already in use.");
         }
+
+        activity?.SetTag("entity.id", entity.Id);
+        activity?.SetTag("entity.slug", entity.Slug);
+
+        EntitiesCreated.Add(
+            1,
+            new KeyValuePair<string, object?>("entity.type", entity.Type.ToString()));
 
         LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
 
@@ -180,8 +232,15 @@ public partial class EntityService(
         Guid entityId,
         UpdateEntityRequest request)
     {
+        using var activity = ActivitySource.StartActivity("Entities.UpdateEntity");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                      ?? throw EntityDbErrors.NotFound(entityId);
+
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -220,8 +279,15 @@ public partial class EntityService(
 
     public async Task DeleteEntityAsync(Guid requestingUserId, Guid entityId)
     {
+        using var activity = ActivitySource.StartActivity("Entities.DeleteEntity");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                      ?? throw EntityDbErrors.NotFound(entityId);
+
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -248,11 +314,19 @@ public partial class EntityService(
 
     public async Task<EntityDto> EnsurePersonalEntityAsync(Guid userId)
     {
+        using var activity = ActivitySource.StartActivity("Entities.EnsurePersonalEntity");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("entity.type", EntityType.Personal.ToString());
+
         var existing = await db.Entities
             .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
 
         if (existing is not null)
+        {
+            activity?.SetTag("entity.id", existing.Id);
+            activity?.SetTag("entity.slug", existing.Slug);
             return existing.ToDto();
+        }
 
         var entity = new Entity
         {
@@ -288,10 +362,20 @@ public partial class EntityService(
 
             LogPersonalEntityConcurrentlyProvisioned(winner.Id, userId);
 
+            activity?.SetTag("entity.id", winner.Id);
+            activity?.SetTag("entity.slug", winner.Slug);
+
             return winner.ToDto();
         }
 
         LogPersonalEntityProvisioned(entity.Id, userId);
+
+        activity?.SetTag("entity.id", entity.Id);
+        activity?.SetTag("entity.slug", entity.Slug);
+
+        EntitiesCreated.Add(
+            1,
+            new KeyValuePair<string, object?>("entity.type", entity.Type.ToString()));
 
         return entity.ToDto();
     }
@@ -305,8 +389,17 @@ public partial class EntityService(
         Guid entityId,
         CreateEntityRoleRequest request)
     {
+        using var activity = ActivitySource.StartActivity("Entities.AssignRole");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+        if (request.RoleType.HasValue)
+            activity?.SetTag("entity.role.type", request.RoleType.Value.ToString());
+
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                      ?? throw EntityDbErrors.NotFound(entityId);
+
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
@@ -332,6 +425,12 @@ public partial class EntityService(
 
         db.EntityRoles.Add(role);
         await db.SaveChangesAsync();
+
+        activity?.SetTag("entity.role.id", role.Id);
+
+        EntityRolesAssigned.Add(
+            1,
+            new KeyValuePair<string, object?>("entity.role.type", role.RoleType.ToString()));
 
         LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
 
@@ -393,10 +492,19 @@ public partial class EntityService(
 
     public async Task<IReadOnlyList<EntityRoleDto>> GetRolesAsync(Guid requestingUserId, Guid entityId)
     {
+        using var activity = ActivitySource.StartActivity("Entities.GetRoles");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+
+        var stopwatch = Stopwatch.StartNew();
+
         var entity = await db.Entities
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == entityId)
             ?? throw EntityDbErrors.NotFound(entityId);
+
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
 
         await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
@@ -407,13 +515,26 @@ public partial class EntityService(
             .ThenBy(r => r.RoleType)
             .ToListAsync();
 
+        stopwatch.Stop();
+        EntitiesQueryDuration.Record(
+            stopwatch.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("entities.query.op", "list-roles"));
+
         return roles.Select(r => r.ToRoleDto()).ToList();
     }
 
     public async Task RemoveRoleAsync(Guid requestingUserId, Guid entityId, Guid roleId)
     {
+        using var activity = ActivitySource.StartActivity("Entities.RemoveRole");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("entity.id", entityId);
+        activity?.SetTag("entity.role.id", roleId);
+
         var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                      ?? throw EntityDbErrors.NotFound(entityId);
+
+        activity?.SetTag("entity.type", entity.Type.ToString());
+        activity?.SetTag("entity.slug", entity.Slug);
 
         await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
