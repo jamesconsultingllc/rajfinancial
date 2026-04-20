@@ -85,7 +85,7 @@ internal static class EntityTestDataCleanup
     /// a local/ephemeral SQL Server instance. Parses the connection string and requires the
     /// DataSource to be an explicitly-allowed local value.
     /// </summary>
-    private static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
+    internal static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
         var dataSource = builder.DataSource?.Trim() ?? string.Empty;
