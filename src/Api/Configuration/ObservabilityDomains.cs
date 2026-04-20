@@ -1,6 +1,6 @@
-namespace RajFinancial.Api.Configuration;
-
 using System.Collections.ObjectModel;
+
+namespace RajFinancial.Api.Configuration;
 
 /// <summary>
 ///     Canonical ActivitySource / Meter names for each instrumentation domain.
