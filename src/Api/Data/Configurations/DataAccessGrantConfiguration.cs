@@ -53,7 +53,7 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
                     0,
                     (hash, item) => HashCode.Combine(
                         hash,
-                        item == null ? 0 : StringComparer.Ordinal.GetHashCode(item))),
+                        StringComparer.Ordinal.GetHashCode(item))),
                 c => c.ToList()));
 
         // Configure relationships

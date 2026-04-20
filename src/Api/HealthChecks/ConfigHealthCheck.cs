@@ -22,7 +22,7 @@ public sealed partial class ConfigHealthCheck(
     IHostEnvironment environment,
     ILogger<ConfigHealthCheck> logger) : IHealthCheck
 {
-    private const string PlaceholderValue = "<SET-IN-ENVIRONMENT>";
+    private const string PLACEHOLDER_VALUE = "<SET-IN-ENVIRONMENT>";
 
     private static readonly string[] RequiredKeys =
     [
@@ -43,7 +43,7 @@ public sealed partial class ConfigHealthCheck(
         foreach (var key in RequiredKeys)
         {
             var value = configuration[key];
-            if (string.IsNullOrWhiteSpace(value) || value == PlaceholderValue)
+            if (string.IsNullOrWhiteSpace(value) || value == PLACEHOLDER_VALUE)
                 missing.Add(key);
         }
 

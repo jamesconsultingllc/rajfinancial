@@ -18,44 +18,48 @@ public class DtoInvariantsTests
     [Fact]
     public void Contracts_ShouldNotDependOnEntityClasses()
     {
-        // NetArchTest's dependency inspection treats enums as dependencies, so
-        // we can't simply forbid "any reference to Entities.*". Instead, require
-        // Contracts types to not depend on any *class* type from the Entities
-        // namespace. We check class-ness via reflection after NetArchTest
-        // scopes down to contract types.
         var contractAssembly = typeof(EntityDto).Assembly;
-        var contractTypes = Types
+        var contractTypes = GetContractTypes(contractAssembly);
+        var entityClassFullNames = GetEntityClassFullNames(contractAssembly);
+
+        var violations = contractTypes
+            .Select(ct => new Violation(
+                ct,
+                ct.GetDependencies().Where(entityClassFullNames.Contains).ToArray()))
+            .Where(v => v.BadRefs.Length > 0)
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "DTOs (Contracts.*) must not reference concrete entity classes. " +
+            "Mirror fields explicitly or reuse entity *enums*. Offenders: " +
+            FormatViolations(violations));
+    }
+
+    private static Type[] GetContractTypes(Assembly contractAssembly)
+        => Types
             .InAssembly(contractAssembly)
             .That()
             .ResideInNamespaceStartingWith("RajFinancial.Shared.Contracts")
             .GetTypes()
             .ToArray();
 
-        var entityClassFullNames = contractAssembly
+    private static HashSet<string> GetEntityClassFullNames(Assembly contractAssembly)
+        => contractAssembly
             .GetTypes()
-            .Where(t => t.Namespace is not null
-                        && t.Namespace.StartsWith("RajFinancial.Shared.Entities", StringComparison.Ordinal)
-                        && t is { IsClass: true, IsAbstract: false })
+            .Where(IsConcreteEntityClass)
             .Select(t => t.FullName!)
             .ToHashSet(StringComparer.Ordinal);
 
-        var violations = contractTypes
-            .Select(ct => new
-            {
-                Contract = ct,
-                BadRefs = ct.GetDependencies()
-                    .Where(entityClassFullNames.Contains)
-                    .ToArray(),
-            })
-            .Where(x => x.BadRefs.Length > 0)
-            .ToArray();
+    private static bool IsConcreteEntityClass(Type t)
+        => t.Namespace is not null
+            && t.Namespace.StartsWith("RajFinancial.Shared.Entities", StringComparison.Ordinal)
+            && t is { IsClass: true, IsAbstract: false };
 
-        violations.Should().BeEmpty(
-            "DTOs (Contracts.*) must not reference concrete entity classes. " +
-            "Mirror fields explicitly or reuse entity *enums*. Offenders: " +
-            string.Join("; ",
-                violations.Select(v => $"{v.Contract.FullName} -> [{string.Join(", ", v.BadRefs)}]")));
-    }
+    private static string FormatViolations(IEnumerable<Violation> violations)
+        => string.Join("; ",
+            violations.Select(v => $"{v.Contract.FullName} -> [{string.Join(", ", v.BadRefs)}]"));
+
+    private sealed record Violation(Type Contract, string[] BadRefs);
 }
 
 // ============================================================================
@@ -135,37 +139,28 @@ internal static class TypeDependencyExtensions
         {
             var current = stack.Pop();
             if (!visited.Add(current))
-            {
                 continue;
-            }
 
             yield return current;
 
-            if (current.IsArray)
-            {
-                var element = current.GetElementType();
-                if (element is not null)
-                {
-                    stack.Push(element);
-                }
-            }
+            foreach (var nested in GetNestedTypes(current))
+                stack.Push(nested);
+        }
+    }
 
-            if (current.IsByRef || current.IsPointer)
-            {
-                var element = current.GetElementType();
-                if (element is not null)
-                {
-                    stack.Push(element);
-                }
-            }
+    private static IEnumerable<Type> GetNestedTypes(Type type)
+    {
+        if (type.HasElementType)
+        {
+            var element = type.GetElementType();
+            if (element is not null)
+                yield return element;
+        }
 
-            if (current.IsGenericType)
-            {
-                foreach (var arg in current.GetGenericArguments())
-                {
-                    stack.Push(arg);
-                }
-            }
+        if (type.IsGenericType)
+        {
+            foreach (var arg in type.GetGenericArguments())
+                yield return arg;
         }
     }
 

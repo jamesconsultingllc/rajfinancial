@@ -13,8 +13,8 @@ internal static class HealthCheckRegistration
     {
         services
             .AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database", tags: [HealthCheckTags.Ready])
-            .AddCheck<ConfigHealthCheck>("config", tags: [HealthCheckTags.Ready]);
+            .AddCheck<DatabaseHealthCheck>(HealthCheckNames.Database, tags: [HealthCheckTags.Ready])
+            .AddCheck<ConfigHealthCheck>(HealthCheckNames.Config, tags: [HealthCheckTags.Ready]);
 
         return services;
     }

@@ -1,5 +1,4 @@
 using System.Data.Common;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;

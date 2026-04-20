@@ -1,5 +1,7 @@
 namespace RajFinancial.Api.Configuration;
 
+using System.Collections.ObjectModel;
+
 /// <summary>
 ///     Canonical ActivitySource / Meter names for each instrumentation domain.
 /// </summary>
@@ -20,8 +22,8 @@ internal static class ObservabilityDomains
     internal const string ClientManagement = "RajFinancial.Api.ClientManagement";
     internal const string Authorization = "RajFinancial.Api.Authorization";
 
-    /// <summary>All registered domain source/meter names.</summary>
-    internal static readonly string[] All =
+    /// <summary>All registered domain source/meter names as an immutable read-only view.</summary>
+    internal static readonly IReadOnlyList<string> All = new ReadOnlyCollection<string>(
     [
         Auth,
         Assets,
@@ -30,5 +32,5 @@ internal static class ObservabilityDomains
         Middleware,
         ClientManagement,
         Authorization,
-    ];
+    ]);
 }

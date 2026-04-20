@@ -2,9 +2,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
-using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -28,9 +26,11 @@ internal static class ObservabilityRegistration
     /// <summary>
     ///     Backing array passed to <c>AddSource</c>/<c>AddMeter</c>. Individual names are
     ///     declared as <c>internal const</c> in <see cref="ObservabilityDomains"/> so
-    ///     domain classes can reference them without duplicating string literals.
+    ///     domain classes can reference them without duplicating string literals. Copy
+    ///     of the immutable <see cref="ObservabilityDomains.All"/> list — the OTel APIs
+    ///     require <c>params string[]</c>.
     /// </summary>
-    private static readonly string[] DomainSources = ObservabilityDomains.All;
+    private static readonly string[] DomainSources = [.. ObservabilityDomains.All];
 
     /// <summary>
     ///     Adds OpenTelemetry tracing + metrics and environment-aware logging to the DI container.
