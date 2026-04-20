@@ -16,7 +16,7 @@ namespace RajFinancial.Api.Tests.Services.AssetService;
 ///     Unit tests for <see cref="Api.Services.AssetService.AssetService"/>.
 ///     Uses InMemoryDatabase for EF Core and mocked IAuthorizationService.
 /// </summary>
-public class AssetServiceTests : IDisposable
+public sealed class AssetServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Mock<IAuthorizationService> authMock;
@@ -57,7 +57,6 @@ public class AssetServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     // =========================================================================
@@ -135,7 +134,7 @@ public class AssetServiceTests : IDisposable
 
         var inDb = await dbContext.Assets.FindAsync(result.Id);
         inDb.Should().NotBeNull();
-        inDb!.Name.Should().Be("Test Asset");
+        inDb.Name.Should().Be("Test Asset");
         inDb.UserId.Should().Be(OwnerId);
     }
 
@@ -213,7 +212,7 @@ public class AssetServiceTests : IDisposable
         var result = await service.GetAssetByIdAsync(OwnerId, asset.Id);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("My Asset");
+        result.Name.Should().Be("My Asset");
         result.IsDepreciable.Should().BeFalse();
     }
 
@@ -226,7 +225,7 @@ public class AssetServiceTests : IDisposable
         var result = await service.GetAssetByIdAsync(OwnerId, asset.Id);
 
         result.Should().NotBeNull();
-        result!.IsDepreciable.Should().BeTrue();
+        result.IsDepreciable.Should().BeTrue();
         result.DepreciationMethod.Should().Be(DepreciationMethod.StraightLine);
         result.AccumulatedDepreciation.Should().NotBeNull();
         result.BookValue.Should().NotBeNull();
@@ -419,7 +418,7 @@ public class AssetServiceTests : IDisposable
         var result = await service.GetAssetByIdAsync(AdvisorId, asset.Id);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Owner Asset");
+        result.Name.Should().Be("Owner Asset");
     }
 
     // =========================================================================

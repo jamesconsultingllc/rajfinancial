@@ -1,6 +1,6 @@
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Services.UserProfiles;
+namespace RajFinancial.Api.Services.UserProfile;
 
 /// <summary>
 ///     Maps Entra role-claim strings to the strongly-typed <see cref="UserRole"/>

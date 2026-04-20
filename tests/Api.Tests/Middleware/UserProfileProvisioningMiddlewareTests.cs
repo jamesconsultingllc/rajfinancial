@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Middleware;
@@ -41,10 +41,15 @@ public class UserProfileProvisioningMiddlewareTests
         string? name = "John Doe",
         IReadOnlyList<string>? roles = null)
     {
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = true,
+                ["UserId"] = userId.ToString(),
+                ["UserIdGuid"] = userId
+            }
+        };
         if (email != null) context.Items["UserEmail"] = email;
         if (name != null) context.Items["UserName"] = name;
         context.Items["UserRoles"] = roles ?? ["Client"];
@@ -57,7 +62,7 @@ public class UserProfileProvisioningMiddlewareTests
         return context;
     }
 
-    private TestFunctionContext CreateUnauthenticatedContext()
+    private static TestFunctionContext CreateUnauthenticatedContext()
     {
         var context = new TestFunctionContext();
         // IsAuthenticated not set or false
@@ -320,9 +325,14 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange — UserId set as string but UserIdGuid is missing/invalid
         var middleware = CreateMiddleware();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = true,
+                ["UserId"] = "not-a-guid"
+            }
+        };
         // No UserIdGuid set
 
         Task Next(FunctionContext _) => Task.CompletedTask;

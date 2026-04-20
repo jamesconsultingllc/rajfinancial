@@ -14,8 +14,13 @@ public class FunctionContextExtensionsTests
     public void GetUserId_WhenUserIdExists_ReturnsUserId()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["UserId"] = "user-123";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["UserId"] = "user-123"
+            }
+        };
 
         // Act
         var result = context.GetUserId();
@@ -41,8 +46,13 @@ public class FunctionContextExtensionsTests
     public void GetUserEmail_WhenEmailExists_ReturnsEmail()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["UserEmail"] = "test@example.com";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["UserEmail"] = "test@example.com"
+            }
+        };
 
         // Act
         var result = context.GetUserEmail();
@@ -68,8 +78,13 @@ public class FunctionContextExtensionsTests
     public void GetUserName_WhenNameExists_ReturnsName()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["UserName"] = "John Doe";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["UserName"] = "John Doe"
+            }
+        };
 
         // Act
         var result = context.GetUserName();
@@ -125,8 +140,13 @@ public class FunctionContextExtensionsTests
     public void IsAuthenticated_WhenTrue_ReturnsTrue()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = true
+            }
+        };
 
         // Act
         var result = context.IsAuthenticated();
@@ -139,8 +159,13 @@ public class FunctionContextExtensionsTests
     public void IsAuthenticated_WhenFalse_ReturnsFalse()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = false;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = false
+            }
+        };
 
         // Act
         var result = context.IsAuthenticated();

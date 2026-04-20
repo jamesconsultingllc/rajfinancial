@@ -61,7 +61,7 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
                 EnsureAuthenticated(context);
                 EnsureHasRole(context, requireRole.Roles);
 
-                LogAuthorizationPassed(context.FunctionDefinition?.Name ?? "unknown");
+                LogAuthorizationPassed(context.FunctionDefinition.Name);
             }
             else
             {
@@ -73,7 +73,7 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
                 {
                     EnsureAuthenticated(context);
 
-                    LogAuthenticationVerified(context.FunctionDefinition?.Name ?? "unknown");
+                    LogAuthenticationVerified(context.FunctionDefinition.Name);
                 }
             }
         }
@@ -87,19 +87,17 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
     /// </summary>
     private MethodInfo? GetTargetMethod(FunctionContext context)
     {
-        // FunctionDefinition is non-nullable per the SDK annotation but can be null in
-        // unit tests that mock FunctionContext. Guard defensively.
-        var entryPoint = context.FunctionDefinition?.EntryPoint;
+        var entryPoint = context.FunctionDefinition.EntryPoint;
         if (string.IsNullOrEmpty(entryPoint))
             return null;
 
-        var assemblyPath = context.FunctionDefinition?.PathToAssembly;
+        var assemblyPath = context.FunctionDefinition.PathToAssembly;
         return methodCache.GetOrAdd(entryPoint, ep => ResolveMethod(ep, assemblyPath));
     }
 
     /// <summary>
     /// Parses the entry point string ("Namespace.Class.Method") and resolves the MethodInfo
-    /// by searching loaded assemblies, falling back to <see cref="Assembly.LoadFrom"/>.
+    /// by searching loaded assemblies, falling back to <see cref="Assembly.LoadFrom(string)"/>.
     /// </summary>
     private MethodInfo? ResolveMethod(string entryPoint, string? assemblyPath)
     {
@@ -116,10 +114,14 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
                 .Select(a => a.GetType(typeName))
                 .FirstOrDefault(t => t is not null);
 
-            // Fall back to loading from PathToAssembly if type not found
+            // Fall back to loading from PathToAssembly if type not found.
+            // S3885 justification: Assembly.Load(string) takes an assembly *name*; we have a
+            // file *path* from FunctionDefinition.PathToAssembly, which requires LoadFrom.
             if (targetType is null && !string.IsNullOrEmpty(assemblyPath))
             {
+#pragma warning disable S3885
                 var assembly = Assembly.LoadFrom(assemblyPath);
+#pragma warning restore S3885
                 targetType = assembly.GetType(typeName);
             }
 

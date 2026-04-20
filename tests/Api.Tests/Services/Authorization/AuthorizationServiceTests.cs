@@ -15,7 +15,7 @@ namespace RajFinancial.Api.Tests.Services.Authorization;
 /// 1. Resource Owner, 2. DataAccessGrant, 3. Administrator.
 /// Covers OWASP A01:2025 (Broken Access Control / IDOR prevention).
 /// </summary>
-public class AuthorizationServiceTests : IDisposable
+public sealed class AuthorizationServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly AuthorizationService service;
@@ -40,7 +40,6 @@ public class AuthorizationServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     // =========================================================================
@@ -468,7 +467,7 @@ public class AuthorizationServiceTests : IDisposable
         // Only add if not already seeded
         if (!dbContext.UserProfiles.Any(u => u.Id == userId))
         {
-            dbContext.UserProfiles.Add(new UserProfile
+            dbContext.UserProfiles.Add(new Shared.Entities.Users.UserProfile
             {
                 Id = userId,
                 Email = $"{role.ToString().ToLowerInvariant()}@example.com",

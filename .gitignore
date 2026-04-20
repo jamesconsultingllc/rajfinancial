@@ -87,3 +87,6 @@ inspectcode.sarif
 build.log
 src-build.log
 tests-build.log
+
+inspect-results.xml
+

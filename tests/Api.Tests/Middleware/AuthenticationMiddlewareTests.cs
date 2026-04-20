@@ -536,8 +536,7 @@ public class AuthenticationMiddlewareTests
             issuedAt: DateTime.UtcNow,
             signingCredentials: null);
 
-        var headers = new HttpHeadersCollection();
-        headers.Add("Authorization", $"Bearer {token}");
+        var headers = new HttpHeadersCollection { { "Authorization", $"Bearer {token}" } };
         context.SetHttpRequestHeaders(headers);
 
         Task Next(FunctionContext _) => Task.CompletedTask;
@@ -553,8 +552,10 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_ItemsClaimsPrincipalTakesPriorityOverHttpContextUser()
     {
+#pragma warning disable S125 // Descriptive prose comment, not commented-out code.
         // Arrange — both Items["ClaimsPrincipal"] and HttpContext.User are set;
         // Items["ClaimsPrincipal"] should win (existing behavior preserved)
+#pragma warning restore S125
         var itemsUserId = Guid.NewGuid().ToString();
         var httpContextUserId = Guid.NewGuid().ToString();
 
@@ -641,8 +642,7 @@ public class AuthenticationMiddlewareTests
     private static TestFunctionContext CreateContextWithAuthorizationHeader(string authorizationHeader)
     {
         var context = new TestFunctionContext();
-        var headers = new HttpHeadersCollection();
-        headers.Add("Authorization", authorizationHeader);
+        var headers = new HttpHeadersCollection { { "Authorization", authorizationHeader } };
         context.SetHttpRequestHeaders(headers);
         return context;
     }
@@ -656,10 +656,15 @@ public class AuthenticationMiddlewareTests
         var mockHttpContext = new Mock<HttpContext>();
         mockHttpContext.SetupGet(h => h.User).Returns(userPrincipal);
 
-        var context = new TestFunctionContext();
-        // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
-        // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
-        context.Items["HttpRequestContext"] = mockHttpContext.Object;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
+                // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
+                ["HttpRequestContext"] = mockHttpContext.Object
+            }
+        };
         return context;
     }
 }

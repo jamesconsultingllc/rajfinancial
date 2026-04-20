@@ -850,7 +850,7 @@ public class AssetMetadataSerializationTests
         var result = MemoryPackSerializer.Deserialize<T>(bytes);
         result.Should().NotBeNull("deserialization should succeed");
 
-        return result!;
+        return result;
     }
 
     /// <summary>
@@ -864,6 +864,6 @@ public class AssetMetadataSerializationTests
         var result = MemoryPackSerializer.Deserialize<IAssetMetadata>(bytes);
         result.Should().NotBeNull("union deserialization should succeed");
 
-        return result!;
+        return result;
     }
 }

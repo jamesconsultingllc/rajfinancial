@@ -33,11 +33,14 @@ internal class TestFunctionContext : FunctionContext
     public override BindingContext BindingContext => null!;
 #pragma warning disable CS8764 // Nullability of return type doesn't match overridden member
     public override RetryContext? RetryContext => null;
+
+#pragma warning disable S2292 // Backing field is initialized with null-forgiving; explicit accessors make the pattern visible.
     public override IServiceProvider InstanceServices
     {
         get => instanceServices;
         set => instanceServices = value;
     }
+#pragma warning restore S2292
 #pragma warning restore CS8764
     /// <summary>
     /// Gets or sets a custom FunctionDefinition for testing middleware that uses
@@ -50,7 +53,7 @@ internal class TestFunctionContext : FunctionContext
     public override IDictionary<object, object> Items
     {
         get => items;
-        set { /* Items is read-only in this test implementation */ }
+        set => _ = value; // Items is read-only in this test implementation
     }
     public override IInvocationFeatures Features => features;
 
@@ -125,6 +128,7 @@ internal class TestFunctionContext : FunctionContext
 
         // Ensure InstanceServices is set so GetValidatedBodyAsync can resolve
         // IValidator<T> without throwing ArgumentNullException.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         instanceServices ??= new ServiceCollection().BuildServiceProvider();
 
         return this;
@@ -215,7 +219,7 @@ internal class TestFunctionContext : FunctionContext
 /// <see cref="HttpHeadersCollection"/> so that serialization extensions
 /// can write response data without any additional mock setup.
 /// </summary>
-internal class TestHttpResponseData : HttpResponseData
+internal sealed class TestHttpResponseData : HttpResponseData
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="TestHttpResponseData"/> class.

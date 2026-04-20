@@ -501,6 +501,6 @@ public class AssetDtoSerializationTests
         var result = MemoryPackSerializer.Deserialize<T>(bytes);
         result.Should().NotBeNull("deserialization should succeed");
 
-        return result!;
+        return result;
     }
 }

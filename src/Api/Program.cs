@@ -41,11 +41,13 @@ builder.UseMiddleware<AuthorizationMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();
 
+#pragma warning disable S1135, S125 // Deferred feature — infra is provisioned; enabling requires SDK API verification.
 // TODO: Enable Application Insights telemetry once ConfigureFunctionsApplicationInsights API
 // is verified for Microsoft.Azure.Functions.Worker.ApplicationInsights v2.50.0.
 // The infra already provisions App Insights and injects APPINSIGHTS_INSTRUMENTATIONKEY.
 // builder.Services.AddApplicationInsightsTelemetryWorkerService();
 // builder.Services.ConfigureFunctionsApplicationInsights();
+#pragma warning restore S1135, S125
 
 // ============================================================================
 // Service registrations (grouped in ServiceCollectionExtensions)

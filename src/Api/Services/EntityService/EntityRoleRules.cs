@@ -9,7 +9,7 @@ namespace RajFinancial.Api.Services.EntityService;
 /// </summary>
 internal static class EntityRoleRules
 {
-    public static bool IsRoleCompatibleWithEntity(EntityRoleType roleType, EntityType entityType)
+    private static bool IsRoleCompatibleWithEntity(EntityRoleType roleType, EntityType entityType)
     {
         if (entityType == EntityType.Personal)
             return false;

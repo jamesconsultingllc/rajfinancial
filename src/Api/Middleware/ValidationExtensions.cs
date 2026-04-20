@@ -58,7 +58,7 @@ public static class ValidationExtensions
                     );
 
                 throw new ValidationException(
-                    result.Errors.First().ErrorMessage,
+                    result.Errors[0].ErrorMessage,
                     errors
                 );
             }
@@ -75,7 +75,7 @@ public static class ValidationExtensions
     /// <typeparam name="T">The type to deserialize.</typeparam>
     /// <param name="context">The function context.</param>
     /// <returns>The deserialized request body, or null if not available.</returns>
-    public static async Task<T?> GetBodyAsync<T>(this FunctionContext context) where T : class
+    private static async Task<T?> GetBodyAsync<T>(this FunctionContext context) where T : class
     {
         var memoryPackBody = await TryDeserializeBinaryBodyAsync<T>(context);
         if (memoryPackBody is not null)
@@ -154,7 +154,7 @@ public static class ValidationExtensions
 
         // System.Text.Json paths look like "$.name" or "$.items[0].id". Pull the top-level segment.
         var stripped = path.StartsWith("$.", StringComparison.Ordinal) ? path[2..] : path;
-        var end = stripped.IndexOfAny(new[] { '.', '[' });
+        var end = stripped.IndexOfAny(['.', '[']);
         return end < 0 ? stripped : stripped[..end];
     }
 
@@ -190,35 +190,5 @@ public static class ValidationExtensions
     public static Dictionary<string, object>? GetBodyAsDictionary(this FunctionContext context)
     {
         return context.GetBody<Dictionary<string, object>>();
-    }
-
-    /// <summary>
-    /// Validates an object using the registered validator.
-    /// </summary>
-    /// <typeparam name="T">The type to validate.</typeparam>
-    /// <param name="context">The function context.</param>
-    /// <param name="instance">The object to validate.</param>
-    /// <exception cref="ValidationException">Thrown when validation fails.</exception>
-    public static async Task ValidateAsync<T>(this FunctionContext context, T instance) where T : class
-    {
-        var validator = context.InstanceServices.GetService<IValidator<T>>();
-        if (validator != null)
-        {
-            var result = await validator.ValidateAsync(instance);
-            if (!result.IsValid)
-            {
-                var errors = result.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (object)g.Select(e => e.ErrorMessage).ToList()
-                    );
-
-                throw new ValidationException(
-                    result.Errors.First().ErrorMessage,
-                    errors
-                );
-            }
-        }
     }
 }

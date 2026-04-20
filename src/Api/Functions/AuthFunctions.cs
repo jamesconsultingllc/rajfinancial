@@ -13,7 +13,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
 
 namespace RajFinancial.Api.Functions;
@@ -81,12 +81,12 @@ public partial class AuthFunctions(
             email,
             displayName,
             roles,
-            cancellationToken: default);
+            cancellationToken: CancellationToken.None);
 
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            DisplayName = profile.DisplayName ?? string.Empty,
+            DisplayName = profile.DisplayName,
             Locale = "en-US",
             Timezone = "America/New_York",
             Currency = "USD",

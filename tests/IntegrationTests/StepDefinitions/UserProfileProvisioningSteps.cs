@@ -201,7 +201,7 @@ public class UserProfileProvisioningSteps
         dbValue.Should().NotBeNull("UserProfile should exist after initial request");
         dbValue.Should().NotBe(DBNull.Value, "LastLoginAt should already be set after the initial request");
         previousLastLoginAt = dbValue is DateTimeOffset dto ? dto
-            : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue!, DateTimeKind.Utc), TimeSpan.Zero);
+            : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue, DateTimeKind.Utc), TimeSpan.Zero);
     }
 
     [Given("a UserProfile exists for a user with email {string}")]
@@ -278,22 +278,8 @@ public class UserProfileProvisioningSteps
     }
 
     [When("I send an authenticated request to {string} as the returning test user")]
-    public async Task WhenISendAnAuthenticatedRequestToAsTheReturningTestUser(string path)
-    {
-        requestTimestamp = DateTimeOffset.UtcNow;
-
-        var token = await authHelper.GetTokenForRoleAsync(testUserEmail, testUserRole, testUserId);
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        response = await client.SendAsync(request);
-        responseBody = await response.Content.ReadAsStringAsync();
-
-        if (!string.IsNullOrEmpty(responseBody))
-        {
-            responseJson = JsonDocument.Parse(responseBody).RootElement;
-        }
-    }
+    public Task WhenISendAnAuthenticatedRequestToAsTheReturningTestUser(string path) =>
+        WhenISendAnAuthenticatedRequestToAsTheNewTestUser(path);
 
     [When("I send an authenticated request to {string} as an administrator")]
     public async Task WhenISendAnAuthenticatedRequestToAsAnAdministrator(string path)
@@ -418,8 +404,8 @@ public class UserProfileProvisioningSteps
         // Verify auth-concern fields were persisted (not in API response, verified via DB)
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should be persisted in the database");
-        profile!.Value.Email.Should().NotBeNullOrEmpty("email should be persisted");
-        profile!.Value.Role.Should().NotBeNullOrEmpty("role should be persisted");
+        profile.Value.Email.Should().NotBeNullOrEmpty("email should be persisted");
+        profile.Value.Role.Should().NotBeNullOrEmpty("role should be persisted");
     }
 
     [Then("the UserProfile email should match the JWT email claim")]
@@ -427,7 +413,7 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Email.Should().Be(testUserEmail);
+        profile.Value.Email.Should().Be(testUserEmail);
     }
 
     [Then("the UserProfile role should be {string}")]
@@ -435,7 +421,7 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Role.Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
+        profile.Value.Role.Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
     }
 
     [Then("the UserProfile should be active")]
@@ -443,7 +429,7 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.IsActive.Should().BeTrue("newly provisioned profiles should be active");
+        profile.Value.IsActive.Should().BeTrue("newly provisioned profiles should be active");
     }
 
     [Then("the UserProfile CreatedAt should be recent")]
@@ -462,8 +448,8 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
-        profile!.Value.LastLoginAt!.Value.Should().BeCloseTo(requestTimestamp, TimeSpan.FromSeconds(30),
+        profile.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile.Value.LastLoginAt!.Value.Should().BeCloseTo(requestTimestamp, TimeSpan.FromSeconds(30),
             "LastLoginAt should be set to approximately now");
     }
 
@@ -472,8 +458,8 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
-        profile!.Value.LastLoginAt!.Value.Should().BeAfter(previousLastLoginAt,
+        profile.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile.Value.LastLoginAt!.Value.Should().BeAfter(previousLastLoginAt,
             "LastLoginAt should advance on subsequent authenticated requests");
     }
 
@@ -492,7 +478,7 @@ public class UserProfileProvisioningSteps
     {
         var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Email.Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
+        profile.Value.Email.Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
     }
 
     [Then("the UserProfile display name should be {string}")]
@@ -540,7 +526,7 @@ public class UserProfileProvisioningSteps
         connStr.Should().NotBeNullOrEmpty(
             "SqlConnectionString is required for UserProfile provisioning verification tests");
 
-        await using var conn = new SqlConnection(connStr!);
+        await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT Email, Role, IsActive, LastLoginAt FROM UserProfiles WHERE Id = @id";
@@ -554,8 +540,19 @@ public class UserProfileProvisioningSteps
             reader.GetString(0),
             reader.GetString(1),
             reader.GetBoolean(2),
-            reader.IsDBNull(3) ? null : (reader.GetValue(3) is DateTimeOffset dto ? dto
-                : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc), TimeSpan.Zero))
+            await ReadNullableDateTimeOffsetAsync(reader, 3)
         );
+    }
+
+    private static async Task<DateTimeOffset?> ReadNullableDateTimeOffsetAsync(SqlDataReader reader, int ordinal)
+    {
+        if (await reader.IsDBNullAsync(ordinal))
+            return null;
+
+        var value = reader.GetValue(ordinal);
+        if (value is DateTimeOffset dto)
+            return dto;
+
+        return new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(ordinal), DateTimeKind.Utc), TimeSpan.Zero);
     }
 }

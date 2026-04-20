@@ -43,8 +43,13 @@ public class ValidationExtensionsTests
     public void GetBody_WhenInvalidJson_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBody"] = "not valid json";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["RequestBody"] = "not valid json"
+            }
+        };
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -57,8 +62,13 @@ public class ValidationExtensionsTests
     public void GetBody_WhenEmptyString_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBody"] = "";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["RequestBody"] = ""
+            }
+        };
 
         // Act
         var result = context.GetBody<TestRequest>();

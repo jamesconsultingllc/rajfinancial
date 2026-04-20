@@ -39,14 +39,12 @@ public static class AllocationValidator
             .ToList();
 
         // Individual allocation range checks
-        foreach (var assignment in assignments)
+        foreach (var assignment in assignments
+                     .Where(a => a.AllocationPercent is < MIN_PERCENT or > MAX_PERCENT))
         {
-            if (assignment.AllocationPercent is < MIN_PERCENT or > MAX_PERCENT)
-            {
-                errors.Add(new AllocationValidationError(
-                    AllocationErrorCodes.PercentOutOfRange,
-                    $"Allocation for '{assignment.BeneficiaryName}' must be between {MIN_PERCENT}% and {MAX_PERCENT}%"));
-            }
+            errors.Add(new AllocationValidationError(
+                AllocationErrorCodes.PercentOutOfRange,
+                $"Allocation for '{assignment.BeneficiaryName}' must be between {MIN_PERCENT}% and {MAX_PERCENT}%"));
         }
 
         // Duplicate checks per type

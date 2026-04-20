@@ -1,7 +1,7 @@
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Services.UserProfiles;
+namespace RajFinancial.Api.Services.UserProfile;
 
 /// <summary>
 /// Manages local <see cref="UserProfile"/> shadow records that mirror
@@ -47,7 +47,7 @@ public interface IUserProfileService
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The existing or newly created <see cref="UserProfile"/>.</returns>
-    Task<UserProfile> EnsureProfileExistsAsync(
+    Task<Shared.Entities.Users.UserProfile> EnsureProfileExistsAsync(
         Guid userId,
         string email,
         string? displayName,
@@ -61,7 +61,7 @@ public interface IUserProfileService
     /// <param name="userId">The Entra Object ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The profile, or <c>null</c> if none exists.</returns>
-    Task<UserProfile?> GetByIdAsync(
+    Task<Shared.Entities.Users.UserProfile?> GetByIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 
@@ -72,7 +72,7 @@ public interface IUserProfileService
     /// <param name="request">The update request containing new field values.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated profile, or <c>null</c> if no profile exists for the user.</returns>
-    Task<UserProfile?> UpdateProfileAsync(
+    Task<Shared.Entities.Users.UserProfile?> UpdateProfileAsync(
         Guid userId,
         UpdateProfileRequest request,
         CancellationToken cancellationToken = default);

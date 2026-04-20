@@ -8,10 +8,10 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Shared.Contracts.Entities;
-using RajFinancial.Shared.Entities;
-using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Contracts.Entities.Business;
 using RajFinancial.Shared.Contracts.Entities.Trust;
+using RajFinancial.Shared.Entities;
+using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Tests.Services.EntityService;
 
@@ -19,7 +19,7 @@ namespace RajFinancial.Api.Tests.Services.EntityService;
 ///     Unit tests for <see cref="Api.Services.EntityService.EntityService"/>.
 ///     Uses InMemoryDatabase for EF Core and mocked IAuthorizationService.
 /// </summary>
-public class EntityServiceTests : IDisposable
+public sealed class EntityServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Mock<IAuthorizationService> authMock;
@@ -56,7 +56,6 @@ public class EntityServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     // =========================================================================
@@ -205,7 +204,7 @@ public class EntityServiceTests : IDisposable
         var result = await service.GetEntityByIdAsync(OwnerId, entity.Id);
 
         result.Should().NotBeNull();
-        result!.Id.Should().Be(entity.Id);
+        result.Id.Should().Be(entity.Id);
         result.Name.Should().Be("Acme LLC");
         result.Roles.Should().NotBeNull();
     }

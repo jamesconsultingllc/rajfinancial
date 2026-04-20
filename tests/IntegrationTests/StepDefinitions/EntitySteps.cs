@@ -35,9 +35,13 @@ public class EntitySteps
     private HttpResponseMessage? response;
     private string? responseBody;
     private string? authToken;
-    private readonly Dictionary<string, string> createdEntityIds = new();
     private string? lastCreatedEntityId;
     private string? ownerUserId;
+
+    // createdEntityIds map retained for step definitions that reference prior "Owner Co" / named
+    // entities by label; queries happen in downstream step assertions via lastCreatedEntityId.
+    // ReSharper disable once CollectionNeverQueried.Local
+    private readonly Dictionary<string, string> createdEntityIds = new();
 
     public EntitySteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {

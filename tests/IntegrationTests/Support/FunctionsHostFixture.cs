@@ -10,8 +10,6 @@ namespace RajFinancial.IntegrationTests.Support;
 /// </summary>
 public class FunctionsHostFixture
 {
-    private readonly string baseUrl;
-
     public FunctionsHostFixture()
     {
         Configuration = new ConfigurationBuilder()
@@ -21,18 +19,18 @@ public class FunctionsHostFixture
             .AddEnvironmentVariables()
             .Build();
 
-        baseUrl = Configuration["FunctionsHost:BaseUrl"] ?? "http://localhost:7071";
+        BaseUrl = Configuration["FunctionsHost:BaseUrl"] ?? "http://localhost:7071";
 
         // Accept self-signed certificates issued by Azure Functions Core Tools (func start --useHttps).
         // This is scoped to localhost only — remote endpoints use real certificates.
         var handler = new HttpClientHandler();
-        if (IsLocalhost(baseUrl))
+        if (IsLocalhost(BaseUrl))
         {
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
         }
 
-        Client = new HttpClient(handler) { BaseAddress = new Uri(baseUrl) };
+        Client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
     }
 
     /// <summary>
@@ -48,7 +46,7 @@ public class FunctionsHostFixture
     /// <summary>
     /// The base URL of the running Functions host.
     /// </summary>
-    public string BaseUrl => baseUrl;
+    public string BaseUrl { get; }
 
     /// <summary>
     /// Verifies the host is reachable. Throws a clear message if not.
@@ -68,8 +66,8 @@ public class FunctionsHostFixture
         }
 
         throw new InvalidOperationException(
-            $"Functions host is not reachable at {baseUrl}. " +
-            (IsLocalhost(baseUrl)
+            $"Functions host is not reachable at {BaseUrl}. " +
+            (IsLocalhost(BaseUrl)
                 ? "Start it manually: cd src/Api && func start"
                 : "Ensure the target environment is deployed and accessible."));
     }
@@ -78,7 +76,7 @@ public class FunctionsHostFixture
     /// Whether tests are running against a local Functions host (dev mode).
     /// When true, unsigned test JWTs are accepted. When false, real Entra ROPC tokens are required.
     /// </summary>
-    public bool IsLocal => IsLocalhost(baseUrl);
+    public bool IsLocal => IsLocalhost(BaseUrl);
 
     private static bool IsLocalhost(string url)
     {

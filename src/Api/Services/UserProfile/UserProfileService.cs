@@ -5,7 +5,7 @@ using RajFinancial.Api.Data;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Services.UserProfiles;
+namespace RajFinancial.Api.Services.UserProfile;
 
 /// <summary>
 /// Manages local <see cref="UserProfile"/> shadow records that mirror
@@ -28,7 +28,7 @@ public partial class UserProfileService(
     ILogger<UserProfileService> logger) : IUserProfileService
 {
     /// <inheritdoc/>
-    public async Task<UserProfile> EnsureProfileExistsAsync(
+    public async Task<Shared.Entities.Users.UserProfile> EnsureProfileExistsAsync(
         Guid userId,
         string email,
         string? displayName,
@@ -43,7 +43,7 @@ public partial class UserProfileService(
         if (profile is null)
         {
             // JIT provisioning — first authenticated request
-            profile = new UserProfile
+            profile = new Shared.Entities.Users.UserProfile
             {
                 Id = userId,
                 Email = email,
@@ -117,7 +117,7 @@ public partial class UserProfileService(
     }
 
     /// <inheritdoc/>
-    public async Task<UserProfile?> GetByIdAsync(
+    public async Task<Shared.Entities.Users.UserProfile?> GetByIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -125,7 +125,7 @@ public partial class UserProfileService(
     }
 
     /// <inheritdoc/>
-    public async Task<UserProfile?> UpdateProfileAsync(
+    public async Task<Shared.Entities.Users.UserProfile?> UpdateProfileAsync(
         Guid userId,
         UpdateProfileRequest request,
         CancellationToken cancellationToken = default)

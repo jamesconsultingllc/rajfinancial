@@ -75,7 +75,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        (usage!.ValidOn & AttributeTargets.Method).Should().Be(AttributeTargets.Method);
+        (usage.ValidOn & AttributeTargets.Method).Should().Be(AttributeTargets.Method);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        (usage!.ValidOn & AttributeTargets.Class).Should().Be(AttributeTargets.Class);
+        (usage.ValidOn & AttributeTargets.Class).Should().Be(AttributeTargets.Class);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        usage!.Inherited.Should().BeFalse();
+        usage.Inherited.Should().BeFalse();
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        usage!.AllowMultiple.Should().BeFalse();
+        usage.AllowMultiple.Should().BeFalse();
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         attribute.Should().NotBeNull();
-        attribute!.Roles.Should().ContainSingle().Which.Should().Be("Administrator");
+        attribute.Roles.Should().ContainSingle().Which.Should().Be("Administrator");
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         attribute.Should().NotBeNull();
-        attribute!.Roles.Should().HaveCount(2);
+        attribute.Roles.Should().HaveCount(2);
         attribute.Roles.Should().Contain("Administrator");
         attribute.Roles.Should().Contain("Client");
     }
@@ -169,7 +169,7 @@ public class RequireRoleAttributeTests
 
         // Assert
         attribute.Should().NotBeNull();
-        attribute!.Roles.Should().ContainSingle().Which.Should().Be("Administrator");
+        attribute.Roles.Should().ContainSingle().Which.Should().Be("Administrator");
     }
 
     [Fact]
@@ -188,12 +188,12 @@ public class RequireRoleAttributeTests
     private class SampleDecoratedClass
     {
         [RequireRole("Administrator")]
-        public void AdminOnlyMethod() { }
+        public void AdminOnlyMethod() { /* reflection target only */ }
 
         [RequireRole("Administrator", "Client")]
-        public void MultiRoleMethod() { }
+        public void MultiRoleMethod() { /* reflection target only */ }
 
-        public void PublicMethod() { }
+        public void PublicMethod() { /* reflection target only */ }
     }
 
     /// <summary>

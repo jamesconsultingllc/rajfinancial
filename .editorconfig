@@ -74,6 +74,55 @@ dotnet_diagnostic.S1448.severity = none
 dotnet_diagnostic.S1200.severity = none
 dotnet_diagnostic.S3776.severity = none
 
+# Test projects — ReSharper "*.Global" visibility rules report false positives for
+# xUnit [Fact] methods, test fixtures, and reflection-discovered types.
+[tests/**/*.cs]
+resharper_unused_member_global_highlighting = none
+resharper_member_can_be_private_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_property_can_be_made_init_only_global_highlighting = none
+resharper_unused_method_return_value_global_highlighting = none
+resharper_unused_type_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+resharper_unused_auto_property_accessor_global_highlighting = none
+resharper_not_accessed_positional_property_global_highlighting = none
+resharper_unused_parameter_global_highlighting = none
+# xUnit creates a new fixture per test; fields assigned in ctor and used in test methods
+# are misread as local-variable candidates. Suppress for tests only.
+resharper_private_field_can_be_converted_to_local_variable_highlighting = none
+# Primary constructors vs explicit ctor is stylistic in tests.
+resharper_convert_to_primary_constructor_highlighting = none
+resharper_convert_constructor_to_member_initializers_highlighting = none
+
+# Shared contracts/entities — DTOs, enum members, and constants consumed via
+# System.Text.Json serialization, DI, or reflection. ReSharper can't see these
+# usages across assembly boundaries.
+[src/Shared/**/*.cs]
+resharper_unused_member_global_highlighting = none
+resharper_member_can_be_private_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_property_can_be_made_init_only_global_highlighting = none
+resharper_unused_method_return_value_global_highlighting = none
+resharper_unused_type_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+resharper_unused_auto_property_accessor_global_highlighting = none
+resharper_not_accessed_positional_property_global_highlighting = none
+resharper_unused_parameter_global_highlighting = none
+
+# Azure Functions + Worker middleware — instantiated by the Functions runtime via
+# reflection, not by user code.
+[src/Api/{Functions,Middleware}/**/*.cs]
+resharper_class_never_instantiated_global_highlighting = none
+
+# DI registration extension methods — return IServiceCollection for fluent chaining;
+# callers are not required to consume the return value.
+[src/Api/Configuration/**/*.cs]
+resharper_unused_method_return_value_global_highlighting = none
+
+# EF Core design-time factory — discovered by EF tooling via reflection.
+[src/Api/Data/DesignTimeDbContextFactory.cs]
+resharper_unused_type_global_highlighting = none
+
 # EntityService coordinates the Entity aggregate: it composes 5 helper types
 # (EntityMapper, EntitySlug, EntityDbErrors, EntityRoleRules, EntityRoleFactory)
 # plus EF entities, DTOs, exceptions, and DI collaborators. S1200's default
@@ -83,3 +132,7 @@ dotnet_diagnostic.S3776.severity = none
 # architecture test. Splitting further would fragment the aggregate contract.
 [src/Api/Services/EntityService/EntityService.cs]
 dotnet_diagnostic.S1200.severity = none
+
+# Reqnroll/SpecFlow step definitions: keep @"..." prefix on regex patterns for readability
+[**/StepDefinitions/*.cs]
+resharper_redundant_verbatim_string_prefix_highlighting = none

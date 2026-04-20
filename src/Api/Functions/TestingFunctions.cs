@@ -46,7 +46,7 @@ public partial class TestingFunctions(
         }
 
         SeedContactRequest? payload;
-        string bodyText = string.Empty;
+        string bodyText;
         try
         {
             if (req.FunctionContext.Items.TryGetValue(FunctionContextKeys.RequestBody, out var bodyObj)

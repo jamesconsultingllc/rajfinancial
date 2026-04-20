@@ -3,18 +3,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Data;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Tests.Services.UserProfiles;
+namespace RajFinancial.Api.Tests.Services.UserProfile;
 
 /// <summary>
 /// TDD unit tests for <see cref="UserProfileService"/>.
 /// Tests JIT provisioning logic: create on first access, sync mutable claims,
 /// role mapping with priority, and LastLoginAt stamping.
 /// </summary>
-public class UserProfileServiceTests : IDisposable
+public sealed class UserProfileServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Mock<ILogger<UserProfileService>> loggerMock;
@@ -37,7 +37,6 @@ public class UserProfileServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     private UserProfileService CreateService() => new(dbContext, loggerMock.Object);
@@ -162,7 +161,7 @@ public class UserProfileServiceTests : IDisposable
         // Assert
         var persisted = await dbContext.UserProfiles.FindAsync(UserId);
         persisted.Should().NotBeNull();
-        persisted!.Email.Should().Be("user@rajfinancial.com");
+        persisted.Email.Should().Be("user@rajfinancial.com");
     }
 
     [Fact]
@@ -449,7 +448,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         profile.Should().NotBeNull();
-        profile!.Id.Should().Be(UserId);
+        profile.Id.Should().Be(UserId);
         profile.Email.Should().Be("user@rajfinancial.com");
         profile.DisplayName.Should().Be("John Doe");
     }
@@ -481,7 +480,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         profile.Should().NotBeNull();
-        profile!.Id.Should().Be(UserId);
+        profile.Id.Should().Be(UserId);
         profile.Email.Should().Be("admin@rajfinancial.com");
         profile.DisplayName.Should().Be("Admin User");
         profile.Role.Should().Be(UserRole.Administrator);
@@ -514,7 +513,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("New Name");
+        result.DisplayName.Should().Be("New Name");
     }
 
     [Fact]
@@ -536,7 +535,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result!.PreferencesJson.Should().Contain("es-MX");
+        result.PreferencesJson.Should().Contain("es-MX");
         result.PreferencesJson.Should().Contain("America/Chicago");
         result.PreferencesJson.Should().Contain("EUR");
     }
@@ -560,7 +559,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result!.UpdatedAt.Should().NotBeNull();
+        result.UpdatedAt.Should().NotBeNull();
         result.UpdatedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 

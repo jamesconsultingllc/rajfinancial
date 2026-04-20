@@ -27,9 +27,11 @@ public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) 
 {
     public Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+#pragma warning disable S125 // False positive: documentation comment mentions code-like context key.
         // ContentNegotiationMiddleware runs before this and stores the raw body bytes
         // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
         // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
+#pragma warning restore S125
         if (context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) &&
             bytesObj is byte[] { Length: > 0 } bodyBytes)
         {

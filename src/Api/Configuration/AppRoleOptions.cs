@@ -62,7 +62,7 @@ public class AppRoleOptions
     ///   <item>Consistency with Entra ID app registration</item>
     /// </list>
     /// </remarks>
-    public Guid Client { get; set; }
+    public Guid Client { get; init; }
 
     /// <summary>
     /// Gets or sets the GUID for the Administrator role.
@@ -71,7 +71,7 @@ public class AppRoleOptions
     /// This role REQUIRES explicit assignment in Azure Portal.
     /// Administrators have access to platform management features.
     /// </remarks>
-    public Guid Administrator { get; set; }
+    public Guid Administrator { get; init; }
 
     /// <summary>
     /// Gets or sets the GUID for the Advisor role.
@@ -81,8 +81,9 @@ public class AppRoleOptions
     /// Advisors are professionals (CPAs, attorneys, financial advisors) who
     /// manage data on behalf of clients via DataAccessGrant.
     /// </remarks>
-    public Guid Advisor { get; set; }
+    public Guid Advisor { get; init; }
 
+#pragma warning disable S125 // Future-extension placeholder kept for discoverability.
     // =========================================================================
     // FUTURE EXTENSION: Uncomment when professional/organization roles are needed
     // =========================================================================
@@ -98,6 +99,7 @@ public class AppRoleOptions
     // /// </summary>
     // public Guid OrganizationAdmin { get; set; }
     // =========================================================================
+#pragma warning restore S125
 
     /// <summary>
     /// Gets the role GUID by role name.

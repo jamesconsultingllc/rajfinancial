@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
@@ -82,7 +82,7 @@ public partial class ProfileFunctions(
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            DisplayName = profile.DisplayName ?? string.Empty,
+            DisplayName = profile.DisplayName,
             Locale = prefs.Locale,
             Timezone = prefs.Timezone,
             Currency = prefs.Currency,
@@ -140,7 +140,7 @@ public partial class ProfileFunctions(
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            DisplayName = profile.DisplayName ?? string.Empty,
+            DisplayName = profile.DisplayName,
             Locale = updatedPrefs.Locale,
             Timezone = updatedPrefs.Timezone,
             Currency = updatedPrefs.Currency,

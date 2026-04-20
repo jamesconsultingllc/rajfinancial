@@ -60,6 +60,7 @@ public sealed partial class DtoDateTime : IEquatable<DtoDateTime>, IComparable<D
     public DateTime Value { get; init; }
 
     [MemoryPackConstructor]
+    // ReSharper disable once ConvertToPrimaryConstructor — dual-ctor (MemoryPack + parameterless) isn't expressible as primary.
     public DtoDateTime(DateTime value) => Value = value;
 
     public DtoDateTime() => Value = default;
@@ -106,6 +107,15 @@ public sealed partial class DtoDateTime : IEquatable<DtoDateTime>, IComparable<D
     public static bool operator ==(DtoDateTime? left, DtoDateTime? right) =>
         left?.Equals(right) ?? right is null;
     public static bool operator !=(DtoDateTime? left, DtoDateTime? right) => !(left == right);
+
+    public static bool operator <(DtoDateTime? left, DtoDateTime? right) =>
+        left is null ? right is not null : left.CompareTo(right) < 0;
+    public static bool operator <=(DtoDateTime? left, DtoDateTime? right) =>
+        left is null || left.CompareTo(right) <= 0;
+    public static bool operator >(DtoDateTime? left, DtoDateTime? right) =>
+        left is not null && left.CompareTo(right) > 0;
+    public static bool operator >=(DtoDateTime? left, DtoDateTime? right) =>
+        left is null ? right is null : left.CompareTo(right) >= 0;
 
     // =========================================================================
     // ToString

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware.Content;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Entities.Users;
 
@@ -48,10 +48,15 @@ public class ProfileFunctionsTests
     private static (HttpRequestData Request, TestFunctionContext Context) CreateAuthenticatedRequest(
         Guid userId)
     {
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = true,
+                ["UserId"] = userId.ToString(),
+                ["UserIdGuid"] = userId
+            }
+        };
 
         var mockRequest = new Mock<HttpRequestData>(context);
         mockRequest.SetupGet(r => r.Url).Returns(new Uri("https://localhost/api/profile/me"));
@@ -216,9 +221,14 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["IsAuthenticated"] = true,
+                ["UserId"] = "not-a-guid"
+            }
+        };
         // No UserIdGuid
 
         var mockRequest = new Mock<HttpRequestData>(context);

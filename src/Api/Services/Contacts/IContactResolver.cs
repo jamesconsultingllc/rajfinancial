@@ -24,5 +24,7 @@ public interface IContactResolver
     ///     Throws <c>NotFoundException</c> with <c>ROLE_CONTACT_NOT_FOUND</c> if the
     ///     contact does not exist or is not owned by <paramref name="userId" />.
     /// </summary>
-    Task EnsureOwnedByAsync(Guid contactId, Guid userId, CancellationToken ct = default);
+    Task EnsureOwnedByAsync(Guid contactId, Guid userId,
+        // ReSharper disable once UnusedParameter.Global — contract for future async implementations.
+        CancellationToken ct = default);
 }

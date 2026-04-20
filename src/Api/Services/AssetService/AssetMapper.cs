@@ -27,7 +27,9 @@ internal static class AssetMapper
         InstitutionName = asset.InstitutionName,
         IsDepreciable = asset is DepreciableAsset,
         IsDisposed = asset.IsDisposed,
+#pragma warning disable S1135 // Placeholder until beneficiary feature lands.
         // TODO: populate when beneficiary feature is implemented
+#pragma warning restore S1135
         HasBeneficiaries = false,
         CreatedAt = asset.CreatedAt.UtcDateTime,
         UpdatedAt = asset.UpdatedAt?.UtcDateTime,
@@ -76,7 +78,9 @@ internal static class AssetMapper
             MarketValue = asset.MarketValue.FromMoney(),
             LastValuationDate = asset.LastValuationDate?.UtcDateTime,
 
+#pragma warning disable S1135 // Placeholder until beneficiary feature lands.
             // TODO: populate when beneficiary feature is implemented
+#pragma warning restore S1135
             HasBeneficiaries = false,
             Beneficiaries = [],
 

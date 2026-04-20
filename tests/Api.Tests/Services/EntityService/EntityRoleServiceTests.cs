@@ -16,7 +16,7 @@ namespace RajFinancial.Api.Tests.Services.EntityService;
 /// <summary>
 ///     Unit tests for <see cref="Api.Services.EntityService.EntityService"/> role-management operations.
 /// </summary>
-public class EntityRoleServiceTests : IDisposable
+public sealed class EntityRoleServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Api.Services.EntityService.EntityService service;
@@ -49,7 +49,6 @@ public class EntityRoleServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public sealed record AccessDecision
     /// <summary>
     /// The effective access level granted. Null when <see cref="IsGranted"/> is <c>false</c>.
     /// </summary>
-    public AccessType? GrantedAccessLevel { get; init; }
+    public AccessType? GrantedAccessLevel { get; private init; }
 
     /// <summary>
     /// Creates a granted access decision.

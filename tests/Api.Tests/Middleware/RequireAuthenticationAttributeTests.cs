@@ -39,7 +39,7 @@ public class RequireAuthenticationAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        (usage!.ValidOn & AttributeTargets.Method).Should().Be(AttributeTargets.Method);
+        (usage.ValidOn & AttributeTargets.Method).Should().Be(AttributeTargets.Method);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class RequireAuthenticationAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        (usage!.ValidOn & AttributeTargets.Class).Should().Be(AttributeTargets.Class);
+        (usage.ValidOn & AttributeTargets.Class).Should().Be(AttributeTargets.Class);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class RequireAuthenticationAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        usage!.Inherited.Should().BeFalse();
+        usage.Inherited.Should().BeFalse();
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class RequireAuthenticationAttributeTests
 
         // Assert
         usage.Should().NotBeNull();
-        usage!.AllowMultiple.Should().BeFalse();
+        usage.AllowMultiple.Should().BeFalse();
     }
 
     [Fact]
@@ -112,8 +112,8 @@ public class RequireAuthenticationAttributeTests
     private class SampleDecoratedClass
     {
         [RequireAuthentication]
-        public void ProtectedMethod() { }
+        public void ProtectedMethod() { /* reflection target only */ }
 
-        public void PublicMethod() { }
+        public void PublicMethod() { /* reflection target only */ }
     }
 }

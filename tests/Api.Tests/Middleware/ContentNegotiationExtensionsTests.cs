@@ -31,8 +31,13 @@ public class ContentNegotiationExtensionsTests
     public async Task DeserializeBodyAsync_WhenEmptyBytes_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBodyBytes"] = Array.Empty<byte>();
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["RequestBodyBytes"] = Array.Empty<byte>()
+            }
+        };
         var factory = CreateSerializationFactory();
 
         // Act
@@ -83,8 +88,13 @@ public class ContentNegotiationExtensionsTests
     public void GetResponseContentType_WhenSet_ReturnsContentType()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["ResponseContentType"] = "application/x-memorypack";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                ["ResponseContentType"] = "application/x-memorypack"
+            }
+        };
 
         // Act
         var result = context.GetResponseContentType();
