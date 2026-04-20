@@ -90,39 +90,21 @@ internal static class TypeDependencyExtensions
     }
 
     private static IEnumerable<Type> EnumerateDependencyTypes(Type type)
-    {
-        foreach (var ancestor in Ancestors(type))
-        {
-            yield return ancestor;
-        }
+        => Ancestors(type)
+            .Concat(FieldTypes(type))
+            .Concat(PropertyTypes(type))
+            .Concat(ConstructorParameterTypes(type));
 
-        foreach (var field in type.GetFields(ALL_MEMBERS))
-        {
-            foreach (var t in UnwrapType(field.FieldType))
-            {
-                yield return t;
-            }
-        }
+    private static IEnumerable<Type> FieldTypes(Type type)
+        => type.GetFields(ALL_MEMBERS).SelectMany(f => UnwrapType(f.FieldType));
 
-        foreach (var prop in type.GetProperties(ALL_MEMBERS))
-        {
-            foreach (var t in UnwrapType(prop.PropertyType))
-            {
-                yield return t;
-            }
-        }
+    private static IEnumerable<Type> PropertyTypes(Type type)
+        => type.GetProperties(ALL_MEMBERS).SelectMany(p => UnwrapType(p.PropertyType));
 
-        foreach (var ctor in type.GetConstructors(ALL_CONSTRUCTORS))
-        {
-            foreach (var p in ctor.GetParameters())
-            {
-                foreach (var t in UnwrapType(p.ParameterType))
-                {
-                    yield return t;
-                }
-            }
-        }
-    }
+    private static IEnumerable<Type> ConstructorParameterTypes(Type type)
+        => type.GetConstructors(ALL_CONSTRUCTORS)
+               .SelectMany(c => c.GetParameters())
+               .SelectMany(p => UnwrapType(p.ParameterType));
 
     /// <summary>
     /// Recursively unwraps array element types and generic type arguments so the
