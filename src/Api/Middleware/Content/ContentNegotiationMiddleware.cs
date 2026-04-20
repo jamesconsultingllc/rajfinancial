@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
@@ -41,21 +42,42 @@ public partial class ContentNegotiationMiddleware(
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        var httpRequest = await context.GetHttpRequestDataAsync();
+        using var activity = MiddlewareTelemetry.StartActivity("Middleware.ContentNegotiation");
+        activity?.SetTag("middleware.name", "ContentNegotiationMiddleware");
+        activity?.SetTag("code.function", context.FunctionDefinition.Name);
 
-        var (acceptHeader, contentTypeHeader) = ReadContentHeaders(httpRequest);
-
-        if (httpRequest != null)
+        var sw = Stopwatch.StartNew();
+        try
         {
-            await CaptureRequestBodyAsync(httpRequest, context, contentTypeHeader);
+            var httpRequest = await context.GetHttpRequestDataAsync();
+
+            var (acceptHeader, contentTypeHeader) = ReadContentHeaders(httpRequest);
+
+            if (httpRequest != null)
+            {
+                await CaptureRequestBodyAsync(httpRequest, context, contentTypeHeader);
+            }
+
+            var responseContentType = serializationFactory.GetPreferredContentType(acceptHeader);
+            context.Items[FunctionContextKeys.ResponseContentType] = responseContentType;
+
+            activity?.SetTag("http.request.content_type", contentTypeHeader);
+            activity?.SetTag("http.response.content_type", responseContentType);
+
+            LogContentNegotiation(acceptHeader, contentTypeHeader, responseContentType);
+
+            await next(context);
         }
-
-        var responseContentType = serializationFactory.GetPreferredContentType(acceptHeader);
-        context.Items[FunctionContextKeys.ResponseContentType] = responseContentType;
-
-        LogContentNegotiation(acceptHeader, contentTypeHeader, responseContentType);
-
-        await next(context);
+        catch
+        {
+            MiddlewareTelemetry.RecordException("ContentNegotiationMiddleware", null, 0);
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration("ContentNegotiationMiddleware", sw.Elapsed.TotalMilliseconds);
+        }
     }
 
     private static (string? Accept, string? ContentType) ReadContentHeaders(HttpRequestData? httpRequest)

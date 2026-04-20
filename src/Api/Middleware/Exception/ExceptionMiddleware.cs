@@ -34,8 +34,15 @@ public partial class ExceptionMiddleware(
     ISerializationFactory serializationFactory)
     : IFunctionsWorkerMiddleware
 {
+    private const string MiddlewareName = "ExceptionMiddleware";
+
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        using var activity = MiddlewareTelemetry.StartActivity("Middleware.Exception");
+        activity?.SetTag("middleware.name", MiddlewareName);
+        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+
+        var sw = Stopwatch.StartNew();
         try
         {
             await next(context);
@@ -51,9 +58,32 @@ public partial class ExceptionMiddleware(
             // activities are already classified by their own try/catch
             // (they've been disposed by the time we get here).
             Activity.Current?.RecordExceptionOutcome(ex);
+
+            var exceptionType = ex.GetType().Name;
+            var statusCode = (int)MapStatusCode(ex);
+            activity?.SetTag("exception.type", exceptionType);
+            activity?.SetTag("http.status_code", statusCode);
+            MiddlewareTelemetry.RecordException(MiddlewareName, exceptionType, statusCode);
+
             await HandleExceptionAsync(context, ex);
         }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration(MiddlewareName, sw.Elapsed.TotalMilliseconds);
+        }
     }
+
+    private static HttpStatusCode MapStatusCode(System.Exception ex) => ex switch
+    {
+        NotFoundException => HttpStatusCode.NotFound,
+        ValidationException => HttpStatusCode.BadRequest,
+        UnauthorizedException => HttpStatusCode.Unauthorized,
+        ForbiddenException => HttpStatusCode.Forbidden,
+        ConflictException or DbUpdateConcurrencyException => HttpStatusCode.Conflict,
+        BusinessRuleException => HttpStatusCode.UnprocessableEntity,
+        _ => HttpStatusCode.InternalServerError,
+    };
 
     private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex)
     {

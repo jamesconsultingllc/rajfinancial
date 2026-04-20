@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Options;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
+using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Functions;
 
@@ -47,11 +49,17 @@ public partial class AuthTestFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.Status");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/status");
+
         var userId = context.GetUserId();
         var email = context.GetUserEmail();
         var name = context.GetUserName();
         var roles = context.GetUserRoles();
 
+        activity?.SetTag("user.id", userId);
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/status"));
         LogAuthStatusAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -83,7 +91,13 @@ public partial class AuthTestFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.Client");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/client");
+
         var userId = context.GetUserId();
+        activity?.SetTag("user.id", userId);
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/client"));
         LogClientEndpointAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -113,7 +127,13 @@ public partial class AuthTestFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.Admin");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/admin");
+
         var adminUserId = context.GetUserId();
+        activity?.SetTag("user.id", adminUserId);
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/admin"));
         LogAdminEndpointAccessed(adminUserId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -143,8 +163,13 @@ public partial class AuthTestFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.Public");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/public");
+
         var isAuthenticated = context.IsAuthenticated();
         var userId = isAuthenticated ? context.GetUserId() : null;
+        activity?.SetTag("auth.authenticated", isAuthenticated);
 
         LogPublicEndpointAccessed(isAuthenticated);
 
@@ -165,15 +190,15 @@ public partial class AuthTestFunctions(
         return response;
     }
 
-    [LoggerMessage(EventId = 9001, Level = LogLevel.Information, Message = "User {UserId} accessed /api/auth/status")]
+    [LoggerMessage(EventId = 1011, Level = LogLevel.Information, Message = "User {UserId} accessed /api/auth/status")]
     private partial void LogAuthStatusAccessed(string? userId);
 
-    [LoggerMessage(EventId = 9002, Level = LogLevel.Information, Message = "Client {UserId} accessed /api/auth/client")]
+    [LoggerMessage(EventId = 1012, Level = LogLevel.Information, Message = "Client {UserId} accessed /api/auth/client")]
     private partial void LogClientEndpointAccessed(string? userId);
 
-    [LoggerMessage(EventId = 9003, Level = LogLevel.Information, Message = "Administrator {UserId} accessed /api/auth/admin")]
+    [LoggerMessage(EventId = 1013, Level = LogLevel.Information, Message = "Administrator {UserId} accessed /api/auth/admin")]
     private partial void LogAdminEndpointAccessed(string? userId);
 
-    [LoggerMessage(EventId = 9004, Level = LogLevel.Information, Message = "Public endpoint accessed. Authenticated: {IsAuthenticated}")]
+    [LoggerMessage(EventId = 1014, Level = LogLevel.Information, Message = "Public endpoint accessed. Authenticated: {IsAuthenticated}")]
     private partial void LogPublicEndpointAccessed(bool isAuthenticated);
 }

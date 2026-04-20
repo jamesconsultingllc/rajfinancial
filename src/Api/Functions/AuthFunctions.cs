@@ -6,6 +6,7 @@
 // Blazor WASM client for UI-level access control.
 // ============================================================================
 
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
@@ -16,6 +17,7 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
+using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Functions;
 
@@ -42,7 +44,6 @@ public partial class AuthFunctions(
     ILogger<AuthFunctions> logger,
     IUserProfileService userProfileService)
 {
-
     /// <summary>
     /// Returns the authenticated user's profile, triggering JIT provisioning
     /// for first-time users and syncing mutable claims for returning users.
@@ -63,14 +64,22 @@ public partial class AuthFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.GetMe");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/me");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
         {
+            activity?.SetTag("auth.outcome", "missing_context");
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "missing_context"));
             LogAuthMeMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         var email = context.GetUserEmail() ?? string.Empty;
         var displayName = context.GetUserName();
@@ -94,6 +103,7 @@ public partial class AuthFunctions(
             CreatedAt = profile.CreatedAt,  // Implicit DateTimeOffset → DtoDateTime
         };
 
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/me"));
         LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -129,14 +139,22 @@ public partial class AuthFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.GetRoles");
+        activity?.SetTag("http.method", req.Method);
+        activity?.SetTag("http.route", "auth/roles");
+
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
         {
+            activity?.SetTag("auth.outcome", "missing_context");
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "missing_context"));
             LogAuthRolesMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        activity?.SetTag("user.id", userIdGuid.Value);
 
         var roles = context.GetUserRoles();
         var isAdministrator = context.IsAdministrator();
@@ -147,6 +165,8 @@ public partial class AuthFunctions(
             IsAdministrator = isAdministrator
         };
 
+        activity?.SetTag("auth.roles.count", roles.Count);
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/roles"));
         LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -158,15 +178,15 @@ public partial class AuthFunctions(
         return response;
     }
 
-    [LoggerMessage(EventId = 9101, Level = LogLevel.Warning, Message = "AuthMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Warning, Message = "AuthMe called without UserIdGuid in context")]
     private partial void LogAuthMeMissingContext();
 
-    [LoggerMessage(EventId = 9102, Level = LogLevel.Information, Message = "AuthMe returning profile for user {UserId}")]
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Information, Message = "AuthMe returning profile for user {UserId}")]
     private partial void LogAuthMeReturning(Guid userId);
 
-    [LoggerMessage(EventId = 9103, Level = LogLevel.Warning, Message = "AuthRoles called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 1003, Level = LogLevel.Warning, Message = "AuthRoles called without UserIdGuid in context")]
     private partial void LogAuthRolesMissingContext();
 
-    [LoggerMessage(EventId = 9104, Level = LogLevel.Information, Message = "AuthRoles returning {RoleCount} role(s) for user {UserId}")]
+    [LoggerMessage(EventId = 1004, Level = LogLevel.Information, Message = "AuthRoles returning {RoleCount} role(s) for user {UserId}")]
     private partial void LogAuthRolesReturning(int roleCount, Guid userId);
 }

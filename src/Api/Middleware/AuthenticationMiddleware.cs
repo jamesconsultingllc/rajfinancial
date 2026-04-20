@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
@@ -5,6 +6,7 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -58,15 +60,28 @@ public partial class AuthenticationMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        using var activity = AuthTelemetry.StartActivity("Auth.Authenticate");
+        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        activity?.SetTag("faas.invocation_id", context.InvocationId);
+
         var principal = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
             PopulateAuthenticatedContext(context, principal);
+            var userId = context.Items.TryGetValue(FunctionContextKeys.UserId, out var uid)
+                ? uid as string
+                : null;
+            activity?.SetTag("auth.authenticated", true);
+            if (!string.IsNullOrEmpty(userId))
+                activity?.SetTag("user.id", userId);
+            AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("source", "middleware"));
         }
         else
         {
             context.Items[FunctionContextKeys.IsAuthenticated] = false;
+            activity?.SetTag("auth.authenticated", false);
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "no_principal"));
         }
 
         await next(context);
@@ -177,20 +192,20 @@ public partial class AuthenticationMiddleware(
         }
     }
 
-    [LoggerMessage(EventId = 5201, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 1101, Level = LogLevel.Warning,
         Message = "No email claim found for user {UserId}. Available claim types: {ClaimTypes}")]
     private partial void LogMissingEmailClaim(string userId, string claimTypes);
 
-    [LoggerMessage(EventId = 5202, Level = LogLevel.Debug,
+    [LoggerMessage(EventId = 1102, Level = LogLevel.Debug,
         Message = "Authenticated user: {UserId}, Roles: {Roles}")]
     private partial void LogAuthenticatedUser(string userId, string roles);
 
-    [LoggerMessage(EventId = 5203, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 1103, Level = LogLevel.Warning,
         Message = "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
                   "Rejecting unvalidated token in {Environment} environment")]
     private partial void LogJwtRejectedNonDev(string environment);
 
-    [LoggerMessage(EventId = 5204, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 1104, Level = LogLevel.Warning,
         Message = "Failed to parse JWT token from Authorization header")]
     private partial void LogJwtParseFailed(System.Exception ex);
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,11 @@ public partial class UserProfileProvisioningMiddleware(
     /// <inheritdoc/>
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        using var activity = MiddlewareTelemetry.StartActivity("Middleware.UserProfileProvisioning");
+        activity?.SetTag("middleware.name", "UserProfileProvisioningMiddleware");
+        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+
+        var sw = Stopwatch.StartNew();
         try
         {
             if (context.IsAuthenticated())
@@ -45,6 +51,8 @@ public partial class UserProfileProvisioningMiddleware(
 
                 if (userIdGuid.HasValue)
                 {
+                    activity?.SetTag("user.id", userIdGuid.Value);
+
                     var email = context.GetUserEmail() ?? string.Empty;
                     var displayName = context.GetUserName();
                     var roles = context.GetUserRoles();
@@ -74,10 +82,20 @@ public partial class UserProfileProvisioningMiddleware(
         {
             if (IsCriticalException(ex))
             {
+                MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
                 throw;
             }
 
+            MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
+            activity?.SetTag("exception.type", ex.GetType().Name);
+
             LogProvisioningFailed(ex, context.InvocationId);
+        }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration("UserProfileProvisioningMiddleware", sw.Elapsed.TotalMilliseconds);
         }
 
         await next(context);
