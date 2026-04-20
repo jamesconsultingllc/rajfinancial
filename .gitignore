@@ -8,6 +8,9 @@ obj/
 *.pdb
 *.exe
 
+# Local dev logs (NReco.Logging.File output, Dev environment only)
+logs/
+
 # Auto-generated (Reqnroll/SpecFlow)
 *.feature.cs
 
