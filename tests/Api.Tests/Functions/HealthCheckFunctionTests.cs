@@ -25,7 +25,7 @@ public class HealthCheckFunctionTests
     public async Task Live_Returns_200_With_Alive_Payload()
     {
         var function = CreateFunction(healthReport: HealthStatus.Healthy, isDevelopment: false);
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Live(request);
 
@@ -38,7 +38,7 @@ public class HealthCheckFunctionTests
     public async Task Ready_Returns_200_When_All_Checks_Healthy()
     {
         var function = CreateFunction(healthReport: HealthStatus.Healthy, isDevelopment: true);
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Ready(request, CancellationToken.None);
 
@@ -49,7 +49,7 @@ public class HealthCheckFunctionTests
     public async Task Ready_Returns_503_When_Unhealthy()
     {
         var function = CreateFunction(healthReport: HealthStatus.Unhealthy, isDevelopment: true);
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Ready(request, CancellationToken.None);
 
@@ -60,7 +60,7 @@ public class HealthCheckFunctionTests
     public async Task Ready_Returns_503_When_Degraded()
     {
         var function = CreateFunction(healthReport: HealthStatus.Degraded, isDevelopment: true);
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Ready(request, CancellationToken.None);
 
@@ -75,7 +75,7 @@ public class HealthCheckFunctionTests
             isDevelopment: true,
             entryName: "database",
             entryDescription: "Database unreachable");
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Ready(request, CancellationToken.None);
 
@@ -99,7 +99,7 @@ public class HealthCheckFunctionTests
             isDevelopment: false,
             entryName: "database",
             entryDescription: "Database unreachable");
-        var (request, _) = CreateRequest();
+        var request = CreateRequest();
 
         var response = await function.Ready(request, CancellationToken.None);
 
@@ -139,7 +139,7 @@ public class HealthCheckFunctionTests
             NullLogger<HealthCheckFunction>.Instance);
     }
 
-    private static (HttpRequestData Request, TestFunctionContext Context) CreateRequest()
+    private static HttpRequestData CreateRequest()
     {
         var context = new TestFunctionContext();
         var mockRequest = new Mock<HttpRequestData>(context);
@@ -153,7 +153,7 @@ public class HealthCheckFunctionTests
             mockResponse.SetupGet(r => r.Headers).Returns(new HttpHeadersCollection());
             return mockResponse.Object;
         });
-        return (mockRequest.Object, context);
+        return mockRequest.Object;
     }
 
     private static async Task<string> ReadBodyAsync(HttpResponseData response)

@@ -60,7 +60,7 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
                         // throws inside change tracking, which would take the context down
                         // on save. The guard keeps corrupt rows diagnosable. `is null`
                         // cannot be used here — ValueComparer takes an expression tree.
-                        item == null ? 0 : StringComparer.Ordinal.GetHashCode(item))),
+                        StringComparer.Ordinal.GetHashCode(item))),
                 c => c.ToList()));
 
         // Configure relationships

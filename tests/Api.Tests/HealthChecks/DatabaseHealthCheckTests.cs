@@ -23,7 +23,7 @@ public class DatabaseHealthCheckTests
 {
     private static readonly HealthCheckContext ReadyContext = new()
     {
-        Registration = new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckRegistration(
+        Registration = new HealthCheckRegistration(
             "database",
             instance: new NoopHealthCheck(),
             failureStatus: HealthStatus.Unhealthy,
@@ -54,7 +54,7 @@ public class DatabaseHealthCheckTests
 
         var degradedContext = new HealthCheckContext
         {
-            Registration = new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckRegistration(
+            Registration = new HealthCheckRegistration(
                 "database",
                 instance: new NoopHealthCheck(),
                 failureStatus: HealthStatus.Degraded,
