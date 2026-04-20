@@ -46,25 +46,25 @@ internal static class AssetsTelemetry
     internal const string OperationGet = "get";
 
     // Metric instrument names
-    private const string MetricAssetsCreated = "assets.created.count";
-    private const string MetricAssetsUpdated = "assets.updated.count";
-    private const string MetricAssetsDeleted = "assets.deleted.count";
-    private const string MetricAssetsQueryDurationMs = "assets.query.duration.ms";
+    private const string METRIC_ASSETS_CREATED = "assets.created.count";
+    private const string METRIC_ASSETS_UPDATED = "assets.updated.count";
+    private const string METRIC_ASSETS_DELETED = "assets.deleted.count";
+    private const string METRIC_ASSETS_QUERY_DURATION_MS = "assets.query.duration.ms";
 
     internal static readonly ActivitySource ActivitySource = new(ObservabilityDomains.Assets);
     private static readonly Meter Meter = new(ObservabilityDomains.Assets);
 
     private static readonly Counter<long> AssetsCreated =
-        Meter.CreateCounter<long>(MetricAssetsCreated);
+        Meter.CreateCounter<long>(METRIC_ASSETS_CREATED);
 
     private static readonly Counter<long> AssetsUpdated =
-        Meter.CreateCounter<long>(MetricAssetsUpdated);
+        Meter.CreateCounter<long>(METRIC_ASSETS_UPDATED);
 
     private static readonly Counter<long> AssetsDeleted =
-        Meter.CreateCounter<long>(MetricAssetsDeleted);
+        Meter.CreateCounter<long>(METRIC_ASSETS_DELETED);
 
     private static readonly Histogram<double> AssetsQueryDuration =
-        Meter.CreateHistogram<double>(MetricAssetsQueryDurationMs);
+        Meter.CreateHistogram<double>(METRIC_ASSETS_QUERY_DURATION_MS);
 
     internal static void RecordCreated(string assetType)
     {

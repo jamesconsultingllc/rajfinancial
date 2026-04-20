@@ -38,32 +38,26 @@ public partial class AssetService(
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
 
+        await AuthorizeReadAsync(requestingUserId, ownerUserId);
+
+        var query = db.Assets
+            .AsNoTracking()
+            .Where(a => a.UserId == ownerUserId);
+
+        if (filterType.HasValue)
+            query = query.Where(a => a.Type == filterType.Value);
+
+        if (!includeDisposed)
+            query = query.Where(a => !a.IsDisposed);
+
         var sw = Stopwatch.StartNew();
-        try
-        {
-            await AuthorizeReadAsync(requestingUserId, ownerUserId);
+        var assets = await query
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+        AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationList, sw.Elapsed.TotalMilliseconds);
 
-            var query = db.Assets
-                .AsNoTracking()
-                .Where(a => a.UserId == ownerUserId);
-
-            if (filterType.HasValue)
-                query = query.Where(a => a.Type == filterType.Value);
-
-            if (!includeDisposed)
-                query = query.Where(a => !a.IsDisposed);
-
-            var assets = await query
-                .OrderBy(a => a.Name)
-                .ToListAsync();
-
-            activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
-            return assets.Select(a => a.ToDto()).ToList();
-        }
-        finally
-        {
-            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationList, sw.Elapsed.TotalMilliseconds);
-        }
+        activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
+        return assets.Select(a => a.ToDto()).ToList();
     }
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(Guid requestingUserId, Guid assetId)
@@ -73,25 +67,19 @@ public partial class AssetService(
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
         var sw = Stopwatch.StartNew();
-        try
-        {
-            var asset = await db.Assets
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == assetId);
+        var asset = await db.Assets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == assetId);
+        AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationGet, sw.Elapsed.TotalMilliseconds);
 
-            if (asset is null)
-                return null;
+        if (asset is null)
+            return null;
 
-            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+        activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
 
-            await AuthorizeReadAsync(requestingUserId, asset.UserId);
+        await AuthorizeReadAsync(requestingUserId, asset.UserId);
 
-            return asset.ToDetailDto();
-        }
-        finally
-        {
-            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationGet, sw.Elapsed.TotalMilliseconds);
-        }
+        return asset.ToDetailDto();
     }
 
     public async Task<AssetDto> CreateAssetAsync(Guid userId, CreateAssetRequest request)
