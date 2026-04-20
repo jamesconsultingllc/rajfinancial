@@ -94,19 +94,77 @@ internal static class TypeDependencyExtensions
 
         foreach (var field in type.GetFields(ALL_MEMBERS))
         {
-            yield return field.FieldType;
+            foreach (var t in UnwrapType(field.FieldType))
+            {
+                yield return t;
+            }
         }
 
         foreach (var prop in type.GetProperties(ALL_MEMBERS))
         {
-            yield return prop.PropertyType;
+            foreach (var t in UnwrapType(prop.PropertyType))
+            {
+                yield return t;
+            }
         }
 
         foreach (var ctor in type.GetConstructors(ALL_CONSTRUCTORS))
         {
             foreach (var p in ctor.GetParameters())
             {
-                yield return p.ParameterType;
+                foreach (var t in UnwrapType(p.ParameterType))
+                {
+                    yield return t;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively unwraps array element types and generic type arguments so the
+    /// dependency walker detects entity references hidden inside <c>List&lt;T&gt;</c>,
+    /// <c>T[]</c>, <c>IReadOnlyList&lt;T&gt;</c>, <c>Nullable&lt;T&gt;</c>, etc.
+    /// </summary>
+    private static IEnumerable<Type> UnwrapType(Type type)
+    {
+        var visited = new HashSet<Type>();
+        var stack = new Stack<Type>();
+        stack.Push(type);
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            if (!visited.Add(current))
+            {
+                continue;
+            }
+
+            yield return current;
+
+            if (current.IsArray)
+            {
+                var element = current.GetElementType();
+                if (element is not null)
+                {
+                    stack.Push(element);
+                }
+            }
+
+            if (current.IsByRef || current.IsPointer)
+            {
+                var element = current.GetElementType();
+                if (element is not null)
+                {
+                    stack.Push(element);
+                }
+            }
+
+            if (current.IsGenericType)
+            {
+                foreach (var arg in current.GetGenericArguments())
+                {
+                    stack.Push(arg);
+                }
             }
         }
     }
