@@ -50,19 +50,9 @@ public partial class AssetService(
         if (!includeDisposed)
             query = query.Where(a => !a.IsDisposed);
 
-        var sw = Stopwatch.StartNew();
-        List<Asset> assets;
-        try
-        {
-            assets = await query
-                .OrderBy(a => a.Name)
-                .ToListAsync();
-        }
-        finally
-        {
-            sw.Stop();
-            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationList, sw.Elapsed.TotalMilliseconds);
-        }
+        var assets = await query
+            .OrderBy(a => a.Name)
+            .ToListAsync();
 
         activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
         return assets.Select(a => a.ToDto()).ToList();
@@ -74,19 +64,9 @@ public partial class AssetService(
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
-        var sw = Stopwatch.StartNew();
-        Asset? asset;
-        try
-        {
-            asset = await db.Assets
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == assetId);
-        }
-        finally
-        {
-            sw.Stop();
-            AssetsTelemetry.RecordQueryDuration(AssetsTelemetry.OperationGet, sw.Elapsed.TotalMilliseconds);
-        }
+        var asset = await db.Assets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == assetId);
 
         if (asset is null)
             return null;

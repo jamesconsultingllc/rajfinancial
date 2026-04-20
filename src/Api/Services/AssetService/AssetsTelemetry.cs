@@ -38,18 +38,12 @@ internal static class AssetsTelemetry
     internal const string TagAssetId = "asset.id";
     internal const string TagAssetType = "asset.type";
     internal const string TagAssetsCount = "assets.count";
-    internal const string TagOperation = "operation";
     internal const string TagTypeSwitch = "type_switch";
-
-    // Operation tag values for the query-duration histogram
-    internal const string OperationList = "list";
-    internal const string OperationGet = "get";
 
     // Metric instrument names
     private const string METRIC_ASSETS_CREATED = "assets.created.count";
     private const string METRIC_ASSETS_UPDATED = "assets.updated.count";
     private const string METRIC_ASSETS_DELETED = "assets.deleted.count";
-    private const string METRIC_ASSETS_QUERY_DURATION_MS = "assets.query.duration.ms";
 
     internal static readonly ActivitySource ActivitySource = new(ObservabilityDomains.Assets);
     private static readonly Meter Meter = new(ObservabilityDomains.Assets);
@@ -62,9 +56,6 @@ internal static class AssetsTelemetry
 
     private static readonly Counter<long> AssetsDeleted =
         Meter.CreateCounter<long>(METRIC_ASSETS_DELETED);
-
-    private static readonly Histogram<double> AssetsQueryDuration =
-        Meter.CreateHistogram<double>(METRIC_ASSETS_QUERY_DURATION_MS);
 
     internal static void RecordCreated(string assetType)
     {
@@ -84,11 +75,5 @@ internal static class AssetsTelemetry
     {
         var tags = new TagList { { TagAssetType, assetType } };
         AssetsDeleted.Add(1, tags);
-    }
-
-    internal static void RecordQueryDuration(string operation, double milliseconds)
-    {
-        var tags = new TagList { { TagOperation, operation } };
-        AssetsQueryDuration.Record(milliseconds, tags);
     }
 }
