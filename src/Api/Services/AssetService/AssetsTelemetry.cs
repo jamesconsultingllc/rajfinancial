@@ -6,11 +6,13 @@
 // to satisfy the Services_ShouldNotHavePrivateStaticMethods architecture
 // invariant and the AGENT.md "No Magic Strings or Numbers" rule.
 //
-// TODO(ADO #628): Replace per-call RecordCreated/Updated/Deleted helpers with
-// a single SaveChangesInterceptor, and delete the Assets.Http.* activity
-// names once TelemetryEnrichmentMiddleware adds domain tags to the
-// auto-emitted Functions Invoke span. Do not add new per-domain counter
-// helpers or *.Http.* activities before that consolidation lands.
+// NOTE for future contributors (tracked by ADO #628):
+// The per-call counter helpers (RecordCreated/Updated/Deleted) and the
+// Assets.Http.* activity names below are STAGING for this PR only. They will
+// be removed once #628 lands a SaveChangesInterceptor that emits business
+// counters and a TelemetryEnrichmentMiddleware that tags the auto-emitted
+// Functions Invoke span. Do NOT add new per-domain counter helpers or new
+// *.Http.* activities in other domains; let #628 do them centrally.
 // ============================================================================
 
 using System.Diagnostics;

@@ -80,15 +80,23 @@ public partial class AssetFunctions(
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
 
-        LogFetchingAssets(ownerUserId, userId, filterType, includeDisposed);
+        try
+        {
+            LogFetchingAssets(ownerUserId, userId, filterType, includeDisposed);
 
-        var assets = await assetService.GetAssetsAsync(userId, ownerUserId, filterType, includeDisposed);
+            var assets = await assetService.GetAssetsAsync(userId, ownerUserId, filterType, includeDisposed);
 
-        activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
-        LogAssetsReturned(assets.Count, ownerUserId);
+            activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
+            LogAssetsReturned(assets.Count, ownerUserId);
 
-        return await context.CreateSerializedResponseAsync(
-            req, HttpStatusCode.OK, assets, serializationFactory);
+            return await context.CreateSerializedResponseAsync(
+                req, HttpStatusCode.OK, assets, serializationFactory);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     // =========================================================================
@@ -125,16 +133,24 @@ public partial class AssetFunctions(
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
-        LogFetchingAssetById(assetId, userId);
+        try
+        {
+            LogFetchingAssetById(assetId, userId);
 
-        var asset = await assetService.GetAssetByIdAsync(userId, assetId)
-                    ?? throw NotFoundException.Asset(assetId);
+            var asset = await assetService.GetAssetByIdAsync(userId, assetId)
+                        ?? throw NotFoundException.Asset(assetId);
 
-        activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
-        LogAssetByIdReturned(asset.Id, asset.Name, userId);
+            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+            LogAssetByIdReturned(asset.Id, asset.Name, userId);
 
-        return await context.CreateSerializedResponseAsync(
-            req, HttpStatusCode.OK, asset, serializationFactory);
+            return await context.CreateSerializedResponseAsync(
+                req, HttpStatusCode.OK, asset, serializationFactory);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     // =========================================================================
@@ -170,15 +186,23 @@ public partial class AssetFunctions(
         activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
-        LogCreatingAsset(userId, request.Name, request.Type);
+        try
+        {
+            LogCreatingAsset(userId, request.Name, request.Type);
 
-        var asset = await assetService.CreateAssetAsync(userId, request);
+            var asset = await assetService.CreateAssetAsync(userId, request);
 
-        activity?.SetTag(AssetsTelemetry.TagAssetId, asset.Id);
-        LogAssetCreated(asset.Id, userId);
+            activity?.SetTag(AssetsTelemetry.TagAssetId, asset.Id);
+            LogAssetCreated(asset.Id, userId);
 
-        return await context.CreateSerializedResponseAsync(
-            req, HttpStatusCode.Created, asset, serializationFactory);
+            return await context.CreateSerializedResponseAsync(
+                req, HttpStatusCode.Created, asset, serializationFactory);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     // =========================================================================
@@ -221,14 +245,22 @@ public partial class AssetFunctions(
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
-        LogUpdatingAsset(assetId, userId, request.Name, request.Type);
+        try
+        {
+            LogUpdatingAsset(assetId, userId, request.Name, request.Type);
 
-        var asset = await assetService.UpdateAssetAsync(userId, assetId, request);
+            var asset = await assetService.UpdateAssetAsync(userId, assetId, request);
 
-        LogAssetUpdated(assetId, userId);
+            LogAssetUpdated(assetId, userId);
 
-        return await context.CreateSerializedResponseAsync(
-            req, HttpStatusCode.OK, asset, serializationFactory);
+            return await context.CreateSerializedResponseAsync(
+                req, HttpStatusCode.OK, asset, serializationFactory);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     // =========================================================================
@@ -265,13 +297,21 @@ public partial class AssetFunctions(
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
-        LogDeletingAsset(assetId, userId);
+        try
+        {
+            LogDeletingAsset(assetId, userId);
 
-        await assetService.DeleteAssetAsync(userId, assetId);
+            await assetService.DeleteAssetAsync(userId, assetId);
 
-        LogAssetDeleted(assetId, userId);
+            LogAssetDeleted(assetId, userId);
 
-        return req.CreateResponse(HttpStatusCode.NoContent);
+            return req.CreateResponse(HttpStatusCode.NoContent);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     // =========================================================================
