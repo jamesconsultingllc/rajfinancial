@@ -13,7 +13,6 @@
 using System.Collections.Specialized;
 using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,7 +23,6 @@ using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Functions.Assets;
@@ -71,10 +69,10 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, null, false))
             .ReturnsAsync(expectedAssets);
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
-        var response = await sut.GetAssets(req.Object, context);
+        await sut.GetAssets(req.Object, context);
 
         // Assert
         assetServiceMock.Verify(
@@ -95,7 +93,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, otherUserId, null, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -118,7 +116,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, AssetType.Vehicle, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -141,7 +139,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, AssetType.Vehicle, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -164,7 +162,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, null, true))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -187,7 +185,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, null, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -228,7 +226,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetByIdAsync(TestUserId, TestAssetId))
             .ReturnsAsync(detail);
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssetById(req.Object, context, TestAssetId.ToString());
@@ -310,7 +308,7 @@ public class AssetFunctionsTests
             .Setup(s => s.CreateAssetAsync(TestUserId, It.IsAny<CreateAssetRequest>()))
             .ReturnsAsync(createdDto);
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.CreateAsset(req.Object, context);
@@ -359,7 +357,7 @@ public class AssetFunctionsTests
             .Setup(s => s.UpdateAssetAsync(TestUserId, TestAssetId, It.IsAny<UpdateAssetRequest>()))
             .ReturnsAsync(updatedDto);
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.UpdateAsset(req.Object, context, TestAssetId.ToString());
@@ -475,7 +473,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, otherUserId, AssetType.RealEstate, true))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -498,7 +496,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, null, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -521,7 +519,7 @@ public class AssetFunctionsTests
             .Setup(s => s.GetAssetsAsync(TestUserId, TestUserId, null, false))
             .ReturnsAsync(new List<AssetDto>());
 
-        SetupSerializationResponse(context, req);
+        SetupSerializationResponse(context);
 
         // Act
         await sut.GetAssets(req.Object, context);
@@ -561,9 +559,7 @@ public class AssetFunctionsTests
     ///     Sets up the <c>CreateSerializedResponseAsync</c> extension method dependencies.
     ///     Configures response content type and serialization factory to return valid bytes.
     /// </summary>
-    private void SetupSerializationResponse(
-        TestFunctionContext context,
-        Mock<HttpRequestData> mockRequest)
+    private void SetupSerializationResponse(TestFunctionContext context)
     {
         context.WithResponseContentType();
 

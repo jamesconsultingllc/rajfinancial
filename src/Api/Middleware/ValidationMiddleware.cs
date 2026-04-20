@@ -23,29 +23,34 @@ namespace RajFinancial.Api.Middleware;
 /// </code>
 /// </para>
 /// </remarks>
-public class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
+public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     public Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+#pragma warning disable S125 // False positive: documentation comment mentions code-like context key.
         // ContentNegotiationMiddleware runs before this and stores the raw body bytes
         // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
         // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
-        if (context.Items.TryGetValue("RequestBodyBytes", out var bytesObj) &&
-            bytesObj is byte[] bodyBytes &&
-            bodyBytes.Length > 0)
+#pragma warning restore S125
+        if (context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) &&
+            bytesObj is byte[] { Length: > 0 } bodyBytes)
         {
-            var contentType = context.Items.TryGetValue("RequestContentType", out var ctObj)
+            var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ctObj)
                 ? ctObj as string ?? SerializationFactory.JsonContentType
                 : SerializationFactory.JsonContentType;
 
             if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
             {
-                context.Items["RequestBody"] = Encoding.UTF8.GetString(bodyBytes);
+                context.Items[FunctionContextKeys.RequestBody] = Encoding.UTF8.GetString(bodyBytes);
             }
 
-            logger.LogDebug("Request body captured for validation ({ContentType})", contentType);
+            LogBodyCaptured(contentType);
         }
 
         return next(context);
     }
+
+    [LoggerMessage(EventId = 5400, Level = LogLevel.Debug,
+        Message = "Request body captured for validation ({ContentType})")]
+    private partial void LogBodyCaptured(string contentType);
 }

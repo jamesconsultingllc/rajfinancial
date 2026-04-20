@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.Azure.Functions.Worker;
@@ -20,7 +20,7 @@ namespace RajFinancial.Api.Middleware;
 /// </remarks>
 public static class ValidationExtensions
 {
-    private static readonly JsonSerializerOptions jsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -58,7 +58,7 @@ public static class ValidationExtensions
                     );
 
                 throw new ValidationException(
-                    result.Errors.First().ErrorMessage,
+                    result.Errors[0].ErrorMessage,
                     errors
                 );
             }
@@ -75,34 +75,20 @@ public static class ValidationExtensions
     /// <typeparam name="T">The type to deserialize.</typeparam>
     /// <param name="context">The function context.</param>
     /// <returns>The deserialized request body, or null if not available.</returns>
-    public static async Task<T?> GetBodyAsync<T>(this FunctionContext context) where T : class
+    private static async Task<T?> GetBodyAsync<T>(this FunctionContext context) where T : class
     {
-        // Try raw bytes + content type first (supports both JSON and MemoryPack)
-        if (context.Items.TryGetValue("RequestBodyBytes", out var bytesObj) &&
-            bytesObj is byte[] bodyBytes &&
-            bodyBytes.Length > 0)
+        var memoryPackBody = await TryDeserializeBinaryBodyAsync<T>(context);
+        if (memoryPackBody is not null)
         {
-            var contentType = context.Items.TryGetValue("RequestContentType", out var ctObj)
-                ? ctObj as string ?? SerializationFactory.JsonContentType
-                : SerializationFactory.JsonContentType;
-
-            // For non-JSON content types (e.g. MemoryPack), use ISerializationFactory
-            if (!contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
-            {
-                var factory = context.InstanceServices.GetService<ISerializationFactory>();
-                if (factory != null)
-                {
-                    return await factory.DeserializeAsync<T>(bodyBytes, contentType);
-                }
-            }
+            return memoryPackBody;
         }
 
         // Fall back to JSON string deserialization (set by ValidationMiddleware for JSON requests)
-        if (context.Items.TryGetValue("RequestBody", out var bodyObj) && bodyObj is string bodyString)
+        if (context.Items.TryGetValue(FunctionContextKeys.RequestBody, out var bodyObj) && bodyObj is string bodyString)
         {
             try
             {
-                return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
+                return JsonSerializer.Deserialize<T>(bodyString, JsonOptions);
             }
             catch (JsonException ex)
             {
@@ -115,6 +101,39 @@ public static class ValidationExtensions
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a non-JSON (e.g. MemoryPack) body via the registered
+    /// <see cref="ISerializationFactory"/>. Returns null when the context has no raw body
+    /// bytes, when the content type is JSON (handled by the caller), or when no factory
+    /// is registered.
+    /// </summary>
+    private static async Task<T?> TryDeserializeBinaryBodyAsync<T>(FunctionContext context) where T : class
+    {
+        if (!context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) ||
+            bytesObj is not byte[] bodyBytes ||
+            bodyBytes.Length == 0)
+        {
+            return null;
+        }
+
+        var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ctObj)
+            ? ctObj as string ?? SerializationFactory.JsonContentType
+            : SerializationFactory.JsonContentType;
+
+        if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var factory = context.InstanceServices.GetService<ISerializationFactory>();
+        if (factory is null)
+        {
+            return null;
+        }
+
+        return await factory.DeserializeAsync<T>(bodyBytes, contentType);
     }
 
     private static ValidationException ToValidationException(JsonException ex)
@@ -135,7 +154,7 @@ public static class ValidationExtensions
 
         // System.Text.Json paths look like "$.name" or "$.items[0].id". Pull the top-level segment.
         var stripped = path.StartsWith("$.", StringComparison.Ordinal) ? path[2..] : path;
-        var end = stripped.IndexOfAny(new[] { '.', '[' });
+        var end = stripped.IndexOfAny(['.', '[']);
         return end < 0 ? stripped : stripped[..end];
     }
 
@@ -148,11 +167,11 @@ public static class ValidationExtensions
     /// <returns>The deserialized request body, or null if not available.</returns>
     public static T? GetBody<T>(this FunctionContext context) where T : class
     {
-        if (context.Items.TryGetValue("RequestBody", out var bodyObj) && bodyObj is string bodyString)
+        if (context.Items.TryGetValue(FunctionContextKeys.RequestBody, out var bodyObj) && bodyObj is string bodyString)
         {
             try
             {
-                return JsonSerializer.Deserialize<T>(bodyString, jsonOptions);
+                return JsonSerializer.Deserialize<T>(bodyString, JsonOptions);
             }
             catch (JsonException)
             {
@@ -171,35 +190,5 @@ public static class ValidationExtensions
     public static Dictionary<string, object>? GetBodyAsDictionary(this FunctionContext context)
     {
         return context.GetBody<Dictionary<string, object>>();
-    }
-
-    /// <summary>
-    /// Validates an object using the registered validator.
-    /// </summary>
-    /// <typeparam name="T">The type to validate.</typeparam>
-    /// <param name="context">The function context.</param>
-    /// <param name="instance">The object to validate.</param>
-    /// <exception cref="ValidationException">Thrown when validation fails.</exception>
-    public static async Task ValidateAsync<T>(this FunctionContext context, T instance) where T : class
-    {
-        var validator = context.InstanceServices.GetService<IValidator<T>>();
-        if (validator != null)
-        {
-            var result = await validator.ValidateAsync(instance);
-            if (!result.IsValid)
-            {
-                var errors = result.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (object)g.Select(e => e.ErrorMessage).ToList()
-                    );
-
-                throw new ValidationException(
-                    result.Errors.First().ErrorMessage,
-                    errors
-                );
-            }
-        }
     }
 }

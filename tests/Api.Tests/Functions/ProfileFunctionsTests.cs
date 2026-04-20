@@ -2,16 +2,14 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware.Content;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Api.Tests.Middleware;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Functions;
@@ -27,8 +25,8 @@ public class ProfileFunctionsTests
     private readonly Mock<IUserProfileService> userProfileServiceMock;
     private readonly Mock<ISerializationFactory> serializationFactoryMock;
 
-    private static readonly Guid testUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-    private static readonly Guid testTenantId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
+    private static readonly Guid TestUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid TestTenantId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
 
     public ProfileFunctionsTests()
     {
@@ -51,10 +49,15 @@ public class ProfileFunctionsTests
     private static (HttpRequestData Request, TestFunctionContext Context) CreateAuthenticatedRequest(
         Guid userId)
     {
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId
+            }
+        };
 
         var mockRequest = new Mock<HttpRequestData>(context);
         mockRequest.SetupGet(r => r.Url).Returns(new Uri("https://localhost/api/profile/me"));
@@ -83,9 +86,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateTestProfile());
 
         // Act
@@ -100,9 +103,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateTestProfile());
 
         // Act
@@ -110,7 +113,7 @@ public class ProfileFunctionsTests
 
         // Assert
         var body = await ReadResponseBody(response);
-        body.Should().Contain(testUserId.ToString());
+        body.Should().Contain(TestUserId.ToString());
     }
 
     [Fact]
@@ -118,9 +121,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateTestProfile());
 
         // Act
@@ -138,9 +141,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateTestProfile());
 
         // Act
@@ -156,11 +159,11 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         var profile = CreateTestProfile();
         profile.DisplayName = "John Doe";
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(profile);
 
         // Act
@@ -180,9 +183,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserProfile?)null);
 
         // Act
@@ -197,9 +200,9 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateAuthenticatedRequest(testUserId);
+        var (request, context) = CreateAuthenticatedRequest(TestUserId);
         userProfileServiceMock
-            .Setup(s => s.GetByIdAsync(testUserId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(TestUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserProfile?)null);
 
         // Act
@@ -219,9 +222,14 @@ public class ProfileFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
+            }
+        };
         // No UserIdGuid
 
         var mockRequest = new Mock<HttpRequestData>(context);
@@ -252,11 +260,11 @@ public class ProfileFunctionsTests
     {
         return new UserProfile
         {
-            Id = testUserId,
+            Id = TestUserId,
             Email = "user@rajfinancial.com",
             DisplayName = "Test User",
             Role = UserRole.Client,
-            TenantId = testTenantId,
+            TenantId = TestTenantId,
             IsActive = true,
             CreatedAt = DateTime.UtcNow.AddDays(-30),
             LastLoginAt = DateTime.UtcNow

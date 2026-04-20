@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities.Trust;
+namespace RajFinancial.Shared.Contracts.Entities.Trust;
 
 /// <summary>
 ///     IRS classification of how a trust treats income (only meaningful for non-grantor trusts).

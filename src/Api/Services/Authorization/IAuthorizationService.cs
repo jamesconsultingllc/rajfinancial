@@ -1,4 +1,3 @@
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Services.Authorization;
@@ -14,7 +13,7 @@ namespace RajFinancial.Api.Services.Authorization;
 ///         If yes, access is granted with <see cref="AccessType.Owner"/>.</item>
 ///   <item><b>Tier 2 — Data Access Grant:</b> Does the requesting user hold a valid
 ///         <see cref="DataAccessGrant"/> (status <see cref="GrantStatus.Active"/>) covering
-///         the requested <paramref name="category"/> and <paramref name="requiredLevel"/>?</item>
+///         the requested <c>category</c> and <c>requiredLevel</c>?</item>
 ///   <item><b>Tier 3 — Administrator:</b> Does the requesting user have the Administrator role?
 ///         Administrators can access any resource with <see cref="AccessType.Full"/>.</item>
 /// </list>

@@ -8,7 +8,7 @@ namespace RajFinancial.IntegrationTests.Support;
 /// The Functions host must already be running — this does NOT auto-start it.
 /// </summary>
 [Binding]
-public class FunctionsHostHooks
+public static class FunctionsHostHooks
 {
     [BeforeTestRun]
     public static void RegisterFixture(IObjectContainer container)

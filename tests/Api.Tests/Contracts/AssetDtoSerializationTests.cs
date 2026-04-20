@@ -10,7 +10,6 @@
 using FluentAssertions;
 using MemoryPack;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Api.Tests.Contracts;
@@ -502,6 +501,6 @@ public class AssetDtoSerializationTests
         var result = MemoryPackSerializer.Deserialize<T>(bytes);
         result.Should().NotBeNull("deserialization should succeed");
 
-        return result!;
+        return result;
     }
 }

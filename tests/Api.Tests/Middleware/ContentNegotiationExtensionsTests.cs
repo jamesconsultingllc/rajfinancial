@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware.Content;
 
+using RajFinancial.Api.Middleware;
+
 namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
@@ -31,8 +33,13 @@ public class ContentNegotiationExtensionsTests
     public async Task DeserializeBodyAsync_WhenEmptyBytes_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBodyBytes"] = Array.Empty<byte>();
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.RequestBodyBytes] = Array.Empty<byte>()
+            }
+        };
         var factory = CreateSerializationFactory();
 
         // Act
@@ -48,8 +55,8 @@ public class ContentNegotiationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Test","value":42}""";
-        context.Items["RequestBodyBytes"] = Encoding.UTF8.GetBytes(json);
-        context.Items["RequestContentType"] = SerializationFactory.JsonContentType;
+        context.Items[FunctionContextKeys.RequestBodyBytes] = Encoding.UTF8.GetBytes(json);
+        context.Items[FunctionContextKeys.RequestContentType] = SerializationFactory.JsonContentType;
         var factory = CreateSerializationFactory();
 
         // Act
@@ -67,7 +74,7 @@ public class ContentNegotiationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Fallback","value":99}""";
-        context.Items["RequestBodyBytes"] = Encoding.UTF8.GetBytes(json);
+        context.Items[FunctionContextKeys.RequestBodyBytes] = Encoding.UTF8.GetBytes(json);
         // RequestContentType not set - should default to JSON
         var factory = CreateSerializationFactory();
 
@@ -83,8 +90,13 @@ public class ContentNegotiationExtensionsTests
     public void GetResponseContentType_WhenSet_ReturnsContentType()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["ResponseContentType"] = "application/x-memorypack";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.ResponseContentType] = "application/x-memorypack"
+            }
+        };
 
         // Act
         var result = context.GetResponseContentType();

@@ -6,11 +6,12 @@
 
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 
@@ -395,7 +396,7 @@ public class EntityRoleSteps
 
     private static Guid DeterministicGuid(string seed)
     {
-        var bytes = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(seed));
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(seed));
         var guidBytes = new byte[16];
         Array.Copy(bytes, guidBytes, 16);
         return new Guid(guidBytes);

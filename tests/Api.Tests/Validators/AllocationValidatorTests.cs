@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 using RajFinancial.Shared.Validators;
 
@@ -20,8 +19,8 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 60, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 40, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 60, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 40, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -37,10 +36,10 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 50, BeneficiaryType.PRIMARY),
-            MakeAssignment("Carol", 70, BeneficiaryType.CONTINGENT),
-            MakeAssignment("Dave", 30, BeneficiaryType.CONTINGENT)
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 50, BeneficiaryType.Primary),
+            MakeAssignment("Carol", 70, BeneficiaryType.Contingent),
+            MakeAssignment("Dave", 30, BeneficiaryType.Contingent)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -57,7 +56,7 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -70,7 +69,7 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -94,8 +93,8 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 0.01, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 99.99, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 0.01, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 99.99, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -112,8 +111,8 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 30, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 30, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 30, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 30, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -121,7 +120,7 @@ public class AllocationValidatorTests
         result.IsValid.Should().BeFalse();
         result.IsPrimaryValid.Should().BeFalse();
         result.PrimaryTotal.Should().Be(60);
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PRIMARY_TOTAL_INVALID);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PrimaryTotalInvalid);
     }
 
     [Fact]
@@ -129,15 +128,15 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 60, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 60, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 60, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 60, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
         result.IsPrimaryValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PRIMARY_TOTAL_INVALID);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PrimaryTotalInvalid);
     }
 
     // =========================================================================
@@ -149,15 +148,15 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Carol", 40, BeneficiaryType.CONTINGENT)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Carol", 40, BeneficiaryType.Contingent)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
         result.IsContingentValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.CONTINGENT_TOTAL_INVALID);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.ContingentTotalInvalid);
     }
 
     [Fact]
@@ -165,16 +164,16 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Carol", 60, BeneficiaryType.CONTINGENT),
-            MakeAssignment("Dave", 60, BeneficiaryType.CONTINGENT)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Carol", 60, BeneficiaryType.Contingent),
+            MakeAssignment("Dave", 60, BeneficiaryType.Contingent)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
         result.IsContingentValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.CONTINGENT_TOTAL_INVALID);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.ContingentTotalInvalid);
     }
 
     // =========================================================================
@@ -190,13 +189,13 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", percent, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", percent, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PERCENT_OUT_OF_RANGE);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.PercentOutOfRange);
     }
 
     [Theory]
@@ -207,12 +206,12 @@ public class AllocationValidatorTests
     {
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", percent, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", percent, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
-        result.Errors.Should().NotContain(e => e.ErrorCode == AllocationErrorCodes.PERCENT_OUT_OF_RANGE);
+        result.Errors.Should().NotContain(e => e.ErrorCode == AllocationErrorCodes.PercentOutOfRange);
     }
 
     // =========================================================================
@@ -225,14 +224,14 @@ public class AllocationValidatorTests
         var id = Guid.NewGuid();
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY, id),
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY, id)
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary, id),
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary, id)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.DUPLICATE_BENEFICIARY);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.DuplicateBeneficiary);
     }
 
     [Fact]
@@ -241,15 +240,15 @@ public class AllocationValidatorTests
         var id = Guid.NewGuid();
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 50, BeneficiaryType.CONTINGENT, id),
-            MakeAssignment("Bob", 50, BeneficiaryType.CONTINGENT, id)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 50, BeneficiaryType.Contingent, id),
+            MakeAssignment("Bob", 50, BeneficiaryType.Contingent, id)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.DUPLICATE_BENEFICIARY);
+        result.Errors.Should().Contain(e => e.ErrorCode == AllocationErrorCodes.DuplicateBeneficiary);
     }
 
     [Fact]
@@ -258,13 +257,13 @@ public class AllocationValidatorTests
         var id = Guid.NewGuid();
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 100, BeneficiaryType.PRIMARY, id),
-            MakeAssignment("Alice", 100, BeneficiaryType.CONTINGENT, id)
+            MakeAssignment("Alice", 100, BeneficiaryType.Primary, id),
+            MakeAssignment("Alice", 100, BeneficiaryType.Contingent, id)
         };
 
         var result = AllocationValidator.Validate(assignments);
 
-        result.Errors.Should().NotContain(e => e.ErrorCode == AllocationErrorCodes.DUPLICATE_BENEFICIARY);
+        result.Errors.Should().NotContain(e => e.ErrorCode == AllocationErrorCodes.DuplicateBeneficiary);
     }
 
     // =========================================================================
@@ -298,9 +297,9 @@ public class AllocationValidatorTests
         // 33.33 + 33.33 + 33.34 = 100.00 exactly, but test near-boundary
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 33.33, BeneficiaryType.PRIMARY),
-            MakeAssignment("Bob", 33.33, BeneficiaryType.PRIMARY),
-            MakeAssignment("Carol", 33.34, BeneficiaryType.PRIMARY)
+            MakeAssignment("Alice", 33.33, BeneficiaryType.Primary),
+            MakeAssignment("Bob", 33.33, BeneficiaryType.Primary),
+            MakeAssignment("Carol", 33.34, BeneficiaryType.Primary)
         };
 
         var result = AllocationValidator.Validate(assignments);
@@ -318,9 +317,9 @@ public class AllocationValidatorTests
         var id = Guid.NewGuid();
         var assignments = new List<BeneficiaryAssignmentDto>
         {
-            MakeAssignment("Alice", 0, BeneficiaryType.PRIMARY, id),       // out of range
-            MakeAssignment("Alice", 50, BeneficiaryType.PRIMARY, id),       // duplicate + total != 100
-            MakeAssignment("Bob", 150, BeneficiaryType.CONTINGENT)          // out of range + contingent != 100
+            MakeAssignment("Alice", 0, BeneficiaryType.Primary, id),       // out of range
+            MakeAssignment("Alice", 50, BeneficiaryType.Primary, id),       // duplicate + total != 100
+            MakeAssignment("Bob", 150, BeneficiaryType.Contingent)          // out of range + contingent != 100
         };
 
         var result = AllocationValidator.Validate(assignments);

@@ -3,27 +3,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Data;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Tests.Services.UserProfiles;
+namespace RajFinancial.Api.Tests.Services.UserProfile;
 
 /// <summary>
 /// TDD unit tests for <see cref="UserProfileService"/>.
 /// Tests JIT provisioning logic: create on first access, sync mutable claims,
 /// role mapping with priority, and LastLoginAt stamping.
 /// </summary>
-public class UserProfileServiceTests : IDisposable
+public sealed class UserProfileServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Mock<ILogger<UserProfileService>> loggerMock;
 
     // Fixed test GUIDs
-    private static readonly Guid userId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-    private static readonly Guid tenantId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
-    private static readonly Guid unknownUserId = Guid.Parse("cccc0000-0000-0000-0000-000000000003");
+    private static readonly Guid UserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid TenantId = Guid.Parse("bbbb0000-0000-0000-0000-000000000002");
+    private static readonly Guid UnknownUserId = Guid.Parse("cccc0000-0000-0000-0000-000000000003");
 
     public UserProfileServiceTests()
     {
@@ -38,7 +37,6 @@ public class UserProfileServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     private UserProfileService CreateService() => new(dbContext, loggerMock.Object);
@@ -55,10 +53,10 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
-        profile.Id.Should().Be(userId);
+        profile.Id.Should().Be(UserId);
     }
 
     [Fact]
@@ -69,7 +67,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         profile.Email.Should().Be("user@rajfinancial.com");
@@ -83,7 +81,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         profile.DisplayName.Should().Be("John Doe");
@@ -97,7 +95,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         profile.Role.Should().Be(UserRole.Client);
@@ -111,7 +109,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         profile.IsActive.Should().BeTrue();
@@ -126,7 +124,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         var after = DateTime.UtcNow;
@@ -142,7 +140,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         var after = DateTime.UtcNow;
@@ -158,12 +156,12 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
-        var persisted = await dbContext.UserProfiles.FindAsync(userId);
+        var persisted = await dbContext.UserProfiles.FindAsync(UserId);
         persisted.Should().NotBeNull();
-        persisted!.Email.Should().Be("user@rajfinancial.com");
+        persisted.Email.Should().Be("user@rajfinancial.com");
     }
 
     [Fact]
@@ -174,10 +172,10 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"], tenantId);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"], TenantId);
 
         // Assert
-        profile.TenantId.Should().Be(tenantId);
+        profile.TenantId.Should().Be(TenantId);
     }
 
     [Fact]
@@ -188,7 +186,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", null, ["Client"]);
+            UserId, "user@rajfinancial.com", null, ["Client"]);
 
         // Assert
         profile.DisplayName.Should().BeEmpty();
@@ -206,7 +204,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "admin@rajfinancial.com", "Admin User", ["Administrator"]);
+            UserId, "admin@rajfinancial.com", "Admin User", ["Administrator"]);
 
         // Assert
         profile.Role.Should().Be(UserRole.Administrator);
@@ -220,7 +218,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "advisor@rajfinancial.com", "Advisor User", ["Advisor"]);
+            UserId, "advisor@rajfinancial.com", "Advisor User", ["Advisor"]);
 
         // Assert
         profile.Role.Should().Be(UserRole.Advisor);
@@ -234,7 +232,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "admin@rajfinancial.com", "Multi-Role User",
+            UserId, "admin@rajfinancial.com", "Multi-Role User",
             ["Client", "Advisor", "Administrator"]);
 
         // Assert
@@ -249,7 +247,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "advisor@rajfinancial.com", "Multi-Role User",
+            UserId, "advisor@rajfinancial.com", "Multi-Role User",
             ["Client", "Advisor"]);
 
         // Assert
@@ -264,7 +262,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "No Role User", []);
+            UserId, "user@rajfinancial.com", "No Role User", []);
 
         // Assert
         profile.Role.Should().Be(UserRole.Client);
@@ -278,7 +276,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var profile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "Unknown Role User", ["SomeUnknownRole"]);
+            UserId, "user@rajfinancial.com", "Unknown Role User", ["SomeUnknownRole"]);
 
         // Assert
         profile.Role.Should().Be(UserRole.Client);
@@ -294,7 +292,7 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         var initialProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Set LastLoginAt to a known past time
         initialProfile.LastLoginAt = DateTime.UtcNow.AddMinutes(-10);
@@ -302,7 +300,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         updatedProfile.LastLoginAt.Should().BeCloseTo(
@@ -315,7 +313,7 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         var initialProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Set LastLoginAt to a known past time so the update is detectable
         initialProfile.LastLoginAt = DateTime.UtcNow.AddMinutes(-1);
@@ -324,7 +322,7 @@ public class UserProfileServiceTests : IDisposable
 
         // Act — called again; LastLoginAt should always be refreshed
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert — LastLoginAt should have been updated to now
         updatedProfile.LastLoginAt.Should().BeAfter(previousLastLogin!.Value);
@@ -338,12 +336,12 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         var initialProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
         var originalCreatedAt = initialProfile.CreatedAt;
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         updatedProfile.CreatedAt.Should().Be(originalCreatedAt);
@@ -355,11 +353,11 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Act
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         var count = await dbContext.UserProfiles.CountAsync();
@@ -372,11 +370,11 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "old@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "old@rajfinancial.com", "John Doe", ["Client"]);
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "new@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "new@rajfinancial.com", "John Doe", ["Client"]);
 
         // Assert
         updatedProfile.Email.Should().Be("new@rajfinancial.com");
@@ -388,11 +386,11 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "Old Name", ["Client"]);
+            UserId, "user@rajfinancial.com", "Old Name", ["Client"]);
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "New Name", ["Client"]);
+            UserId, "user@rajfinancial.com", "New Name", ["Client"]);
 
         // Assert
         updatedProfile.DisplayName.Should().Be("New Name");
@@ -404,11 +402,11 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Administrator"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Administrator"]);
 
         // Assert
         updatedProfile.Role.Should().Be(UserRole.Administrator);
@@ -420,12 +418,12 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "Old Name", ["Client"]);
+            UserId, "user@rajfinancial.com", "Old Name", ["Client"]);
         var before = DateTime.UtcNow;
 
         // Act
         var updatedProfile = await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "New Name", ["Client"]);
+            UserId, "user@rajfinancial.com", "New Name", ["Client"]);
 
         // Assert
         var after = DateTime.UtcNow;
@@ -443,14 +441,14 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "user@rajfinancial.com", "John Doe", ["Client"]);
+            UserId, "user@rajfinancial.com", "John Doe", ["Client"]);
 
         // Act
-        var profile = await service.GetByIdAsync(userId);
+        var profile = await service.GetByIdAsync(UserId);
 
         // Assert
         profile.Should().NotBeNull();
-        profile!.Id.Should().Be(userId);
+        profile.Id.Should().Be(UserId);
         profile.Email.Should().Be("user@rajfinancial.com");
         profile.DisplayName.Should().Be("John Doe");
     }
@@ -462,7 +460,7 @@ public class UserProfileServiceTests : IDisposable
         var service = CreateService();
 
         // Act
-        var profile = await service.GetByIdAsync(unknownUserId);
+        var profile = await service.GetByIdAsync(UnknownUserId);
 
         // Assert
         profile.Should().BeNull();
@@ -474,19 +472,19 @@ public class UserProfileServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.EnsureProfileExistsAsync(
-            userId, "admin@rajfinancial.com", "Admin User",
-            ["Administrator"], tenantId);
+            UserId, "admin@rajfinancial.com", "Admin User",
+            ["Administrator"], TenantId);
 
         // Act
-        var profile = await service.GetByIdAsync(userId);
+        var profile = await service.GetByIdAsync(UserId);
 
         // Assert
         profile.Should().NotBeNull();
-        profile!.Id.Should().Be(userId);
+        profile.Id.Should().Be(UserId);
         profile.Email.Should().Be("admin@rajfinancial.com");
         profile.DisplayName.Should().Be("Admin User");
         profile.Role.Should().Be(UserRole.Administrator);
-        profile.TenantId.Should().Be(tenantId);
+        profile.TenantId.Should().Be(TenantId);
         profile.IsActive.Should().BeTrue();
         profile.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
         profile.LastLoginAt.Should().NotBeNull();
@@ -501,7 +499,7 @@ public class UserProfileServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "Old Name", ["Client"]);
+        await service.EnsureProfileExistsAsync(UserId, "user@rajfinancial.com", "Old Name", ["Client"]);
         var request = new UpdateProfileRequest
         {
             DisplayName = "New Name",
@@ -511,11 +509,11 @@ public class UserProfileServiceTests : IDisposable
         };
 
         // Act
-        var result = await service.UpdateProfileAsync(userId, request);
+        var result = await service.UpdateProfileAsync(UserId, request);
 
         // Assert
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("New Name");
+        result.DisplayName.Should().Be("New Name");
     }
 
     [Fact]
@@ -523,7 +521,7 @@ public class UserProfileServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "User", ["Client"]);
+        await service.EnsureProfileExistsAsync(UserId, "user@rajfinancial.com", "User", ["Client"]);
         var request = new UpdateProfileRequest
         {
             DisplayName = "User",
@@ -533,11 +531,11 @@ public class UserProfileServiceTests : IDisposable
         };
 
         // Act
-        var result = await service.UpdateProfileAsync(userId, request);
+        var result = await service.UpdateProfileAsync(UserId, request);
 
         // Assert
         result.Should().NotBeNull();
-        result!.PreferencesJson.Should().Contain("es-MX");
+        result.PreferencesJson.Should().Contain("es-MX");
         result.PreferencesJson.Should().Contain("America/Chicago");
         result.PreferencesJson.Should().Contain("EUR");
     }
@@ -547,7 +545,7 @@ public class UserProfileServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        await service.EnsureProfileExistsAsync(userId, "user@rajfinancial.com", "User", ["Client"]);
+        await service.EnsureProfileExistsAsync(UserId, "user@rajfinancial.com", "User", ["Client"]);
         var request = new UpdateProfileRequest
         {
             DisplayName = "User",
@@ -557,11 +555,11 @@ public class UserProfileServiceTests : IDisposable
         };
 
         // Act
-        var result = await service.UpdateProfileAsync(userId, request);
+        var result = await service.UpdateProfileAsync(UserId, request);
 
         // Assert
         result.Should().NotBeNull();
-        result!.UpdatedAt.Should().NotBeNull();
+        result.UpdatedAt.Should().NotBeNull();
         result.UpdatedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
@@ -579,7 +577,7 @@ public class UserProfileServiceTests : IDisposable
         };
 
         // Act
-        var result = await service.UpdateProfileAsync(unknownUserId, request);
+        var result = await service.UpdateProfileAsync(UnknownUserId, request);
 
         // Assert
         result.Should().BeNull();

@@ -12,8 +12,8 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 

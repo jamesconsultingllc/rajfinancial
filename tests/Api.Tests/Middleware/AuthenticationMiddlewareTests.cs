@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net;
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +24,7 @@ public class AuthenticationMiddlewareTests
     public AuthenticationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         environmentMock = new Mock<IHostEnvironment>();
         environmentMock.Setup(e => e.EnvironmentName).Returns("Development");
         middleware = new AuthenticationMiddleware(loggerMock.Object, environmentMock.Object);
@@ -40,7 +40,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         var nextCalled = false;
         Task Next(FunctionContext _)
@@ -54,8 +54,8 @@ public class AuthenticationMiddlewareTests
 
         // Assert
         nextCalled.Should().BeTrue();
-        context.Items["UserId"].Should().Be("user-123");
-        context.Items["IsAuthenticated"].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be("user-123");
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", email: "test@rajfinancial.com");
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -72,7 +72,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserEmail"].Should().Be("test@rajfinancial.com");
+        context.Items[FunctionContextKeys.UserEmail].Should().Be("test@rajfinancial.com");
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", name: "John Doe");
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -89,7 +89,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserName"].Should().Be("John Doe");
+        context.Items[FunctionContextKeys.UserName].Should().Be("John Doe");
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", roles: ["Client", "Administrator"]);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -106,7 +106,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
+        var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
         roles.Should().NotBeNull();
         roles.Should().Contain("Client");
         roles.Should().Contain("Administrator");
@@ -118,7 +118,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -126,7 +126,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["ClaimsPrincipal"].Should().Be(principal);
+        context.Items[FunctionContextKeys.ClaimsPrincipal].Should().Be(principal);
     }
 
     // =========================================================================
@@ -140,7 +140,7 @@ public class AuthenticationMiddlewareTests
         var context = new TestFunctionContext();
         var identity = new ClaimsIdentity(); // Not authenticated (no auth type)
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -148,7 +148,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["IsAuthenticated"].Should().Be(false);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["IsAuthenticated"].Should().Be(false);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public class AuthenticationMiddlewareTests
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -209,7 +209,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserId"].Should().Be("user-alt-123");
+        context.Items[FunctionContextKeys.UserId].Should().Be("user-alt-123");
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public class AuthenticationMiddlewareTests
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -232,7 +232,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserEmail"].Should().Be("external@rajfinancial.com");
+        context.Items[FunctionContextKeys.UserEmail].Should().Be("external@rajfinancial.com");
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public class AuthenticationMiddlewareTests
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -255,7 +255,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserEmail"].Should().Be("standard@rajfinancial.com");
+        context.Items[FunctionContextKeys.UserEmail].Should().Be("standard@rajfinancial.com");
     }
 
     // =========================================================================
@@ -275,7 +275,7 @@ public class AuthenticationMiddlewareTests
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -283,7 +283,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
+        var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
         roles.Should().NotBeNull();
         roles.Should().HaveCount(1);
         roles.Should().Contain("Administrator");
@@ -304,7 +304,7 @@ public class AuthenticationMiddlewareTests
         };
         var identity = new ClaimsIdentity(claims, "Bearer");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -325,7 +325,7 @@ public class AuthenticationMiddlewareTests
         // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-for-log", roles: ["Client"]);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -354,7 +354,7 @@ public class AuthenticationMiddlewareTests
         var guid = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: guid.ToString());
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -362,7 +362,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserIdGuid"].Should().Be(guid);
+        context.Items[FunctionContextKeys.UserIdGuid].Should().Be(guid);
     }
 
     [Fact]
@@ -371,7 +371,7 @@ public class AuthenticationMiddlewareTests
         // Arrange — "user-123" is not a valid Guid
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -379,7 +379,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert
-        context.Items["UserId"].Should().Be("user-123");
+        context.Items[FunctionContextKeys.UserId].Should().Be("user-123");
         context.Items.Should().NotContainKey("UserIdGuid");
     }
 
@@ -416,7 +416,7 @@ public class AuthenticationMiddlewareTests
         await prodMiddleware.Invoke(context, Next);
 
         // Assert — token must be rejected; user must NOT be authenticated
-        context.Items["IsAuthenticated"].Should().Be(false);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
         context.Items.Should().NotContainKey("UserId");
 
         // Verify warning was logged
@@ -455,8 +455,8 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert — in Development, the unvalidated JWT should be trusted
-        context.Items["IsAuthenticated"].Should().Be(true);
-        context.Items["UserId"].Should().Be(userId);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
     }
 
     // =========================================================================
@@ -477,10 +477,10 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert — claims from HttpContext.User must be used
-        context.Items["IsAuthenticated"].Should().Be(true);
-        context.Items["UserId"].Should().Be(userId);
-        context.Items["UserEmail"].Should().Be("easyauth@rajfinancial.com");
-        var roles = context.Items["UserRoles"] as IReadOnlyList<string>;
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
+        context.Items[FunctionContextKeys.UserEmail].Should().Be("easyauth@rajfinancial.com");
+        var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
         roles.Should().Contain("Client");
     }
 
@@ -492,6 +492,7 @@ public class AuthenticationMiddlewareTests
         prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
         // Use a fresh logger mock so previous test runs don't pollute the Times.Never assertion
         var freshLogger = new Mock<ILogger<AuthenticationMiddleware>>();
+        freshLogger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         var prodMiddleware = new AuthenticationMiddleware(freshLogger.Object, prodEnv.Object);
 
         var userId = Guid.NewGuid().ToString();
@@ -504,8 +505,8 @@ public class AuthenticationMiddlewareTests
         await prodMiddleware.Invoke(context, Next);
 
         // Assert — EasyAuth-validated principal accepted; no "unvalidated token" warning logged
-        context.Items["IsAuthenticated"].Should().Be(true);
-        context.Items["UserId"].Should().Be(userId);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
         freshLogger.Verify(
             x => x.Log(
                 LogLevel.Warning,
@@ -535,8 +536,7 @@ public class AuthenticationMiddlewareTests
             issuedAt: DateTime.UtcNow,
             signingCredentials: null);
 
-        var headers = new HttpHeadersCollection();
-        headers.Add("Authorization", $"Bearer {token}");
+        var headers = new HttpHeadersCollection { { "Authorization", $"Bearer {token}" } };
         context.SetHttpRequestHeaders(headers);
 
         Task Next(FunctionContext _) => Task.CompletedTask;
@@ -545,15 +545,17 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert — JWT parsed because HttpContext.User was not authenticated
-        context.Items["IsAuthenticated"].Should().Be(true);
-        context.Items["UserId"].Should().Be(userId);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
     }
 
     [Fact]
     public async Task Invoke_ItemsClaimsPrincipalTakesPriorityOverHttpContextUser()
     {
-        // Arrange — both Items["ClaimsPrincipal"] and HttpContext.User are set;
-        // Items["ClaimsPrincipal"] should win (existing behavior preserved)
+#pragma warning disable S125 // Descriptive prose comment, not commented-out code.
+        // Arrange — both Items[FunctionContextKeys.ClaimsPrincipal] and HttpContext.User are set;
+        // Items[FunctionContextKeys.ClaimsPrincipal] should win (existing behavior preserved)
+#pragma warning restore S125
         var itemsUserId = Guid.NewGuid().ToString();
         var httpContextUserId = Guid.NewGuid().ToString();
 
@@ -561,7 +563,7 @@ public class AuthenticationMiddlewareTests
         var httpContextPrincipal = CreatePrincipal(objectId: httpContextUserId);
 
         var context = CreateContextWithHttpContextUser(httpContextPrincipal);
-        context.Items["ClaimsPrincipal"] = itemsPrincipal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = itemsPrincipal;
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -569,7 +571,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, Next);
 
         // Assert — the principal from Items takes precedence
-        context.Items["UserId"].Should().Be(itemsUserId);
+        context.Items[FunctionContextKeys.UserId].Should().Be(itemsUserId);
     }
 
     [Fact]
@@ -591,12 +593,12 @@ public class AuthenticationMiddlewareTests
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
-        // Act — Development middleware; no Items["ClaimsPrincipal"], no HttpContext in Items
+        // Act — Development middleware; no Items[FunctionContextKeys.ClaimsPrincipal], no HttpContext in Items
         await middleware.Invoke(context, Next);
 
         // Assert — fell through to JWT parsing
-        context.Items["IsAuthenticated"].Should().Be(true);
-        context.Items["UserId"].Should().Be(userId);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
     }
 
     // =========================================================================
@@ -640,8 +642,7 @@ public class AuthenticationMiddlewareTests
     private static TestFunctionContext CreateContextWithAuthorizationHeader(string authorizationHeader)
     {
         var context = new TestFunctionContext();
-        var headers = new HttpHeadersCollection();
-        headers.Add("Authorization", authorizationHeader);
+        var headers = new HttpHeadersCollection { { "Authorization", authorizationHeader } };
         context.SetHttpRequestHeaders(headers);
         return context;
     }
@@ -655,10 +656,15 @@ public class AuthenticationMiddlewareTests
         var mockHttpContext = new Mock<HttpContext>();
         mockHttpContext.SetupGet(h => h.User).Returns(userPrincipal);
 
-        var context = new TestFunctionContext();
-        // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
-        // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
-        context.Items["HttpRequestContext"] = mockHttpContext.Object;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
+                // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
+                ["HttpRequestContext"] = mockHttpContext.Object
+            }
+        };
         return context;
     }
 }

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities.Trust;
+namespace RajFinancial.Shared.Contracts.Entities.Trust;
 
 /// <summary>
 ///     Authority the trustee has over distributions to beneficiaries.

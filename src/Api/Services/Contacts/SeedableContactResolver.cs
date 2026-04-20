@@ -37,7 +37,7 @@ public sealed class SeedableContactResolver : IContactResolver
         if (!ownerByContact.TryGetValue(contactId, out var owner) || owner != userId)
         {
             throw new NotFoundException(
-                EntityErrorCodes.ROLE_CONTACT_NOT_FOUND,
+                EntityErrorCodes.RoleContactNotFound,
                 $"Contact {contactId} was not found for user {userId}.");
         }
 

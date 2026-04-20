@@ -10,7 +10,7 @@ public class NotFoundException(string errorCode, string message) : System.Except
     public string ErrorCode { get; } = errorCode;
 
     public static NotFoundException Asset(Guid assetId) =>
-        new(AssetErrorCodes.NOT_FOUND, $"Asset with ID {assetId} was not found");
+        new(AssetErrorCodes.NotFound, $"Asset with ID {assetId} was not found");
 
     public static NotFoundException Account(Guid accountId) =>
         new("ACCOUNT_NOT_FOUND", $"Account with ID {accountId} was not found");

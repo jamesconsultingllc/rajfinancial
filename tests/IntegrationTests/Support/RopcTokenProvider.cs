@@ -22,7 +22,7 @@ public class RopcTokenProvider
     private readonly ConcurrentDictionary<string, Lazy<Task<AuthenticationResult>>> inFlight = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lazy<IPublicClientApplication> app;
 
-    private const int MaxRetries = 3;
+    private const int MAX_RETRIES = 3;
     private static readonly TimeSpan BaseRetryDelay = TimeSpan.FromSeconds(2);
 
     public RopcTokenProvider(IConfiguration configuration)
@@ -100,8 +100,8 @@ public class RopcTokenProvider
 
         // Single-flight: all concurrent callers for the same user share one in-flight request.
         // This prevents the stampede of parallel ROPC calls that triggers AAD throttling.
-        var lazyTask = inFlight.GetOrAdd(username, _ => new Lazy<Task<AuthenticationResult>>(
-            () => AcquireTokenWithRetryAsync(username, password, effectiveScopes)));
+        var lazyTask = inFlight.GetOrAdd(username, x => new Lazy<Task<AuthenticationResult>>(
+            () => AcquireTokenWithRetryAsync(x, password, effectiveScopes)));
 
         try
         {
@@ -118,7 +118,7 @@ public class RopcTokenProvider
         finally
         {
             // Clean up completed in-flight entry (successful ones stay in tokenCache)
-            if (lazyTask.IsValueCreated && lazyTask.Value.IsCompletedSuccessfully)
+            if (lazyTask is { IsValueCreated: true, Value.IsCompletedSuccessfully: true })
                 inFlight.TryRemove(username, out _);
         }
     }
@@ -146,8 +146,10 @@ public class RopcTokenProvider
             }
         }
 
-        // ROPC with exponential backoff + jitter for throttling errors
-        for (int attempt = 0; ; attempt++)
+        // ROPC with exponential backoff + jitter for throttling errors.
+        // Loop bound by MAX_RETRIES; the catch's when-clause lets the final throttling
+        // exception propagate once attempts are exhausted.
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++)
         {
             try
             {
@@ -156,12 +158,14 @@ public class RopcTokenProvider
                     .ExecuteAsync();
 #pragma warning restore CS0618
             }
-            catch (MsalServiceException ex) when (IsThrottlingError(ex) && attempt < MaxRetries)
+            catch (MsalServiceException ex) when (IsThrottlingError(ex) && attempt < MAX_RETRIES)
             {
                 var delay = GetRetryDelay(ex, attempt);
                 await Task.Delay(delay);
             }
         }
+
+        throw new InvalidOperationException("Unreachable: ROPC retry loop exited without returning or throwing.");
     }
 
     /// <summary>
@@ -170,7 +174,7 @@ public class RopcTokenProvider
     private static bool IsThrottlingError(MsalServiceException ex)
     {
         return ex.StatusCode == 429
-            || (ex.StatusCode >= 500 && ex.StatusCode < 600)
+            || ex.StatusCode is >= 500 and < 600
             || ex.ErrorCode == "throttled_request"
             || ex.Message.Contains("throttled by AAD", StringComparison.OrdinalIgnoreCase);
     }

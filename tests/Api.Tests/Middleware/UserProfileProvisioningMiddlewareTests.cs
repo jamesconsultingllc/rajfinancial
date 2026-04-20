@@ -4,8 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
-using RajFinancial.Api.Services.UserProfiles;
-using RajFinancial.Shared.Entities;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Middleware;
@@ -20,11 +19,12 @@ public class UserProfileProvisioningMiddlewareTests
     private readonly Mock<ILogger<UserProfileProvisioningMiddleware>> loggerMock;
     private readonly Mock<IUserProfileService> userProfileServiceMock;
 
-    private static readonly Guid testUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid TestUserId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
 
     public UserProfileProvisioningMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<UserProfileProvisioningMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         userProfileServiceMock = new Mock<IUserProfileService>();
     }
 
@@ -41,13 +41,18 @@ public class UserProfileProvisioningMiddlewareTests
         string? name = "John Doe",
         IReadOnlyList<string>? roles = null)
     {
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
-        if (email != null) context.Items["UserEmail"] = email;
-        if (name != null) context.Items["UserName"] = name;
-        context.Items["UserRoles"] = roles ?? (IReadOnlyList<string>)["Client"];
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId
+            }
+        };
+        if (email != null) context.Items[FunctionContextKeys.UserEmail] = email;
+        if (name != null) context.Items[FunctionContextKeys.UserName] = name;
+        context.Items[FunctionContextKeys.UserRoles] = roles ?? ["Client"];
 
         // Set up InstanceServices to resolve IUserProfileService
         var services = new ServiceCollection();
@@ -57,7 +62,7 @@ public class UserProfileProvisioningMiddlewareTests
         return context;
     }
 
-    private TestFunctionContext CreateUnauthenticatedContext()
+    private static TestFunctionContext CreateUnauthenticatedContext()
     {
         var context = new TestFunctionContext();
         // IsAuthenticated not set or false
@@ -73,13 +78,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -89,7 +94,7 @@ public class UserProfileProvisioningMiddlewareTests
         // Assert
         userProfileServiceMock.Verify(
             s => s.EnsureProfileExistsAsync(
-                testUserId,
+                TestUserId,
                 "user@rajfinancial.com",
                 "John Doe",
                 It.Is<IReadOnlyList<string>>(r => r.Contains("Client")),
@@ -103,13 +108,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId, email: "custom@example.com");
+        var context = CreateAuthenticatedContext(TestUserId, email: "custom@example.com");
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -134,13 +139,13 @@ public class UserProfileProvisioningMiddlewareTests
         // Arrange
         var middleware = CreateMiddleware();
         var context = CreateAuthenticatedContext(
-            testUserId, roles: ["Administrator", "Advisor"]);
+            TestUserId, roles: ["Administrator", "Advisor"]);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -165,13 +170,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         var nextCalled = false;
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
@@ -234,7 +239,7 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
@@ -257,7 +262,7 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId);
+        var context = CreateAuthenticatedContext(TestUserId);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
@@ -290,13 +295,13 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange
         var middleware = CreateMiddleware();
-        var context = CreateAuthenticatedContext(testUserId, email: null);
+        var context = CreateAuthenticatedContext(TestUserId, email: null);
         userProfileServiceMock
             .Setup(s => s.EnsureProfileExistsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile { Id = testUserId });
+            .ReturnsAsync(new UserProfile { Id = TestUserId });
 
         Task Next(FunctionContext _) => Task.CompletedTask;
 
@@ -320,9 +325,14 @@ public class UserProfileProvisioningMiddlewareTests
     {
         // Arrange — UserId set as string but UserIdGuid is missing/invalid
         var middleware = CreateMiddleware();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
+            }
+        };
         // No UserIdGuid set
 
         Task Next(FunctionContext _) => Task.CompletedTask;

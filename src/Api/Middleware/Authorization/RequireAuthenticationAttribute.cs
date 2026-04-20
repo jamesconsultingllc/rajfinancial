@@ -28,5 +28,5 @@ namespace RajFinancial.Api.Middleware.Authorization;
 /// </code>
 /// </para>
 /// </remarks>
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, Inherited = false)]
 public sealed class RequireAuthenticationAttribute : Attribute;

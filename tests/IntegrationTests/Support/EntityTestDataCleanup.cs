@@ -30,7 +30,7 @@ internal static class EntityTestDataCleanup
 
     /// <summary>
     /// Deletes all <c>EntityRoles</c> and <c>Entities</c> rows belonging to known test users.
-    /// The <see cref="UserProfileProvisioningMiddleware"/> will re-create the Personal entity
+    /// The <c>UserProfileProvisioningMiddleware</c> will re-create the Personal entity
     /// on the next authenticated request.
     /// </summary>
     /// <param name="configuration">Test configuration (reads <c>ConnectionStrings:SqlConnectionString</c>).</param>
@@ -85,7 +85,7 @@ internal static class EntityTestDataCleanup
     /// a local/ephemeral SQL Server instance. Parses the connection string and requires the
     /// DataSource to be an explicitly-allowed local value.
     /// </summary>
-    private static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
+    internal static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
         var dataSource = builder.DataSource?.Trim() ?? string.Empty;

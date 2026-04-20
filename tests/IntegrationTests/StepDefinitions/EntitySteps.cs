@@ -10,8 +10,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 
@@ -35,9 +35,13 @@ public class EntitySteps
     private HttpResponseMessage? response;
     private string? responseBody;
     private string? authToken;
-    private readonly Dictionary<string, string> createdEntityIds = new();
     private string? lastCreatedEntityId;
     private string? ownerUserId;
+
+    // createdEntityIds map retained for step definitions that reference prior "Owner Co" / named
+    // entities by label; queries happen in downstream step assertions via lastCreatedEntityId.
+    // ReSharper disable once CollectionNeverQueried.Local
+    private readonly Dictionary<string, string> createdEntityIds = new();
 
     public EntitySteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {

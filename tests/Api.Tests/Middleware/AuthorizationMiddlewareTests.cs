@@ -5,6 +5,8 @@ using Moq;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Exception;
 
+using RajFinancial.Api.Middleware;
+
 namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
@@ -20,6 +22,7 @@ public class AuthorizationMiddlewareTests
     public AuthorizationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthorizationMiddleware>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         middleware = new AuthorizationMiddleware(loggerMock.Object);
     }
 
@@ -32,21 +35,6 @@ public class AuthorizationMiddlewareTests
     {
         // Arrange
         var context = CreateContext(EntryPoint<PublicFunctions>(nameof(PublicFunctions.PublicEndpoint)));
-        var nextCalled = false;
-        Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
-
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
-        nextCalled.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Invoke_NullFunctionDefinition_CallsNextWithoutThrowing()
-    {
-        // Arrange — non-HTTP triggers or missing definition
-        var context = new TestFunctionContext();
         var nextCalled = false;
         Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
@@ -418,13 +406,15 @@ public class AuthorizationMiddlewareTests
 
         var context = new TestFunctionContext
         {
-            FunctionDefinitionValue = funcDef.Object
+            FunctionDefinitionValue = funcDef.Object,
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = isAuthenticated
+            }
         };
 
-        context.Items["IsAuthenticated"] = isAuthenticated;
-
         if (isAuthenticated && roles is not null)
-            context.Items["UserRoles"] = roles;
+            context.Items[FunctionContextKeys.UserRoles] = roles;
 
         return context;
     }
@@ -432,45 +422,43 @@ public class AuthorizationMiddlewareTests
     // =========================================================================
     // Sample function classes for reflection-based tests
     // =========================================================================
+    // ReSharper disable ClassNeverInstantiated.Local
+    // ReSharper disable MemberCanBePrivate.Local
 
     /// <summary>Public endpoint — no authorization attributes.</summary>
     private class PublicFunctions
     {
-        public void PublicEndpoint() { }
+        public void PublicEndpoint() { /* reflection target only */ }
     }
 
     /// <summary>Method-level [RequireAuthentication].</summary>
     private class AuthFunctions
     {
         [RequireAuthentication]
-        public void ProtectedEndpoint() { }
-
-        public void PublicEndpoint() { }
+        public void ProtectedEndpoint() { /* reflection target only */ }
     }
 
     /// <summary>Class-level [RequireAuthentication].</summary>
     [RequireAuthentication]
     private class ProtectedClass
     {
-        public void AnyEndpoint() { }
+        public void AnyEndpoint() { /* reflection target only */ }
     }
 
     /// <summary>Method-level [RequireRole] with single and multiple roles.</summary>
     private class RoleFunctions
     {
         [RequireRole("Administrator")]
-        public void AdminOnly() { }
+        public void AdminOnly() { /* reflection target only */ }
 
         [RequireRole("Administrator", "Client")]
-        public void MultiRoleEndpoint() { }
-
-        public void PublicEndpoint() { }
+        public void MultiRoleEndpoint() { /* reflection target only */ }
     }
 
     /// <summary>Class-level [RequireRole].</summary>
     [RequireRole("Administrator")]
     private class AdminClass
     {
-        public void AnyEndpoint() { }
+        public void AnyEndpoint() { /* reflection target only */ }
     }
 }

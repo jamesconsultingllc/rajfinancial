@@ -2,6 +2,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Services.EntityService;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Entities.Users;
 using SysException = System.Exception;
 
@@ -21,7 +23,7 @@ namespace RajFinancial.Api.Middleware;
 /// <para>
 /// This middleware must execute <b>after</b> <see cref="AuthenticationMiddleware"/>
 /// (so claim-based context items are available) and <b>before</b>
-/// <see cref="AuthorizationMiddleware"/> (so authorization can rely on the
+/// <see cref="Authorization.AuthorizationMiddleware"/> (so authorization can rely on the
 /// persisted profile).
 /// </para>
 /// <para>
@@ -29,7 +31,7 @@ namespace RajFinancial.Api.Middleware;
 /// the request pipeline.
 /// </para>
 /// </remarks>
-public class UserProfileProvisioningMiddleware(
+public partial class UserProfileProvisioningMiddleware(
     ILogger<UserProfileProvisioningMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     /// <inheritdoc/>
@@ -48,7 +50,7 @@ public class UserProfileProvisioningMiddleware(
                     var roles = context.GetUserRoles();
 
                     var profileService = context.InstanceServices
-                        .GetRequiredService<Services.UserProfiles.IUserProfileService>();
+                        .GetRequiredService<IUserProfileService>();
 
                     await profileService.EnsureProfileExistsAsync(
                         userIdGuid.Value,
@@ -62,7 +64,7 @@ public class UserProfileProvisioningMiddleware(
                     // a single indexed lookup on (UserId, Type=Personal) and returns fast
                     // when the entity already exists.
                     var entityService = context.InstanceServices
-                        .GetRequiredService<Services.EntityService.IEntityService>();
+                        .GetRequiredService<IEntityService>();
 
                     await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
                 }
@@ -75,14 +77,15 @@ public class UserProfileProvisioningMiddleware(
                 throw;
             }
 
-            logger.LogWarning(
-                ex,
-                "UserProfile provisioning failed for request {InvocationId}; continuing pipeline",
-                context.InvocationId);
+            LogProvisioningFailed(ex, context.InvocationId);
         }
 
         await next(context);
     }
+
+    [LoggerMessage(EventId = 5100, Level = LogLevel.Warning,
+        Message = "UserProfile provisioning failed for request {InvocationId}; continuing pipeline")]
+    private partial void LogProvisioningFailed(SysException ex, string invocationId);
 
     /// <summary>
     /// Returns <c>true</c> for fatal/system exceptions that must never be swallowed.

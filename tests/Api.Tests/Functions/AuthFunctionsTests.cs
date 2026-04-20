@@ -1,14 +1,12 @@
 using System.Net;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Functions;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Api.Tests.Middleware;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
 namespace RajFinancial.Api.Tests.Functions;
@@ -61,13 +59,18 @@ public class AuthFunctionsTests
     {
         roles ??= new List<string> { "Client" };
 
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
-        context.Items["UserEmail"] = email;
-        context.Items["UserName"] = displayName;
-        context.Items["UserRoles"] = roles;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId,
+                [FunctionContextKeys.UserEmail] = email,
+                [FunctionContextKeys.UserName] = displayName,
+                [FunctionContextKeys.UserRoles] = roles
+            }
+        };
 
         var mockRequest = new Mock<HttpRequestData>(context);
         mockRequest.SetupGet(r => r.Url).Returns(new Uri($"https://localhost/api/{route}"));
@@ -121,13 +124,11 @@ public class AuthFunctionsTests
         return await reader.ReadToEndAsync();
     }
 
-    private static UserProfile CreateTestProfile(
-        Guid? userId = null,
+    private static UserProfile CreateTestProfile(Guid? userId = null,
         string email = "user@rajfinancial.com",
         string displayName = "Test User",
         UserRole role = UserRole.Client,
-        bool isProfileComplete = false,
-        bool isActive = true)
+        bool isProfileComplete = false)
     {
         return new UserProfile
         {
@@ -151,7 +152,7 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/me");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetMe(request, context);
@@ -165,7 +166,7 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/me");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetMe(request, context);
@@ -180,9 +181,14 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
+            }
+        };
         // No UserIdGuid — malformed auth context
 
         var mockRequest = new Mock<HttpRequestData>(context);
@@ -345,7 +351,7 @@ public class AuthFunctionsTests
             roles: ["Client"]);
 
         SetupEnsureProfileExists("newuser@rajfinancial.com", "New User", ["Client"],
-            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User", UserRole.Client));
+            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User"));
 
         // Act
         await functions.GetMe(request, context);
@@ -375,7 +381,7 @@ public class AuthFunctionsTests
             roles: ["Client"]);
 
         SetupEnsureProfileExists("newuser@rajfinancial.com", "New User", ["Client"],
-            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User", UserRole.Client));
+            CreateTestProfile(newUserId, "newuser@rajfinancial.com", "New User"));
 
         // Act
         var response = await functions.GetMe(request, context);
@@ -630,9 +636,14 @@ public class AuthFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
+            }
+        };
         // No UserIdGuid, no UserRoles
 
         var mockRequest = new Mock<HttpRequestData>(context);

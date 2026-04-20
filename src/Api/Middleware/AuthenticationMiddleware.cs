@@ -42,7 +42,7 @@ namespace RajFinancial.Api.Middleware;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthenticationMiddleware(
+public partial class AuthenticationMiddleware(
     ILogger<AuthenticationMiddleware> logger,
     IHostEnvironment environment) : IFunctionsWorkerMiddleware
 {
@@ -58,54 +58,59 @@ public class AuthenticationMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        // Extract ClaimsPrincipal from the function context
         var principal = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
-            var userId = GetUserId(principal);
-            var email = GetEmail(principal);
-            var roles = GetRoles(principal);
-            var name = GetName(principal);
-
-            if (!string.IsNullOrEmpty(userId))
-            {
-                // Store user context for use by functions
-                // UserId is stored as both string (backward compat) and Guid (for IAuthorizationService)
-                context.Items["UserId"] = userId;
-                if (Guid.TryParse(userId, out var userGuid))
-                    context.Items["UserIdGuid"] = userGuid;
-                context.Items["UserEmail"] = email ?? string.Empty;
-                context.Items["UserName"] = name ?? string.Empty;
-                context.Items["UserRoles"] = roles;
-                context.Items["ClaimsPrincipal"] = principal;
-                context.Items["IsAuthenticated"] = true;
-
-                if (string.IsNullOrEmpty(email))
-                {
-                    var claimTypeNames = principal.Claims.Select(c => c.Type);
-                    logger.LogWarning(
-                        "No email claim found for user {UserId}. Available claim types: {ClaimTypes}",
-                        userId, string.Join("; ", claimTypeNames));
-                }
-
-                logger.LogDebug(
-                    "Authenticated user: {UserId}, Roles: {Roles}",
-                    userId, string.Join(", ", roles));
-            }
+            PopulateAuthenticatedContext(context, principal);
         }
         else
         {
-            context.Items["IsAuthenticated"] = false;
+            context.Items[FunctionContextKeys.IsAuthenticated] = false;
         }
 
         await next(context);
     }
 
+    private void PopulateAuthenticatedContext(FunctionContext context, ClaimsPrincipal principal)
+    {
+        var userId = GetUserId(principal);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return;
+        }
+
+        var email = GetEmail(principal);
+        var roles = GetRoles(principal);
+        var name = GetName(principal);
+
+        // UserId is stored as both string (backward compat) and Guid (for IAuthorizationService)
+        context.Items[FunctionContextKeys.UserId] = userId;
+        if (Guid.TryParse(userId, out var userGuid))
+            context.Items[FunctionContextKeys.UserIdGuid] = userGuid;
+        context.Items[FunctionContextKeys.UserEmail] = email ?? string.Empty;
+        context.Items[FunctionContextKeys.UserName] = name ?? string.Empty;
+        context.Items[FunctionContextKeys.UserRoles] = roles;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
+        context.Items[FunctionContextKeys.IsAuthenticated] = true;
+
+        if (string.IsNullOrEmpty(email) && logger.IsEnabled(LogLevel.Warning))
+        {
+            var claimTypeNames = string.Join("; ", principal.Claims.Select(c => c.Type));
+            LogMissingEmailClaim(userId, claimTypeNames);
+        }
+
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            var roleList = string.Join(", ", roles);
+            LogAuthenticatedUser(userId, roleList);
+        }
+    }
+
     private async Task<ClaimsPrincipal?> GetClaimsPrincipalAsync(FunctionContext context)
     {
         // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
-        if (context.Items.TryGetValue("ClaimsPrincipal", out var existingPrincipal) &&
+        if (context.Items.TryGetValue(FunctionContextKeys.ClaimsPrincipal, out var existingPrincipal) &&
             existingPrincipal is ClaimsPrincipal principal)
         {
             return principal;
@@ -113,12 +118,17 @@ public class AuthenticationMiddleware(
 
         // Check HttpContext.User — populated by EasyAuth via ConfigureFunctionsWebApplication()
         var httpContext = context.GetHttpContext();
-        if (httpContext?.User?.Identity?.IsAuthenticated == true)
+        if (httpContext?.User.Identity?.IsAuthenticated == true)
         {
             return httpContext.User;
         }
 
-        // Extract JWT from Authorization header for local development / standalone hosting
+        // Fall back to JWT parsing (Development only) for local testing without EasyAuth
+        return await TryParseJwtFromAuthorizationHeaderAsync(context);
+    }
+
+    private async Task<ClaimsPrincipal?> TryParseJwtFromAuthorizationHeaderAsync(FunctionContext context)
+    {
         var httpRequestData = await context.GetHttpRequestDataAsync();
         if (httpRequestData is null)
         {
@@ -142,21 +152,18 @@ public class AuthenticationMiddleware(
             return null;
         }
 
+        // SECURITY: Only parse JWTs without signature validation in Development.
+        // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
+        // directly — if we reach this point in production, the token was not validated by EasyAuth
+        // and must be rejected to prevent forged JWT attacks.
+        if (!environment.IsDevelopment())
+        {
+            LogJwtRejectedNonDev(environment.EnvironmentName);
+            return null;
+        }
+
         try
         {
-            // SECURITY: Only parse JWTs without signature validation in Development.
-            // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
-            // directly — if we reach this point in production, the token was not validated by EasyAuth
-            // and must be rejected to prevent forged JWT attacks.
-            if (!environment.IsDevelopment())
-            {
-                logger.LogWarning(
-                    "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
-                    "Rejecting unvalidated token in {Environment} environment",
-                    environment.EnvironmentName);
-                return null;
-            }
-
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 
@@ -165,10 +172,27 @@ public class AuthenticationMiddleware(
         }
         catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
         {
-            logger.LogWarning(ex, "Failed to parse JWT token from Authorization header");
+            LogJwtParseFailed(ex);
             return null;
         }
     }
+
+    [LoggerMessage(EventId = 5201, Level = LogLevel.Warning,
+        Message = "No email claim found for user {UserId}. Available claim types: {ClaimTypes}")]
+    private partial void LogMissingEmailClaim(string userId, string claimTypes);
+
+    [LoggerMessage(EventId = 5202, Level = LogLevel.Debug,
+        Message = "Authenticated user: {UserId}, Roles: {Roles}")]
+    private partial void LogAuthenticatedUser(string userId, string roles);
+
+    [LoggerMessage(EventId = 5203, Level = LogLevel.Warning,
+        Message = "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
+                  "Rejecting unvalidated token in {Environment} environment")]
+    private partial void LogJwtRejectedNonDev(string environment);
+
+    [LoggerMessage(EventId = 5204, Level = LogLevel.Warning,
+        Message = "Failed to parse JWT token from Authorization header")]
+    private partial void LogJwtParseFailed(System.Exception ex);
 
     private static string? GetUserId(ClaimsPrincipal principal)
     {

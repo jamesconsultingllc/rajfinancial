@@ -1,7 +1,7 @@
 using MemoryPack;
+using RajFinancial.Shared.Contracts.Entities.Business;
+using RajFinancial.Shared.Contracts.Entities.Trust;
 using RajFinancial.Shared.Entities;
-using RajFinancial.Shared.Entities.Business;
-using RajFinancial.Shared.Entities.Trust;
 
 namespace RajFinancial.Shared.Contracts.Entities;
 

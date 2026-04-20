@@ -12,10 +12,10 @@ public class UpdateEntityRequestValidator : AbstractValidator<UpdateEntityReques
     {
         RuleFor(x => x.Name)
             .NotEmpty()
-            .WithErrorCode(EntityErrorCodes.NAME_REQUIRED)
+            .WithErrorCode(EntityErrorCodes.NameRequired)
             .WithMessage("Entity name is required")
             .MaximumLength(200)
-            .WithErrorCode(EntityErrorCodes.NAME_MAX_LENGTH)
+            .WithErrorCode(EntityErrorCodes.NameMaxLength)
             .WithMessage("Entity name must not exceed 200 characters");
     }
 }

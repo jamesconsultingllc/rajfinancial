@@ -26,7 +26,7 @@ namespace RajFinancial.Api.Middleware.Exception;
 /// </list>
 /// </para>
 /// </remarks>
-public class ExceptionMiddleware(
+public partial class ExceptionMiddleware(
     ILogger<ExceptionMiddleware> logger,
     ISerializationFactory serializationFactory)
     : IFunctionsWorkerMiddleware
@@ -39,37 +39,37 @@ public class ExceptionMiddleware(
         }
         catch (NotFoundException ex)
         {
-            logger.LogWarning(ex, "Resource not found: {Message}", ex.Message);
+            LogResourceNotFound(ex, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.NotFound, ex.ErrorCode, ex.Message);
         }
         catch (ValidationException ex)
         {
-            logger.LogWarning(ex, "Validation failed: {Message}", ex.Message);
+            LogValidationFailed(ex, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "VALIDATION_FAILED", ex.Message, ex.Errors);
         }
         catch (UnauthorizedException ex)
         {
-            logger.LogWarning(ex, "Unauthorized: {Message}", ex.Message);
+            LogUnauthorized(ex, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, "AUTH_REQUIRED", ex.Message);
         }
         catch (ForbiddenException ex)
         {
-            logger.LogWarning(ex, "Forbidden: {Message}", ex.Message);
+            LogForbidden(ex, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, "AUTH_FORBIDDEN", ex.Message);
         }
         catch (ConflictException ex)
         {
-            logger.LogWarning(ex, "Conflict: {Code} - {Message}", ex.ErrorCode, ex.Message);
+            LogConflict(ex, ex.ErrorCode, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.ErrorCode, ex.Message);
         }
         catch (BusinessRuleException ex)
         {
-            logger.LogWarning(ex, "Business rule violation: {Code} - {Message}", ex.ErrorCode, ex.Message);
+            LogBusinessRuleViolation(ex, ex.ErrorCode, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message);
         }
         catch (ConfigurationException ex)
         {
-            logger.LogError(ex, "Configuration error: {Message}", ex.Message);
+            LogConfigurationError(ex, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "CONFIGURATION_ERROR", "Service configuration error");
         }
         catch (OperationCanceledException)
@@ -78,12 +78,35 @@ public class ExceptionMiddleware(
         }
         catch (System.Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception in {FunctionName}: {Message}",
-                context.FunctionDefinition.Name, ex.Message);
+            LogUnhandledException(ex, context.FunctionDefinition.Name, ex.Message);
 
             await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "INTERNAL_ERROR", "An unexpected error occurred");
         }
     }
+
+    [LoggerMessage(EventId = 5001, Level = LogLevel.Warning, Message = "Resource not found: {Message}")]
+    private partial void LogResourceNotFound(System.Exception ex, string message);
+
+    [LoggerMessage(EventId = 5002, Level = LogLevel.Warning, Message = "Validation failed: {Message}")]
+    private partial void LogValidationFailed(System.Exception ex, string message);
+
+    [LoggerMessage(EventId = 5003, Level = LogLevel.Warning, Message = "Unauthorized: {Message}")]
+    private partial void LogUnauthorized(System.Exception ex, string message);
+
+    [LoggerMessage(EventId = 5004, Level = LogLevel.Warning, Message = "Forbidden: {Message}")]
+    private partial void LogForbidden(System.Exception ex, string message);
+
+    [LoggerMessage(EventId = 5005, Level = LogLevel.Warning, Message = "Conflict: {Code} - {Message}")]
+    private partial void LogConflict(System.Exception ex, string code, string message);
+
+    [LoggerMessage(EventId = 5006, Level = LogLevel.Warning, Message = "Business rule violation: {Code} - {Message}")]
+    private partial void LogBusinessRuleViolation(System.Exception ex, string code, string message);
+
+    [LoggerMessage(EventId = 5007, Level = LogLevel.Error, Message = "Configuration error: {Message}")]
+    private partial void LogConfigurationError(System.Exception ex, string message);
+
+    [LoggerMessage(EventId = 5008, Level = LogLevel.Error, Message = "Unhandled exception in {FunctionName}: {Message}")]
+    private partial void LogUnhandledException(System.Exception ex, string functionName, string message);
 
     private async Task WriteErrorResponseAsync(
         FunctionContext context,
@@ -112,7 +135,7 @@ public class ExceptionMiddleware(
         };
 
         // Use content negotiation: get request-specific content type from context
-        var contentType = context.Items.TryGetValue("ResponseContentType", out var ct)
+        var contentType = context.Items.TryGetValue(FunctionContextKeys.ResponseContentType, out var ct)
             ? ct as string ?? SerializationFactory.JsonContentType
             : SerializationFactory.JsonContentType;
 

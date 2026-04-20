@@ -29,7 +29,7 @@ namespace RajFinancial.Api.Functions.Entities;
 ///         <item><c>DELETE /api/entities/{id}/roles/{roleId}</c> — Remove role</item>
 ///     </list>
 /// </remarks>
-public class EntityFunctions(
+public partial class EntityFunctions(
     IEntityService entityService,
     ISerializationFactory serializationFactory,
     ILogger<EntityFunctions> logger)
@@ -51,9 +51,7 @@ public class EntityFunctions(
         var ownerUserId = ParseGuid(req, "ownerUserId") ?? userId;
         var filterType = ParseEntityType(req);
 
-        logger.LogInformation(
-            "Fetching entities for owner {OwnerUserId} (requested by {UserId}, type={FilterType})",
-            ownerUserId, userId, filterType);
+        LogFetchingEntities(ownerUserId, userId, filterType);
 
         var entities = await entityService.GetEntitiesAsync(userId, ownerUserId, filterType);
 
@@ -79,11 +77,11 @@ public class EntityFunctions(
         if (!Guid.TryParse(id, out var entityId))
             throw new ValidationException($"Invalid entity ID format: '{id}'");
 
-        logger.LogInformation("Fetching entity {EntityId} for user {UserId}", entityId, userId);
+        LogFetchingEntityById(entityId, userId);
 
         var entity = await entityService.GetEntityByIdAsync(userId, entityId)
                      ?? throw new NotFoundException(
-                         EntityErrorCodes.NOT_FOUND,
+                         EntityErrorCodes.NotFound,
                          $"Entity with ID {entityId} was not found.");
 
         return await context.CreateSerializedResponseAsync(
@@ -106,8 +104,7 @@ public class EntityFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateEntityRequest>();
 
-        logger.LogInformation("Creating {Type} entity '{Name}' for user {UserId}",
-            request.Type, request.Name, userId);
+        LogCreatingEntity(request.Type, request.Name, userId);
 
         var entity = await entityService.CreateEntityAsync(userId, request);
 
@@ -135,7 +132,7 @@ public class EntityFunctions(
 
         var request = await context.GetValidatedBodyAsync<UpdateEntityRequest>();
 
-        logger.LogInformation("Updating entity {EntityId} for user {UserId}", entityId, userId);
+        LogUpdatingEntity(entityId, userId);
 
         var entity = await entityService.UpdateEntityAsync(userId, entityId, request);
 
@@ -161,7 +158,7 @@ public class EntityFunctions(
         if (!Guid.TryParse(id, out var entityId))
             throw new ValidationException($"Invalid entity ID format: '{id}'");
 
-        logger.LogInformation("Deleting entity {EntityId} for user {UserId}", entityId, userId);
+        LogDeletingEntity(entityId, userId);
 
         await entityService.DeleteEntityAsync(userId, entityId);
 
@@ -212,8 +209,7 @@ public class EntityFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateEntityRoleRequest>();
 
-        logger.LogInformation("Assigning role {RoleType} on entity {EntityId} by user {UserId}",
-            request.RoleType, entityId, userId);
+        LogAssigningRole(request.RoleType, entityId, userId);
 
         var role = await entityService.AssignRoleAsync(userId, entityId, request);
 
@@ -243,8 +239,7 @@ public class EntityFunctions(
         if (!Guid.TryParse(roleId, out var roleGuid))
             throw new ValidationException($"Invalid role ID format: '{roleId}'");
 
-        logger.LogInformation("Removing role {RoleId} from entity {EntityId} by user {UserId}",
-            roleGuid, entityId, userId);
+        LogRemovingRole(roleGuid, entityId, userId);
 
         await entityService.RemoveRoleAsync(userId, entityId, roleGuid);
 
@@ -274,4 +269,26 @@ public class EntityFunctions(
 
         return null;
     }
+
+    [LoggerMessage(EventId = 6001, Level = LogLevel.Information,
+        Message = "Fetching entities for owner {OwnerUserId} (requested by {UserId}, type={FilterType})")]
+    private partial void LogFetchingEntities(Guid ownerUserId, Guid userId, EntityType? filterType);
+
+    [LoggerMessage(EventId = 6002, Level = LogLevel.Information, Message = "Fetching entity {EntityId} for user {UserId}")]
+    private partial void LogFetchingEntityById(Guid entityId, Guid userId);
+
+    [LoggerMessage(EventId = 6003, Level = LogLevel.Information, Message = "Creating {Type} entity '{Name}' for user {UserId}")]
+    private partial void LogCreatingEntity(EntityType? type, string name, Guid userId);
+
+    [LoggerMessage(EventId = 6004, Level = LogLevel.Information, Message = "Updating entity {EntityId} for user {UserId}")]
+    private partial void LogUpdatingEntity(Guid entityId, Guid userId);
+
+    [LoggerMessage(EventId = 6005, Level = LogLevel.Information, Message = "Deleting entity {EntityId} for user {UserId}")]
+    private partial void LogDeletingEntity(Guid entityId, Guid userId);
+
+    [LoggerMessage(EventId = 6006, Level = LogLevel.Information, Message = "Assigning role {RoleType} on entity {EntityId} by user {UserId}")]
+    private partial void LogAssigningRole(EntityRoleType? roleType, Guid entityId, Guid userId);
+
+    [LoggerMessage(EventId = 6007, Level = LogLevel.Information, Message = "Removing role {RoleId} from entity {EntityId} by user {UserId}")]
+    private partial void LogRemovingRole(Guid roleId, Guid entityId, Guid userId);
 }

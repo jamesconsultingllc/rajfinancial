@@ -7,7 +7,6 @@ using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.Contacts;
-using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
@@ -17,13 +16,13 @@ namespace RajFinancial.Api.Tests.Services.EntityService;
 /// <summary>
 ///     Unit tests for <see cref="Api.Services.EntityService.EntityService"/> role-management operations.
 /// </summary>
-public class EntityRoleServiceTests : IDisposable
+public sealed class EntityRoleServiceTests : IDisposable
 {
     private readonly ApplicationDbContext dbContext;
     private readonly Api.Services.EntityService.EntityService service;
     private readonly Mock<IContactResolver> contactMock;
 
-    private static readonly Guid ownerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
+    private static readonly Guid OwnerId = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
 
     public EntityRoleServiceTests()
     {
@@ -35,7 +34,7 @@ public class EntityRoleServiceTests : IDisposable
         dbContext = new ApplicationDbContext(options);
 
         var authMock = new Mock<IAuthorizationService>();
-        authMock.Setup(a => a.CheckAccessAsync(ownerId, ownerId, DataCategories.Entities, It.IsAny<AccessType>()))
+        authMock.Setup(a => a.CheckAccessAsync(OwnerId, OwnerId, DataCategories.Entities, It.IsAny<AccessType>()))
             .ReturnsAsync(AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner));
 
         var logger = new Mock<ILogger<Api.Services.EntityService.EntityService>>();
@@ -50,7 +49,6 @@ public class EntityRoleServiceTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     [Fact]
@@ -68,7 +66,7 @@ public class EntityRoleServiceTests : IDisposable
             OwnershipPercent = 100
         };
 
-        var result = await service.AssignRoleAsync(ownerId, entity.Id, request);
+        var result = await service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         result.Should().NotBeNull();
         result.Id.Should().NotBeEmpty();
@@ -90,7 +88,7 @@ public class EntityRoleServiceTests : IDisposable
             SortOrder = 0
         };
 
-        var result = await service.AssignRoleAsync(ownerId, entity.Id, request);
+        var result = await service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         result.RoleType.Should().Be(EntityRoleType.Trustee);
     }
@@ -109,10 +107,10 @@ public class EntityRoleServiceTests : IDisposable
             SortOrder = 0
         };
 
-        var act = () => service.AssignRoleAsync(ownerId, entity.Id, request);
+        var act = () => service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         var ex = await act.Should().ThrowAsync<BusinessRuleException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.ROLE_INVALID_FOR_ENTITY_TYPE);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.RoleInvalidForEntityType);
     }
 
     [Fact]
@@ -129,10 +127,10 @@ public class EntityRoleServiceTests : IDisposable
             SortOrder = 0
         };
 
-        var act = () => service.AssignRoleAsync(ownerId, entity.Id, request);
+        var act = () => service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         var ex = await act.Should().ThrowAsync<BusinessRuleException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.ROLE_INVALID_FOR_ENTITY_TYPE);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.RoleInvalidForEntityType);
     }
 
     [Fact]
@@ -159,10 +157,10 @@ public class EntityRoleServiceTests : IDisposable
             SortOrder = 1
         };
 
-        var act = () => service.AssignRoleAsync(ownerId, entity.Id, request);
+        var act = () => service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         var ex = await act.Should().ThrowAsync<BusinessRuleException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.ROLE_OWNERSHIP_EXCEEDS_100);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.RoleOwnershipExceeds100);
     }
 
     [Fact]
@@ -180,7 +178,7 @@ public class EntityRoleServiceTests : IDisposable
             SortOrder = 0
         };
 
-        var result = await service.AssignRoleAsync(ownerId, entity.Id, request);
+        var result = await service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         result.RoleType.Should().Be(EntityRoleType.Beneficiary);
         result.BeneficialInterestPercent.Should().Be(50);
@@ -203,7 +201,7 @@ public class EntityRoleServiceTests : IDisposable
             });
         await dbContext.SaveChangesAsync();
 
-        var results = await service.GetRolesAsync(ownerId, entity.Id);
+        var results = await service.GetRolesAsync(OwnerId, entity.Id);
 
         results.Should().HaveCount(2);
     }
@@ -222,7 +220,7 @@ public class EntityRoleServiceTests : IDisposable
         dbContext.EntityRoles.Add(role);
         await dbContext.SaveChangesAsync();
 
-        await service.RemoveRoleAsync(ownerId, entity.Id, role.Id);
+        await service.RemoveRoleAsync(OwnerId, entity.Id, role.Id);
 
         var inDb = await dbContext.EntityRoles.FindAsync(role.Id);
         inDb.Should().BeNull();
@@ -233,7 +231,7 @@ public class EntityRoleServiceTests : IDisposable
     {
         var entity = await SeedEntityAsync(EntityType.Business, "Acme LLC");
 
-        var act = () => service.RemoveRoleAsync(ownerId, entity.Id, Guid.NewGuid());
+        var act = () => service.RemoveRoleAsync(OwnerId, entity.Id, Guid.NewGuid());
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -250,7 +248,7 @@ public class EntityRoleServiceTests : IDisposable
         contactMock
             .Setup(c => c.EnsureOwnedByAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new NotFoundException(
-                EntityErrorCodes.ROLE_CONTACT_NOT_FOUND, "Contact not found."));
+                EntityErrorCodes.RoleContactNotFound, "Contact not found."));
 
         var entity = await SeedEntityAsync(EntityType.Business, "Acme LLC");
         var request = new CreateEntityRoleRequest
@@ -263,10 +261,10 @@ public class EntityRoleServiceTests : IDisposable
             OwnershipPercent = 50
         };
 
-        var act = () => service.AssignRoleAsync(ownerId, entity.Id, request);
+        var act = () => service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         var ex = await act.Should().ThrowAsync<NotFoundException>();
-        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.ROLE_CONTACT_NOT_FOUND);
+        ex.Which.ErrorCode.Should().Be(EntityErrorCodes.RoleContactNotFound);
 
         // Role must not have been persisted
         dbContext.EntityRoles.Should().BeEmpty();
@@ -301,10 +299,10 @@ public class EntityRoleServiceTests : IDisposable
             OwnershipPercent = 50
         };
 
-        await service.AssignRoleAsync(ownerId, entity.Id, request);
+        await service.AssignRoleAsync(OwnerId, entity.Id, request);
 
         capturedContactId.Should().Be(suppliedContactId);
-        capturedUserId.Should().Be(ownerId);
+        capturedUserId.Should().Be(OwnerId);
     }
 
     [Fact]
@@ -353,7 +351,7 @@ public class EntityRoleServiceTests : IDisposable
         var entity = new Entity
         {
             Id = Guid.NewGuid(),
-            UserId = ownerId,
+            UserId = OwnerId,
             Type = type,
             Name = name,
             Slug = name.ToLowerInvariant().Replace(' ', '-'),

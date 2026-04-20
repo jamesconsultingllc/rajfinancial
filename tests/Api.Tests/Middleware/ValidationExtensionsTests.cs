@@ -15,7 +15,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Test","value":42}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -43,8 +43,13 @@ public class ValidationExtensionsTests
     public void GetBody_WhenInvalidJson_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBody"] = "not valid json";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.RequestBody] = "not valid json"
+            }
+        };
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -57,8 +62,13 @@ public class ValidationExtensionsTests
     public void GetBody_WhenEmptyString_ReturnsNull()
     {
         // Arrange
-        var context = new TestFunctionContext();
-        context.Items["RequestBody"] = "";
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.RequestBody] = ""
+            }
+        };
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -73,7 +83,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"CamelCase","value":100}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -89,7 +99,7 @@ public class ValidationExtensionsTests
         // Arrange - JSON has PascalCase, C# properties also PascalCase
         var context = new TestFunctionContext();
         var json = """{"Name":"PascalCase","Value":200}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -105,7 +115,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"key1":"value1","key2":"value2"}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBodyAsDictionary();

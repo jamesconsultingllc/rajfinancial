@@ -15,10 +15,10 @@ public enum BankAccountType
     MoneyMarket,
 
     /// <summary>Certificate of Deposit.</summary>
-    CD,
+    Cd,
 
     /// <summary>High-Yield Savings Account.</summary>
-    HYSA,
+    Hysa,
 
     /// <summary>Other bank account type.</summary>
     Other

@@ -1,5 +1,4 @@
 using RajFinancial.Shared.Contracts.Assets;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Assets;
 
 namespace RajFinancial.Shared.Validators;
@@ -32,27 +31,25 @@ public static class AllocationValidator
         var errors = new List<AllocationValidationError>();
 
         var primary = assignments
-            .Where(a => string.Equals(a.Type, BeneficiaryType.PRIMARY, StringComparison.OrdinalIgnoreCase))
+            .Where(a => string.Equals(a.Type, BeneficiaryType.Primary, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var contingent = assignments
-            .Where(a => string.Equals(a.Type, BeneficiaryType.CONTINGENT, StringComparison.OrdinalIgnoreCase))
+            .Where(a => string.Equals(a.Type, BeneficiaryType.Contingent, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         // Individual allocation range checks
-        foreach (var assignment in assignments)
+        foreach (var assignment in assignments
+                     .Where(a => a.AllocationPercent is < MIN_PERCENT or > MAX_PERCENT))
         {
-            if (assignment.AllocationPercent is < MIN_PERCENT or > MAX_PERCENT)
-            {
-                errors.Add(new AllocationValidationError(
-                    AllocationErrorCodes.PERCENT_OUT_OF_RANGE,
-                    $"Allocation for '{assignment.BeneficiaryName}' must be between {MIN_PERCENT}% and {MAX_PERCENT}%"));
-            }
+            errors.Add(new AllocationValidationError(
+                AllocationErrorCodes.PercentOutOfRange,
+                $"Allocation for '{assignment.BeneficiaryName}' must be between {MIN_PERCENT}% and {MAX_PERCENT}%"));
         }
 
         // Duplicate checks per type
-        AddDuplicateErrors(primary, BeneficiaryType.PRIMARY, errors);
-        AddDuplicateErrors(contingent, BeneficiaryType.CONTINGENT, errors);
+        AddDuplicateErrors(primary, BeneficiaryType.Primary, errors);
+        AddDuplicateErrors(contingent, BeneficiaryType.Contingent, errors);
 
         // Primary total must be exactly 100%
         var primaryTotal = primary.Sum(a => a.AllocationPercent);
@@ -61,7 +58,7 @@ public static class AllocationValidator
         if (!isPrimaryValid && primary.Count > 0)
         {
             errors.Add(new AllocationValidationError(
-                AllocationErrorCodes.PRIMARY_TOTAL_INVALID,
+                AllocationErrorCodes.PrimaryTotalInvalid,
                 $"Primary beneficiary allocations must total exactly 100% (currently {primaryTotal:F2}%)"));
         }
 
@@ -73,7 +70,7 @@ public static class AllocationValidator
         if (!isContingentValid)
         {
             errors.Add(new AllocationValidationError(
-                AllocationErrorCodes.CONTINGENT_TOTAL_INVALID,
+                AllocationErrorCodes.ContingentTotalInvalid,
                 $"Contingent beneficiary allocations must total exactly 100% (currently {contingentTotal:F2}%)"));
         }
 
@@ -100,7 +97,7 @@ public static class AllocationValidator
         foreach (var name in duplicates)
         {
             errors.Add(new AllocationValidationError(
-                AllocationErrorCodes.DUPLICATE_BENEFICIARY,
+                AllocationErrorCodes.DuplicateBeneficiary,
                 $"'{name}' is assigned more than once as a {type} beneficiary"));
         }
     }

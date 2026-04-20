@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities.Business;
+namespace RajFinancial.Shared.Contracts.Entities.Business;
 
 /// <summary>
 ///     Legal formation type for business entities.
@@ -11,10 +11,10 @@ public enum BusinessFormationType
     SoleProprietorship = 0,
 
     [Description("Single-Member LLC — one-owner limited liability company; disregarded entity for federal tax by default.")]
-    SingleMemberLLC = 1,
+    SingleMemberLlc = 1,
 
     [Description("Multi-Member LLC — LLC with two or more owners; taxed as a partnership by default.")]
-    MultiMemberLLC = 2,
+    MultiMemberLlc = 2,
 
     [Description("S-Corporation — pass-through entity that elected Subchapter S status (Form 2553).")]
     SCorporation = 3,

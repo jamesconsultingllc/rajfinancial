@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Pre-commit hook: run JetBrains InspectCode on staged C# files.
+# Invokes the PowerShell implementation so logic stays cross-platform.
+#
+# Bypass in emergencies with: git commit --no-verify
+#
+# One-time setup per machine:
+#   git config core.hooksPath .githooks
+
+set -e
+
+# Prefer pwsh (PowerShell 7+), fall back to Windows PowerShell.
+if command -v pwsh >/dev/null 2>&1; then
+  PS="pwsh"
+elif command -v powershell >/dev/null 2>&1; then
+  PS="powershell"
+else
+  echo "pre-commit: neither 'pwsh' nor 'powershell' found on PATH; skipping inspection" >&2
+  exit 0
+fi
+
+exec "$PS" -NoProfile -ExecutionPolicy Bypass -File scripts/precommit-inspect.ps1

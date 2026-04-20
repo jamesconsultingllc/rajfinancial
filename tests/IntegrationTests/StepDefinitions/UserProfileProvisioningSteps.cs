@@ -3,8 +3,8 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 
@@ -24,34 +24,34 @@ namespace RajFinancial.IntegrationTests.StepDefinitions;
 [Scope(Tag = "userprofile")]
 public class UserProfileProvisioningSteps
 {
-    private readonly FunctionsHostFixture _fixture;
-    private readonly HttpClient _client;
-    private HttpResponseMessage? _response;
-    private string? _responseBody;
-    private JsonElement _responseJson;
+    private readonly FunctionsHostFixture fixture;
+    private readonly HttpClient client;
+    private HttpResponseMessage? response;
+    private string? responseBody;
+    private JsonElement responseJson;
 
     // Track test user identity across steps
-    private string _testUserId = null!;
-    private string _testUserEmail = null!;
-    private string _testUserName = null!;
-    private string _testUserRole = "Client";
+    private string testUserId = null!;
+    private string testUserEmail = null!;
+    private string testUserName = null!;
+    private string testUserRole = "Client";
 
     // Track all emails used during a scenario for cleanup
-    private readonly List<string> _emailsToCleanup = [];
+    private readonly List<string> emailsToCleanup = [];
 
     // For tracking timing of provisioning
-    private DateTimeOffset _requestTimestamp;
+    private DateTimeOffset requestTimestamp;
 
     // For "returning user" scenarios — captures LastLoginAt from the initial request
-    private DateTimeOffset _previousLastLoginAt;
+    private DateTimeOffset previousLastLoginAt;
 
-    private readonly TestAuthHelper _authHelper;
+    private readonly TestAuthHelper authHelper;
 
     public UserProfileProvisioningSteps(FunctionsHostFixture fixture, TestAuthHelper authHelper)
     {
-        _fixture = fixture;
-        _authHelper = authHelper;
-        _client = fixture.Client;
+        this.fixture = fixture;
+        this.authHelper = authHelper;
+        client = fixture.Client;
     }
 
     // =========================================================================
@@ -68,7 +68,7 @@ public class UserProfileProvisioningSteps
     [AfterScenario]
     public async Task CleanupAfterScenario()
     {
-        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        var connStr = fixture.Configuration.GetConnectionString("SqlConnectionString");
         if (string.IsNullOrEmpty(connStr))
             return;
 
@@ -76,9 +76,9 @@ public class UserProfileProvisioningSteps
         await conn.OpenAsync();
 
         // Delete by user ID (covers the primary profile)
-        if (!string.IsNullOrEmpty(_testUserId))
+        if (!string.IsNullOrEmpty(testUserId))
         {
-            var id = Guid.Parse(_testUserId);
+            var id = Guid.Parse(testUserId);
             await DeleteEntitiesByUserIdAsync(conn, id);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM UserProfiles WHERE Id = @id";
@@ -87,7 +87,7 @@ public class UserProfileProvisioningSteps
         }
 
         // Delete by any emails registered during the scenario
-        foreach (var email in _emailsToCleanup)
+        foreach (var email in emailsToCleanup)
         {
             await DeleteEntitiesByEmailAsync(conn, email);
             await using var cmd = conn.CreateCommand();
@@ -132,57 +132,57 @@ public class UserProfileProvisioningSteps
     [Given("the Functions host is running")]
     public async Task GivenTheFunctionsHostIsRunning()
     {
-        await _fixture.EnsureHostIsRunningAsync();
+        await fixture.EnsureHostIsRunningAsync();
     }
 
     [Given("no UserProfile exists for a new test user")]
     public void GivenNoUserProfileExistsForANewTestUser()
     {
         // Each test run uses a unique GUID, so no profile will exist
-        _testUserId = Guid.NewGuid().ToString();
-        _testUserEmail = $"testuser-{_testUserId[..8]}@example.com";
-        _testUserName = $"Test User {_testUserId[..8]}";
-        _testUserRole = "Client";
+        testUserId = Guid.NewGuid().ToString();
+        testUserEmail = $"testuser-{testUserId[..8]}@example.com";
+        testUserName = $"Test User {testUserId[..8]}";
+        testUserRole = "Client";
     }
 
     [Given("no UserProfile exists for a new admin test user")]
     public void GivenNoUserProfileExistsForANewAdminTestUser()
     {
-        _testUserId = Guid.NewGuid().ToString();
-        _testUserEmail = $"admin-{_testUserId[..8]}@example.com";
-        _testUserName = $"Admin {_testUserId[..8]}";
-        _testUserRole = "Administrator";
+        testUserId = Guid.NewGuid().ToString();
+        testUserEmail = $"admin-{testUserId[..8]}@example.com";
+        testUserName = $"Admin {testUserId[..8]}";
+        testUserRole = "Administrator";
     }
 
     [Given("no UserProfile exists for a new advisor test user")]
     public void GivenNoUserProfileExistsForANewAdvisorTestUser()
     {
-        _testUserId = Guid.NewGuid().ToString();
-        _testUserEmail = $"advisor-{_testUserId[..8]}@example.com";
-        _testUserName = $"Advisor {_testUserId[..8]}";
-        _testUserRole = "Advisor";
+        testUserId = Guid.NewGuid().ToString();
+        testUserEmail = $"advisor-{testUserId[..8]}@example.com";
+        testUserName = $"Advisor {testUserId[..8]}";
+        testUserRole = "Advisor";
     }
 
     [Given("a UserProfile already exists for a returning test user")]
     public async Task GivenAUserProfileAlreadyExistsForAReturningTestUser()
     {
         // Create the profile by making an initial authenticated request
-        _testUserId = Guid.NewGuid().ToString();
-        _testUserEmail = $"returning-{_testUserId[..8]}@example.com";
-        _testUserName = $"Returning User {_testUserId[..8]}";
-        _testUserRole = "Client";
+        testUserId = Guid.NewGuid().ToString();
+        testUserEmail = $"returning-{testUserId[..8]}@example.com";
+        testUserName = $"Returning User {testUserId[..8]}";
+        testUserRole = "Client";
 
-        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
+        var token = await authHelper.GetTokenForRoleAsync(testUserEmail, testUserRole, testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var setupResponse = await _client.SendAsync(request);
+        var setupResponse = await client.SendAsync(request);
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
             "initial request to create profile should succeed");
 
         // Back-date LastLoginAt >5 minutes so the throttle allows it to advance
         // on the next request (the service throttles updates within 5 minutes).
-        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        var connStr = fixture.Configuration.GetConnectionString("SqlConnectionString");
         connStr.Should().NotBeNullOrEmpty(
             "SqlConnectionString is required for returning-user provisioning tests");
 
@@ -190,38 +190,38 @@ public class UserProfileProvisioningSteps
         await conn.OpenAsync();
         await using var updateCmd = conn.CreateCommand();
         updateCmd.CommandText = "UPDATE UserProfiles SET LastLoginAt = DATEADD(MINUTE, -6, LastLoginAt) WHERE Id = @id";
-        updateCmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+        updateCmd.Parameters.AddWithValue("@id", Guid.Parse(testUserId));
         await updateCmd.ExecuteNonQueryAsync();
 
         // Re-read the actual back-dated value from DB (avoids drift from app/DB time differences)
         await using var readCmd = conn.CreateCommand();
         readCmd.CommandText = "SELECT LastLoginAt FROM UserProfiles WHERE Id = @id";
-        readCmd.Parameters.AddWithValue("@id", Guid.Parse(_testUserId));
+        readCmd.Parameters.AddWithValue("@id", Guid.Parse(testUserId));
         var dbValue = await readCmd.ExecuteScalarAsync();
         dbValue.Should().NotBeNull("UserProfile should exist after initial request");
         dbValue.Should().NotBe(DBNull.Value, "LastLoginAt should already be set after the initial request");
-        _previousLastLoginAt = dbValue is DateTimeOffset dto ? dto
-            : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue!, DateTimeKind.Utc), TimeSpan.Zero);
+        previousLastLoginAt = dbValue is DateTimeOffset dto ? dto
+            : new DateTimeOffset(DateTime.SpecifyKind((DateTime)dbValue, DateTimeKind.Utc), TimeSpan.Zero);
     }
 
     [Given("a UserProfile exists for a user with email {string}")]
     public async Task GivenAUserProfileExistsForAUserWithEmail(string email)
     {
-        _testUserId = TestClaimsBuilder.DeterministicUserId(email);
-        _testUserEmail = email;
-        _testUserName = "Original Name";
-        _testUserRole = "Client";
-        _emailsToCleanup.Add(email);
+        testUserId = TestClaimsBuilder.DeterministicUserId(email);
+        testUserEmail = email;
+        testUserName = "Original Name";
+        testUserRole = "Client";
+        emailsToCleanup.Add(email);
 
         // Clean up any stale profile for this email left by previous runs
         // that used a different (random) user ID.
         await CleanupStaleProfileAsync(email);
 
-        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
+        var token = await authHelper.GetTokenForRoleAsync(testUserEmail, testUserRole, testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var setupResponse = await _client.SendAsync(request);
+        var setupResponse = await client.SendAsync(request);
         var body = await setupResponse.Content.ReadAsStringAsync();
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
             $"initial request to create profile should succeed. Status: {setupResponse.StatusCode}, Body: {body}");
@@ -230,27 +230,27 @@ public class UserProfileProvisioningSteps
     [Given("a UserProfile exists for a user with display name {string}")]
     public async Task GivenAUserProfileExistsForAUserWithDisplayName(string displayName)
     {
-        _testUserEmail = $"nametest-{displayName.Replace(" ", "").ToLowerInvariant()}@example.com";
-        _testUserId = TestClaimsBuilder.DeterministicUserId(_testUserEmail);
-        _testUserName = displayName;
-        _testUserRole = "Client";
-        _emailsToCleanup.Add(_testUserEmail);
+        testUserEmail = $"nametest-{displayName.Replace(" ", "").ToLowerInvariant()}@example.com";
+        testUserId = TestClaimsBuilder.DeterministicUserId(testUserEmail);
+        testUserName = displayName;
+        testUserRole = "Client";
+        emailsToCleanup.Add(testUserEmail);
 
         // Clean up any stale profile for this email left by previous runs
         // that used a different (random) user ID.
-        await CleanupStaleProfileAsync(_testUserEmail);
+        await CleanupStaleProfileAsync(testUserEmail);
 
         var builder = new TestClaimsBuilder()
-            .WithUserId(_testUserId)
-            .WithEmail(_testUserEmail)
-            .WithName(_testUserName)
-            .WithRole(_testUserRole);
+            .WithUserId(testUserId)
+            .WithEmail(testUserEmail)
+            .WithName(testUserName)
+            .WithRole(testUserRole);
         var token = builder.BuildJwtToken();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/profile/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var setupResponse = await _client.SendAsync(request);
+        var setupResponse = await client.SendAsync(request);
         setupResponse.IsSuccessStatusCode.Should().BeTrue(
             "initial request to create profile should succeed");
     }
@@ -262,134 +262,120 @@ public class UserProfileProvisioningSteps
     [When("I send an authenticated request to {string} as the new test user")]
     public async Task WhenISendAnAuthenticatedRequestToAsTheNewTestUser(string path)
     {
-        _requestTimestamp = DateTimeOffset.UtcNow;
+        requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
+        var token = await authHelper.GetTokenForRoleAsync(testUserEmail, testUserRole, testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
 
-        if (!string.IsNullOrEmpty(_responseBody))
+        if (!string.IsNullOrEmpty(responseBody))
         {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
+            responseJson = JsonDocument.Parse(responseBody).RootElement;
         }
     }
 
     [When("I send an authenticated request to {string} as the returning test user")]
-    public async Task WhenISendAnAuthenticatedRequestToAsTheReturningTestUser(string path)
-    {
-        _requestTimestamp = DateTimeOffset.UtcNow;
-
-        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, _testUserRole, _testUserId);
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
-
-        if (!string.IsNullOrEmpty(_responseBody))
-        {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
-        }
-    }
+    public Task WhenISendAnAuthenticatedRequestToAsTheReturningTestUser(string path) =>
+        WhenISendAnAuthenticatedRequestToAsTheNewTestUser(path);
 
     [When("I send an authenticated request to {string} as an administrator")]
     public async Task WhenISendAnAuthenticatedRequestToAsAnAdministrator(string path)
     {
-        _requestTimestamp = DateTimeOffset.UtcNow;
+        requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = await _authHelper.GetAdminTokenAsync(_testUserEmail, _testUserId);
+        var token = await authHelper.GetAdminTokenAsync(testUserEmail, testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
 
-        if (!string.IsNullOrEmpty(_responseBody))
+        if (!string.IsNullOrEmpty(responseBody))
         {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
+            responseJson = JsonDocument.Parse(responseBody).RootElement;
         }
     }
 
     [When("I send an authenticated request to {string} with role {string}")]
     public async Task WhenISendAnAuthenticatedRequestToWithRole(string path, string role)
     {
-        _testUserRole = role;
-        _requestTimestamp = DateTimeOffset.UtcNow;
+        testUserRole = role;
+        requestTimestamp = DateTimeOffset.UtcNow;
 
-        var token = await _authHelper.GetTokenForRoleAsync(_testUserEmail, role, _testUserId);
+        var token = await authHelper.GetTokenForRoleAsync(testUserEmail, role, testUserId);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
 
-        if (!string.IsNullOrEmpty(_responseBody))
+        if (!string.IsNullOrEmpty(responseBody))
         {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
+            responseJson = JsonDocument.Parse(responseBody).RootElement;
         }
     }
 
     [When("I send a GET request to {string} without authentication")]
     public async Task WhenISendAGetRequestToWithoutAuthentication(string path)
     {
-        _requestTimestamp = DateTimeOffset.UtcNow;
+        requestTimestamp = DateTimeOffset.UtcNow;
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         // Explicitly no Authorization header
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
     }
 
     [When("I send an authenticated request to {string} with updated email {string}")]
     public async Task WhenISendAnAuthenticatedRequestToWithUpdatedEmail(string path, string newEmail)
     {
-        _requestTimestamp = DateTimeOffset.UtcNow;
-        _emailsToCleanup.Add(newEmail);
+        requestTimestamp = DateTimeOffset.UtcNow;
+        emailsToCleanup.Add(newEmail);
 
         var builder = new TestClaimsBuilder()
-            .WithUserId(_testUserId)
+            .WithUserId(testUserId)
             .WithEmail(newEmail)
-            .WithName(_testUserName)
-            .WithRole(_testUserRole);
+            .WithName(testUserName)
+            .WithRole(testUserRole);
         var token = builder.BuildJwtToken();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
 
-        if (!string.IsNullOrEmpty(_responseBody))
+        if (!string.IsNullOrEmpty(responseBody))
         {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
+            responseJson = JsonDocument.Parse(responseBody).RootElement;
         }
     }
 
     [When("I send an authenticated request to {string} with updated name {string}")]
     public async Task WhenISendAnAuthenticatedRequestToWithUpdatedName(string path, string newName)
     {
-        _requestTimestamp = DateTimeOffset.UtcNow;
+        requestTimestamp = DateTimeOffset.UtcNow;
 
         var builder = new TestClaimsBuilder()
-            .WithUserId(_testUserId)
-            .WithEmail(_testUserEmail)
+            .WithUserId(testUserId)
+            .WithEmail(testUserEmail)
             .WithName(newName)
-            .WithRole(_testUserRole);
+            .WithRole(testUserRole);
         var token = builder.BuildJwtToken();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        _response = await _client.SendAsync(request);
-        _responseBody = await _response.Content.ReadAsStringAsync();
+        response = await client.SendAsync(request);
+        responseBody = await response.Content.ReadAsStringAsync();
 
-        if (!string.IsNullOrEmpty(_responseBody))
+        if (!string.IsNullOrEmpty(responseBody))
         {
-            _responseJson = JsonDocument.Parse(_responseBody).RootElement;
+            responseJson = JsonDocument.Parse(responseBody).RootElement;
         }
     }
 
@@ -400,80 +386,80 @@ public class UserProfileProvisioningSteps
     [Then("the HTTP response status should be {int}")]
     public void ThenTheHttpResponseStatusShouldBe(int expectedStatusCode)
     {
-        _response.Should().NotBeNull("a request should have been sent");
-        ((int)_response!.StatusCode).Should().Be(expectedStatusCode,
-            $"expected HTTP {expectedStatusCode} but got {(int)_response.StatusCode}. " +
-            $"Body: {_responseBody?[..Math.Min(_responseBody?.Length ?? 0, 500)]}");
+        response.Should().NotBeNull("a request should have been sent");
+        ((int)response!.StatusCode).Should().Be(expectedStatusCode,
+            $"expected HTTP {expectedStatusCode} but got {(int)response.StatusCode}. " +
+            $"Body: {responseBody?[..Math.Min(responseBody?.Length ?? 0, 500)]}");
     }
 
     [Then("the response should contain a persisted UserProfile")]
     public async Task ThenTheResponseShouldContainAPersistedUserProfile()
     {
         // Verify the API response contains the expected DTO fields
-        _responseJson.GetProperty("userId").GetString()
-            .Should().Be(_testUserId, "the profile userId should match the Entra oid");
-        _responseJson.TryGetProperty("displayName", out _).Should().BeTrue("response should contain displayName");
-        _responseJson.TryGetProperty("createdAt", out _).Should().BeTrue("response should contain createdAt");
+        responseJson.GetProperty("userId").GetString()
+            .Should().Be(testUserId, "the profile userId should match the Entra oid");
+        responseJson.TryGetProperty("displayName", out _).Should().BeTrue("response should contain displayName");
+        responseJson.TryGetProperty("createdAt", out _).Should().BeTrue("response should contain createdAt");
 
         // Verify auth-concern fields were persisted (not in API response, verified via DB)
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should be persisted in the database");
-        profile!.Value.Email.Should().NotBeNullOrEmpty("email should be persisted");
-        profile!.Value.Role.Should().NotBeNullOrEmpty("role should be persisted");
+        profile.Value.Email.Should().NotBeNullOrEmpty("email should be persisted");
+        profile.Value.Role.Should().NotBeNullOrEmpty("role should be persisted");
     }
 
     [Then("the UserProfile email should match the JWT email claim")]
     public async Task ThenTheUserProfileEmailShouldMatchTheJwtEmailClaim()
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Email.Should().Be(_testUserEmail);
+        profile.Value.Email.Should().Be(testUserEmail);
     }
 
     [Then("the UserProfile role should be {string}")]
     public async Task ThenTheUserProfileRoleShouldBe(string expectedRole)
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Role.Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
+        profile.Value.Role.Should().Be(expectedRole, $"the persisted role should be {expectedRole}");
     }
 
     [Then("the UserProfile should be active")]
     public async Task ThenTheUserProfileShouldBeActive()
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.IsActive.Should().BeTrue("newly provisioned profiles should be active");
+        profile.Value.IsActive.Should().BeTrue("newly provisioned profiles should be active");
     }
 
     [Then("the UserProfile CreatedAt should be recent")]
     public void ThenTheUserProfileCreatedAtShouldBeRecent()
     {
-        var createdAtElement = _responseJson.GetProperty("createdAt");
+        var createdAtElement = responseJson.GetProperty("createdAt");
         var createdAt = new DateTimeOffset(
             DateTime.SpecifyKind(createdAtElement.GetProperty("value").GetDateTime(), DateTimeKind.Utc),
             TimeSpan.Zero);
-        createdAt.Should().BeCloseTo(_requestTimestamp, TimeSpan.FromSeconds(30),
+        createdAt.Should().BeCloseTo(requestTimestamp, TimeSpan.FromSeconds(30),
             "CreatedAt should be set to approximately now");
     }
 
     [Then("the UserProfile LastLoginAt should be recent")]
     public async Task ThenTheUserProfileLastLoginAtShouldBeRecent()
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
-        profile!.Value.LastLoginAt!.Value.Should().BeCloseTo(_requestTimestamp, TimeSpan.FromSeconds(30),
+        profile.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile.Value.LastLoginAt!.Value.Should().BeCloseTo(requestTimestamp, TimeSpan.FromSeconds(30),
             "LastLoginAt should be set to approximately now");
     }
 
     [Then("the UserProfile LastLoginAt should be after the previous login")]
     public async Task ThenTheUserProfileLastLoginAtShouldBeAfterThePreviousLogin()
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
-        profile!.Value.LastLoginAt!.Value.Should().BeAfter(_previousLastLoginAt,
+        profile.Value.LastLoginAt.Should().NotBeNull("LastLoginAt should be set");
+        profile.Value.LastLoginAt!.Value.Should().BeAfter(previousLastLoginAt,
             "LastLoginAt should advance on subsequent authenticated requests");
     }
 
@@ -482,23 +468,23 @@ public class UserProfileProvisioningSteps
     {
         // Unauthenticated request should succeed on public endpoint without triggering provisioning.
         // We verify the public endpoint responded successfully — the middleware skips unauthenticated requests.
-        _response.Should().NotBeNull();
-        ((int)_response!.StatusCode).Should().Be(200,
+        response.Should().NotBeNull();
+        ((int)response!.StatusCode).Should().Be(200,
             "public endpoint should respond without requiring provisioning");
     }
 
     [Then("the UserProfile email should be {string}")]
     public async Task ThenTheUserProfileEmailShouldBe(string expectedEmail)
     {
-        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(_testUserId));
+        var profile = await GetProfileFromDatabaseAsync(Guid.Parse(testUserId));
         profile.Should().NotBeNull("UserProfile should exist in the database");
-        profile!.Value.Email.Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
+        profile.Value.Email.Should().Be(expectedEmail, "the email should be synced from updated JWT claims");
     }
 
     [Then("the UserProfile display name should be {string}")]
     public void ThenTheUserProfileDisplayNameShouldBe(string expectedName)
     {
-        _responseJson.GetProperty("displayName").GetString()
+        responseJson.GetProperty("displayName").GetString()
             .Should().Be(expectedName, "the display name should be synced from updated JWT claims");
     }
 
@@ -515,7 +501,7 @@ public class UserProfileProvisioningSteps
     /// </summary>
     private async Task CleanupStaleProfileAsync(string email)
     {
-        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        var connStr = fixture.Configuration.GetConnectionString("SqlConnectionString");
         if (string.IsNullOrEmpty(connStr))
             return;
 
@@ -536,11 +522,11 @@ public class UserProfileProvisioningSteps
     /// </summary>
     private async Task<(string Email, string Role, bool IsActive, DateTimeOffset? LastLoginAt)?> GetProfileFromDatabaseAsync(Guid userId)
     {
-        var connStr = _fixture.Configuration.GetConnectionString("SqlConnectionString");
+        var connStr = fixture.Configuration.GetConnectionString("SqlConnectionString");
         connStr.Should().NotBeNullOrEmpty(
             "SqlConnectionString is required for UserProfile provisioning verification tests");
 
-        await using var conn = new SqlConnection(connStr!);
+        await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT Email, Role, IsActive, LastLoginAt FROM UserProfiles WHERE Id = @id";
@@ -554,8 +540,19 @@ public class UserProfileProvisioningSteps
             reader.GetString(0),
             reader.GetString(1),
             reader.GetBoolean(2),
-            reader.IsDBNull(3) ? null : (reader.GetValue(3) is DateTimeOffset dto ? dto
-                : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc), TimeSpan.Zero))
+            await ReadNullableDateTimeOffsetAsync(reader, 3)
         );
+    }
+
+    private static async Task<DateTimeOffset?> ReadNullableDateTimeOffsetAsync(SqlDataReader reader, int ordinal)
+    {
+        if (await reader.IsDBNullAsync(ordinal))
+            return null;
+
+        var value = reader.GetValue(ordinal);
+        if (value is DateTimeOffset dto)
+            return dto;
+
+        return new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(ordinal), DateTimeKind.Utc), TimeSpan.Zero);
     }
 }

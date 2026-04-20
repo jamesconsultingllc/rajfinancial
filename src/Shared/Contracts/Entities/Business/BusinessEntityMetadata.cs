@@ -1,6 +1,6 @@
 using MemoryPack;
 
-namespace RajFinancial.Shared.Entities.Business;
+namespace RajFinancial.Shared.Contracts.Entities.Business;
 
 /// <summary>
 ///     Business-specific metadata stored as a JSON column on the Entity table.
@@ -29,7 +29,7 @@ public sealed partial record BusinessEntityMetadata
     /// <summary>Date of formation or incorporation.</summary>
     public DateTimeOffset? FormationDate { get; init; }
 
-    /// <summary>Fiscal year end month (1–12). Null defaults to December.</summary>
+    /// <summary>Fiscal year-end month (1–12). Null defaults to December.</summary>
     public int? FiscalYearEnd { get; init; }
 
     /// <summary>Registered agent name.</summary>

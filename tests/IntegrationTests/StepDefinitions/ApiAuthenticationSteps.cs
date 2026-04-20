@@ -1,6 +1,7 @@
+using System.Net.Http.Headers;
 using FluentAssertions;
-using Reqnroll;
 using RajFinancial.IntegrationTests.Support;
+using Reqnroll;
 
 namespace RajFinancial.IntegrationTests.StepDefinitions;
 
@@ -61,7 +62,7 @@ public class ApiAuthenticationSteps
     {
         var token = await authHelper.GetUserTokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);
         responseBody = await response.Content.ReadAsStringAsync();
     }
@@ -71,7 +72,7 @@ public class ApiAuthenticationSteps
     {
         var token = await authHelper.GetTokenForRoleAsync("testuser@example.com", role);
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);
         responseBody = await response.Content.ReadAsStringAsync();
     }
@@ -81,7 +82,7 @@ public class ApiAuthenticationSteps
     {
         var token = await authHelper.GetAdminTokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         response = await client.SendAsync(request);
         responseBody = await response.Content.ReadAsStringAsync();
     }

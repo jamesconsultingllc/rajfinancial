@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
-using RajFinancial.Api.Services.UserProfiles;
+using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
@@ -31,7 +31,7 @@ namespace RajFinancial.Api.Functions;
 /// </list>
 /// </para>
 /// </remarks>
-public class ProfileFunctions(
+public partial class ProfileFunctions(
     ILogger<ProfileFunctions> logger,
     IUserProfileService userProfileService,
     ISerializationFactory serializationFactory)
@@ -61,7 +61,7 @@ public class ProfileFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("ProfileMe called without UserIdGuid in context");
+            LogProfileMeMissingContext();
             var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
             return unauthorizedResponse;
         }
@@ -70,23 +70,19 @@ public class ProfileFunctions(
 
         if (profile is null)
         {
-            logger.LogWarning(
-                "Profile not found for user {UserId}",
-                userIdGuid.Value);
+            LogProfileNotFound(userIdGuid.Value);
 
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.NotFound,
                 "PROFILE_NOT_FOUND", "User profile has not been provisioned");
         }
 
-        logger.LogInformation(
-            "Returning profile for user {UserId}",
-            userIdGuid.Value);
+        LogProfileMeReturning(userIdGuid.Value);
 
         var prefs = ParsePreferences(profile.PreferencesJson);
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            DisplayName = profile.DisplayName ?? string.Empty,
+            DisplayName = profile.DisplayName,
             Locale = prefs.Locale,
             Timezone = prefs.Timezone,
             Currency = prefs.Currency,
@@ -124,7 +120,7 @@ public class ProfileFunctions(
 
         if (!userIdGuid.HasValue)
         {
-            logger.LogWarning("UpdateProfileMe called without UserIdGuid in context");
+            LogUpdateProfileMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 "AUTH_REQUIRED", "Authentication is required");
         }
@@ -144,16 +140,14 @@ public class ProfileFunctions(
         var responseDto = new UserProfileResponse
         {
             UserId = profile.Id.ToString(),
-            DisplayName = profile.DisplayName ?? string.Empty,
+            DisplayName = profile.DisplayName,
             Locale = updatedPrefs.Locale,
             Timezone = updatedPrefs.Timezone,
             Currency = updatedPrefs.Currency,
             CreatedAt = profile.CreatedAt  // Implicit DateTimeOffset → DtoDateTime
         };
 
-        logger.LogInformation(
-            "UpdateProfileMe returning updated profile for user {UserId}",
-            userIdGuid.Value);
+        LogUpdateProfileReturning(userIdGuid.Value);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, responseDto, serializationFactory);
@@ -190,4 +184,19 @@ public class ProfileFunctions(
             return (defaultLocale, defaultTimezone, defaultCurrency);
         }
     }
+
+    [LoggerMessage(EventId = 7001, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
+    private partial void LogProfileMeMissingContext();
+
+    [LoggerMessage(EventId = 7002, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
+    private partial void LogProfileNotFound(Guid userId);
+
+    [LoggerMessage(EventId = 7003, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
+    private partial void LogProfileMeReturning(Guid userId);
+
+    [LoggerMessage(EventId = 7004, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
+    private partial void LogUpdateProfileMissingContext();
+
+    [LoggerMessage(EventId = 7005, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
+    private partial void LogUpdateProfileReturning(Guid userId);
 }

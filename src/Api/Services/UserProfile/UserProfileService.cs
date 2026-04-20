@@ -1,11 +1,11 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Users;
 
-namespace RajFinancial.Api.Services.UserProfiles;
+namespace RajFinancial.Api.Services.UserProfile;
 
 /// <summary>
 /// Manages local <see cref="UserProfile"/> shadow records that mirror
@@ -23,12 +23,12 @@ namespace RajFinancial.Api.Services.UserProfiles;
 /// role wins: Administrator (0) &gt; Advisor (1) &gt; Client (2).
 /// </para>
 /// </remarks>
-public class UserProfileService(
+public partial class UserProfileService(
     ApplicationDbContext dbContext,
     ILogger<UserProfileService> logger) : IUserProfileService
 {
     /// <inheritdoc/>
-    public async Task<UserProfile> EnsureProfileExistsAsync(
+    public async Task<Shared.Entities.Users.UserProfile> EnsureProfileExistsAsync(
         Guid userId,
         string email,
         string? displayName,
@@ -37,13 +37,13 @@ public class UserProfileService(
         CancellationToken cancellationToken = default)
     {
         var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
-        var mappedRole = MapHighestPriorityRole(roles);
+        var mappedRole = roles.MapHighestPriority();
         var now = DateTimeOffset.UtcNow;
 
         if (profile is null)
         {
             // JIT provisioning — first authenticated request
-            profile = new UserProfile
+            profile = new Shared.Entities.Users.UserProfile
             {
                 Id = userId,
                 Email = email,
@@ -59,18 +59,14 @@ public class UserProfileService(
                 dbContext.UserProfiles.Add(profile);
                 await dbContext.SaveChangesAsync(cancellationToken);
 
-                logger.LogInformation(
-                    "JIT provisioned UserProfile for {UserId} with role {Role}",
-                    userId, mappedRole);
+                LogJitProvisioned(userId, mappedRole);
 
                 return profile;
             }
             catch (DbUpdateException)
             {
                 // Concurrent request already created this profile — detach and reload
-                logger.LogInformation(
-                    "Concurrent JIT provisioning detected for {UserId}; reloading existing profile",
-                    userId);
+                LogConcurrentJitDetected(userId);
 
                 dbContext.Entry(profile).State = EntityState.Detached;
                 profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
@@ -87,9 +83,7 @@ public class UserProfileService(
 
         if (!string.Equals(profile.Email, email, StringComparison.Ordinal))
         {
-            logger.LogInformation(
-                "Syncing email for {UserId}",
-                userId);
+            LogSyncingEmail(userId);
             profile.Email = email;
             changed = true;
         }
@@ -97,18 +91,14 @@ public class UserProfileService(
         var resolvedDisplayName = displayName ?? string.Empty;
         if (!string.Equals(profile.DisplayName, resolvedDisplayName, StringComparison.Ordinal))
         {
-            logger.LogInformation(
-                "Syncing display name for {UserId}: {OldName} → {NewName}",
-                userId, profile.DisplayName, resolvedDisplayName);
+            LogSyncingDisplayName(userId, profile.DisplayName, resolvedDisplayName);
             profile.DisplayName = resolvedDisplayName;
             changed = true;
         }
 
         if (profile.Role != mappedRole)
         {
-            logger.LogInformation(
-                "Syncing role for {UserId}: {OldRole} → {NewRole}",
-                userId, profile.Role, mappedRole);
+            LogSyncingRole(userId, profile.Role, mappedRole);
             profile.Role = mappedRole;
             changed = true;
         }
@@ -127,7 +117,7 @@ public class UserProfileService(
     }
 
     /// <inheritdoc/>
-    public async Task<UserProfile?> GetByIdAsync(
+    public async Task<Shared.Entities.Users.UserProfile?> GetByIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -135,7 +125,7 @@ public class UserProfileService(
     }
 
     /// <inheritdoc/>
-    public async Task<UserProfile?> UpdateProfileAsync(
+    public async Task<Shared.Entities.Users.UserProfile?> UpdateProfileAsync(
         Guid userId,
         UpdateProfileRequest request,
         CancellationToken cancellationToken = default)
@@ -144,12 +134,12 @@ public class UserProfileService(
 
         if (profile is null)
         {
-            logger.LogWarning("UpdateProfile: profile not found for user {UserId}", userId);
+            LogProfileNotFoundForUpdate(userId);
             return null;
         }
 
         profile.DisplayName = request.DisplayName;
-        profile.PreferencesJson = System.Text.Json.JsonSerializer.Serialize(new
+        profile.PreferencesJson = JsonSerializer.Serialize(new
         {
             locale = request.Locale,
             timezone = request.Timezone,
@@ -159,26 +149,54 @@ public class UserProfileService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Updated profile for user {UserId} (displayName={DisplayName}, locale={Locale}, timezone={Timezone}, currency={Currency})",
-            userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
+        LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
 
         return profile;
     }
 
-    /// <summary>
-    /// Maps a list of role claim strings to the single highest-priority
-    /// <see cref="UserRole"/>. Priority: Administrator (0) &gt; Advisor (1) &gt; Client (2).
-    /// Defaults to <see cref="UserRole.Client"/> when no recognized roles are present.
-    /// </summary>
-    private static UserRole MapHighestPriorityRole(IReadOnlyList<string> roles)
-    {
-        // Lower enum value = higher priority
-        return roles
-            .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var parsed) ? parsed : (UserRole?)null)
-            .Where(r => r.HasValue)
-            .Select(r => r!.Value)
-            .DefaultIfEmpty(UserRole.Client)
-            .Min();
-    }
+    // =========================================================================
+    // Source-generated logging (EventId 4000-4999)
+    // =========================================================================
+
+    [LoggerMessage(
+        EventId = 4001,
+        Level = LogLevel.Information,
+        Message = "JIT provisioned UserProfile for {UserId} with role {Role}")]
+    private partial void LogJitProvisioned(Guid userId, UserRole role);
+
+    [LoggerMessage(
+        EventId = 4002,
+        Level = LogLevel.Information,
+        Message = "Concurrent JIT provisioning detected for {UserId}; reloading existing profile")]
+    private partial void LogConcurrentJitDetected(Guid userId);
+
+    [LoggerMessage(
+        EventId = 4003,
+        Level = LogLevel.Information,
+        Message = "Syncing email for {UserId}")]
+    private partial void LogSyncingEmail(Guid userId);
+
+    [LoggerMessage(
+        EventId = 4004,
+        Level = LogLevel.Information,
+        Message = "Syncing display name for {UserId}: {OldName} -> {NewName}")]
+    private partial void LogSyncingDisplayName(Guid userId, string oldName, string newName);
+
+    [LoggerMessage(
+        EventId = 4005,
+        Level = LogLevel.Information,
+        Message = "Syncing role for {UserId}: {OldRole} -> {NewRole}")]
+    private partial void LogSyncingRole(Guid userId, UserRole oldRole, UserRole newRole);
+
+    [LoggerMessage(
+        EventId = 4010,
+        Level = LogLevel.Warning,
+        Message = "UpdateProfile: profile not found for user {UserId}")]
+    private partial void LogProfileNotFoundForUpdate(Guid userId);
+
+    [LoggerMessage(
+        EventId = 4011,
+        Level = LogLevel.Information,
+        Message = "Updated profile for user {UserId} (displayName={DisplayName}, locale={Locale}, timezone={Timezone}, currency={Currency})")]
+    private partial void LogProfileUpdated(Guid userId, string displayName, string? locale, string? timezone, string? currency);
 }

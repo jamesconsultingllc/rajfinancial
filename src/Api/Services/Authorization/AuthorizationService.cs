@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Entities.Users;
 
@@ -31,7 +30,7 @@ namespace RajFinancial.Api.Services.Authorization;
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class AuthorizationService(
+public partial class AuthorizationService(
     ApplicationDbContext dbContext,
     ILogger<AuthorizationService> logger) : IAuthorizationService
 {
@@ -53,10 +52,7 @@ public class AuthorizationService(
         // =====================================================================
         if (requestingUserId == resourceOwnerId)
         {
-            logger.LogDebug(
-                "Access granted (ResourceOwner): user {UserId} owns the resource",
-                requestingUserId);
-
+            LogAccessGrantedOwner(requestingUserId);
             return AccessDecision.Grant(AccessDecisionReason.ResourceOwner, AccessType.Owner);
         }
 
@@ -67,10 +63,7 @@ public class AuthorizationService(
 
         if (grant is not null)
         {
-            logger.LogDebug(
-                "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}",
-                requestingUserId, grant.AccessType, resourceOwnerId);
-
+            LogAccessGrantedGrant(requestingUserId, grant.AccessType, resourceOwnerId);
             return AccessDecision.Grant(AccessDecisionReason.DataAccessGrant, grant.AccessType);
         }
 
@@ -83,23 +76,32 @@ public class AuthorizationService(
 
         if (isAdmin)
         {
-            logger.LogDebug(
-                "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}",
-                requestingUserId, resourceOwnerId);
-
+            LogAccessGrantedAdmin(requestingUserId, resourceOwnerId);
             return AccessDecision.Grant(AccessDecisionReason.Administrator, AccessType.Full);
         }
 
         // =====================================================================
         // Denied: No matching tier
         // =====================================================================
-        logger.LogWarning(
-            "Access denied: user {UserId} attempted to access resource owned by {OwnerId} " +
-            "in category {Category} requiring {RequiredLevel}",
-            requestingUserId, resourceOwnerId, category, requiredLevel);
-
+        LogAccessDenied(requestingUserId, resourceOwnerId, category, requiredLevel);
         return AccessDecision.Deny();
     }
+
+    [LoggerMessage(EventId = 7001, Level = LogLevel.Debug,
+        Message = "Access granted (ResourceOwner): user {UserId} owns the resource")]
+    private partial void LogAccessGrantedOwner(Guid userId);
+
+    [LoggerMessage(EventId = 7002, Level = LogLevel.Debug,
+        Message = "Access granted (DataAccessGrant): user {UserId} has {AccessType} grant from {OwnerId}")]
+    private partial void LogAccessGrantedGrant(Guid userId, AccessType accessType, Guid ownerId);
+
+    [LoggerMessage(EventId = 7003, Level = LogLevel.Debug,
+        Message = "Access granted (Administrator): user {UserId} is admin, accessing resource owned by {OwnerId}")]
+    private partial void LogAccessGrantedAdmin(Guid userId, Guid ownerId);
+
+    [LoggerMessage(EventId = 7010, Level = LogLevel.Warning,
+        Message = "Access denied: user {UserId} attempted to access resource owned by {OwnerId} in category {Category} requiring {RequiredLevel}")]
+    private partial void LogAccessDenied(Guid userId, Guid ownerId, string category, AccessType requiredLevel);
 
     /// <summary>
     /// Finds a valid <see cref="DataAccessGrant"/> from the resource owner to the requesting user
@@ -128,52 +130,8 @@ public class AuthorizationService(
                 g.Status == GrantStatus.Active &&
                 (g.ExpiresAt == null || g.ExpiresAt > now))
             .AsAsyncEnumerable()
-            .FirstOrDefaultAsync(g => GrantCoversRequest(g, category, requiredLevel));
+            .FirstOrDefaultAsync(g => g.Covers(category, requiredLevel));
 
         return grant;
-    }
-
-    /// <summary>
-    /// Determines whether a <see cref="DataAccessGrant"/> covers the requested category and access level.
-    /// </summary>
-    /// <remarks>
-    /// <para>Access type hierarchy: Owner > Full > Read > Limited.</para>
-    /// <para>
-    /// <list type="bullet">
-    ///   <item><b>Full</b> grants cover all categories at Read and Full levels.</item>
-    ///   <item><b>Read</b> grants cover all categories at Read level only.</item>
-    ///   <item><b>Limited</b> grants cover only specific categories at Read level.</item>
-    /// </list>
-    /// </para>
-    /// </remarks>
-    private static bool GrantCoversRequest(DataAccessGrant grant, string category, AccessType requiredLevel)
-    {
-        return grant.AccessType switch
-        {
-            // Full access: covers all categories, grants Read and Full
-            AccessType.Full => requiredLevel is AccessType.Read or AccessType.Full,
-
-            // Read access: covers all categories, grants Read only
-            AccessType.Read => requiredLevel == AccessType.Read,
-
-            // Limited access: covers only specified categories, grants Read only
-            AccessType.Limited => requiredLevel == AccessType.Read && GrantCoversCategory(grant, category),
-
-            // Owner access type cannot be granted to others
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Checks whether a Limited grant's category list includes the requested category.
-    /// </summary>
-    private static bool GrantCoversCategory(DataAccessGrant grant, string category)
-    {
-        // "all" category matches any grant
-        if (string.Equals(category, DataCategories.All, StringComparison.OrdinalIgnoreCase))
-            return false; // Limited grants cannot cover "all" — that requires Full/Read
-
-        return grant.Categories.Any(c =>
-            string.Equals(c, category, StringComparison.OrdinalIgnoreCase));
     }
 }

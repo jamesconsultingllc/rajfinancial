@@ -10,21 +10,20 @@
 // ============================================================================
 
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
+using FluentValidation;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using FluentValidation;
-using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Functions;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Tests.Middleware;
 using RajFinancial.Api.Validators;
 using RajFinancial.Shared.Contracts.Auth;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 
 namespace RajFinancial.Api.Tests.Functions;
@@ -73,32 +72,35 @@ public class ClientManagementFunctionsTests
     // =========================================================================
 
     /// <summary>
-    /// Creates a fully-authenticated request context with role claims
+    /// Creates a fully authenticated request context with role claims
     /// required by client management endpoints (userId, email, displayName, roles).
     /// </summary>
-    private static (HttpRequestData Request, TestFunctionContext Context) CreateAuthenticatedRequest(
-        Guid userId,
+    private static (HttpRequestData Request, TestFunctionContext Context) CreateAuthenticatedRequest(Guid userId,
         string email = "advisor@rajfinancial.com",
         string displayName = "Test Advisor",
         IReadOnlyList<string>? roles = null,
         string route = "auth/clients",
-        string method = "get",
         string? requestBody = null)
     {
         roles ??= new List<string> { "Advisor" };
 
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = userId.ToString();
-        context.Items["UserIdGuid"] = userId;
-        context.Items["UserEmail"] = email;
-        context.Items["UserName"] = displayName;
-        context.Items["UserRoles"] = roles;
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId,
+                [FunctionContextKeys.UserEmail] = email,
+                [FunctionContextKeys.UserName] = displayName,
+                [FunctionContextKeys.UserRoles] = roles
+            }
+        };
 
         // Store body and configure InstanceServices for GetValidatedBodyAsync
         if (requestBody is not null)
         {
-            context.Items["RequestBody"] = requestBody;
+            context.Items[FunctionContextKeys.RequestBody] = requestBody;
             context.WithServices(configure =>
             {
                 configure.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
@@ -123,7 +125,7 @@ public class ClientManagementFunctionsTests
         // Setup Body stream for POST requests
         if (requestBody is not null)
         {
-            var bodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(requestBody));
+            var bodyStream = new MemoryStream(Encoding.UTF8.GetBytes(requestBody));
             mockRequest.SetupGet(r => r.Body).Returns(bodyStream);
         }
 
@@ -168,31 +170,24 @@ public class ClientManagementFunctionsTests
     }
 
     /// <summary>
-    /// Creates a test <see cref="DataAccessGrant"/> entity with configurable defaults.
+    /// Creates a test <see cref="DataAccessGrant"/> with sensible defaults.
+    /// Pass <paramref name="configure"/> to override specific properties.
     /// </summary>
-    private static DataAccessGrant CreateTestGrant(
-        Guid? grantId = null,
-        Guid? grantorUserId = null,
-        string granteeEmail = "client@example.com",
-        AccessType accessType = AccessType.Read,
-        List<string>? categories = null,
-        string? relationshipLabel = "Primary Advisor",
-        GrantStatus status = GrantStatus.Pending,
-        DateTimeOffset? createdAt = null,
-        DateTimeOffset? revokedAt = null)
+    private static DataAccessGrant CreateTestGrant(Action<DataAccessGrant>? configure = null)
     {
-        return new DataAccessGrant
+        var grant = new DataAccessGrant
         {
-            Id = grantId ?? TestGrantId,
-            GrantorUserId = grantorUserId ?? TestUserId,
-            GranteeEmail = granteeEmail,
-            AccessType = accessType,
-            Categories = categories ?? ["accounts", "investments"],
-            RelationshipLabel = relationshipLabel,
-            Status = status,
-            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
-            RevokedAt = revokedAt
+            Id = TestGrantId,
+            GrantorUserId = TestUserId,
+            GranteeEmail = "client@example.com",
+            AccessType = AccessType.Read,
+            Categories = ["accounts", "investments"],
+            RelationshipLabel = "Primary Advisor",
+            Status = GrantStatus.Pending,
+            CreatedAt = DateTimeOffset.UtcNow,
         };
+        configure?.Invoke(grant);
+        return grant;
     }
 
     /// <summary>
@@ -228,7 +223,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.AssignClient(request, context);
@@ -242,7 +237,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.AssignClient(request, context);
@@ -267,7 +262,6 @@ public class ClientManagementFunctionsTests
             email: "client@rajfinancial.com",
             roles: ["Client"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         // Act
@@ -288,7 +282,6 @@ public class ClientManagementFunctionsTests
             email: "client@rajfinancial.com",
             roles: ["Client"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         // Act
@@ -314,7 +307,6 @@ public class ClientManagementFunctionsTests
             email: "advisor@rajfinancial.com",
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         // Act
@@ -335,7 +327,6 @@ public class ClientManagementFunctionsTests
             email: "advisor@rajfinancial.com",
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         // Act
@@ -357,7 +348,6 @@ public class ClientManagementFunctionsTests
             email: "advisor@rajfinancial.com",
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         // Act
@@ -381,7 +371,6 @@ public class ClientManagementFunctionsTests
             TestUserId,
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         var grant = CreateTestGrant();
@@ -409,7 +398,6 @@ public class ClientManagementFunctionsTests
             TestUserId,
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         var grant = CreateTestGrant();
@@ -438,7 +426,6 @@ public class ClientManagementFunctionsTests
             TestUserId,
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         var grant = CreateTestGrant();
@@ -467,10 +454,9 @@ public class ClientManagementFunctionsTests
             TestUserId,
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
-        var grant = CreateTestGrant(status: GrantStatus.Pending);
+        var grant = CreateTestGrant(g => g.Status = GrantStatus.Pending);
         clientManagementServiceMock
             .Setup(s => s.AssignClientAsync(
                 TestUserId,
@@ -500,10 +486,9 @@ public class ClientManagementFunctionsTests
             TestUserId,
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
-        var grant = CreateTestGrant(granteeEmail: "newclient@example.com", accessType: AccessType.Full);
+        var grant = CreateTestGrant(g => { g.GranteeEmail = "newclient@example.com"; g.AccessType = AccessType.Full; });
         clientManagementServiceMock
             .Setup(s => s.AssignClientAsync(
                 TestUserId,
@@ -521,8 +506,12 @@ public class ClientManagementFunctionsTests
                 It.Is<AssignClientRequest>(r =>
                     r.ClientEmail == "newclient@example.com" &&
                     r.AccessType == "Full" &&
+#pragma warning disable CS9288 // justification below
+// ReSharper disable once CSharp14OverloadResolutionWithSpanBreakingChange
                     r.Categories.Contains("accounts") &&
+                    // ReSharper disable once CSharp14OverloadResolutionWithSpanBreakingChange
                     r.Categories.Contains("documents") &&
+#pragma warning restore CS9288
                     r.RelationshipLabel == "Estate Attorney"),
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -543,10 +532,9 @@ public class ClientManagementFunctionsTests
             email: "admin@rajfinancial.com",
             roles: ["Administrator"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
-        var grant = CreateTestGrant(grantorUserId: AdminUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = AdminUserId);
         clientManagementServiceMock
             .Setup(s => s.AssignClientAsync(
                 AdminUserId,
@@ -580,15 +568,10 @@ public class ClientManagementFunctionsTests
             email: "advisor@rajfinancial.com",
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
-        var grant1 = CreateTestGrant(
-            grantId: Guid.Parse("cccc0000-0000-0000-0000-000000000010"),
-            granteeEmail: "duplicate@example.com");
-        var grant2 = CreateTestGrant(
-            grantId: Guid.Parse("cccc0000-0000-0000-0000-000000000011"),
-            granteeEmail: "duplicate@example.com");
+        var grant1 = CreateTestGrant(g => { g.Id = Guid.Parse("cccc0000-0000-0000-0000-000000000010"); g.GranteeEmail = "duplicate@example.com"; });
+        var grant2 = CreateTestGrant(g => { g.Id = Guid.Parse("cccc0000-0000-0000-0000-000000000011"); g.GranteeEmail = "duplicate@example.com"; });
 
         clientManagementServiceMock
             .SetupSequence(s => s.AssignClientAsync(
@@ -607,7 +590,6 @@ public class ClientManagementFunctionsTests
             email: "advisor@rajfinancial.com",
             roles: ["Advisor"],
             route: "auth/clients",
-            method: "post",
             requestBody: SerializeRequest(assignRequest));
 
         var response2 = await functions.AssignClient(request2, context2);
@@ -634,10 +616,15 @@ public class ClientManagementFunctionsTests
     {
         // Arrange — authenticated but malformed context (no Guid)
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
-        context.Items["UserRoles"] = new List<string> { "Advisor" };
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
+            }
+        };
         // No UserIdGuid — malformed auth context
 
         var mockRequest = new Mock<HttpRequestData>(context);
@@ -669,7 +656,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetClients(request, context);
@@ -683,7 +670,7 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var (request, context) = CreateUnauthenticatedRequest("auth/clients");
+        var (request, context) = CreateUnauthenticatedRequest();
 
         // Act
         var response = await functions.GetClients(request, context);
@@ -747,11 +734,13 @@ public class ClientManagementFunctionsTests
 
         var grants = new List<DataAccessGrant>
         {
-            CreateTestGrant(granteeEmail: "client1@example.com"),
-            CreateTestGrant(
-                grantId: Guid.Parse("cccc0000-0000-0000-0000-000000000002"),
-                granteeEmail: "client2@example.com",
-                accessType: AccessType.Full)
+            CreateTestGrant(g => g.GranteeEmail = "client1@example.com"),
+            CreateTestGrant(g =>
+            {
+                g.Id = Guid.Parse("cccc0000-0000-0000-0000-000000000002");
+                g.GranteeEmail = "client2@example.com";
+                g.AccessType = AccessType.Full;
+            })
         };
 
         clientManagementServiceMock
@@ -779,10 +768,12 @@ public class ClientManagementFunctionsTests
 
         var grants = new List<DataAccessGrant>
         {
-            CreateTestGrant(granteeEmail: "client1@example.com"),
-            CreateTestGrant(
-                grantId: Guid.Parse("cccc0000-0000-0000-0000-000000000002"),
-                granteeEmail: "client2@example.com")
+            CreateTestGrant(g => g.GranteeEmail = "client1@example.com"),
+            CreateTestGrant(g =>
+            {
+                g.Id = Guid.Parse("cccc0000-0000-0000-0000-000000000002");
+                g.GranteeEmail = "client2@example.com";
+            })
         };
 
         clientManagementServiceMock
@@ -874,11 +865,13 @@ public class ClientManagementFunctionsTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DataAccessGrant>
             {
-                CreateTestGrant(grantorUserId: TestUserId, granteeEmail: "client1@example.com"),
-                CreateTestGrant(
-                    grantId: Guid.Parse("cccc0000-0000-0000-0000-000000000002"),
-                    grantorUserId: OtherUserId,
-                    granteeEmail: "client2@example.com")
+                CreateTestGrant(g => { g.GrantorUserId = TestUserId; g.GranteeEmail = "client1@example.com"; }),
+                CreateTestGrant(g =>
+                {
+                    g.Id = Guid.Parse("cccc0000-0000-0000-0000-000000000002");
+                    g.GrantorUserId = OtherUserId;
+                    g.GranteeEmail = "client2@example.com";
+                })
             });
 
         // Act
@@ -926,10 +919,15 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
-        context.Items["UserRoles"] = new List<string> { "Advisor" };
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
+            }
+        };
 
         var mockRequest = new Mock<HttpRequestData>(context);
         mockRequest.SetupGet(r => r.Url).Returns(new Uri("https://localhost/api/auth/clients"));
@@ -1039,7 +1037,7 @@ public class ClientManagementFunctionsTests
             roles: ["Advisor"],
             route: $"auth/clients/{TestGrantId}");
 
-        var grant = CreateTestGrant(grantorUserId: TestUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = TestUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1067,7 +1065,7 @@ public class ClientManagementFunctionsTests
             roles: ["Advisor"],
             route: $"auth/clients/{TestGrantId}");
 
-        var grant = CreateTestGrant(grantorUserId: TestUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = TestUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1102,7 +1100,7 @@ public class ClientManagementFunctionsTests
             route: $"auth/clients/{TestGrantId}");
 
         // Grant belongs to OtherUserId, not TestUserId
-        var grant = CreateTestGrant(grantorUserId: OtherUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = OtherUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1124,7 +1122,7 @@ public class ClientManagementFunctionsTests
             roles: ["Advisor"],
             route: $"auth/clients/{TestGrantId}");
 
-        var grant = CreateTestGrant(grantorUserId: OtherUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = OtherUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1147,7 +1145,7 @@ public class ClientManagementFunctionsTests
             roles: ["Advisor"],
             route: $"auth/clients/{TestGrantId}");
 
-        var grant = CreateTestGrant(grantorUserId: OtherUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = OtherUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1226,7 +1224,7 @@ public class ClientManagementFunctionsTests
             route: $"auth/clients/{TestGrantId}");
 
         // Grant belongs to TestUserId (not AdminUserId), but Admin can still remove
-        var grant = CreateTestGrant(grantorUserId: TestUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = TestUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1255,7 +1253,7 @@ public class ClientManagementFunctionsTests
             roles: ["Administrator"],
             route: $"auth/clients/{TestGrantId}");
 
-        var grant = CreateTestGrant(grantorUserId: OtherUserId);
+        var grant = CreateTestGrant(g => g.GrantorUserId = OtherUserId);
         clientManagementServiceMock
             .Setup(s => s.GetGrantByIdAsync(TestGrantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(grant);
@@ -1305,10 +1303,15 @@ public class ClientManagementFunctionsTests
     {
         // Arrange
         var functions = CreateFunctions();
-        var context = new TestFunctionContext();
-        context.Items["IsAuthenticated"] = true;
-        context.Items["UserId"] = "not-a-guid";
-        context.Items["UserRoles"] = new List<string> { "Advisor" };
+        var context = new TestFunctionContext
+        {
+            Items =
+            {
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
+            }
+        };
 
         var mockRequest = new Mock<HttpRequestData>(context);
         mockRequest.SetupGet(r => r.Url).Returns(new Uri($"https://localhost/api/auth/clients/{TestGrantId}"));

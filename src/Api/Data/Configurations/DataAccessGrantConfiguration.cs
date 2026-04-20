@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Entities.Users;
 
@@ -50,8 +49,12 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
             .HasColumnType("nvarchar(max)")
             .Metadata.SetValueComparer(new ValueComparer<List<string>>(
                 (a, b) => ReferenceEquals(a, b) || (a != null && b != null && a.SequenceEqual(b)),
-                c => c == null ? 0 : c.Aggregate(0, (hash, item) => HashCode.Combine(hash, StringComparer.Ordinal.GetHashCode(item ?? string.Empty))),
-                c => c == null ? new List<string>() : c.ToList()));
+                c => c.Aggregate(
+                    0,
+                    (hash, item) => HashCode.Combine(
+                        hash,
+                        item == null ? 0 : StringComparer.Ordinal.GetHashCode(item))),
+                c => c.ToList()));
 
         // Configure relationships
         builder.HasOne<UserProfile>()
