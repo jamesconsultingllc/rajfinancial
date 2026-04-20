@@ -45,14 +45,14 @@ public class UserProfileProvisioningMiddlewareTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = userId.ToString(),
-                ["UserIdGuid"] = userId
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId
             }
         };
-        if (email != null) context.Items["UserEmail"] = email;
-        if (name != null) context.Items["UserName"] = name;
-        context.Items["UserRoles"] = roles ?? ["Client"];
+        if (email != null) context.Items[FunctionContextKeys.UserEmail] = email;
+        if (name != null) context.Items[FunctionContextKeys.UserName] = name;
+        context.Items[FunctionContextKeys.UserRoles] = roles ?? ["Client"];
 
         // Set up InstanceServices to resolve IUserProfileService
         var services = new ServiceCollection();
@@ -329,8 +329,8 @@ public class UserProfileProvisioningMiddlewareTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid"
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
             }
         };
         // No UserIdGuid set

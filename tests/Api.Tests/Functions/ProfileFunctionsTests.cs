@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfile;
@@ -52,9 +53,9 @@ public class ProfileFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = userId.ToString(),
-                ["UserIdGuid"] = userId
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId
             }
         };
 
@@ -225,8 +226,8 @@ public class ProfileFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid"
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
             }
         };
         // No UserIdGuid

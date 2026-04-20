@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Api.Tests.Middleware;
@@ -62,12 +63,12 @@ public class AuthFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = userId.ToString(),
-                ["UserIdGuid"] = userId,
-                ["UserEmail"] = email,
-                ["UserName"] = displayName,
-                ["UserRoles"] = roles
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId,
+                [FunctionContextKeys.UserEmail] = email,
+                [FunctionContextKeys.UserName] = displayName,
+                [FunctionContextKeys.UserRoles] = roles
             }
         };
 
@@ -184,8 +185,8 @@ public class AuthFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid"
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
             }
         };
         // No UserIdGuid — malformed auth context
@@ -639,8 +640,8 @@ public class AuthFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid"
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid"
             }
         };
         // No UserIdGuid, no UserRoles

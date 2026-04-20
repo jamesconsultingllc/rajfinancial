@@ -7,16 +7,12 @@
     Fails the commit when any warning-level Rider/Roslyn inspection fires in
     a staged file. Note-level suggestions are ignored.
 
-    CA1848 / CA1873 (source-generated logging) are excluded while the
-    logging migration is in flight - remove that filter once all services
-    and functions have been migrated.
-
     Bypass in an emergency with `git commit --no-verify`.
 #>
 [CmdletBinding()]
 param(
     [string] $Solution = 'src/RajFinancial.sln',
-    [string[]] $IgnoredRules = @('CA1848', 'CA1873')
+    [string[]] $IgnoredRules = @()
 )
 
 $ErrorActionPreference = 'Stop'

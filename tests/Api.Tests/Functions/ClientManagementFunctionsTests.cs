@@ -18,6 +18,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Functions;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Tests.Middleware;
@@ -87,19 +88,19 @@ public class ClientManagementFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = userId.ToString(),
-                ["UserIdGuid"] = userId,
-                ["UserEmail"] = email,
-                ["UserName"] = displayName,
-                ["UserRoles"] = roles
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = userId.ToString(),
+                [FunctionContextKeys.UserIdGuid] = userId,
+                [FunctionContextKeys.UserEmail] = email,
+                [FunctionContextKeys.UserName] = displayName,
+                [FunctionContextKeys.UserRoles] = roles
             }
         };
 
         // Store body and configure InstanceServices for GetValidatedBodyAsync
         if (requestBody is not null)
         {
-            context.Items["RequestBody"] = requestBody;
+            context.Items[FunctionContextKeys.RequestBody] = requestBody;
             context.WithServices(configure =>
             {
                 configure.AddScoped<IValidator<AssignClientRequest>, AssignClientRequestValidator>();
@@ -619,9 +620,9 @@ public class ClientManagementFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid",
-                ["UserRoles"] = new List<string> { "Advisor" }
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
             }
         };
         // No UserIdGuid — malformed auth context
@@ -922,9 +923,9 @@ public class ClientManagementFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid",
-                ["UserRoles"] = new List<string> { "Advisor" }
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
             }
         };
 
@@ -1306,9 +1307,9 @@ public class ClientManagementFunctionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true,
-                ["UserId"] = "not-a-guid",
-                ["UserRoles"] = new List<string> { "Advisor" }
+                [FunctionContextKeys.IsAuthenticated] = true,
+                [FunctionContextKeys.UserId] = "not-a-guid",
+                [FunctionContextKeys.UserRoles] = new List<string> { "Advisor" }
             }
         };
 

@@ -15,7 +15,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"Test","value":42}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -47,7 +47,7 @@ public class ValidationExtensionsTests
         {
             Items =
             {
-                ["RequestBody"] = "not valid json"
+                [FunctionContextKeys.RequestBody] = "not valid json"
             }
         };
 
@@ -66,7 +66,7 @@ public class ValidationExtensionsTests
         {
             Items =
             {
-                ["RequestBody"] = ""
+                [FunctionContextKeys.RequestBody] = ""
             }
         };
 
@@ -83,7 +83,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"name":"CamelCase","value":100}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -99,7 +99,7 @@ public class ValidationExtensionsTests
         // Arrange - JSON has PascalCase, C# properties also PascalCase
         var context = new TestFunctionContext();
         var json = """{"Name":"PascalCase","Value":200}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBody<TestRequest>();
@@ -115,7 +115,7 @@ public class ValidationExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var json = """{"key1":"value1","key2":"value2"}""";
-        context.Items["RequestBody"] = json;
+        context.Items[FunctionContextKeys.RequestBody] = json;
 
         // Act
         var result = context.GetBodyAsDictionary();

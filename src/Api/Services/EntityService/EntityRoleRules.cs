@@ -9,6 +9,27 @@ namespace RajFinancial.Api.Services.EntityService;
 /// </summary>
 internal static class EntityRoleRules
 {
+    private static readonly HashSet<EntityRoleType> BusinessRoles = new()
+    {
+        EntityRoleType.Owner,
+        EntityRoleType.Officer,
+        EntityRoleType.Director,
+        EntityRoleType.RegisteredAgent,
+        EntityRoleType.Employee,
+        EntityRoleType.Accountant,
+        EntityRoleType.Attorney,
+    };
+
+    private static readonly HashSet<EntityRoleType> TrustRoles = new()
+    {
+        EntityRoleType.Grantor,
+        EntityRoleType.Trustee,
+        EntityRoleType.SuccessorTrustee,
+        EntityRoleType.Beneficiary,
+        EntityRoleType.Protector,
+        EntityRoleType.TrustAdvisor,
+    };
+
     private static bool IsRoleCompatibleWithEntity(EntityRoleType roleType, EntityType entityType)
     {
         if (entityType == EntityType.Personal)
@@ -17,12 +38,10 @@ internal static class EntityRoleRules
         if (roleType == EntityRoleType.Other)
             return true;
 
-        var code = (int)roleType;
-
         return entityType switch
         {
-            EntityType.Business => code is >= 0 and <= 9,
-            EntityType.Trust => code is >= 10 and <= 19,
+            EntityType.Business => BusinessRoles.Contains(roleType),
+            EntityType.Trust => TrustRoles.Contains(roleType),
             _ => false
         };
     }

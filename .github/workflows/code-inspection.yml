@@ -20,9 +20,8 @@ permissions:
 env:
   DOTNET_VERSION: '10.0.x'
   SOLUTION: 'src/RajFinancial.sln'
-  # Rules temporarily excluded while the source-generated logging migration is in flight.
-  # Remove this list once Tasks #605 and #606 are complete.
-  IGNORED_RULES: 'CA1848,CA1873'
+  # No rules currently excluded. Add rule IDs (comma-separated) here if a regression window requires it.
+  IGNORED_RULES: ''
 
 jobs:
   inspect:

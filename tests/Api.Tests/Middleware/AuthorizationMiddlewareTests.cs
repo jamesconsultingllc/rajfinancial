@@ -5,6 +5,8 @@ using Moq;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Exception;
 
+using RajFinancial.Api.Middleware;
+
 namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
@@ -407,12 +409,12 @@ public class AuthorizationMiddlewareTests
             FunctionDefinitionValue = funcDef.Object,
             Items =
             {
-                ["IsAuthenticated"] = isAuthenticated
+                [FunctionContextKeys.IsAuthenticated] = isAuthenticated
             }
         };
 
         if (isAuthenticated && roles is not null)
-            context.Items["UserRoles"] = roles;
+            context.Items[FunctionContextKeys.UserRoles] = roles;
 
         return context;
     }

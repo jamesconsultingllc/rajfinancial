@@ -96,7 +96,7 @@ public partial class SerializationFactory(
     /// <inheritdoc />
     public async Task<byte[]> SerializeAsync<T>(T value, string contentType, CancellationToken cancellationToken = default)
     {
-        if (Equals(value, default(T)))
+        if (value is null)
         {
             return [];
         }

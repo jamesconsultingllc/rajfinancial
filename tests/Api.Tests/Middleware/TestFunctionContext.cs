@@ -7,6 +7,8 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
+using RajFinancial.Api.Middleware;
+
 namespace RajFinancial.Api.Tests.Middleware;
 
 /// <summary>
@@ -82,14 +84,14 @@ internal class TestFunctionContext : FunctionContext
 
     /// <summary>
     /// Configures the context as an authenticated user with the specified user ID.
-    /// Sets <c>Items["UserIdGuid"]</c>, <c>Items["UserId"]</c>, and
-    /// <c>Items["IsAuthenticated"]</c> so that <c>GetUserIdAsGuid()</c>
+    /// Sets <c>Items[FunctionContextKeys.UserIdGuid]</c>, <c>Items[FunctionContextKeys.UserId]</c>, and
+    /// <c>Items[FunctionContextKeys.IsAuthenticated]</c> so that <c>GetUserIdAsGuid()</c>
     /// and <c>IsAuthenticated()</c> return the expected values.
     /// </summary>
     /// <param name="userId">The authenticated user's ID.</param>
-    /// <param name="email">Optional email address stored in <c>Items["UserEmail"]</c>.</param>
-    /// <param name="name">Optional display name stored in <c>Items["UserName"]</c>.</param>
-    /// <param name="roles">Optional roles stored in <c>Items["UserRoles"]</c>.</param>
+    /// <param name="email">Optional email address stored in <c>Items[FunctionContextKeys.UserEmail]</c>.</param>
+    /// <param name="name">Optional display name stored in <c>Items[FunctionContextKeys.UserName]</c>.</param>
+    /// <param name="roles">Optional roles stored in <c>Items[FunctionContextKeys.UserRoles]</c>.</param>
     /// <returns>This context for fluent chaining.</returns>
     public TestFunctionContext WithAuthentication(
         Guid userId,
@@ -97,16 +99,16 @@ internal class TestFunctionContext : FunctionContext
         string? name = null,
         params string[] roles)
     {
-        Items["UserIdGuid"] = userId;
-        Items["UserId"] = userId.ToString();
-        Items["IsAuthenticated"] = true;
+        Items[FunctionContextKeys.UserIdGuid] = userId;
+        Items[FunctionContextKeys.UserId] = userId.ToString();
+        Items[FunctionContextKeys.IsAuthenticated] = true;
 
         if (email is not null)
-            Items["UserEmail"] = email;
+            Items[FunctionContextKeys.UserEmail] = email;
         if (name is not null)
-            Items["UserName"] = name;
+            Items[FunctionContextKeys.UserName] = name;
         if (roles.Length > 0)
-            Items["UserRoles"] = roles;
+            Items[FunctionContextKeys.UserRoles] = roles;
 
         return this;
     }
@@ -114,14 +116,14 @@ internal class TestFunctionContext : FunctionContext
     /// <summary>
     /// Sets the request body in the context as a JSON-serialized string.
     /// The <see cref="RajFinancial.Api.Middleware.ValidationExtensions.GetValidatedBodyAsync{T}"/>
-    /// extension reads from <c>Items["RequestBody"]</c>.
+    /// extension reads from <c>Items[FunctionContextKeys.RequestBody]</c>.
     /// </summary>
     /// <typeparam name="T">The type of the request body.</typeparam>
     /// <param name="body">The object to serialize as the request body.</param>
     /// <returns>This context for fluent chaining.</returns>
     public TestFunctionContext WithRequestBody<T>(T body)
     {
-        Items["RequestBody"] = JsonSerializer.Serialize(body, new JsonSerializerOptions
+        Items[FunctionContextKeys.RequestBody] = JsonSerializer.Serialize(body, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
@@ -142,7 +144,7 @@ internal class TestFunctionContext : FunctionContext
     /// <returns>This context for fluent chaining.</returns>
     public TestFunctionContext WithResponseContentType(string contentType = "application/json")
     {
-        Items["ResponseContentType"] = contentType;
+        Items[FunctionContextKeys.ResponseContentType] = contentType;
         return this;
     }
 

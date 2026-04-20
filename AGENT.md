@@ -277,7 +277,7 @@ For every feature, follow this exact sequence:
 | Member Type | Convention | Example |
 |-------------|-----------|---------|
 | Private instance fields | camelCase, **no** underscore prefix | `logger`, `dbContext` |
-| Private static readonly | camelCase | `ownerId`, `defaultTimeout` |
+| Private static readonly | PascalCase | `JsonOptions`, `ValidLocales`, `ActivitySource` |
 | Private const | SCREAMING_SNAKE_CASE | `OBJECT_ID_CLAIM`, `MAX_RETRIES` |
 | Public/internal members | PascalCase | `GetUserProfile()`, `ConnectionString` |
 

@@ -18,7 +18,7 @@ public class FunctionContextExtensionsTests
         {
             Items =
             {
-                ["UserId"] = "user-123"
+                [FunctionContextKeys.UserId] = "user-123"
             }
         };
 
@@ -50,7 +50,7 @@ public class FunctionContextExtensionsTests
         {
             Items =
             {
-                ["UserEmail"] = "test@example.com"
+                [FunctionContextKeys.UserEmail] = "test@example.com"
             }
         };
 
@@ -82,7 +82,7 @@ public class FunctionContextExtensionsTests
         {
             Items =
             {
-                ["UserName"] = "John Doe"
+                [FunctionContextKeys.UserName] = "John Doe"
             }
         };
 
@@ -112,7 +112,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Client", "Administrator" };
-        context.Items["UserRoles"] = roles;
+        context.Items[FunctionContextKeys.UserRoles] = roles;
 
         // Act
         var result = context.GetUserRoles();
@@ -144,7 +144,7 @@ public class FunctionContextExtensionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = true
+                [FunctionContextKeys.IsAuthenticated] = true
             }
         };
 
@@ -163,7 +163,7 @@ public class FunctionContextExtensionsTests
         {
             Items =
             {
-                ["IsAuthenticated"] = false
+                [FunctionContextKeys.IsAuthenticated] = false
             }
         };
 
@@ -198,7 +198,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = roles;
+        context.Items[FunctionContextKeys.UserRoles] = roles;
 
         // Act
         var result = context.HasRole(role);
@@ -213,7 +213,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Administrator" };
-        context.Items["UserRoles"] = roles;
+        context.Items[FunctionContextKeys.UserRoles] = roles;
 
         // Act
         var result = context.IsAdministrator();
@@ -228,7 +228,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var roles = new List<string> { "Client" };
-        context.Items["UserRoles"] = roles;
+        context.Items[FunctionContextKeys.UserRoles] = roles;
 
         // Act
         var result = context.IsAdministrator();
@@ -246,7 +246,7 @@ public class FunctionContextExtensionsTests
             new Claim(ClaimTypes.Name, "testuser")
         ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        context.Items["ClaimsPrincipal"] = principal;
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         // Act
         var result = context.GetClaimsPrincipal();
@@ -275,7 +275,7 @@ public class FunctionContextExtensionsTests
         // Arrange
         var context = new TestFunctionContext();
         var expected = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
-        context.Items["UserIdGuid"] = expected;
+        context.Items[FunctionContextKeys.UserIdGuid] = expected;
 
         // Act
         var result = context.GetUserIdAsGuid();
