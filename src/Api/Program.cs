@@ -45,6 +45,7 @@ builder.UseMiddleware<ValidationMiddleware>();
 // Service registrations (grouped in ServiceCollectionExtensions)
 // ============================================================================
 builder.Services.AddApplicationObservability(builder.Environment);
+builder.Services.AddApplicationHealthChecks();
 builder.Services.AddSingleton<ISerializationFactory, SerializationFactory>();
 builder.Services.Configure<AppRoleOptions>(
     builder.Configuration.GetSection(AppRoleOptions.SectionName));
