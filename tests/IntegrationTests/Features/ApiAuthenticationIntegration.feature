@@ -12,10 +12,16 @@ Feature: API Authentication Integration
         Given the Functions host is running
 
     @smoke @security
-    Scenario: Health endpoint is publicly accessible
-        When I send a GET request to "/api/health"
+    Scenario: Health live endpoint is publicly accessible
+        When I send a GET request to "/api/health/live"
+        Then the HTTP response status should be 200
+        And the response body should contain "alive"
+
+    @smoke @security
+    Scenario: Health ready endpoint is publicly accessible
+        When I send a GET request to "/api/health/ready"
         Then the HTTP response status should be 200 or 503
-        And the response body should contain "RajFinancial API"
+        And the response body should contain "status"
 
     @security @A01
     Scenario: Public auth endpoint is accessible without authentication

@@ -53,6 +53,13 @@ public class DataAccessGrantConfiguration : IEntityTypeConfiguration<DataAccessG
                     0,
                     (hash, item) => HashCode.Combine(
                         hash,
+                        // Defense-in-depth: the domain contract forbids null Categories
+                        // (AssignClientRequest/ClientAssignmentResponse are string[], NRT
+                        // declares List<string>), but EF can reconstitute a null element
+                        // from malformed persisted JSON. StringComparer.GetHashCode(null)
+                        // throws inside change tracking, which would take the context down
+                        // on save. The guard keeps corrupt rows diagnosable. `is null`
+                        // cannot be used here — ValueComparer takes an expression tree.
                         item == null ? 0 : StringComparer.Ordinal.GetHashCode(item))),
                 c => c.ToList()));
 

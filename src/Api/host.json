@@ -1,12 +1,5 @@
 ﻿{
   "version": "2.0",
-  "logging": {
-    "applicationInsights": {
-      "samplingSettings": {
-        "isEnabled": true,
-        "maxTelemetryItemsPerSecond": 20
-      }
-    }
-  }
+  "telemetryMode": "OpenTelemetry"
 }
 

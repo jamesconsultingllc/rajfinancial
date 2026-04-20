@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 
 namespace RajFinancial.IntegrationTests.Support;
@@ -54,22 +55,57 @@ public class FunctionsHostFixture
     /// </summary>
     public async Task EnsureHostIsRunningAsync()
     {
+        HttpResponseMessage? response = null;
         try
         {
-            var response = await Client.GetAsync("/api/health");
-            if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.ServiceUnavailable)
+            response = await Client.GetAsync("/api/health/live");
+            if (response.StatusCode == HttpStatusCode.OK)
                 return;
+
+            var body = await SafeReadBodyAsync(response);
+            throw new InvalidOperationException(UnreachableMessage(response.StatusCode, body));
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or SocketException)
         {
-            // fall through to throw
+            throw new InvalidOperationException(UnreachableMessage(statusCode: null, body: null), ex);
+        }
+        finally
+        {
+            response?.Dispose();
+        }
+    }
+
+    private static async Task<string?> SafeReadBodyAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            return string.IsNullOrWhiteSpace(content) ? null : content[..Math.Min(content.Length, 500)];
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            return null;
+        }
+    }
+
+    private string UnreachableMessage(HttpStatusCode? statusCode, string? body)
+    {
+        string prefix;
+        if (statusCode is null)
+        {
+            prefix = $"Functions host is not reachable at {BaseUrl}. ";
+        }
+        else
+        {
+            var bodySuffix = body is null ? ". " : $" (body: {body}). ";
+            prefix = $"Functions host at {BaseUrl} returned {(int)statusCode} {statusCode} from /api/health/live" + bodySuffix;
         }
 
-        throw new InvalidOperationException(
-            $"Functions host is not reachable at {BaseUrl}. " +
-            (IsLocalhost(BaseUrl)
-                ? "Start it manually: cd src/Api && func start"
-                : "Ensure the target environment is deployed and accessible."));
+        var remediation = IsLocalhost(BaseUrl)
+            ? "Start it manually: cd src/Api && func start"
+            : "Ensure the target environment is deployed and accessible.";
+
+        return prefix + remediation;
     }
 
     /// <summary>

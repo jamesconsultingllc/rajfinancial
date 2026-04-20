@@ -118,7 +118,7 @@ public partial class ClientManagementFunctions(
         LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
@@ -178,7 +178,7 @@ public partial class ClientManagementFunctions(
         LogGetClientsReturning(responseDtos.Length, userIdGuid.Value, isAdmin);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDtos, FunctionHelpers.JsonOptions));

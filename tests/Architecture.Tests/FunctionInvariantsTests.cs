@@ -14,14 +14,6 @@ namespace RajFinancial.Architecture.Tests;
 // ============================================================================
 public class FunctionInvariantsTests
 {
-    // Types are permitted to depend on ApplicationDbContext directly.
-    // HealthCheckFunction pings the DB as part of its liveness probe; adding
-    // a HealthService just for one ping-then-dispose call is over-engineering.
-    private static readonly string[] DbContextAllowList =
-    [
-        "HealthCheckFunction",
-    ];
-
     [Fact]
     public void Functions_ShouldNotReferenceApplicationDbContext()
     {
@@ -29,8 +21,6 @@ public class FunctionInvariantsTests
             .InAssembly(typeof(EntityService).Assembly)
             .That()
             .ResideInNamespaceStartingWith("RajFinancial.Api.Functions")
-            .And()
-            .DoNotHaveName(DbContextAllowList)
             .Should()
             .NotHaveDependencyOn(typeof(ApplicationDbContext).FullName)
             .GetResult();
