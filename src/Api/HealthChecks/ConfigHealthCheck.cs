@@ -58,7 +58,7 @@ public sealed partial class ConfigHealthCheck(
 
         // Full detail goes to logs (server-side, safe). Public response stays generic
         // outside Development so anonymous callers can't enumerate required config.
-        LogConfigurationMissing(string.Join(", ", missing), missing.Count);
+        LogConfigurationMissing(missing.Count, string.Join(", ", missing));
 
         var description = environment.IsDevelopment()
             ? "Missing or placeholder configuration: " + string.Join(", ", missing)
@@ -70,5 +70,5 @@ public sealed partial class ConfigHealthCheck(
 
     [LoggerMessage(EventId = 9902, Level = LogLevel.Warning,
         Message = "Config health check failed — {MissingCount} missing key(s): {MissingKeys}")]
-    private partial void LogConfigurationMissing(string missingKeys, int missingCount);
+    private partial void LogConfigurationMissing(int missingCount, string missingKeys);
 }
