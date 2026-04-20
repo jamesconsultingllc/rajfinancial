@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -39,6 +40,8 @@ public partial class AssetFunctions(
     ISerializationFactory serializationFactory,
     ILogger<AssetFunctions> logger)
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Assets");
+
     // =========================================================================
     // GET /api/assets
     // =========================================================================
@@ -73,10 +76,17 @@ public partial class AssetFunctions(
         var filterType = ParseAssetType(req);
         var includeDisposed = ParseBool(req, "includeDisposed");
 
+        using var activity = ActivitySource.StartActivity("Assets.Http.GetList");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("owner.user.id", ownerUserId);
+        if (filterType.HasValue)
+            activity?.SetTag("asset.type", filterType.Value.ToString());
+
         LogFetchingAssets(ownerUserId, userId, filterType, includeDisposed);
 
         var assets = await assetService.GetAssetsAsync(userId, ownerUserId, filterType, includeDisposed);
 
+        activity?.SetTag("assets.count", assets.Count);
         LogAssetsReturned(assets.Count, ownerUserId);
 
         return await context.CreateSerializedResponseAsync(
@@ -113,11 +123,16 @@ public partial class AssetFunctions(
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
 
+        using var activity = ActivitySource.StartActivity("Assets.Http.GetById");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("asset.id", assetId);
+
         LogFetchingAssetById(assetId, userId);
 
         var asset = await assetService.GetAssetByIdAsync(userId, assetId)
                     ?? throw NotFoundException.Asset(assetId);
 
+        activity?.SetTag("asset.type", asset.Type.ToString());
         LogAssetByIdReturned(asset.Id, asset.Name, userId);
 
         return await context.CreateSerializedResponseAsync(
@@ -152,10 +167,15 @@ public partial class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateAssetRequest>();
 
+        using var activity = ActivitySource.StartActivity("Assets.Http.Create");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("asset.type", request.Type.ToString());
+
         LogCreatingAsset(userId, request.Name, request.Type);
 
         var asset = await assetService.CreateAssetAsync(userId, request);
 
+        activity?.SetTag("asset.id", asset.Id);
         LogAssetCreated(asset.Id, userId);
 
         return await context.CreateSerializedResponseAsync(
@@ -197,6 +217,11 @@ public partial class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<UpdateAssetRequest>();
 
+        using var activity = ActivitySource.StartActivity("Assets.Http.Update");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("asset.id", assetId);
+        activity?.SetTag("asset.type", request.Type.ToString());
+
         LogUpdatingAsset(assetId, userId, request.Name, request.Type);
 
         var asset = await assetService.UpdateAssetAsync(userId, assetId, request);
@@ -236,6 +261,10 @@ public partial class AssetFunctions(
 
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
+
+        using var activity = ActivitySource.StartActivity("Assets.Http.Delete");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("asset.id", assetId);
 
         LogDeletingAsset(assetId, userId);
 

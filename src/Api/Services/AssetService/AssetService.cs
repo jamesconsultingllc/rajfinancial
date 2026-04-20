@@ -6,6 +6,8 @@
 // mapping to/from DTOs and computing depreciation at read time.
 // ============================================================================
 
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
@@ -25,47 +27,97 @@ public partial class AssetService(
     IAuthorizationService authorizationService,
     ILogger<AssetService> logger) : IAssetService
 {
+    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Assets");
+    private static readonly Meter Meter = new("RajFinancial.Api.Assets");
+
+    private static readonly Counter<long> AssetsCreated =
+        Meter.CreateCounter<long>("assets.created.count");
+
+    private static readonly Counter<long> AssetsUpdated =
+        Meter.CreateCounter<long>("assets.updated.count");
+
+    private static readonly Counter<long> AssetsDeleted =
+        Meter.CreateCounter<long>("assets.deleted.count");
+
+    private static readonly Histogram<double> AssetsQueryDuration =
+        Meter.CreateHistogram<double>("assets.query.duration.ms");
+
     public async Task<IReadOnlyList<AssetDto>> GetAssetsAsync(
         Guid requestingUserId,
         Guid ownerUserId,
         AssetType? filterType = null,
         bool includeDisposed = false)
     {
-        await AuthorizeReadAsync(requestingUserId, ownerUserId);
-
-        var query = db.Assets
-            .AsNoTracking()
-            .Where(a => a.UserId == ownerUserId);
-
+        using var activity = ActivitySource.StartActivity("Assets.GetList");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("owner.user.id", ownerUserId);
         if (filterType.HasValue)
-            query = query.Where(a => a.Type == filterType.Value);
+            activity?.SetTag("asset.type", filterType.Value.ToString());
 
-        if (!includeDisposed)
-            query = query.Where(a => !a.IsDisposed);
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            await AuthorizeReadAsync(requestingUserId, ownerUserId);
 
-        var assets = await query
-            .OrderBy(a => a.Name)
-            .ToListAsync();
+            var query = db.Assets
+                .AsNoTracking()
+                .Where(a => a.UserId == ownerUserId);
 
-        return assets.Select(a => a.ToDto()).ToList();
+            if (filterType.HasValue)
+                query = query.Where(a => a.Type == filterType.Value);
+
+            if (!includeDisposed)
+                query = query.Where(a => !a.IsDisposed);
+
+            var assets = await query
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+
+            activity?.SetTag("assets.count", assets.Count);
+            return assets.Select(a => a.ToDto()).ToList();
+        }
+        finally
+        {
+            AssetsQueryDuration.Record(sw.Elapsed.TotalMilliseconds,
+                new KeyValuePair<string, object?>("operation", "list"));
+        }
     }
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(Guid requestingUserId, Guid assetId)
     {
-        var asset = await db.Assets
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == assetId);
+        using var activity = ActivitySource.StartActivity("Assets.GetById");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("asset.id", assetId);
 
-        if (asset is null)
-            return null;
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var asset = await db.Assets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == assetId);
 
-        await AuthorizeReadAsync(requestingUserId, asset.UserId);
+            if (asset is null)
+                return null;
 
-        return asset.ToDetailDto();
+            activity?.SetTag("asset.type", asset.Type.ToString());
+
+            await AuthorizeReadAsync(requestingUserId, asset.UserId);
+
+            return asset.ToDetailDto();
+        }
+        finally
+        {
+            AssetsQueryDuration.Record(sw.Elapsed.TotalMilliseconds,
+                new KeyValuePair<string, object?>("operation", "get"));
+        }
     }
 
     public async Task<AssetDto> CreateAssetAsync(Guid userId, CreateAssetRequest request)
     {
+        using var activity = ActivitySource.StartActivity("Assets.Create");
+        activity?.SetTag("user.id", userId);
+        activity?.SetTag("asset.type", request.Type.ToString());
+
         var isDepreciable = request.DepreciationMethod.HasValue
                             && request.DepreciationMethod != DepreciationMethod.None;
 
@@ -112,6 +164,9 @@ public partial class AssetService(
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
+        activity?.SetTag("asset.id", asset.Id);
+        AssetsCreated.Add(1,
+            new KeyValuePair<string, object?>("asset.type", asset.Type.ToString()));
         LogAssetCreated(asset.Id, userId);
 
         return asset.ToDto();
@@ -119,6 +174,11 @@ public partial class AssetService(
 
     public async Task<AssetDto> UpdateAssetAsync(Guid requestingUserId, Guid assetId, UpdateAssetRequest request)
     {
+        using var activity = ActivitySource.StartActivity("Assets.Update");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("asset.id", assetId);
+        activity?.SetTag("asset.type", request.Type.ToString());
+
         var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                     ?? throw NotFoundException.Asset(assetId);
 
@@ -158,6 +218,10 @@ public partial class AssetService(
 
             LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
 
+            AssetsUpdated.Add(1,
+                new KeyValuePair<string, object?>("asset.type", newAsset.Type.ToString()),
+                new KeyValuePair<string, object?>("type_switch", true));
+
             return newAsset.ToDto();
         }
 
@@ -186,6 +250,8 @@ public partial class AssetService(
 
         await db.SaveChangesAsync();
 
+        AssetsUpdated.Add(1,
+            new KeyValuePair<string, object?>("asset.type", asset.Type.ToString()));
         LogAssetUpdated(assetId, requestingUserId);
 
         return asset.ToDto();
@@ -193,14 +259,22 @@ public partial class AssetService(
 
     public async Task DeleteAssetAsync(Guid requestingUserId, Guid assetId)
     {
+        using var activity = ActivitySource.StartActivity("Assets.Delete");
+        activity?.SetTag("user.id", requestingUserId);
+        activity?.SetTag("asset.id", assetId);
+
         var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                     ?? throw NotFoundException.Asset(assetId);
+
+        activity?.SetTag("asset.type", asset.Type.ToString());
 
         await AuthorizeWriteAsync(requestingUserId, asset.UserId);
 
         db.Assets.Remove(asset);
         await db.SaveChangesAsync();
 
+        AssetsDeleted.Add(1,
+            new KeyValuePair<string, object?>("asset.type", asset.Type.ToString()));
         LogAssetDeleted(assetId, requestingUserId);
     }
 
