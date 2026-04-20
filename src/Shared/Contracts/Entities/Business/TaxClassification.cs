@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities.Business;
+namespace RajFinancial.Shared.Contracts.Entities.Business;
 
 /// <summary>
 ///     IRS tax classification for business entities.

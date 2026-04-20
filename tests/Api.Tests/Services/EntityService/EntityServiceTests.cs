@@ -10,8 +10,8 @@ using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
 using RajFinancial.Shared.Entities.Access;
-using RajFinancial.Shared.Entities.Business;
-using RajFinancial.Shared.Entities.Trust;
+using RajFinancial.Shared.Contracts.Entities.Business;
+using RajFinancial.Shared.Contracts.Entities.Trust;
 
 namespace RajFinancial.Api.Tests.Services.EntityService;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace RajFinancial.Shared.Entities.Trust;
+namespace RajFinancial.Shared.Contracts.Entities.Trust;
 
 /// <summary>
 ///     Stackable provisions and add-on features layered onto a trust. Multiple

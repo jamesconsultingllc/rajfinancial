@@ -1,6 +1,6 @@
 using MemoryPack;
 
-namespace RajFinancial.Shared.Entities.Business;
+namespace RajFinancial.Shared.Contracts.Entities.Business;
 
 /// <summary>
 ///     State registration record for a business entity (SOS filing, annual report).

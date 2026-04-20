@@ -15,14 +15,6 @@ namespace RajFinancial.Architecture.Tests;
 // ============================================================================
 public class DtoInvariantsTests
 {
-    // #626 — metadata records that live under Entities.* but are POCOs, not EF entities.
-    // Remove these entries when the types are moved into Contracts.*.
-    private static readonly HashSet<string> MetadataTypeAllowList = new(StringComparer.Ordinal)
-    {
-        "RajFinancial.Shared.Entities.Business.BusinessEntityMetadata",
-        "RajFinancial.Shared.Entities.Trust.TrustEntityMetadata",
-    };
-
     [Fact]
     public void Contracts_ShouldNotDependOnEntityClasses()
     {
@@ -43,8 +35,7 @@ public class DtoInvariantsTests
             .GetTypes()
             .Where(t => t.Namespace is not null
                         && t.Namespace.StartsWith("RajFinancial.Shared.Entities", StringComparison.Ordinal)
-                        && t is { IsClass: true, IsAbstract: false }
-                        && !MetadataTypeAllowList.Contains(t.FullName ?? string.Empty))
+                        && t is { IsClass: true, IsAbstract: false })
             .Select(t => t.FullName!)
             .ToHashSet(StringComparer.Ordinal);
 
