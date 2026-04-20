@@ -96,7 +96,7 @@ public partial class AuthFunctions(
         LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
@@ -149,7 +149,7 @@ public partial class AuthFunctions(
         LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));

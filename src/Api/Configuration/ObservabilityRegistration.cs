@@ -58,10 +58,10 @@ internal static class ObservabilityRegistration
 
         services.AddLogging(logging =>
         {
-            logging.AddFile("logs/rajfinancial-{Date}.log", options =>
+            logging.AddFile(ObservabilityConstants.FileLogPathTemplate, options =>
             {
-                options.MaxRollingFiles = 7;
-                options.FileSizeLimitBytes = 10 * 1024 * 1024;
+                options.MaxRollingFiles = ObservabilityConstants.MaxRollingFiles;
+                options.FileSizeLimitBytes = ObservabilityConstants.FileSizeLimitBytes;
             });
         });
     }
@@ -89,7 +89,8 @@ internal static class ObservabilityRegistration
                 // request are kept or dropped together via ParentBased). Tune ratio as
                 // traffic grows; override via a ParentBasedSampler configured from
                 // App Settings if needed.
-                tracing.SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)));
+                tracing.SetSampler(new ParentBasedSampler(
+                    new TraceIdRatioBasedSampler(ObservabilityConstants.DefaultTraceSampleRatio)));
             }
         });
 

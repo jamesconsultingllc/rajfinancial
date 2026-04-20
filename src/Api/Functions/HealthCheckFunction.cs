@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -30,8 +30,9 @@ public partial class HealthCheckFunction(
         HttpRequestData req)
     {
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync("{\"status\":\"alive\"}");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        await response.WriteStringAsync(
+            JsonSerializer.Serialize(new { status = "alive" }, FunctionHelpers.JsonOptions));
         return response;
     }
 
@@ -53,7 +54,7 @@ public partial class HealthCheckFunction(
             : HttpStatusCode.ServiceUnavailable;
 
         var response = req.CreateResponse(statusCode);
-        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
 
         object payload;
         if (environment.IsDevelopment())
@@ -80,7 +81,7 @@ public partial class HealthCheckFunction(
             };
         }
 
-        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
+        await response.WriteStringAsync(JsonSerializer.Serialize(payload, FunctionHelpers.JsonOptions));
         return response;
     }
 

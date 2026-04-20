@@ -57,6 +57,7 @@
     </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="appsettings.Development.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -64,9 +65,11 @@
     </None>
     <None Update="appsettings.Staging.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="appsettings.Production.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="certificate.pfx" Condition="Exists('certificate.pfx') And '$(BuildingInsideVisualStudio)' != 'true' And '$(BuildingForLiveUnitTesting)' != 'true'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

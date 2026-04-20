@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Configuration;
 
 namespace RajFinancial.Api.HealthChecks;
 
@@ -25,11 +26,11 @@ public sealed partial class ConfigHealthCheck(
 
     private static readonly string[] RequiredKeys =
     [
-        "EntraExternalId:Instance",
-        "EntraExternalId:Domain",
-        "AppRoles:Client",
-        "AppRoles:Administrator",
-        "AppRoles:Advisor",
+        ConfigurationKeys.EntraInstance,
+        ConfigurationKeys.EntraDomain,
+        ConfigurationKeys.AppRoleClient,
+        ConfigurationKeys.AppRoleAdministrator,
+        ConfigurationKeys.AppRoleAdvisor,
     ];
 
     public Task<HealthCheckResult> CheckHealthAsync(
@@ -48,9 +49,9 @@ public sealed partial class ConfigHealthCheck(
 
         if (!environment.IsDevelopment())
         {
-            var aiConn = configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+            var aiConn = configuration[ConfigurationKeys.ApplicationInsightsConnectionString];
             if (string.IsNullOrWhiteSpace(aiConn))
-                missing.Add("APPLICATIONINSIGHTS_CONNECTION_STRING");
+                missing.Add(ConfigurationKeys.ApplicationInsightsConnectionString);
         }
 
         if (missing.Count == 0)
