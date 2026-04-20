@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Data;
 using RajFinancial.Shared.Entities.Access;
 using RajFinancial.Shared.Entities.Users;
@@ -36,8 +37,8 @@ public partial class AuthorizationService(
     ApplicationDbContext dbContext,
     ILogger<AuthorizationService> logger) : IAuthorizationService
 {
-    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Authorization");
-    private static readonly Meter Meter = new("RajFinancial.Api.Authorization");
+    private static readonly ActivitySource ActivitySource = new(ObservabilityDomains.Authorization);
+    private static readonly Meter Meter = new(ObservabilityDomains.Authorization);
 
     private static readonly Counter<long> AuthzAllowed =
         Meter.CreateCounter<long>("authorization.allowed.count");
