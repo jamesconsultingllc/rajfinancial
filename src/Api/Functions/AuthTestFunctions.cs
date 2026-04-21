@@ -190,15 +190,15 @@ public partial class AuthTestFunctions(
         return response;
     }
 
-    [LoggerMessage(EventId = 1011, Level = LogLevel.Information, Message = "User {UserId} accessed /api/auth/status")]
+    [LoggerMessage(EventId = 9001, Level = LogLevel.Information, Message = "User {UserId} accessed /api/auth/status")]
     private partial void LogAuthStatusAccessed(string? userId);
 
-    [LoggerMessage(EventId = 1012, Level = LogLevel.Information, Message = "Client {UserId} accessed /api/auth/client")]
+    [LoggerMessage(EventId = 9002, Level = LogLevel.Information, Message = "Client {UserId} accessed /api/auth/client")]
     private partial void LogClientEndpointAccessed(string? userId);
 
-    [LoggerMessage(EventId = 1013, Level = LogLevel.Information, Message = "Administrator {UserId} accessed /api/auth/admin")]
+    [LoggerMessage(EventId = 9003, Level = LogLevel.Information, Message = "Administrator {UserId} accessed /api/auth/admin")]
     private partial void LogAdminEndpointAccessed(string? userId);
 
-    [LoggerMessage(EventId = 1014, Level = LogLevel.Information, Message = "Public endpoint accessed. Authenticated: {IsAuthenticated}")]
+    [LoggerMessage(EventId = 9004, Level = LogLevel.Information, Message = "Public endpoint accessed. Authenticated: {IsAuthenticated}")]
     private partial void LogPublicEndpointAccessed(bool isAuthenticated);
 }

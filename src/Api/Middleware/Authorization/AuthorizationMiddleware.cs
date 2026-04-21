@@ -92,7 +92,12 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
         }
         catch (System.Exception ex) when (ex is UnauthorizedException or ForbiddenException)
         {
-            MiddlewareTelemetry.RecordException("AuthorizationMiddleware", ex.GetType().Name, 0);
+            // Record per-middleware with the known status so operators can slice by
+            // middleware.name. ExceptionMiddleware will re-record with the same exception
+            // (tagged middleware=ExceptionMiddleware); aggregate with group-by on the
+            // "middleware" tag to prevent double counting.
+            var statusCode = ex is UnauthorizedException ? 401 : 403;
+            MiddlewareTelemetry.RecordException("AuthorizationMiddleware", ex.GetType().Name, statusCode);
             activity?.RecordExceptionOutcome(ex);
             throw;
         }

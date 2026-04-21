@@ -51,7 +51,7 @@ public partial class UserProfileProvisioningMiddleware(
 
                 if (userIdGuid.HasValue)
                 {
-                    activity?.SetTag("user.id", userIdGuid.Value);
+                    activity?.SetTag("user.id", userIdGuid.Value.ToString());
 
                     var email = context.GetUserEmail() ?? string.Empty;
                     var displayName = context.GetUserName();

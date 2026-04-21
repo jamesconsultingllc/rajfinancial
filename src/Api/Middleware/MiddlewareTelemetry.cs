@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using RajFinancial.Api.Configuration;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -11,16 +12,19 @@ namespace RajFinancial.Api.Middleware;
 /// </summary>
 internal static class MiddlewareTelemetry
 {
-    internal const string SourceName = "RajFinancial.Api.Middleware";
+    internal const string SourceName = ObservabilityDomains.Middleware;
+
+    private const string ExceptionsInstrument = "middleware.exceptions.count";
+    private const string DurationInstrument = "middleware.duration.ms";
 
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
 
     private static readonly Counter<long> Exceptions =
-        Meter.CreateCounter<long>("middleware.exceptions.count");
+        Meter.CreateCounter<long>(ExceptionsInstrument);
 
     private static readonly Histogram<double> Duration =
-        Meter.CreateHistogram<double>("middleware.duration.ms");
+        Meter.CreateHistogram<double>(DurationInstrument);
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 

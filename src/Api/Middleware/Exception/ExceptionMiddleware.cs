@@ -38,6 +38,11 @@ public partial class ExceptionMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        // Capture the outer invocation span BEFORE starting our own activity, so
+        // RecordExceptionOutcome below classifies the Functions Invoke span
+        // (not this middleware's span, which would become Activity.Current).
+        var invocationActivity = Activity.Current;
+
         using var activity = MiddlewareTelemetry.StartActivity("Middleware.Exception");
         activity?.SetTag("middleware.name", MiddlewareName);
         activity?.SetTag("code.function", context.FunctionDefinition.Name);
@@ -53,11 +58,11 @@ public partial class ExceptionMiddleware(
         }
         catch (System.Exception ex)
         {
-            // Classify the Functions Invoke span (Activity.Current) centrally
-            // so per-function code doesn't need to tag it. Service-level
-            // activities are already classified by their own try/catch
-            // (they've been disposed by the time we get here).
-            Activity.Current?.RecordExceptionOutcome(ex);
+            // Classify the Functions Invoke span centrally so per-function
+            // code doesn't need to tag it. Service-level activities were
+            // already classified by their own exception handlers and have
+            // been disposed by the time execution reaches this middleware.
+            invocationActivity?.RecordExceptionOutcome(ex);
 
             var exceptionType = ex.GetType().Name;
             var statusCode = (int)MapStatusCode(ex);

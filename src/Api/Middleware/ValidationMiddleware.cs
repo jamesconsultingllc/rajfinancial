@@ -57,9 +57,9 @@ public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) 
 
             await next(context);
         }
-        catch
+        catch (System.Exception ex)
         {
-            MiddlewareTelemetry.RecordException("ValidationMiddleware", null, 0);
+            MiddlewareTelemetry.RecordException("ValidationMiddleware", ex.GetType().Name, 0);
             throw;
         }
         finally

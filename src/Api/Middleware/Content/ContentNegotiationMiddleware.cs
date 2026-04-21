@@ -68,9 +68,9 @@ public partial class ContentNegotiationMiddleware(
 
             await next(context);
         }
-        catch
+        catch (System.Exception ex)
         {
-            MiddlewareTelemetry.RecordException("ContentNegotiationMiddleware", null, 0);
+            MiddlewareTelemetry.RecordException("ContentNegotiationMiddleware", ex.GetType().Name, 0);
             throw;
         }
         finally

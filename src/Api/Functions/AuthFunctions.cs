@@ -79,7 +79,7 @@ public partial class AuthFunctions(
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag("user.id", userIdGuid.Value.ToString());
 
         var email = context.GetUserEmail() ?? string.Empty;
         var displayName = context.GetUserName();
@@ -154,7 +154,7 @@ public partial class AuthFunctions(
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag("user.id", userIdGuid.Value.ToString());
 
         var roles = context.GetUserRoles();
         var isAdministrator = context.IsAdministrator();

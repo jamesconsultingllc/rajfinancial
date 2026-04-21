@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using RajFinancial.Api.Configuration;
 
 namespace RajFinancial.Api.Observability;
 
@@ -11,16 +12,19 @@ namespace RajFinancial.Api.Observability;
 /// </summary>
 internal static class AuthTelemetry
 {
-    internal const string SourceName = "RajFinancial.Api.Auth";
+    internal const string SourceName = ObservabilityDomains.Auth;
+
+    private const string SuccessesInstrument = "auth.successes.count";
+    private const string FailuresInstrument = "auth.failures.count";
 
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
 
     private static readonly Counter<long> Successes =
-        Meter.CreateCounter<long>("auth.successes.count");
+        Meter.CreateCounter<long>(SuccessesInstrument);
 
     private static readonly Counter<long> Failures =
-        Meter.CreateCounter<long>("auth.failures.count");
+        Meter.CreateCounter<long>(FailuresInstrument);
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 
