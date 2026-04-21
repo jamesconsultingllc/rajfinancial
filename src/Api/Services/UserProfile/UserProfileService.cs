@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Data;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
@@ -29,8 +30,8 @@ public partial class UserProfileService(
     ApplicationDbContext dbContext,
     ILogger<UserProfileService> logger) : IUserProfileService
 {
-    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.UserProfile");
-    private static readonly Meter Meter = new("RajFinancial.Api.UserProfile");
+    private static readonly ActivitySource ActivitySource = new(ObservabilityDomains.UserProfile);
+    private static readonly Meter Meter = new(ObservabilityDomains.UserProfile);
 
     private static readonly Counter<long> UserProfileJitProvisioned =
         Meter.CreateCounter<long>("userprofile.jit.provisioned.count");
@@ -68,10 +69,11 @@ public partial class UserProfileService(
             var mappedRole = roles.MapHighestPriority();
             var now = DateTimeOffset.UtcNow;
 
+            var created = false;
             if (profile is null)
             {
-                profile = await JitProvisionAsync(userId, email, displayName, mappedRole, tenantId, now, cancellationToken);
-                if (profile.CreatedAt == now)
+                (profile, created) = await JitProvisionAsync(userId, email, displayName, mappedRole, tenantId, now, cancellationToken);
+                if (created)
                 {
                     return profile;
                 }
@@ -88,7 +90,7 @@ public partial class UserProfileService(
         }
     }
 
-    private async Task<Shared.Entities.Users.UserProfile> JitProvisionAsync(
+    private async Task<(Shared.Entities.Users.UserProfile Profile, bool Created)> JitProvisionAsync(
         Guid userId,
         string email,
         string? displayName,
@@ -116,7 +118,7 @@ public partial class UserProfileService(
             UserProfileJitProvisioned.Add(1);
             LogJitProvisioned(userId, mappedRole);
 
-            return profile;
+            return (profile, true);
         }
         catch (DbUpdateException)
         {
@@ -131,7 +133,7 @@ public partial class UserProfileService(
                 throw;
             }
 
-            return reloaded;
+            return (reloaded, false);
         }
     }
 

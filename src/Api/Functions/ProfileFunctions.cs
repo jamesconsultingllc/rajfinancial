@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
@@ -38,11 +38,7 @@ public partial class ProfileFunctions(
     IUserProfileService userProfileService,
     ISerializationFactory serializationFactory)
 {
-    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.UserProfile");
-    private static readonly Meter Meter = new("RajFinancial.Api.UserProfile");
-
-    private static readonly Counter<long> UserProfileSyncCount =
-        Meter.CreateCounter<long>("userprofile.sync.count");
+    private static readonly ActivitySource ActivitySource = new(ObservabilityDomains.UserProfile);
 
     /// <summary>
     /// Returns the persisted <see cref="UserProfile"/> for the
@@ -164,7 +160,6 @@ public partial class ProfileFunctions(
         };
 
         LogUpdateProfileReturning(userIdGuid.Value);
-        UserProfileSyncCount.Add(1);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, responseDto, serializationFactory);
