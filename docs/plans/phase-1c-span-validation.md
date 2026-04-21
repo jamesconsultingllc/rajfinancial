@@ -46,20 +46,25 @@ The observability stack already has `AddConsoleExporter` registered for both tra
 
 ## 3. Prerequisites
 
-- [ ] Docker running with the SQL container (`Server=localhost,1433`, seed data present — see README).
-- [ ] `appsettings.local.json` sets a Development-appropriate connection string + `ASPNETCORE_ENVIRONMENT=Development`.
+- [ ] Docker running with the SQL container (connection string via `ConnectionStrings__SqlConnectionString` env var or `src/Api/local.settings.json`; see repo README / `scripts/infra/` for the compose file and seed scripts).
+- [ ] `src/Api/local.settings.json` exists and provides the connection string plus Entra-related values the Functions host needs at boot. (`appsettings.local.json` is a tests-only override consumed by `tests/IntegrationTests/Support/FunctionsHostFixture.cs`, not by the running worker.)
+- [ ] Development environment is signaled to the host. `src/Api/Properties/launchSettings.json` sets both `ASPNETCORE_ENVIRONMENT=Development` and `AZURE_FUNCTIONS_ENVIRONMENT=Development`; if you start the worker outside those profiles (e.g. a bare `func start` in a plain shell), set both env vars explicitly — a few code paths key off `AZURE_FUNCTIONS_ENVIRONMENT` (`DesignTimeDbContextFactory`, `SerializationFactory`) and the Console exporters + file logging gate on `IHostEnvironment.IsDevelopment()` (`ObservabilityRegistration.cs:59, 86, 109, 120`).
 - [ ] `dotnet build src/Api/RajFinancial.Api.csproj -c Debug` succeeds.
-- [ ] A seeded user + one asset + one entity + one client assignment exist, with known IDs and a known bearer token. (The IntegrationTests fixture seeds the same data; reuse it or re-run `dotnet test tests/IntegrationTests/` once to populate.)
+- [ ] A seeded user + one asset + one entity + one client assignment exist in the DB with known IDs, and a bearer token for that user is in hand — see §3.1 below for how to obtain each.
 - [ ] `curl` (or PowerShell `Invoke-WebRequest`) available, plus `jq` for token sanity-checks (optional).
 
-Keep three of these values handy — they go into the curl commands in §4:
+### 3.1 Obtaining the bearer token + IDs
+
+Keep these values handy — they go into the curl commands in §4.
 
 | Variable | How to get it |
 |---|---|
-| `BEARER` | Dev token; same one the integration tests use. Pull from `tests/IntegrationTests/Support/FunctionsHostFixture.cs` or the fixture's appsettings. |
-| `ASSET_ID` | Any asset id owned by the token's user. `dotnet run --project src/Api` once → query `/api/assets`. |
-| `ENTITY_ID` | Any entity id owned by that same user. |
-| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). |
+| `BEARER` | For local (unsigned-JWT) runs, mint a dev token the same way the integration tests do — see `tests/IntegrationTests/Support/TestAuthHelper.cs` plus `tests/IntegrationTests/appsettings.json` (the `Entra:TestUsers:*` entries it reads) and `appsettings.local.json` if present. For a real Entra token against the running worker, use `RopcTokenProvider` with `TEST_{ROLE}_PASSWORD` env vars set (same as the integration suite). **The fixture itself does not mint tokens** — only `TestAuthHelper` / `RopcTokenProvider` do. |
+| `ASSET_ID` | After `func start --useHttps` is up (see §4.1), `curl -k -H "Authorization: Bearer $BEARER" https://localhost:7071/api/assets` and pick any `id` from the response. |
+| `ENTITY_ID` | Same pattern against `/api/entities`. |
+| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). Pull from `/api/clients` (the advisor-scoped list endpoint). |
+
+The `FunctionsHostFixture` used by the integration suite **does not seed data or start the host** — it only builds an `HttpClient` and checks that something is already listening at `FunctionsHost:BaseUrl` (from `tests/IntegrationTests/appsettings.json`, default `https://localhost:7071`). Feature data comes from either (a) the test scenarios making their own HTTP calls, or (b) helper endpoints like `/api/testing/seed-contact`. If the DB is empty, create a user / asset / entity / assignment via the normal create endpoints before starting this procedure, or run one integration scenario that exercises those create paths first.
 
 ---
 
@@ -74,7 +79,7 @@ cd src\Api
 func start --useHttps
 ```
 
-`--useHttps` is not optional — the integration-test fixture and the `appsettings.json` health-probe URLs both target `https://localhost:7071`, and the dev cert is already trusted. (`func start` alone defaults to HTTP and breaks downstream tooling.)
+`--useHttps` is not optional — `tests/IntegrationTests/appsettings.json` has `FunctionsHost:BaseUrl=https://localhost:7071`, `src/Api/Properties/launchSettings.json` declares HTTPS profiles, and the fixture's cert validator only trusts the dev cert on `localhost`. (`func start` alone defaults to HTTP and breaks integration tests + this procedure's curl commands, which all hit HTTPS.)
 
 Wait for `Host lock lease acquired` and the endpoint list. Leave this window visible — the Console exporter dumps every span to it.
 
