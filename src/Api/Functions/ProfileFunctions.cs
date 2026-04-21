@@ -65,8 +65,8 @@ public partial class ProfileFunctions(
         if (!userIdGuid.HasValue)
         {
             LogProfileMeMissingContext();
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            return unauthorizedResponse;
+            return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);

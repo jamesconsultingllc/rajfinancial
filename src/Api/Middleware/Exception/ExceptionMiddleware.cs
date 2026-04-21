@@ -120,7 +120,7 @@ public partial class ExceptionMiddleware(
     [LoggerMessage(EventId = 5005, Level = LogLevel.Warning, Message = "Conflict: {Code} - {Message}")]
     private partial void LogConflict(System.Exception ex, string code, string message);
 
-    [LoggerMessage(EventId = 5009, Level = LogLevel.Warning, Message = "Concurrent update conflict: {Message}")]
+    [LoggerMessage(EventId = 5090, Level = LogLevel.Warning, Message = "Concurrent update conflict: {Message}")]
     private partial void LogDbConcurrency(System.Exception ex, string message);
 
     [LoggerMessage(EventId = 5006, Level = LogLevel.Warning, Message = "Business rule violation: {Code} - {Message}")]
