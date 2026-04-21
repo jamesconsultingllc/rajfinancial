@@ -96,10 +96,7 @@ public partial class EntityFunctions(
 
         LogFetchingEntityById(entityId, userId);
 
-        var entity = await entityService.GetEntityByIdAsync(userId, entityId)
-                     ?? throw new NotFoundException(
-                         EntityErrorCodes.NotFound,
-                         $"Entity with ID {entityId} was not found.");
+        var entity = await entityService.GetEntityByIdAsync(userId, entityId);
 
         activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
         activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);

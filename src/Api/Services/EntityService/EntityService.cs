@@ -78,7 +78,7 @@ public partial class EntityService(
         }
     }
 
-    public async Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
+    public async Task<EntityDetailDto> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
     {
         using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntityByIdService);
         activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
