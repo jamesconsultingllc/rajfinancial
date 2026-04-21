@@ -15,7 +15,8 @@ namespace RajFinancial.Api.Middleware.Exception;
 ///     <see cref="ExceptionMiddleware" /> that maps to a 4xx status, also add
 ///     the exception type here so OTel spans record it as a client-error
 ///     outcome (event only, status Unset) instead of flagging it as a server
-///     error. <see cref="ExceptionClassificationTests" /> locks this in.
+///     error. The <c>ExceptionClassificationTests</c> in the Api.Tests project
+///     lock this in.
 /// </remarks>
 internal static class ExceptionClassification
 {
