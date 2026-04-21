@@ -21,6 +21,11 @@ public partial class EntityService(
     IContactResolver contactResolver,
     ILogger<EntityService> logger) : IEntityService
 {
+    // Personal-entity domain defaults. The name/slug for a user's built-in
+    // Personal entity are treated as a domain constant, not a localizable label.
+    private const string PersonalEntityName = "Personal";
+    private const string PersonalEntitySlug = "personal";
+
     // =========================================================================
     // Entity queries
     // =========================================================================
@@ -32,15 +37,17 @@ public partial class EntityService(
     {
         using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntitiesService);
         activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
-        activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
         if (filterType.HasValue)
             activity?.SetTag(EntityTelemetry.EntityTypeTag, filterType.Value.ToString());
-
-        var stopwatch = Stopwatch.StartNew();
 
         try
         {
             await AuthorizeReadAsync(requestingUserId, ownerUserId);
+
+            // Tag owner.id only after authorization succeeds so denied
+            // requests don't leak the requested owner id (user-supplied) into
+            // telemetry. Matches the pattern used in AssetService.
+            activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
 
             var query = db.Entities
                 .AsNoTracking()
@@ -49,12 +56,15 @@ public partial class EntityService(
             if (filterType.HasValue)
                 query = query.Where(e => e.Type == filterType.Value);
 
+            // Stopwatch scoped to the EF query only so the histogram reflects
+            // pure DB time (not authorization or other non-query work).
+            var stopwatch = Stopwatch.StartNew();
             var entities = await query
                 .OrderBy(e => e.Type)
                 .ThenBy(e => e.Name)
                 .ToListAsync();
-
             stopwatch.Stop();
+
             EntityTelemetry.RecordQueryDuration(
                 EntityTelemetry.QueryOpGetEntities,
                 stopwatch.Elapsed.TotalMilliseconds);
@@ -74,8 +84,6 @@ public partial class EntityService(
         activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
         activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
-        var stopwatch = Stopwatch.StartNew();
-
         try
         {
             var ownerId = await db.Entities
@@ -87,17 +95,20 @@ public partial class EntityService(
 
             await AuthorizeReadAsync(requestingUserId, ownerId);
 
+            // Stopwatch scoped to the EF fetch only (excludes ownership lookup
+            // and authorization so the histogram reflects pure query time).
+            var stopwatch = Stopwatch.StartNew();
             var entity = await db.Entities
                 .AsNoTracking()
                 .Include(e => e.Roles)
                 .Include(e => e.ChildEntities)
                 .FirstOrDefaultAsync(e => e.Id == entityId)
                 ?? throw EntityDbErrors.NotFound(entityId);
+            stopwatch.Stop();
 
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-            stopwatch.Stop();
             EntityTelemetry.RecordQueryDuration(
                 EntityTelemetry.QueryOpGetEntityById,
                 stopwatch.Elapsed.TotalMilliseconds);
@@ -362,8 +373,8 @@ public partial class EntityService(
                 Id = Guid.NewGuid(),
                 UserId = userId,
                 Type = EntityType.Personal,
-                Name = "Personal",
-                Slug = "personal",
+                Name = PersonalEntityName,
+                Slug = PersonalEntitySlug,
                 IsActive = true,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -535,8 +546,6 @@ public partial class EntityService(
         activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
         activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
-        var stopwatch = Stopwatch.StartNew();
-
         try
         {
             var entity = await db.Entities
@@ -549,14 +558,17 @@ public partial class EntityService(
 
             await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
+            // Stopwatch scoped to the roles EF query only (excludes entity
+            // lookup and authorization so the histogram reflects pure DB time).
+            var stopwatch = Stopwatch.StartNew();
             var roles = await db.EntityRoles
                 .AsNoTracking()
                 .Where(r => r.EntityId == entityId)
                 .OrderBy(r => r.SortOrder)
                 .ThenBy(r => r.RoleType)
                 .ToListAsync();
-
             stopwatch.Stop();
+
             EntityTelemetry.RecordQueryDuration(
                 EntityTelemetry.QueryOpGetRoles,
                 stopwatch.Elapsed.TotalMilliseconds);

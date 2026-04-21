@@ -56,13 +56,16 @@ public partial class EntityFunctions(
         var filterType = ParseEntityType(req);
 
         activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
-        activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
         if (filterType.HasValue)
             activity?.SetTag(EntityTelemetry.EntityTypeTag, filterType.Value.ToString());
 
         LogFetchingEntities(ownerUserId, userId, filterType);
 
         var entities = await entityService.GetEntitiesAsync(userId, ownerUserId, filterType);
+
+        // Tag owner.id only after the service call succeeds so denied requests
+        // don't leak the requested owner id (user-supplied) into telemetry.
+        activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, entities, serializationFactory);
