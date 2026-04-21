@@ -43,5 +43,6 @@ internal static class ActivityExceptionExtensions
         NotFoundException or
         ForbiddenException or
         UnauthorizedException or
+        ConflictException or
         BusinessRuleException;
 }

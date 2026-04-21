@@ -86,9 +86,9 @@ public partial class AssetService(
             if (asset is null)
                 return null;
 
-            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
-
             await AuthorizeReadAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
 
             activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
@@ -272,9 +272,9 @@ public partial class AssetService(
             var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                         ?? throw NotFoundException.Asset(assetId);
 
-            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
-
             await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
 
             activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
