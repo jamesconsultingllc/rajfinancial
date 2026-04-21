@@ -12,7 +12,7 @@ When a symptom is reported, go in this order. **Stop at the first step that give
 
 1. **Application Insights — Failures & Performance blades.** Application Map shows which component is slow/erroring. KQL + sample traces usually resolve it.
 2. **Live Metrics (App Insights).** Real-time CPU, memory, dependency calls, failures. Useful when lag between event and KQL ingestion hurts.
-3. **`/health/ready`** on the affected instance — returns 503 with a JSON payload showing the overall status (per-check detail is Development-only; Production returns overall status + duration only to avoid leaking internal dependency names).
+3. **`/api/health/ready`** on the affected instance — returns 503 with a JSON payload showing the overall status (per-check detail is Development-only; Production returns overall status + duration only to avoid leaking internal dependency names).
 4. **`dotnet-counters`** — 10-second attach, see runtime counters (CPU, GC, thread pool, our domain counters). No redeploy.
 5. **`dotnet-trace`** — 30-second attach, capture EventPipe trace for deep analysis in PerfView / Speedscope. No redeploy.
 6. **Log grep (App Insights `traces` table).** Last resort. Logs are noisy; metrics + traces are the primary debugging tools by design.
@@ -37,7 +37,7 @@ dotnet tool install --global dotnet-gcdump
 - App Insights resource name + resource group. Keep in your password manager.
 
 ### Reading the instrumentation
-The Functions API is instrumented per AGENT.md §Observability. Eight domains each register an `ActivitySource` + `Meter`:
+The Functions API is instrumented per AGENT.md §Observability. Seven domains register an `ActivitySource` + `Meter` (see `ObservabilityDomains.All`); `Testing / diagnostics` is a reserved **log EventId range** only (no OTel source/meter is registered for it today):
 
 | Domain | Source / Meter name | EventId range |
 |---|---|---|
@@ -48,7 +48,7 @@ The Functions API is instrumented per AGENT.md §Observability. Eight domains ea
 | Middleware | `RajFinancial.Api.Middleware` | 5000–5999 |
 | Client Management | `RajFinancial.Api.ClientManagement` | 6000–6999 |
 | Authorization | `RajFinancial.Api.Authorization` | 7000–7999 |
-| Testing / diagnostics | `RajFinancial.Api.Testing` | 9000–9999 |
+| Testing / diagnostics | _(no OTel source/meter — EventId range only)_ | 9000–9999 |
 
 All emit to Application Insights via OpenTelemetry (`Azure.Monitor.OpenTelemetry.Exporter` + `Microsoft.Azure.Functions.Worker.OpenTelemetry`). Local dev writes to `logs/rajfinancial-{Date}.log` instead.
 
@@ -61,12 +61,12 @@ All emit to Application Insights via OpenTelemetry (`Azure.Monitor.OpenTelemetry
 | `GET /api/health/live` | Process is alive. Returns 200 **always** unless the process is dead. | Container runtime / App Service ping | 200 `{"status":"alive"}` |
 | `GET /api/health/ready` | App can serve traffic: DB reachable + config loaded + dependencies up. | Azure Front Door / load balancer probe | 200 `{"status":"healthy","totalDuration":…}`; **503** `{"status":"unhealthy","totalDuration":…}` if any check fails |
 
-**On 503 from `/health/ready`:**
-- The response body is intentionally minimal in Production — only `status` and `totalDuration`. Per-check detail (`checks[]` with each check's name, status, description, duration) is included **only when `ASPNETCORE_ENVIRONMENT=Development`** (see `src/Api/Functions/HealthCheckFunction.cs`). In Production, use the **`RajFinancial.Health.Readiness` warning log** (EventId 9901) and Application Insights `traces` to see which check (`database`, `config`) failed — check names aren't exposed over the wire.
+**On 503 from `/api/health/ready`:**
+- The response body is intentionally minimal in Production — only `status` and `totalDuration`. Per-check detail (`checks[]` with each check's name, status, description, duration) is included **only when `ASPNETCORE_ENVIRONMENT=Development`** (see `src/Api/Functions/HealthCheckFunction.cs`). In Production, the `RajFinancial.Health.Readiness` warning (EventId 9901) logs the overall status only — **it does not name the failing check**. To identify the failing check use the per-check logs: `Database health check failed` (EventId 9900) and `Configuration validation failed` (EventId 9902) in Application Insights `traces`.
 - `database` failure → Azure SQL connection broken (check firewall, connection string, SQL server health).
 - `config` failure → `EntraExternalId` or `AppRoles` section missing/placeholder, or `APPLICATIONINSIGHTS_CONNECTION_STRING` unset outside Development.
 
-**Wire Azure Container Apps / App Service probes to `/health/ready`** so broken instances drop out of rotation automatically. Do **not** probe `/health/live` — a DB-less instance will happily return 200 and receive traffic.
+**Wire Azure Container Apps / App Service probes to `/api/health/ready`** so broken instances drop out of rotation automatically. Do **not** probe `/api/health/live` — a DB-less instance will happily return 200 and receive traffic.
 
 ---
 
@@ -242,17 +242,24 @@ dotnet-trace collect --name RajFinancial.Api --duration 00:00:30 -o /tmp/t.nettr
 
 `dotnet-trace --providers` accepts **EventSource / EventPipe** provider names, not OpenTelemetry `Meter` or `ActivitySource` names. Passing `--providers RajFinancial.Api.Entities` does **not** filter to our domain — there's no EventSource with that name.
 
-For scoped captures, use the built-in EventPipe providers:
-```powershell
-# HTTP request pipeline only (ASP.NET Core hosting)
-dotnet-trace collect --name RajFinancial.Api `
-    --providers Microsoft-AspNetCore-Hosting `
-    --duration 00:01:00 -o http.nettrace
+This API runs as an Azure Functions **isolated worker** (no ASP.NET Core server), so ASP.NET Core hosting providers won't emit anything against the worker process. To discover what providers are actually available on the target process:
 
-# EF Core queries only
-dotnet-trace collect --name RajFinancial.Api `
+```powershell
+# List all EventPipe providers registered in the target PID
+dotnet-trace list-providers --process-id <PID>
+```
+
+Useful providers commonly present on the isolated worker:
+```powershell
+# EF Core queries (emitted by the worker)
+dotnet-trace collect --process-id <PID> `
     --providers Microsoft-EntityFrameworkCore `
     --duration 00:01:00 -o ef.nettrace
+
+# .NET runtime counters / GC / threadpool
+dotnet-trace collect --process-id <PID> `
+    --providers System.Runtime `
+    --duration 00:01:00 -o runtime.nettrace
 ```
 
 To filter OpenTelemetry spans by `ActivitySource` name you need `Microsoft-Diagnostics-DiagnosticSource` with a `FilterAndPayloadSpecs` argument — that's complex and rarely worth it for ad-hoc diagnostics. Prefer the **Application Insights `dependencies` / `requests` tables** (filtered on `cloud_RoleName` + `operation_Name`) for domain-scoped query work.
@@ -342,7 +349,7 @@ For building custom diagnostics dashboards — see MS Learn [EventPipe guide](ht
 3. Top frame is the culprit — usually a tight loop, regex backtracking, or JSON serialization of large object.
 
 ### 7. "One instance is broken, others are fine."
-1. Hit `/health/ready` on the bad instance. In Development the 503 body lists each failing check; in Production the body is minimal — correlate with the `RajFinancial.Health.Readiness` warning (EventId 9901) in Application Insights `traces` to see which check failed.
+1. Hit `/api/health/ready` on the bad instance. In Development the 503 body lists each failing check; in Production the body is minimal. The `RajFinancial.Health.Readiness` warning (EventId 9901) in Application Insights `traces` confirms that readiness failed overall, but it does **not** identify the failing check. Use the per-check warnings to identify what broke: EventId 9900 (`Database health check failed`) or EventId 9902 (`Configuration validation failed`).
 2. If `database` — that pod lost DB connectivity (NSG, private endpoint, DNS). Restart pod.
 3. If `config` — config drift. Check environment variables on that instance vs others.
 
@@ -353,7 +360,7 @@ For building custom diagnostics dashboards — see MS Learn [EventPipe guide](ht
 - **Do NOT add `logger.LogInformation(...)` directly** in production troubleshooting. Use metrics (cheap, sampled, aggregated) or traces (sampled, linked to operation_Id). See AGENT.md §Logging Pattern.
 - **Do NOT use the classic `TelemetryClient` / `TrackDependency()` API** — maintenance mode, breaks OpenTelemetry correlation.
 - **Do NOT ship new code without instrumentation.** Retrofitting is painful. Per AGENT.md §Observability, every new service/module declares its own `ActivitySource` + `Meter` from day one.
-- **Do NOT probe `/health/live` for load-balancer rotation** — it stays 200 even when DB is dead. Use `/health/ready`.
+- **Do NOT probe `/api/health/live` for load-balancer rotation** — it stays 200 even when DB is dead. Use `/api/health/ready`.
 - **Do NOT set prod log level below `Warning`** — see AGENT.md §Log Level Policy. Verbose logs in prod are cost (ingestion) + noise (alert fatigue).
 - **Do NOT disable EventPipe.** It's the transport for all the tools above.
 
