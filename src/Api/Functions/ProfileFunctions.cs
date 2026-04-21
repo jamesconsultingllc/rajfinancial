@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
@@ -60,8 +59,6 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityHttpGetMyProfile);
-
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -71,7 +68,7 @@ public partial class ProfileFunctions(
             return unauthorizedResponse;
         }
 
-        activity?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
+        Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var profile = await userProfileService.GetByIdAsync(userIdGuid.Value);
 
@@ -123,8 +120,6 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityHttpUpdateMyProfile);
-
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
@@ -134,7 +129,7 @@ public partial class ProfileFunctions(
                 "AUTH_REQUIRED", "Authentication is required");
         }
 
-        activity?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
+        Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var request = await context.GetValidatedBodyAsync<UpdateProfileRequest>();
 

@@ -7,12 +7,10 @@
 // architecture invariant and the AGENT.md "No Magic Strings or Numbers" rule.
 //
 // NOTE for future contributors (tracked by ADO #628):
-// The per-call counter helpers and the UserProfile.Http.* activity names are
-// STAGING for this PR only. They will be removed once #628 lands a
-// SaveChangesInterceptor that emits business counters and a
-// TelemetryEnrichmentMiddleware that tags the auto-emitted Functions Invoke
-// span. Do NOT add new per-domain counter helpers or new *.Http.* activities
-// in other domains; let #628 do them centrally.
+// The per-call counter helpers below are STAGING for this PR only. They will
+// be removed once #628 lands a SaveChangesInterceptor that emits business
+// counters centrally. Do NOT add new per-domain counter helpers in other
+// domains; let #628 do them centrally.
 // ============================================================================
 
 using System.Diagnostics;
@@ -30,10 +28,6 @@ internal static class UserProfileTelemetry
     internal const string ActivityEnsureProfileExists = "UserProfile.EnsureProfileExists";
     internal const string ActivityGetById = "UserProfile.GetById";
     internal const string ActivityUpdateProfile = "UserProfile.UpdateProfile";
-
-    // Activity names (HTTP layer)
-    internal const string ActivityHttpGetMyProfile = "UserProfile.Http.GetMyProfile";
-    internal const string ActivityHttpUpdateMyProfile = "UserProfile.Http.UpdateMyProfile";
 
     // Tag keys
     internal const string TagUserId = "user.id";

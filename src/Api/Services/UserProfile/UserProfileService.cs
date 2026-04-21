@@ -1,10 +1,9 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Data;
+using RajFinancial.Api.Observability;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Users;
 
@@ -67,6 +66,11 @@ public partial class UserProfileService(
             await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
             UserProfileTelemetry.SyncCount.Add(1);
             return profile;
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
         }
         finally
         {
@@ -182,7 +186,15 @@ public partial class UserProfileService(
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
         activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
-        return await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+        try
+        {
+            return await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -195,36 +207,44 @@ public partial class UserProfileService(
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
         activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
-        var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
-
-        if (profile is null)
-        {
-            LogProfileNotFoundForUpdate(userId);
-            return null;
-        }
-
-        profile.DisplayName = request.DisplayName;
-        profile.PreferencesJson = JsonSerializer.Serialize(new
-        {
-            locale = request.Locale,
-            timezone = request.Timezone,
-            currency = request.Currency
-        });
-        profile.UpdatedAt = DateTimeOffset.UtcNow;
-
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
+
+            if (profile is null)
+            {
+                LogProfileNotFoundForUpdate(userId);
+                return null;
+            }
+
+            profile.DisplayName = request.DisplayName;
+            profile.PreferencesJson = JsonSerializer.Serialize(new
+            {
+                locale = request.Locale,
+                timezone = request.Timezone,
+                currency = request.Currency
+            });
+            profile.UpdatedAt = DateTimeOffset.UtcNow;
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                UserProfileTelemetry.ConcurrentConflicts.Add(1);
+                throw;
+            }
+
+            LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
+
+            return profile;
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception ex)
         {
-            UserProfileTelemetry.ConcurrentConflicts.Add(1);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
-
-        LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
-
-        return profile;
     }
 
     // =========================================================================
