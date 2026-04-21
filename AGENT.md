@@ -833,6 +833,10 @@ Every new service, middleware, function group, or domain module must:
 | Authorization | `RajFinancial.Api.Authorization` | `7000–7999` |
 | Testing / diagnostics | `RajFinancial.Api.Testing` | `9000–9999` |
 
+### Canonical Function / Service Pattern
+
+See [`docs/patterns/service-function-pattern.md`](docs/patterns/service-function-pattern.md) for the single written standard covering function ↔ service ↔ middleware responsibilities, authorization modes, activity naming, layered exception recording, and IDOR handling. Reviewers should reject PRs that drift from that pattern.
+
 ### Log Level Policy by Environment
 
 **Strict rule — enforced via `appsettings.{Environment}.json`:**
