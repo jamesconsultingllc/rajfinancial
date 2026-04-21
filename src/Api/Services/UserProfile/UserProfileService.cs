@@ -40,7 +40,6 @@ public partial class UserProfileService(
     {
         using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityEnsureProfileExists);
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
-        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
         if (tenantId.HasValue)
         {
             activity?.SetTag(UserProfileTelemetry.TagUserTenantId, tenantId.Value);
@@ -184,7 +183,6 @@ public partial class UserProfileService(
     {
         using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityGetById);
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
-        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
         try
         {
@@ -205,7 +203,6 @@ public partial class UserProfileService(
     {
         using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityUpdateProfile);
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
-        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
         try
         {

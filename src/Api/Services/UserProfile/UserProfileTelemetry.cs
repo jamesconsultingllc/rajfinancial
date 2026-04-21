@@ -39,7 +39,6 @@ internal static class UserProfileTelemetry
 
     // Tag keys
     internal const string TagUserId = "user.id";
-    internal const string TagUserOid = "user.oid";
     internal const string TagUserTenantId = "user.tenant_id";
 
     // Metric instrument names

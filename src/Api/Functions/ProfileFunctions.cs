@@ -5,6 +5,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfile;
@@ -126,7 +127,7 @@ public partial class ProfileFunctions(
         {
             LogUpdateProfileMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);

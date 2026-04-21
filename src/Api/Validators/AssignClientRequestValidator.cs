@@ -9,6 +9,8 @@ using FluentValidation;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Access;
 
+using RajFinancial.Api.Middleware.Exception;
+
 namespace RajFinancial.Api.Validators;
 
 /// <summary>
@@ -41,23 +43,23 @@ public class AssignClientRequestValidator : AbstractValidator<AssignClientReques
         RuleFor(x => x.ClientEmail)
             .NotEmpty()
             .WithMessage("Client email is required")
-            .WithErrorCode("VALIDATION_FAILED")
+            .WithErrorCode(MiddlewareErrorCodes.ValidationFailed)
             .EmailAddress()
             .WithMessage("Client email must be a valid email address")
-            .WithErrorCode("VALIDATION_FAILED");
+            .WithErrorCode(MiddlewareErrorCodes.ValidationFailed);
 
         RuleFor(x => x.AccessType)
             .NotEmpty()
             .WithMessage("Access type is required")
-            .WithErrorCode("VALIDATION_FAILED")
+            .WithErrorCode(MiddlewareErrorCodes.ValidationFailed)
             .Must(at => AssignableAccessTypes.Contains(at))
             .When(x => !string.IsNullOrEmpty(x.AccessType))
             .WithMessage($"Access type must be one of: {string.Join(", ", AssignableAccessTypes)}")
-            .WithErrorCode("VALIDATION_FAILED");
+            .WithErrorCode(MiddlewareErrorCodes.ValidationFailed);
 
         RuleFor(x => x.Categories)
             .NotEmpty()
             .WithMessage("At least one data category is required")
-            .WithErrorCode("VALIDATION_FAILED");
+            .WithErrorCode(MiddlewareErrorCodes.ValidationFailed);
     }
 }
