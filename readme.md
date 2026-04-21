@@ -113,6 +113,7 @@ dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj
 - [Scripts Documentation](./scripts/README.md) - Automation scripts guide
 - [UI Design](./docs/RAJ_FINANCIAL_UI.md) - UI component specifications
 - [Execution Plan](./docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) - Development roadmap
+- [Observability Runbook](./docs/observability-runbook.md) - On-call playbook: KQL, `dotnet-counters`, `dotnet-trace`, health endpoints
 - [Copilot Instructions](./.github/copilot-instructions.md) - AI coding guidelines
 
 ## 🔐 Security
