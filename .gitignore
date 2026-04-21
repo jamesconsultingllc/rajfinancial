@@ -76,6 +76,9 @@ session.md
 docs/session.md
 
 # Insomnia exports may contain tokens after use
+/docs/Insomnia_*.yaml
+/docs/Insomnia_*.yml
+/docs/Insomnia_*.json
 # tools/insomnia/
 /src/Client/coverage
 *.vite

@@ -70,57 +70,89 @@ The `FunctionsHostFixture` used by the integration suite **does not seed data or
 
 ## 4. Capture procedure
 
+There are two supported paths. Both require the worker running with `--useHttps`; they differ only in how the 6 requests are fired.
+
+- **Path A — `inso` CLI (recommended for reproducibility).** See [`phase-1c/README.md`](./phase-1c/README.md). Uses the committed [`phase-1c/phase-1c.insomnia.yaml`](./phase-1c/phase-1c.insomnia.yaml) workspace so the same set of requests runs the same way every time, regardless of who's at the keyboard.
+- **Path B — ad-hoc curl (fallback).** Kept in §4.3 below for anyone who can't install `inso` or just wants to tweak a single request.
+
+Either way, the stdout of `func start --useHttps` is the capture surface — §4.1 + §4.2 apply to both paths.
+
 ### 4.1 Start the worker with the Console exporter active
 
 From `src/Api/`:
 
 ```powershell
 cd src\Api
-func start --useHttps
+func start --useHttps | Tee-Object -FilePath ..\..\phase1c-spans.log
 ```
 
-`--useHttps` is not optional — `tests/IntegrationTests/appsettings.json` has `FunctionsHost:BaseUrl=https://localhost:7071`, `src/Api/Properties/launchSettings.json` declares HTTPS profiles, and the fixture's cert validator only trusts the dev cert on `localhost`. (`func start` alone defaults to HTTP and breaks integration tests + this procedure's curl commands, which all hit HTTPS.)
+`--useHttps` is not optional — `tests/IntegrationTests/appsettings.json` has `FunctionsHost:BaseUrl=https://localhost:7071`, `src/Api/Properties/launchSettings.json` declares HTTPS profiles, and the fixture's cert validator only trusts the dev cert on `localhost`. (`func start` alone defaults to HTTP and breaks integration tests + this procedure's requests, which all hit HTTPS.)
 
-Wait for `Host lock lease acquired` and the endpoint list. Leave this window visible — the Console exporter dumps every span to it.
+`Tee-Object` both prints to the console and persists the full span stream to `phase1c-spans.log` at the repo root — do not skip this: §6 of this doc needs the full log attached to ADO #633.
 
-### 4.2 Hit one endpoint per domain + mode
+Wait for `Host lock lease acquired` and the endpoint list. Leave the window visible — the Console exporter dumps every span to it.
 
-Run each from a second terminal. Keep each request to a single in-flight operation so the console output is clean. Between requests, let stdout settle for ~2 seconds.
+### 4.2 Fire the 6 requests
 
-**Owner-scoped read (Mode A, Assets):**
+**Path A — `inso`:**
 
 ```powershell
-$env:BEARER="..."; $env:ASSET_ID="..."
-curl.exe -k -H "Authorization: Bearer $env:BEARER" `
-  "https://localhost:7071/api/assets/$env:ASSET_ID"
+# Second terminal:
+inso run collection "Phase 1c Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
 ```
 
-**Owner-scoped read (Mode A, Entities):**
+Six requests execute in order, with ~2 s between them (the runner serializes). See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
+
+**Path B — curl fallback:** see §4.3.
+
+### 4.3 Curl fallback (equivalent to Path A)
+
+Run each from a second terminal. Between requests, let stdout settle for ~2 seconds.
+
+**01 Auth — GET /auth/me:**
+
+```powershell
+$env:BEARER="..."
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/auth/me"
+```
+
+**02 UserProfile — GET /profile/me:**
+
+```powershell
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/profile/me"
+```
+
+**03 Assets — GET /assets/{id} (Mode A):**
+
+```powershell
+$env:ASSET_ID="..."
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/assets/$env:ASSET_ID"
+```
+
+**04 Entities — GET /entities/{id} (Mode A):**
 
 ```powershell
 $env:ENTITY_ID="..."
-curl.exe -k -H "Authorization: Bearer $env:BEARER" `
-  "https://localhost:7071/api/entities/$env:ENTITY_ID"
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/entities/$env:ENTITY_ID"
 ```
 
-**Role-gated read (Mode B, ClientManagement):**
+**05 ClientManagement — GET /auth/clients (Mode B):**
 
 ```powershell
-$env:CLIENT_USER_ID="..."
-curl.exe -k -H "Authorization: Bearer $env:BEARER" `
-  "https://localhost:7071/api/clients/$env:CLIENT_USER_ID/assets"
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/auth/clients"
 ```
 
-**(Optional) Forced-error path for exception-recording verification:**
+**06 Denied — GET /assets/{id} for non-owned id:**
 
 ```powershell
-# Non-existent asset id — should return 404 and show exception recording on
-# the service span + the outer Functions Invoke span.
-curl.exe -k -H "Authorization: Bearer $env:BEARER" `
-  "https://localhost:7071/api/assets/00000000-0000-0000-0000-000000000000"
+$env:DENIED_ASSET_ID="..."   # an asset id owned by a different user
+curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/assets/$env:DENIED_ASSET_ID"
+# Expected: 404 (NotFoundException — IDOR-safe). Traces should show the service
+# span with error, the Authorization.CheckAccess span marked AccessDenied, and
+# ExceptionMiddleware mapping the NotFoundException.
 ```
 
-### 4.3 Collect the relevant `Activity` dumps
+### 4.4 Collect the relevant `Activity` dumps
 
 The Console exporter writes one block per completed span, of the form:
 
@@ -139,7 +171,7 @@ Activity.Tags:
     ...
 ```
 
-For each of the three (or four) requests, copy every `Activity` block whose `TraceId` matches the outermost request's trace id (all child spans share the same trace id). Anonymize anything that looks like a real user id or email.
+For each of the six requests, copy every `Activity` block whose `TraceId` matches the outermost request's trace id (all child spans share the same trace id). Anonymize anything that looks like a real user id or email.
 
 Paste the captures into §6 below.
 
@@ -162,39 +194,51 @@ The final call lives in §7.
 
 ## 6. Capture (paste here during execution)
 
-> **Placeholder — replace before closing ADO #633.**
+> **Placeholder — replace before closing ADO #633.** One subsection per request in the order fired by [`phase-1c/phase-1c.insomnia.yaml`](./phase-1c/phase-1c.insomnia.yaml).
 
-### 6.1 Mode A — `GET /api/assets/{id}`
+### 6.1 `01 Auth — GET /auth/me`
 
 ```text
 <paste full Activity blocks for the trace here>
 ```
 
-### 6.2 Mode A — `GET /api/entities/{id}`
+### 6.2 `02 UserProfile — GET /profile/me`
 
 ```text
 <paste>
 ```
 
-### 6.3 Mode B — `GET /api/clients/{userId}/assets`
+### 6.3 `03 Assets — GET /assets/{id}` (Mode A)
 
 ```text
 <paste>
 ```
 
-### 6.4 (Optional) Forced 404 path
+### 6.4 `04 Entities — GET /entities/{id}` (Mode A)
 
 ```text
 <paste>
 ```
 
-### 6.5 Observations
+### 6.5 `05 ClientManagement — GET /auth/clients` (Mode B)
+
+```text
+<paste>
+```
+
+### 6.6 `06 Denied — GET /assets/{id}` for non-owned id
+
+```text
+<paste>
+```
+
+### 6.7 Observations
 
 - Host-emitted server span name: `<TBD>`
 - Host-emitted server span tags: `<TBD>`
 - Parent/child relationship of `<Domain>.<Op>` service span to the host span: `<TBD>`
 - Parent/child relationship of existing `Assets.Http.<Op>` span (Assets only) to the host span: `<TBD>`
-- Exception recording: confirm `exception.type` / `exception.message` / `status=Error` tags land on both the service span and the host span on the forced-404 path: `<TBD>`
+- Exception recording on the denied request (§6.6): confirm `exception.type` / `exception.message` / `status=Error` tags land on the service span, the `Authorization.CheckAccess` span, and the host span: `<TBD>`
 
 ---
 

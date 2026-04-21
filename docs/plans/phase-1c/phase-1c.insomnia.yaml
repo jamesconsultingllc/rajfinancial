@@ -1,0 +1,177 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Phase 1c Span Capture
+meta:
+  id: wrk_phase1c_span_capture
+  description: >-
+    Canonical set of HTTP requests used by Phase 1c of Feature #632 to capture a
+    real trace from a locally-running Functions worker (`func start --useHttps`)
+    and decide whether to ship per-domain `<Domain>.Http.<Op>` spans or rely on
+    the host's auto-emitted Invoke span via the Phase 2 enrichment middleware
+    (#628).
+
+    One request per ObservabilityDomain (see
+    src/Api/Configuration/ObservabilityDomains.cs) plus one intentionally-denied
+    request to exercise the AuthorizationMiddleware `Authorization.CheckAccess`
+    span + NotFoundException path.
+
+    Token is sourced from the `bearer` env var — mint it the same way the
+    integration tests do (tests/IntegrationTests/Support/TestAuthHelper.cs for a
+    local unsigned JWT, or RopcTokenProvider against Entra). Nothing secret is
+    committed in this file.
+collection:
+  - name: Phase 1c Capture
+    meta:
+      id: fld_phase1c
+      description: Run in order. Tail func stdout to capture emitted spans.
+    children:
+      - url: "{{ _.endpoint }}/auth/me"
+        name: "01 Auth - GET /auth/me"
+        meta:
+          id: req_phase1c_auth_me
+          description: >-
+            Exercises RajFinancial.Api.Auth ActivitySource. No owner check;
+            pulls claims + roles for the caller. Expect 200.
+          sortKey: 1
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+      - url: "{{ _.endpoint }}/profile/me"
+        name: "02 UserProfile - GET /profile/me"
+        meta:
+          id: req_phase1c_profile_me
+          description: >-
+            Exercises RajFinancial.Api.UserProfile ActivitySource + the
+            UserProfile service span. Expect 200.
+          sortKey: 2
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+      - url: "{{ _.endpoint }}/assets/{{ _.asset_id }}"
+        name: "03 Assets - GET /assets/{id} (Mode A)"
+        meta:
+          id: req_phase1c_assets_get
+          description: >-
+            Exercises RajFinancial.Api.Assets ActivitySource, AssetService
+            span, and AuthorizationMiddleware `Authorization.CheckAccess` span
+            (service-layer `AuthorizeReadAsync`, Mode A). Expect 200 for an
+            owned asset id.
+          sortKey: 3
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+      - url: "{{ _.endpoint }}/entities/{{ _.entity_id }}"
+        name: "04 Entities - GET /entities/{id} (Mode A)"
+        meta:
+          id: req_phase1c_entities_get
+          description: >-
+            Exercises RajFinancial.Api.Entities ActivitySource + EntityService
+            span + Authorization.CheckAccess. Expect 200 for an owned entity
+            id.
+          sortKey: 4
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+      - url: "{{ _.endpoint }}/auth/clients"
+        name: "05 ClientManagement - GET /auth/clients (Mode B)"
+        meta:
+          id: req_phase1c_clients_list
+          description: >-
+            Exercises RajFinancial.Api.ClientManagement ActivitySource. Mode B
+            (role-gated `[RequireRole(Administrator, Advisor)]`); service does
+            not call AuthorizeReadAsync. Expect 200 as Advisor or Administrator,
+            403 as Client.
+          sortKey: 5
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+      - url: "{{ _.endpoint }}/assets/{{ _.denied_asset_id }}"
+        name: "06 Denied - GET /assets/{id} for non-owned id"
+        meta:
+          id: req_phase1c_assets_denied
+          description: >-
+            Exercises the deny path. Expect 404 (NotFoundException — IDOR-safe
+            response). Traces should show AssetService span with error +
+            Authorization.CheckAccess span marked AccessDenied + ExceptionMiddleware
+            mapping the NotFoundException. This single request validates the
+            "four-layer exception recording" rule from the canonical pattern
+            doc.
+          sortKey: 6
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: "Bearer {{ _.bearer }}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies: { send: false, store: false }
+          rebuildPath: true
+environments:
+  name: Base
+  meta:
+    id: env_phase1c_base
+    description: Shared placeholders. Populate per-env values in the Local sub-env.
+  data:
+    bearer: ""
+    asset_id: ""
+    entity_id: ""
+    denied_asset_id: ""
+  subEnvironments:
+    - name: Local
+      meta:
+        id: env_phase1c_local
+        isPrivate: true
+        description: >-
+          Used for local Phase 1c capture. Pairs with `func start --useHttps`
+          in src/Api. Keep bearer / id values in your own (private, untracked)
+          overrides — do not commit real tokens here.
+      data:
+        endpoint: https://localhost:7071/api
