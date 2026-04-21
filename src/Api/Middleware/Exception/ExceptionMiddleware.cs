@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware.Content;
 
@@ -62,6 +63,18 @@ public partial class ExceptionMiddleware(
             LogConflict(ex, ex.ErrorCode, ex.Message);
             await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.ErrorCode, ex.Message);
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // EF-level optimistic concurrency failure. Translate centrally
+            // so every service that writes via DbContext benefits without
+            // per-service boilerplate. Clients should reload and retry.
+            LogDbConcurrency(ex, ex.Message);
+            await WriteErrorResponseAsync(
+                context,
+                HttpStatusCode.Conflict,
+                "DB_CONCURRENCY_CONFLICT",
+                "The resource was modified concurrently. Please reload and retry.");
+        }
         catch (BusinessRuleException ex)
         {
             LogBusinessRuleViolation(ex, ex.ErrorCode, ex.Message);
@@ -98,6 +111,9 @@ public partial class ExceptionMiddleware(
 
     [LoggerMessage(EventId = 5005, Level = LogLevel.Warning, Message = "Conflict: {Code} - {Message}")]
     private partial void LogConflict(System.Exception ex, string code, string message);
+
+    [LoggerMessage(EventId = 5009, Level = LogLevel.Warning, Message = "Concurrent update conflict: {Message}")]
+    private partial void LogDbConcurrency(System.Exception ex, string message);
 
     [LoggerMessage(EventId = 5006, Level = LogLevel.Warning, Message = "Business rule violation: {Code} - {Message}")]
     private partial void LogBusinessRuleViolation(System.Exception ex, string code, string message);
