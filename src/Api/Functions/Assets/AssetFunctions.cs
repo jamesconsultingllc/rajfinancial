@@ -76,7 +76,6 @@ public partial class AssetFunctions(
 
         using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpGetList);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
-        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, ownerUserId);
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
 
@@ -86,6 +85,10 @@ public partial class AssetFunctions(
 
             var assets = await assetService.GetAssetsAsync(userId, ownerUserId, filterType, includeDisposed);
 
+            // Tag owner.user.id only after the service call (which performs
+            // authorization) succeeds, so denied requests don't leak the
+            // requested owner id (user-supplied) into telemetry.
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, ownerUserId);
             activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
             LogAssetsReturned(assets.Count, ownerUserId);
 

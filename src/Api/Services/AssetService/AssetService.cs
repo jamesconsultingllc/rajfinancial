@@ -34,13 +34,17 @@ public partial class AssetService(
     {
         using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetList);
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
-        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, ownerUserId);
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
 
         try
         {
             await AuthorizeReadAsync(requestingUserId, ownerUserId);
+
+            // Tag owner.user.id only after authorization succeeds so denied
+            // requests don't leak the requested owner id (user-supplied) into
+            // telemetry.
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, ownerUserId);
 
             var query = db.Assets
                 .AsNoTracking()
@@ -83,9 +87,10 @@ public partial class AssetService(
                 return null;
 
             activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
-            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
             await AuthorizeReadAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
             return asset.ToDetailDto();
         }
@@ -178,9 +183,9 @@ public partial class AssetService(
             var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                         ?? throw NotFoundException.Asset(assetId);
 
-            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
-
             await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
             var nowIsDepreciable = request.DepreciationMethod.HasValue
                                    && request.DepreciationMethod != DepreciationMethod.None;
@@ -271,9 +276,10 @@ public partial class AssetService(
                         ?? throw NotFoundException.Asset(assetId);
 
             activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
-            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
             await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
             db.Assets.Remove(asset);
             await db.SaveChangesAsync();
