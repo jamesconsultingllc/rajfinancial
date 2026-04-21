@@ -38,7 +38,6 @@ public partial class ProfileFunctions(
     IUserProfileService userProfileService,
     ISerializationFactory serializationFactory)
 {
-    private static readonly ActivitySource ActivitySource = new(ObservabilityDomains.UserProfile);
 
     /// <summary>
     /// Returns the persisted <see cref="UserProfile"/> for the
@@ -61,7 +60,7 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = ActivitySource.StartActivity("UserProfile.GetMyProfile");
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityHttpGetMyProfile);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
@@ -72,7 +71,7 @@ public partial class ProfileFunctions(
             return unauthorizedResponse;
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var profile = await userProfileService.GetByIdAsync(userIdGuid.Value);
 
@@ -124,7 +123,7 @@ public partial class ProfileFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = ActivitySource.StartActivity("UserProfile.UpdateMyProfile");
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityHttpUpdateMyProfile);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
@@ -135,7 +134,7 @@ public partial class ProfileFunctions(
                 "AUTH_REQUIRED", "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var request = await context.GetValidatedBodyAsync<UpdateProfileRequest>();
 
@@ -197,18 +196,18 @@ public partial class ProfileFunctions(
         }
     }
 
-    [LoggerMessage(EventId = 4001, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4100, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
     private partial void LogProfileMeMissingContext();
 
-    [LoggerMessage(EventId = 4002, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
+    [LoggerMessage(EventId = 4101, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
     private partial void LogProfileNotFound(Guid userId);
 
-    [LoggerMessage(EventId = 4003, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
+    [LoggerMessage(EventId = 4102, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
     private partial void LogProfileMeReturning(Guid userId);
 
-    [LoggerMessage(EventId = 4004, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4103, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
     private partial void LogUpdateProfileMissingContext();
 
-    [LoggerMessage(EventId = 4005, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
+    [LoggerMessage(EventId = 4104, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
     private partial void LogUpdateProfileReturning(Guid userId);
 }

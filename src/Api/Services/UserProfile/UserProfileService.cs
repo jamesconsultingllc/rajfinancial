@@ -30,21 +30,6 @@ public partial class UserProfileService(
     ApplicationDbContext dbContext,
     ILogger<UserProfileService> logger) : IUserProfileService
 {
-    private static readonly ActivitySource ActivitySource = new(ObservabilityDomains.UserProfile);
-    private static readonly Meter Meter = new(ObservabilityDomains.UserProfile);
-
-    private static readonly Counter<long> UserProfileJitProvisioned =
-        Meter.CreateCounter<long>("userprofile.jit.provisioned.count");
-
-    private static readonly Counter<long> UserProfileSyncCount =
-        Meter.CreateCounter<long>("userprofile.sync.count");
-
-    private static readonly Counter<long> UserProfileConcurrentConflicts =
-        Meter.CreateCounter<long>("userprofile.concurrent.conflicts.count");
-
-    private static readonly Histogram<double> UserProfileSyncDuration =
-        Meter.CreateHistogram<double>("userprofile.sync.duration.ms");
-
     /// <inheritdoc/>
     public async Task<Shared.Entities.Users.UserProfile> EnsureProfileExistsAsync(
         Guid userId,
@@ -54,12 +39,12 @@ public partial class UserProfileService(
         Guid? tenantId = null,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ActivitySource.StartActivity("UserProfile.EnsureProfileExists");
-        activity?.SetTag("user.id", userId);
-        activity?.SetTag("user.oid", userId);
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityEnsureProfileExists);
+        activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
+        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
         if (tenantId.HasValue)
         {
-            activity?.SetTag("user.tenant_id", tenantId.Value);
+            activity?.SetTag(UserProfileTelemetry.TagUserTenantId, tenantId.Value);
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -80,13 +65,13 @@ public partial class UserProfileService(
             }
 
             await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
-            UserProfileSyncCount.Add(1);
+            UserProfileTelemetry.SyncCount.Add(1);
             return profile;
         }
         finally
         {
             stopwatch.Stop();
-            UserProfileSyncDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+            UserProfileTelemetry.EnsureDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -115,14 +100,14 @@ public partial class UserProfileService(
             dbContext.UserProfiles.Add(profile);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            UserProfileJitProvisioned.Add(1);
+            UserProfileTelemetry.JitProvisioned.Add(1);
             LogJitProvisioned(userId, mappedRole);
 
             return (profile, true);
         }
         catch (DbUpdateException)
         {
-            UserProfileConcurrentConflicts.Add(1);
+            UserProfileTelemetry.ConcurrentConflicts.Add(1);
             LogConcurrentJitDetected(userId);
 
             dbContext.Entry(profile).State = EntityState.Detached;
@@ -183,7 +168,7 @@ public partial class UserProfileService(
         }
         catch (DbUpdateConcurrencyException)
         {
-            UserProfileConcurrentConflicts.Add(1);
+            UserProfileTelemetry.ConcurrentConflicts.Add(1);
             throw;
         }
     }
@@ -193,9 +178,9 @@ public partial class UserProfileService(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ActivitySource.StartActivity("UserProfile.GetById");
-        activity?.SetTag("user.id", userId);
-        activity?.SetTag("user.oid", userId);
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityGetById);
+        activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
+        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
         return await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
     }
@@ -206,9 +191,9 @@ public partial class UserProfileService(
         UpdateProfileRequest request,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ActivitySource.StartActivity("UserProfile.UpdateProfile");
-        activity?.SetTag("user.id", userId);
-        activity?.SetTag("user.oid", userId);
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityUpdateProfile);
+        activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
+        activity?.SetTag(UserProfileTelemetry.TagUserOid, userId);
 
         var profile = await dbContext.UserProfiles.FindAsync([userId], cancellationToken);
 
@@ -233,7 +218,7 @@ public partial class UserProfileService(
         }
         catch (DbUpdateConcurrencyException)
         {
-            UserProfileConcurrentConflicts.Add(1);
+            UserProfileTelemetry.ConcurrentConflicts.Add(1);
             throw;
         }
 

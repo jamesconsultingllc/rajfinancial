@@ -1,0 +1,63 @@
+// ============================================================================
+// RAJ Financial - UserProfile Telemetry
+// ============================================================================
+// Centralized ActivitySource, Meter, instrument names, tag keys and activity
+// names for the UserProfile domain. Extracted out of UserProfileService and
+// ProfileFunctions to satisfy the Services_ShouldNotHavePrivateStaticMethods
+// architecture invariant and the AGENT.md "No Magic Strings or Numbers" rule.
+//
+// NOTE for future contributors (tracked by ADO #628):
+// The per-call counter helpers and the UserProfile.Http.* activity names are
+// STAGING for this PR only. They will be removed once #628 lands a
+// SaveChangesInterceptor that emits business counters and a
+// TelemetryEnrichmentMiddleware that tags the auto-emitted Functions Invoke
+// span. Do NOT add new per-domain counter helpers or new *.Http.* activities
+// in other domains; let #628 do them centrally.
+// ============================================================================
+
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using RajFinancial.Api.Configuration;
+
+namespace RajFinancial.Api.Services.UserProfile;
+
+/// <summary>
+///     Owns all OpenTelemetry primitives for the UserProfile instrumentation domain.
+/// </summary>
+internal static class UserProfileTelemetry
+{
+    // Activity names (service layer)
+    internal const string ActivityEnsureProfileExists = "UserProfile.EnsureProfileExists";
+    internal const string ActivityGetById = "UserProfile.GetById";
+    internal const string ActivityUpdateProfile = "UserProfile.UpdateProfile";
+
+    // Activity names (HTTP layer)
+    internal const string ActivityHttpGetMyProfile = "UserProfile.Http.GetMyProfile";
+    internal const string ActivityHttpUpdateMyProfile = "UserProfile.Http.UpdateMyProfile";
+
+    // Tag keys
+    internal const string TagUserId = "user.id";
+    internal const string TagUserOid = "user.oid";
+    internal const string TagUserTenantId = "user.tenant_id";
+
+    // Metric instrument names
+    private const string METRIC_JIT_PROVISIONED = "userprofile.jit.provisioned.count";
+    private const string METRIC_SYNC_COUNT = "userprofile.sync.count";
+    private const string METRIC_CONCURRENT_CONFLICTS = "userprofile.concurrent.conflicts.count";
+    private const string METRIC_ENSURE_DURATION = "userprofile.ensure.duration.ms";
+
+    internal static readonly ActivitySource ActivitySource = new(ObservabilityDomains.UserProfile);
+    private static readonly Meter Meter = new(ObservabilityDomains.UserProfile);
+
+    internal static readonly Counter<long> JitProvisioned =
+        Meter.CreateCounter<long>(METRIC_JIT_PROVISIONED);
+
+    internal static readonly Counter<long> SyncCount =
+        Meter.CreateCounter<long>(METRIC_SYNC_COUNT);
+
+    internal static readonly Counter<long> ConcurrentConflicts =
+        Meter.CreateCounter<long>(METRIC_CONCURRENT_CONFLICTS);
+
+    internal static readonly Histogram<double> EnsureDuration =
+        Meter.CreateHistogram<double>(METRIC_ENSURE_DURATION);
+}
