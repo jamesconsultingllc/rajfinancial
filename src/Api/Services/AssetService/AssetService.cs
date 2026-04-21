@@ -59,8 +59,9 @@ public partial class AssetService(
             activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
             return assets.Select(a => a.ToDto()).ToList();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -88,8 +89,9 @@ public partial class AssetService(
 
             return asset.ToDetailDto();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -156,8 +158,9 @@ public partial class AssetService(
 
             return asset.ToDto();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -248,8 +251,9 @@ public partial class AssetService(
 
             return asset.ToDto();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -277,8 +281,9 @@ public partial class AssetService(
             AssetsTelemetry.RecordDeleted(asset.Type.ToString());
             LogAssetDeleted(assetId, requestingUserId);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }

@@ -92,8 +92,9 @@ public partial class AssetFunctions(
             return await context.CreateSerializedResponseAsync(
                 req, HttpStatusCode.OK, assets, serializationFactory);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -146,8 +147,9 @@ public partial class AssetFunctions(
             return await context.CreateSerializedResponseAsync(
                 req, HttpStatusCode.OK, asset, serializationFactory);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -198,8 +200,9 @@ public partial class AssetFunctions(
             return await context.CreateSerializedResponseAsync(
                 req, HttpStatusCode.Created, asset, serializationFactory);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -256,8 +259,9 @@ public partial class AssetFunctions(
             return await context.CreateSerializedResponseAsync(
                 req, HttpStatusCode.OK, asset, serializationFactory);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
@@ -307,8 +311,9 @@ public partial class AssetFunctions(
 
             return req.CreateResponse(HttpStatusCode.NoContent);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }

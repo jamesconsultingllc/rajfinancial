@@ -73,9 +73,11 @@ internal static class AssetsTelemetry
 
     internal static void RecordUpdated(string assetType, bool typeSwitch = false)
     {
-        var tags = new TagList { { TagAssetType, assetType } };
-        if (typeSwitch)
-            tags.Add(TagTypeSwitch, true);
+        var tags = new TagList
+        {
+            { TagAssetType, assetType },
+            { TagTypeSwitch, typeSwitch }
+        };
         AssetsUpdated.Add(1, tags);
     }
 
