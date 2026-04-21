@@ -44,8 +44,8 @@ public partial class ClientManagementService(
         AssignClientRequest request,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityAssignClient);
-        activity?.SetTag(ClientManagementTelemetry.UserIdTag, grantorUserId.ToString());
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityAssignClientService);
+        activity?.SetTag(ClientManagementTelemetry.GrantorUserIdTag, grantorUserId.ToString());
 
         if (!Enum.TryParse<AccessType>(request.AccessType, ignoreCase: true, out var accessType))
         {
@@ -136,7 +136,7 @@ public partial class ClientManagementService(
         }
 
         activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
-        activity?.SetTag(ClientManagementTelemetry.UserIdTag, grant.GrantorUserId.ToString());
+        activity?.SetTag(ClientManagementTelemetry.GrantorUserIdTag, grant.GrantorUserId.ToString());
 
         // Soft-delete: revoke the grant
         grant.Status = GrantStatus.Revoked;

@@ -125,7 +125,6 @@ public partial class ClientManagementFunctions(
         activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grant.Id.ToString());
         activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
 
-        ClientManagementTelemetry.RecordGrantCreated();
         LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
@@ -277,7 +276,10 @@ public partial class ClientManagementFunctions(
         }
 
         activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
-        activity?.SetTag(ClientManagementTelemetry.ClientUserIdTag, grant.GrantorUserId.ToString());
+        if (grant.GranteeUserId.HasValue)
+        {
+            activity?.SetTag(ClientManagementTelemetry.ClientUserIdTag, grant.GranteeUserId.Value.ToString());
+        }
 
         // Ownership check: only the grantor or an administrator may remove
         if (grant.GrantorUserId != userIdGuid.Value && !context.IsAdministrator())
@@ -290,7 +292,6 @@ public partial class ClientManagementFunctions(
 
         await clientManagementService.RemoveClientAccessAsync(grantId);
 
-        ClientManagementTelemetry.RecordGrantRevoked();
         LogClientRemoved(grantId, userIdGuid.Value);
 
         return req.CreateResponse(HttpStatusCode.NoContent);

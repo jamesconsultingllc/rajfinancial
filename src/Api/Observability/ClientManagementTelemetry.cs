@@ -20,6 +20,11 @@ internal static class ClientManagementTelemetry
     private const string GrantsRevokedInstrument = "clientmgmt.grants.revoked.count";
     private const string SelfAssignmentBlockedInstrument = "clientmgmt.self_assignment.blocked.count";
 
+    // NOTE: Per-domain business counters (clientmgmt.*) are tactical and expected to be
+    // consolidated into a centralized counter registry via ADO #628. Do not add new
+    // per-domain counters in other domains without first checking that work item.
+    // See AssetsTelemetry.cs:9-16 and UserProfileTelemetry.cs:9-17 for the same guidance.
+
     // Tag keys.
     internal const string UserIdTag = "user.id";
     internal const string UserIsAdminTag = "user.is_admin";
@@ -27,11 +32,15 @@ internal static class ClientManagementTelemetry
     internal const string GrantTypeTag = "grant.type";
     internal const string GrantsCountTag = "grants.count";
     internal const string ClientUserIdTag = "client.user_id";
+    internal const string GrantorUserIdTag = "grant.grantor_user_id";
 
-    // Activity (span) names.
+    // Activity (span) names. Endpoint spans are emitted by the HTTP function; service spans are
+    // emitted by the domain service. Keeping them distinct makes nested traces easier to read
+    // (endpoint parent → service child), per review feedback on PR #86.
     internal const string ActivityAssignClient = "ClientMgmt.AssignClient";
     internal const string ActivityGetClients = "ClientMgmt.GetClients";
     internal const string ActivityRemoveClient = "ClientMgmt.RemoveClient";
+    internal const string ActivityAssignClientService = "ClientMgmt.AssignClient.Service";
     internal const string ActivityGetClientAssignments = "ClientMgmt.GetClientAssignments";
     internal const string ActivityGetGrantById = "ClientMgmt.GetGrantById";
     internal const string ActivityRemoveClientAccess = "ClientMgmt.RemoveClientAccess";
