@@ -22,9 +22,6 @@ namespace RajFinancial.Api.Functions;
 /// </remarks>
 internal static class FunctionHelpers
 {
-    /// <summary>HTTP Content-Type header name.</summary>
-    internal const string ContentTypeHeader = "Content-Type";
-
     /// <summary>
     /// Canonical JSON content type used by all HTTP function responses.
     /// </summary>
@@ -55,7 +52,7 @@ internal static class FunctionHelpers
         string message)
     {
         var response = req.CreateResponse(statusCode);
-        response.Headers.Add(ContentTypeHeader, JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, JsonContentType);
         await response.WriteStringAsync(
             JsonSerializer.Serialize(new ApiErrorResponse
             {

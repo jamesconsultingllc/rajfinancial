@@ -73,7 +73,7 @@ public partial class ContentNegotiationMiddleware(
             accept = acceptValues.FirstOrDefault();
         }
 
-        if (httpRequest.Headers.TryGetValues("Content-Type", out var contentTypeValues))
+        if (httpRequest.Headers.TryGetValues(HttpHeaderNames.ContentType, out var contentTypeValues))
         {
             contentType = contentTypeValues.FirstOrDefault();
         }

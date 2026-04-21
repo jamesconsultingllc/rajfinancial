@@ -7,6 +7,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.HealthChecks;
 
+using RajFinancial.Api.Middleware;
+
 namespace RajFinancial.Api.Functions;
 
 /// <summary>
@@ -30,7 +32,7 @@ public partial class HealthCheckFunction(
         HttpRequestData req)
     {
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
         await response.WriteStringAsync(
             JsonSerializer.Serialize(new { status = "alive" }, FunctionHelpers.JsonOptions));
         return response;
@@ -54,7 +56,7 @@ public partial class HealthCheckFunction(
             : HttpStatusCode.ServiceUnavailable;
 
         var response = req.CreateResponse(statusCode);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
 
         object payload;
         if (environment.IsDevelopment())

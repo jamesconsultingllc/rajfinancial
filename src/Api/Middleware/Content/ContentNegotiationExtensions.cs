@@ -60,7 +60,7 @@ public static class ContentNegotiationExtensions
             : SerializationFactory.JsonContentType;
 
         var response = request.CreateResponse(statusCode);
-        response.Headers.Add("Content-Type", contentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, contentType);
 
         var bytes = await serializationFactory.SerializeAsync(data, contentType, cancellationToken);
         await response.Body.WriteAsync(bytes, cancellationToken);

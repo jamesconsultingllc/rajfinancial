@@ -55,7 +55,7 @@ public partial class AuthTestFunctions(
         LogAuthStatusAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
 
         var payload = new
         {
@@ -87,7 +87,7 @@ public partial class AuthTestFunctions(
         LogClientEndpointAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
 
         var payload = new
         {
@@ -117,7 +117,7 @@ public partial class AuthTestFunctions(
         LogAdminEndpointAccessed(adminUserId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
 
         var payload = new
         {
@@ -149,7 +149,7 @@ public partial class AuthTestFunctions(
         LogPublicEndpointAccessed(isAuthenticated);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
 
         var payload = new
         {

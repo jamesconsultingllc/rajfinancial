@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -5,6 +6,7 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware.Content;
+using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Middleware.Exception;
 
@@ -38,62 +40,68 @@ public partial class ExceptionMiddleware(
         {
             await next(context);
         }
-        catch (NotFoundException ex)
-        {
-            LogResourceNotFound(ex, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.NotFound, ex.ErrorCode, ex.Message);
-        }
-        catch (ValidationException ex)
-        {
-            LogValidationFailed(ex, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "VALIDATION_FAILED", ex.Message, ex.Errors);
-        }
-        catch (UnauthorizedException ex)
-        {
-            LogUnauthorized(ex, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, "AUTH_REQUIRED", ex.Message);
-        }
-        catch (ForbiddenException ex)
-        {
-            LogForbidden(ex, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, "AUTH_FORBIDDEN", ex.Message);
-        }
-        catch (ConflictException ex)
-        {
-            LogConflict(ex, ex.ErrorCode, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.ErrorCode, ex.Message);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            // EF-level optimistic concurrency failure. Translate centrally
-            // so every service that writes via DbContext benefits without
-            // per-service boilerplate. Clients should reload and retry.
-            LogDbConcurrency(ex, ex.Message);
-            await WriteErrorResponseAsync(
-                context,
-                HttpStatusCode.Conflict,
-                "DB_CONCURRENCY_CONFLICT",
-                "The resource was modified concurrently. Please reload and retry.");
-        }
-        catch (BusinessRuleException ex)
-        {
-            LogBusinessRuleViolation(ex, ex.ErrorCode, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message);
-        }
-        catch (ConfigurationException ex)
-        {
-            LogConfigurationError(ex, ex.Message);
-            await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "CONFIGURATION_ERROR", "Service configuration error");
-        }
         catch (OperationCanceledException)
         {
             throw; // Let cancellations propagate to the host
         }
         catch (System.Exception ex)
         {
-            LogUnhandledException(ex, context.FunctionDefinition.Name, ex.Message);
+            // Classify the Functions Invoke span (Activity.Current) centrally
+            // so per-function code doesn't need to tag it. Service-level
+            // activities are already classified by their own try/catch
+            // (they've been disposed by the time we get here).
+            Activity.Current?.RecordExceptionOutcome(ex);
+            await HandleExceptionAsync(context, ex);
+        }
+    }
 
-            await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, "INTERNAL_ERROR", "An unexpected error occurred");
+    private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex)
+    {
+        switch (ex)
+        {
+            case NotFoundException nfe:
+                LogResourceNotFound(nfe, nfe.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.NotFound, nfe.ErrorCode, nfe.Message);
+                break;
+            case ValidationException vex:
+                LogValidationFailed(vex, vex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, MiddlewareErrorCodes.ValidationFailed, vex.Message, vex.Errors);
+                break;
+            case UnauthorizedException uex:
+                LogUnauthorized(uex, uex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, MiddlewareErrorCodes.AuthRequired, uex.Message);
+                break;
+            case ForbiddenException fex:
+                LogForbidden(fex, fex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, MiddlewareErrorCodes.AuthForbidden, fex.Message);
+                break;
+            case ConflictException cex:
+                LogConflict(cex, cex.ErrorCode, cex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, cex.ErrorCode, cex.Message);
+                break;
+            case DbUpdateConcurrencyException dbex:
+                // EF-level optimistic concurrency failure. Translate centrally
+                // so every service that writes via DbContext benefits without
+                // per-service boilerplate. Clients should reload and retry.
+                LogDbConcurrency(dbex, dbex.Message);
+                await WriteErrorResponseAsync(
+                    context,
+                    HttpStatusCode.Conflict,
+                    MiddlewareErrorCodes.DbConcurrencyConflict,
+                    "The resource was modified concurrently. Please reload and retry.");
+                break;
+            case BusinessRuleException brex:
+                LogBusinessRuleViolation(brex, brex.ErrorCode, brex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, brex.ErrorCode, brex.Message);
+                break;
+            case ConfigurationException confex:
+                LogConfigurationError(confex, confex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
+                break;
+            default:
+                LogUnhandledException(ex, context.FunctionDefinition.Name, ex.Message);
+                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.InternalError, "An unexpected error occurred");
+                break;
         }
     }
 
@@ -137,9 +145,9 @@ public partial class ExceptionMiddleware(
         var response = httpRequest.CreateResponse(statusCode);
 
         // Remove the existing Content-Type header to prevent FormatException
-        if (response.Headers.Contains("Content-Type"))
+        if (response.Headers.Contains(HttpHeaderNames.ContentType))
         {
-            response.Headers.Remove("Content-Type");
+            response.Headers.Remove(HttpHeaderNames.ContentType);
         }
 
         var error = new ApiErrorResponse
@@ -156,7 +164,7 @@ public partial class ExceptionMiddleware(
             : SerializationFactory.JsonContentType;
 
         var bytes = await serializationFactory.SerializeAsync(error, contentType);
-        response.Headers.Add("Content-Type", contentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, contentType);
         await response.Body.WriteAsync(bytes);
 
         // Set the response on the context

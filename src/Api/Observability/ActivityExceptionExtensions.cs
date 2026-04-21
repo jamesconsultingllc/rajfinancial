@@ -14,8 +14,6 @@
 // ============================================================================
 
 using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
-using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Exception;
 
 namespace RajFinancial.Api.Observability;
@@ -33,18 +31,9 @@ internal static class ActivityExceptionExtensions
 
         activity.AddException(ex);
 
-        if (IsHandledClientException(ex))
+        if (ExceptionClassification.IsHandledClientException(ex))
             return;
 
         activity.SetStatus(ActivityStatusCode.Error);
     }
-
-    private static bool IsHandledClientException(Exception ex) => ex is
-        ValidationException or
-        NotFoundException or
-        ForbiddenException or
-        UnauthorizedException or
-        ConflictException or
-        BusinessRuleException or
-        DbUpdateConcurrencyException;
 }
