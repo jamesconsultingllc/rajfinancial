@@ -16,6 +16,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Shared.Contracts.Auth;
@@ -83,7 +84,7 @@ public partial class ClientManagementFunctions(
         {
             LogAssignClientMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
@@ -94,7 +95,7 @@ public partial class ClientManagementFunctions(
         {
             LogAssignClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
-                "AUTH_FORBIDDEN", "Insufficient permissions");
+                MiddlewareErrorCodes.AuthForbidden, "Insufficient permissions");
         }
 
         var assignRequest = await context.GetValidatedBodyAsync<AssignClientRequest>();
@@ -118,7 +119,7 @@ public partial class ClientManagementFunctions(
         LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
@@ -154,7 +155,7 @@ public partial class ClientManagementFunctions(
         {
             LogGetClientsMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
@@ -165,7 +166,7 @@ public partial class ClientManagementFunctions(
         {
             LogGetClientsForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
-                "AUTH_FORBIDDEN", "Insufficient permissions");
+                MiddlewareErrorCodes.AuthForbidden, "Insufficient permissions");
         }
 
         var isAdmin = context.IsAdministrator();
@@ -178,7 +179,7 @@ public partial class ClientManagementFunctions(
         LogGetClientsReturning(responseDtos.Length, userIdGuid.Value, isAdmin);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDtos, FunctionHelpers.JsonOptions));
@@ -224,7 +225,7 @@ public partial class ClientManagementFunctions(
         {
             LogRemoveClientMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
@@ -235,14 +236,14 @@ public partial class ClientManagementFunctions(
         {
             LogRemoveClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
-                "AUTH_FORBIDDEN", "Insufficient permissions");
+                MiddlewareErrorCodes.AuthForbidden, "Insufficient permissions");
         }
 
         if (!Guid.TryParse(id, out var grantId))
         {
             LogRemoveClientInvalidGuid(id);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.BadRequest,
-                "VALIDATION_FAILED", "Invalid grant ID format");
+                MiddlewareErrorCodes.ValidationFailed, "Invalid grant ID format");
         }
 
         var grant = await clientManagementService.GetGrantByIdAsync(grantId);
@@ -258,7 +259,7 @@ public partial class ClientManagementFunctions(
         {
             LogRemoveClientOwnershipDenied(userIdGuid.Value, grantId, grant.GrantorUserId);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
-                "AUTH_FORBIDDEN",
+                MiddlewareErrorCodes.AuthForbidden,
                 "You do not have permission to remove this assignment");
         }
 

@@ -12,6 +12,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Services.UserProfile;
 using RajFinancial.Shared.Contracts.Auth;
@@ -68,7 +69,7 @@ public partial class AuthFunctions(
         {
             LogAuthMeMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         var email = context.GetUserEmail() ?? string.Empty;
@@ -96,7 +97,7 @@ public partial class AuthFunctions(
         LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));
@@ -134,7 +135,7 @@ public partial class AuthFunctions(
         {
             LogAuthRolesMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
         var roles = context.GetUserRoles();
@@ -149,7 +150,7 @@ public partial class AuthFunctions(
         LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add(FunctionHelpers.ContentTypeHeader, FunctionHelpers.JsonContentType);
+        response.Headers.Add(HttpHeaderNames.ContentType, FunctionHelpers.JsonContentType);
         // NOTE: Align with ContentNegotiationMiddleware for MemoryPack support (tracked separately).
         await response.WriteStringAsync(
             JsonSerializer.Serialize(responseDto, FunctionHelpers.JsonOptions));

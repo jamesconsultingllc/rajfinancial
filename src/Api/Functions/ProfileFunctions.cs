@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Services.UserProfile;
@@ -36,6 +38,7 @@ public partial class ProfileFunctions(
     IUserProfileService userProfileService,
     ISerializationFactory serializationFactory)
 {
+
     /// <summary>
     /// Returns the persisted <see cref="UserProfile"/> for the
     /// currently authenticated user.
@@ -62,9 +65,11 @@ public partial class ProfileFunctions(
         if (!userIdGuid.HasValue)
         {
             LogProfileMeMissingContext();
-            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-            return unauthorizedResponse;
+            return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var profile = await userProfileService.GetByIdAsync(userIdGuid.Value);
 
@@ -122,8 +127,10 @@ public partial class ProfileFunctions(
         {
             LogUpdateProfileMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
-                "AUTH_REQUIRED", "Authentication is required");
+                MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
+
+        Activity.Current?.SetTag(UserProfileTelemetry.TagUserId, userIdGuid.Value);
 
         var request = await context.GetValidatedBodyAsync<UpdateProfileRequest>();
 
@@ -185,18 +192,18 @@ public partial class ProfileFunctions(
         }
     }
 
-    [LoggerMessage(EventId = 7001, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4100, Level = LogLevel.Warning, Message = "ProfileMe called without UserIdGuid in context")]
     private partial void LogProfileMeMissingContext();
 
-    [LoggerMessage(EventId = 7002, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
+    [LoggerMessage(EventId = 4101, Level = LogLevel.Warning, Message = "Profile not found for user {UserId}")]
     private partial void LogProfileNotFound(Guid userId);
 
-    [LoggerMessage(EventId = 7003, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
+    [LoggerMessage(EventId = 4102, Level = LogLevel.Information, Message = "Returning profile for user {UserId}")]
     private partial void LogProfileMeReturning(Guid userId);
 
-    [LoggerMessage(EventId = 7004, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
+    [LoggerMessage(EventId = 4103, Level = LogLevel.Warning, Message = "UpdateProfileMe called without UserIdGuid in context")]
     private partial void LogUpdateProfileMissingContext();
 
-    [LoggerMessage(EventId = 7005, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
+    [LoggerMessage(EventId = 4104, Level = LogLevel.Information, Message = "UpdateProfileMe returning updated profile for user {UserId}")]
     private partial void LogUpdateProfileReturning(Guid userId);
 }
