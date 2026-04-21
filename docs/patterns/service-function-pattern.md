@@ -42,7 +42,7 @@ Applies when the resource has a `UserId` column and anyone authenticated can *at
 - **Function:** `[RequireAuthentication]` only. No `[RequireRole]`.
 - **Service:** calls `AuthorizeReadAsync(requestingUserId, resource.UserId, resourceId)` or `AuthorizeWriteAsync(...)` before returning / mutating the resource.
 - **Denial:** the service throws `NotFoundException.<Domain>(id)` — **not** `ForbiddenException` — so a forbidden access is indistinguishable from a truly missing id (IDOR-safe, OWASP A01). See §5.
-- **Examples:** Assets, Entities.
+- **Examples:** Entities today; Assets is a convergence target — its `AuthorizeReadAsync` / `AuthorizeWriteAsync` still throw `ForbiddenException` on deny and will be migrated in Phase 5 (see §5).
 
 ### Mode B — Role-gated
 
@@ -76,11 +76,16 @@ Dotted lowercase, namespaced by the domain or the OpenTelemetry semantic convent
 
 ### 3.3 Post-authorization tagging (security)
 
-User-supplied identifiers (e.g. `ownerUserId` from the query string, resource ids before authorization) must be tagged **only after** authorization succeeds. Tagging them before the authorization call leaks the identifier into telemetry on denied requests, which lets a privileged telemetry reader enumerate resources the caller was not allowed to touch.
+Not every identifier follows the same rule:
+
+- **Always safe pre-auth:** `user.id` for the authenticated caller (the middleware already validated it) and the route id of the resource being acted on (e.g. `asset.id` / `entity.id` from the request path). Tagging these early lets the attempted operation be correlated in traces even when it ends up denied.
+- **Sensitive — tag only after authorization succeeds:** user-supplied query/body values that reveal *who* owns a resource (e.g. `owner.user.id`), and identifiers derived from storage or related records that were loaded before the authorization check. Tagging these before the authorization call leaks them into telemetry on denied requests, which lets a privileged telemetry reader enumerate resources the caller was not allowed to learn about.
 
 ```csharp
-// ✅ correct — user.id is always safe; owner.user.id only tagged post-auth
+// ✅ correct — user.id and the route asset.id are safe pre-auth;
+// owner.user.id (user-supplied) is sensitive and only tagged post-auth.
 activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
+activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
 await AuthorizeReadAsync(requestingUserId, ownerUserId);
 
@@ -95,7 +100,7 @@ Prefer the `TagList` overload of `Counter<T>.Add` / `Histogram<T>.Record` over t
 
 ## 4. Layered exception recording
 
-Three different layers may record the same exception on three different `Activity` objects. **This is intentional — it is not a bug to dedupe.**
+Up to four different layers may record the same exception on four different `Activity` objects. **This is intentional — it is not a bug to dedupe.**
 
 | Layer | Activity | Records via |
 |---|---|---|
@@ -236,7 +241,7 @@ public async Task<HttpResponseData> AssignClient(
     // AuthenticationMiddleware + AuthorizationMiddleware have already
     // established the caller's identity and role membership. The service
     // does not re-check.
-    var body = await req.GetValidatedBodyAsync<AssignClientRequest>(...);
+    var body = await context.GetValidatedBodyAsync<AssignClientRequest>();
     // ... delegate to IClientManagementService, no per-row auth call.
 }
 ```
