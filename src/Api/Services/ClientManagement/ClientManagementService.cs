@@ -45,36 +45,45 @@ public partial class ClientManagementService(
         CancellationToken cancellationToken = default)
     {
         using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityAssignClientService);
+        activity?.SetTag(ClientManagementTelemetry.UserIdTag, grantorUserId.ToString());
         activity?.SetTag(ClientManagementTelemetry.GrantorUserIdTag, grantorUserId.ToString());
 
-        if (!Enum.TryParse<AccessType>(request.AccessType, ignoreCase: true, out var accessType))
+        try
         {
-            throw new ArgumentException(
-                $"Invalid access type '{request.AccessType}'. Expected one of: {string.Join(", ", Enum.GetNames<AccessType>())}",
-                nameof(request));
+            if (!Enum.TryParse<AccessType>(request.AccessType, ignoreCase: true, out var accessType))
+            {
+                throw new ArgumentException(
+                    $"Invalid access type '{request.AccessType}'. Expected one of: {string.Join(", ", Enum.GetNames<AccessType>())}",
+                    nameof(request));
+            }
+
+            var grant = new DataAccessGrant
+            {
+                Id = Guid.NewGuid(),
+                GrantorUserId = grantorUserId,
+                GranteeEmail = request.ClientEmail,
+                AccessType = accessType,
+                Categories = request.Categories.ToList(),
+                RelationshipLabel = request.RelationshipLabel,
+                Status = GrantStatus.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            dbContext.DataAccessGrants.Add(grant);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grant.Id.ToString());
+            activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, accessType.ToString());
+
+            ClientManagementTelemetry.RecordGrantCreated();
+            LogClientAssigned(grant.Id, grantorUserId, accessType);
+            return grant;
         }
-
-        var grant = new DataAccessGrant
+        catch (Exception ex)
         {
-            Id = Guid.NewGuid(),
-            GrantorUserId = grantorUserId,
-            GranteeEmail = request.ClientEmail,
-            AccessType = accessType,
-            Categories = request.Categories.ToList(),
-            RelationshipLabel = request.RelationshipLabel,
-            Status = GrantStatus.Pending,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        dbContext.DataAccessGrants.Add(grant);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grant.Id.ToString());
-        activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, accessType.ToString());
-
-        ClientManagementTelemetry.RecordGrantCreated();
-        LogClientAssigned(grant.Id, grantorUserId, accessType);
-        return grant;
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -87,22 +96,30 @@ public partial class ClientManagementService(
         activity?.SetTag(ClientManagementTelemetry.UserIdTag, userId.ToString());
         activity?.SetTag(ClientManagementTelemetry.UserIsAdminTag, isAdmin);
 
-        IQueryable<DataAccessGrant> query = dbContext.DataAccessGrants
-            .Where(g => g.Status != GrantStatus.Revoked);
-
-        if (!isAdmin)
+        try
         {
-            // Advisors see only their own grants
-            query = query.Where(g => g.GrantorUserId == userId);
+            IQueryable<DataAccessGrant> query = dbContext.DataAccessGrants
+                .Where(g => g.Status != GrantStatus.Revoked);
+
+            if (!isAdmin)
+            {
+                // Advisors see only their own grants
+                query = query.Where(g => g.GrantorUserId == userId);
+            }
+
+            var grants = await query
+                .OrderByDescending(g => g.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            activity?.SetTag(ClientManagementTelemetry.GrantsCountTag, grants.Count);
+            LogGetClientAssignments(grants.Count, userId, isAdmin);
+            return grants;
         }
-
-        var grants = await query
-            .OrderByDescending(g => g.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        activity?.SetTag(ClientManagementTelemetry.GrantsCountTag, grants.Count);
-        LogGetClientAssignments(grants.Count, userId, isAdmin);
-        return grants;
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -113,8 +130,16 @@ public partial class ClientManagementService(
         using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetGrantById);
         activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grantId.ToString());
 
-        return await dbContext.DataAccessGrants.FindAsync(
-            [grantId], cancellationToken);
+        try
+        {
+            return await dbContext.DataAccessGrants.FindAsync(
+                [grantId], cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -125,28 +150,36 @@ public partial class ClientManagementService(
         using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityRemoveClientAccess);
         activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grantId.ToString());
 
-        var grant = await dbContext.DataAccessGrants.FindAsync(
-            [grantId], cancellationToken);
-
-        if (grant is null)
+        try
         {
-            LogGrantNotFoundForRemoval(grantId);
-            throw new InvalidOperationException(
-                $"Grant '{grantId}' not found. The caller should verify existence before revoking.");
+            var grant = await dbContext.DataAccessGrants.FindAsync(
+                [grantId], cancellationToken);
+
+            if (grant is null)
+            {
+                LogGrantNotFoundForRemoval(grantId);
+                throw new InvalidOperationException(
+                    $"Grant '{grantId}' not found. The caller should verify existence before revoking.");
+            }
+
+            activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
+            activity?.SetTag(ClientManagementTelemetry.GrantorUserIdTag, grant.GrantorUserId.ToString());
+
+            // Soft-delete: revoke the grant
+            grant.Status = GrantStatus.Revoked;
+            grant.RevokedAt = DateTimeOffset.UtcNow;
+            grant.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            ClientManagementTelemetry.RecordGrantRevoked();
+            LogClientAccessRevoked(grantId);
         }
-
-        activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
-        activity?.SetTag(ClientManagementTelemetry.GrantorUserIdTag, grant.GrantorUserId.ToString());
-
-        // Soft-delete: revoke the grant
-        grant.Status = GrantStatus.Revoked;
-        grant.RevokedAt = DateTimeOffset.UtcNow;
-        grant.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        ClientManagementTelemetry.RecordGrantRevoked();
-        LogClientAccessRevoked(grantId);
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     [LoggerMessage(EventId = 6001, Level = LogLevel.Information,
