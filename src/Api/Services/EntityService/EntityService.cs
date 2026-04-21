@@ -263,10 +263,13 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+            // Tag DB-derived values only after authorization succeeds. Denied
+            // requests throw NotFound (anti-enumeration); pre-auth tagging
+            // would leak cross-tenant entity details into telemetry.
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
-
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
             if (entity.Type == EntityType.Personal && !string.Equals(entity.Name, request.Name, StringComparison.Ordinal))
                 throw new BusinessRuleException(
@@ -318,10 +321,13 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+            // Tag DB-derived values only after authorization succeeds. Denied
+            // requests throw NotFound (anti-enumeration); pre-auth tagging
+            // would leak cross-tenant entity details into telemetry.
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
-
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
             if (entity.Type == EntityType.Personal)
                 throw new BusinessRuleException(
@@ -444,10 +450,13 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+            // Tag DB-derived values only after authorization succeeds. Denied
+            // requests throw NotFound (anti-enumeration); pre-auth tagging
+            // would leak cross-tenant entity details into telemetry.
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
-
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
             // Validator guarantees RoleType.HasValue; treat absence as an internal bug.
             var roleType = request.RoleType
@@ -553,10 +562,13 @@ public partial class EntityService(
                 .FirstOrDefaultAsync(e => e.Id == entityId)
                 ?? throw EntityDbErrors.NotFound(entityId);
 
+            await AuthorizeReadAsync(requestingUserId, entity.UserId);
+
+            // Tag DB-derived values only after authorization succeeds. Denied
+            // requests throw NotFound (anti-enumeration); pre-auth tagging
+            // would leak cross-tenant entity details into telemetry.
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
-
-            await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
             // Stopwatch scoped to the roles EF query only (excludes entity
             // lookup and authorization so the histogram reflects pure DB time).
@@ -594,10 +606,13 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+            // Tag DB-derived values only after authorization succeeds. Denied
+            // requests throw NotFound (anti-enumeration); pre-auth tagging
+            // would leak cross-tenant entity details into telemetry.
             activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
-
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
             var role = await db.EntityRoles.FirstOrDefaultAsync(r => r.Id == roleId && r.EntityId == entityId)
                        ?? throw new NotFoundException(

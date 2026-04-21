@@ -74,12 +74,21 @@ internal static class EntityTelemetry
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 
-    internal static void RecordEntityCreated(string entityType) =>
-        EntitiesCreated.Add(1, new KeyValuePair<string, object?>(EntityTypeTag, entityType));
+    internal static void RecordEntityCreated(string entityType)
+    {
+        var tags = new TagList { { EntityTypeTag, entityType } };
+        EntitiesCreated.Add(1, tags);
+    }
 
-    internal static void RecordEntityRoleAssigned(string roleType) =>
-        EntityRolesAssigned.Add(1, new KeyValuePair<string, object?>(EntityRoleTypeTag, roleType));
+    internal static void RecordEntityRoleAssigned(string roleType)
+    {
+        var tags = new TagList { { EntityRoleTypeTag, roleType } };
+        EntityRolesAssigned.Add(1, tags);
+    }
 
-    internal static void RecordQueryDuration(string queryOp, double elapsedMs) =>
-        EntitiesQueryDuration.Record(elapsedMs, new KeyValuePair<string, object?>(EntitiesQueryOpTag, queryOp));
+    internal static void RecordQueryDuration(string queryOp, double elapsedMs)
+    {
+        var tags = new TagList { { EntitiesQueryOpTag, queryOp } };
+        EntitiesQueryDuration.Record(elapsedMs, tags);
+    }
 }
