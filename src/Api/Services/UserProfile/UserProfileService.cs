@@ -57,13 +57,13 @@ public partial class UserProfileService(
             if (profile is null)
             {
                 (profile, created) = await JitProvisionAsync(userId, email, displayName, mappedRole, tenantId, now, cancellationToken);
-                if (created)
-                {
-                    return profile;
-                }
             }
 
-            await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
+            if (!created)
+            {
+                await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
+            }
+
             UserProfileTelemetry.SyncCount.Add(1);
             return profile;
         }

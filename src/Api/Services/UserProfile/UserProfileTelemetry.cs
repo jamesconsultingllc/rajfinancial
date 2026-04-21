@@ -7,10 +7,18 @@
 // architecture invariant and the AGENT.md "No Magic Strings or Numbers" rule.
 //
 // NOTE for future contributors (tracked by ADO #628):
-// The per-call counter helpers below are STAGING for this PR only. They will
-// be removed once #628 lands a SaveChangesInterceptor that emits business
-// counters centrally. Do NOT add new per-domain counter helpers in other
-// domains; let #628 do them centrally.
+// The three business counters below are STAGING for this PR only:
+//   - userprofile.jit.provisioned.count
+//   - userprofile.sync.count
+//   - userprofile.concurrent.conflicts.count
+// These will be removed/consolidated once #628 lands an EF
+// SaveChangesInterceptor that emits equivalent business counters centrally
+// (tagged by db.entity_type). Do NOT add new per-domain counter helpers in
+// other domains; let #628 do them centrally.
+//
+// The histogram `userprofile.ensure.duration.ms` and the ActivitySource /
+// activity names stay - they measure the EnsureProfileExists request path,
+// not SaveChanges, and are outside the scope of #628.
 // ============================================================================
 
 using System.Diagnostics;
