@@ -10,8 +10,6 @@
 //   DELETE /api/auth/clients/{id} — Remove a client assignment
 // ============================================================================
 
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
@@ -20,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Exception;
 using RajFinancial.Api.Middleware.Authorization;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Shared.Contracts.Auth;
 using RajFinancial.Shared.Entities.Access;
@@ -49,22 +48,11 @@ namespace RajFinancial.Api.Functions;
 ///         <c>Administrator</c> role via <see cref="RequireRoleAttribute"/>.
 ///     </para>
 /// </remarks>
-[RequireRole("Advisor", "Administrator")]
+[RequireRole(ClientManagementTelemetry.RoleAdvisor, ClientManagementTelemetry.RoleAdministrator)]
 public partial class ClientManagementFunctions(
     ILogger<ClientManagementFunctions> logger,
     IClientManagementService clientManagementService)
 {
-    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.ClientManagement");
-    private static readonly Meter Meter = new("RajFinancial.Api.ClientManagement");
-
-    private static readonly Counter<long> GrantsCreated =
-        Meter.CreateCounter<long>("clientmgmt.grants.created.count");
-
-    private static readonly Counter<long> GrantsRevoked =
-        Meter.CreateCounter<long>("clientmgmt.grants.revoked.count");
-
-    private static readonly Counter<long> SelfAssignmentBlocked =
-        Meter.CreateCounter<long>("clientmgmt.self_assignment.blocked.count");
 
     /// <summary>
     /// Assigns a client to the calling advisor by creating a new
@@ -91,7 +79,7 @@ public partial class ClientManagementFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = ActivitySource.StartActivity("ClientMgmt.AssignClient");
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityAssignClient);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
@@ -102,13 +90,13 @@ public partial class ClientManagementFunctions(
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag(ClientManagementTelemetry.UserIdTag, userIdGuid.Value.ToString());
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
         // in unit tests. This inline check provides a safety net and
         // keeps the 403 response testable in isolation.
-        if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
+        if (!context.HasRole(ClientManagementTelemetry.RoleAdvisor) && !context.HasRole(ClientManagementTelemetry.RoleAdministrator))
         {
             LogAssignClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
@@ -122,10 +110,10 @@ public partial class ClientManagementFunctions(
         if (string.Equals(userEmail, assignRequest.ClientEmail,
                 StringComparison.OrdinalIgnoreCase))
         {
-            SelfAssignmentBlocked.Add(1);
+            ClientManagementTelemetry.RecordSelfAssignmentBlocked();
             LogSelfAssignmentRejected(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.BadRequest,
-                "SELF_ASSIGNMENT_NOT_ALLOWED",
+                ClientManagementTelemetry.SelfAssignmentNotAllowedCode,
                 "Cannot assign yourself as a client");
         }
 
@@ -134,10 +122,10 @@ public partial class ClientManagementFunctions(
 
         var responseDto = MapToResponse(grant);
 
-        activity?.SetTag("grant.id", grant.Id);
-        activity?.SetTag("grant.type", grant.AccessType.ToString());
+        activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grant.Id.ToString());
+        activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
 
-        GrantsCreated.Add(1);
+        ClientManagementTelemetry.RecordGrantCreated();
         LogClientAssigned(grant.Id, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.Created);
@@ -171,7 +159,7 @@ public partial class ClientManagementFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = ActivitySource.StartActivity("ClientMgmt.GetClients");
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetClients);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
@@ -182,13 +170,13 @@ public partial class ClientManagementFunctions(
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag(ClientManagementTelemetry.UserIdTag, userIdGuid.Value.ToString());
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
         // in unit tests. This inline check provides a safety net and
         // keeps the 403 response testable in isolation.
-        if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
+        if (!context.HasRole(ClientManagementTelemetry.RoleAdvisor) && !context.HasRole(ClientManagementTelemetry.RoleAdministrator))
         {
             LogGetClientsForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
@@ -196,14 +184,14 @@ public partial class ClientManagementFunctions(
         }
 
         var isAdmin = context.IsAdministrator();
-        activity?.SetTag("user.is_admin", isAdmin);
+        activity?.SetTag(ClientManagementTelemetry.UserIsAdminTag, isAdmin);
 
         var grants = await clientManagementService.GetClientAssignmentsAsync(
             userIdGuid.Value, isAdmin);
 
         var responseDtos = grants.Select(MapToResponse).ToArray();
 
-        activity?.SetTag("grants.count", responseDtos.Length);
+        activity?.SetTag(ClientManagementTelemetry.GrantsCountTag, responseDtos.Length);
         LogGetClientsReturning(responseDtos.Length, userIdGuid.Value, isAdmin);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -247,7 +235,7 @@ public partial class ClientManagementFunctions(
         string id,
         FunctionContext context)
     {
-        using var activity = ActivitySource.StartActivity("ClientMgmt.RemoveClient");
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityRemoveClient);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
@@ -258,13 +246,13 @@ public partial class ClientManagementFunctions(
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
         }
 
-        activity?.SetTag("user.id", userIdGuid.Value);
+        activity?.SetTag(ClientManagementTelemetry.UserIdTag, userIdGuid.Value.ToString());
 
         // Defense-in-depth: [RequireRole] on the class is enforced by
         // AuthorizationMiddleware in production, but middleware is bypassed
         // in unit tests. This inline check provides a safety net and
         // keeps the 403 response testable in isolation.
-        if (!context.HasRole("Advisor") && !context.HasRole("Administrator"))
+        if (!context.HasRole(ClientManagementTelemetry.RoleAdvisor) && !context.HasRole(ClientManagementTelemetry.RoleAdministrator))
         {
             LogRemoveClientForbidden(userIdGuid.Value);
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Forbidden,
@@ -278,18 +266,18 @@ public partial class ClientManagementFunctions(
                 MiddlewareErrorCodes.ValidationFailed, "Invalid grant ID format");
         }
 
-        activity?.SetTag("grant.id", grantId);
+        activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grantId.ToString());
 
         var grant = await clientManagementService.GetGrantByIdAsync(grantId);
 
         if (grant is null)
         {
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.NotFound,
-                "RESOURCE_NOT_FOUND", "Client assignment not found");
+                ClientManagementTelemetry.ResourceNotFoundCode, "Client assignment not found");
         }
 
-        activity?.SetTag("grant.type", grant.AccessType.ToString());
-        activity?.SetTag("client.user_id", grant.GrantorUserId);
+        activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, grant.AccessType.ToString());
+        activity?.SetTag(ClientManagementTelemetry.ClientUserIdTag, grant.GrantorUserId.ToString());
 
         // Ownership check: only the grantor or an administrator may remove
         if (grant.GrantorUserId != userIdGuid.Value && !context.IsAdministrator())
@@ -302,7 +290,7 @@ public partial class ClientManagementFunctions(
 
         await clientManagementService.RemoveClientAccessAsync(grantId);
 
-        GrantsRevoked.Add(1);
+        ClientManagementTelemetry.RecordGrantRevoked();
         LogClientRemoved(grantId, userIdGuid.Value);
 
         return req.CreateResponse(HttpStatusCode.NoContent);
