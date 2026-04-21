@@ -28,9 +28,9 @@ public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) 
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        using var activity = MiddlewareTelemetry.StartActivity("Middleware.Validation");
-        activity?.SetTag("middleware.name", "ValidationMiddleware");
-        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityValidation);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(ValidationMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var sw = Stopwatch.StartNew();
         try
@@ -59,13 +59,13 @@ public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) 
         }
         catch (System.Exception ex)
         {
-            MiddlewareTelemetry.RecordException("ValidationMiddleware", ex.GetType().Name, 0);
+            MiddlewareTelemetry.RecordException(nameof(ValidationMiddleware), ex.GetType().Name, 0);
             throw;
         }
         finally
         {
             sw.Stop();
-            MiddlewareTelemetry.RecordDuration("ValidationMiddleware", sw.Elapsed.TotalMilliseconds);
+            MiddlewareTelemetry.RecordDuration(nameof(ValidationMiddleware), sw.Elapsed.TotalMilliseconds);
         }
     }
 

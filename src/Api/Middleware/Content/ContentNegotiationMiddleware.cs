@@ -42,9 +42,9 @@ public partial class ContentNegotiationMiddleware(
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        using var activity = MiddlewareTelemetry.StartActivity("Middleware.ContentNegotiation");
-        activity?.SetTag("middleware.name", "ContentNegotiationMiddleware");
-        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityContentNegotiation);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(ContentNegotiationMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var sw = Stopwatch.StartNew();
         try
@@ -70,13 +70,13 @@ public partial class ContentNegotiationMiddleware(
         }
         catch (System.Exception ex)
         {
-            MiddlewareTelemetry.RecordException("ContentNegotiationMiddleware", ex.GetType().Name, 0);
+            MiddlewareTelemetry.RecordException(nameof(ContentNegotiationMiddleware), ex.GetType().Name, 0);
             throw;
         }
         finally
         {
             sw.Stop();
-            MiddlewareTelemetry.RecordDuration("ContentNegotiationMiddleware", sw.Elapsed.TotalMilliseconds);
+            MiddlewareTelemetry.RecordDuration(nameof(ContentNegotiationMiddleware), sw.Elapsed.TotalMilliseconds);
         }
     }
 

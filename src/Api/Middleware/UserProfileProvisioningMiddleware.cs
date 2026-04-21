@@ -38,9 +38,9 @@ public partial class UserProfileProvisioningMiddleware(
     /// <inheritdoc/>
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        using var activity = MiddlewareTelemetry.StartActivity("Middleware.UserProfileProvisioning");
-        activity?.SetTag("middleware.name", "UserProfileProvisioningMiddleware");
-        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityUserProfileProvisioning);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(UserProfileProvisioningMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var sw = Stopwatch.StartNew();
         try
@@ -81,8 +81,8 @@ public partial class UserProfileProvisioningMiddleware(
                     catch (SysException ex) when (!IsCriticalException(ex))
                     {
                         // Non-critical provisioning failure: record, log, continue pipeline.
-                        MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
-                        activity?.SetTag("exception.type", ex.GetType().Name);
+                        MiddlewareTelemetry.RecordException(nameof(UserProfileProvisioningMiddleware), ex.GetType().Name, 0);
+                        activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, ex.GetType().Name);
                         LogProvisioningFailed(ex, context.InvocationId);
                     }
                 }
@@ -95,15 +95,15 @@ public partial class UserProfileProvisioningMiddleware(
             // Critical failure (cancellation, OOM, etc.) OR an exception bubbling up
             // from the downstream pipeline. Record and re-throw — ExceptionMiddleware
             // will classify the invocation span and format the response.
-            MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
-            activity?.SetTag("exception.type", ex.GetType().Name);
+            MiddlewareTelemetry.RecordException(nameof(UserProfileProvisioningMiddleware), ex.GetType().Name, 0);
+            activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, ex.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
             throw;
         }
         finally
         {
             sw.Stop();
-            MiddlewareTelemetry.RecordDuration("UserProfileProvisioningMiddleware", sw.Elapsed.TotalMilliseconds);
+            MiddlewareTelemetry.RecordDuration(nameof(UserProfileProvisioningMiddleware), sw.Elapsed.TotalMilliseconds);
         }
     }
 

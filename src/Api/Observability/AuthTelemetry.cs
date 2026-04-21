@@ -29,6 +29,8 @@ internal static class AuthTelemetry
 
     // Outcomes / reasons.
     internal const string OutcomeMissingContext = "missing_context";
+    internal const string OutcomeMiddlewareSource = "middleware";
+    internal const string ReasonNoPrincipal = "no_principal";
 
     // Activity names.
     internal const string ActivityGetMe = "Auth.GetMe";
@@ -36,6 +38,7 @@ internal static class AuthTelemetry
     internal const string ActivityStatus = "Auth.Status";
     internal const string ActivityClient = "Auth.Client";
     internal const string ActivityAdmin = "Auth.Admin";
+    internal const string ActivityPublic = "Auth.Public";
     internal const string ActivityAuthenticate = "Auth.Authenticate";
 
     // Routes / endpoints.
@@ -44,6 +47,7 @@ internal static class AuthTelemetry
     internal const string RouteAuthStatus = "auth/status";
     internal const string RouteAuthClient = "auth/client";
     internal const string RouteAuthAdmin = "auth/admin";
+    internal const string RouteAuthPublic = "auth/public";
 
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
@@ -56,9 +60,8 @@ internal static class AuthTelemetry
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 
-    internal static void RecordSuccess(params KeyValuePair<string, object?>[] tags) =>
-        Successes.Add(1, tags);
+    // Uses TagList (struct) to avoid per-call KeyValuePair[] allocation on the hot path.
+    internal static void RecordSuccess(in TagList tags) => Successes.Add(1, tags);
 
-    internal static void RecordFailure(params KeyValuePair<string, object?>[] tags) =>
-        Failures.Add(1, tags);
+    internal static void RecordFailure(in TagList tags) => Failures.Add(1, tags);
 }

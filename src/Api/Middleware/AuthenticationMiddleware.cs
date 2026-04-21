@@ -75,13 +75,13 @@ public partial class AuthenticationMiddleware(
             activity?.SetTag("auth.authenticated", true);
             if (!string.IsNullOrEmpty(userId))
                 activity?.SetTag("user.id", userId);
-            AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.SourceTag, "middleware"));
+            AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.SourceTag, AuthTelemetry.OutcomeMiddlewareSource } });
         }
         else
         {
             context.Items[FunctionContextKeys.IsAuthenticated] = false;
             activity?.SetTag("auth.authenticated", false);
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, "no_principal"));
+            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, AuthTelemetry.ReasonNoPrincipal } });
         }
 
         await next(context);

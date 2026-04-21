@@ -51,7 +51,7 @@ public partial class AuthTestFunctions(
     {
         using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityStatus);
         activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
-        activity?.SetTag("http.route", "auth/status");
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthStatus);
 
         var userId = context.GetUserId();
         var email = context.GetUserEmail();
@@ -59,7 +59,7 @@ public partial class AuthTestFunctions(
         var roles = context.GetUserRoles();
 
         activity?.SetTag("user.id", userId);
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthStatus));
+        AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthStatus } });
         LogAuthStatusAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -93,11 +93,11 @@ public partial class AuthTestFunctions(
     {
         using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityClient);
         activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
-        activity?.SetTag("http.route", "auth/client");
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthClient);
 
         var userId = context.GetUserId();
         activity?.SetTag("user.id", userId);
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthClient));
+        AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthClient } });
         LogClientEndpointAccessed(userId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -129,11 +129,11 @@ public partial class AuthTestFunctions(
     {
         using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityAdmin);
         activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
-        activity?.SetTag("http.route", "auth/admin");
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthAdmin);
 
         var adminUserId = context.GetUserId();
         activity?.SetTag("user.id", adminUserId);
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthAdmin));
+        AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthAdmin } });
         LogAdminEndpointAccessed(adminUserId);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -163,9 +163,9 @@ public partial class AuthTestFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = AuthTelemetry.StartActivity("Auth.Public");
+        using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityPublic);
         activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
-        activity?.SetTag("http.route", "auth/public");
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthPublic);
 
         var isAuthenticated = context.IsAuthenticated();
         var userId = isAuthenticated ? context.GetUserId() : null;

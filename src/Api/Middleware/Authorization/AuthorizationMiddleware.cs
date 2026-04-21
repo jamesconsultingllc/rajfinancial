@@ -50,9 +50,9 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        using var activity = MiddlewareTelemetry.StartActivity("Middleware.Authorization");
-        activity?.SetTag("middleware.name", "AuthorizationMiddleware");
-        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityAuthorization);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(AuthorizationMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var sw = Stopwatch.StartNew();
         try
@@ -97,14 +97,14 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
             // (tagged middleware=ExceptionMiddleware); aggregate with group-by on the
             // "middleware" tag to prevent double counting.
             var statusCode = ex is UnauthorizedException ? 401 : 403;
-            MiddlewareTelemetry.RecordException("AuthorizationMiddleware", ex.GetType().Name, statusCode);
+            MiddlewareTelemetry.RecordException(nameof(AuthorizationMiddleware), ex.GetType().Name, statusCode);
             activity?.RecordExceptionOutcome(ex);
             throw;
         }
         finally
         {
             sw.Stop();
-            MiddlewareTelemetry.RecordDuration("AuthorizationMiddleware", sw.Elapsed.TotalMilliseconds);
+            MiddlewareTelemetry.RecordDuration(nameof(AuthorizationMiddleware), sw.Elapsed.TotalMilliseconds);
         }
     }
 

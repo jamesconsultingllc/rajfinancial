@@ -17,9 +17,19 @@ internal static class MiddlewareTelemetry
     private const string ExceptionsInstrument = "middleware.exceptions.count";
     private const string DurationInstrument = "middleware.duration.ms";
 
+    // Tag keys — centralized so middleware classes never inline meaningful strings.
     internal const string MiddlewareTag = "middleware";
+    internal const string MiddlewareNameTag = "middleware.name";
+    internal const string CodeFunctionTag = "code.function";
     internal const string ExceptionTypeTag = "exception.type";
     internal const string HttpStatusCodeTag = "http.status_code";
+
+    // Activity (span) names.
+    internal const string ActivityException = "Middleware.Exception";
+    internal const string ActivityAuthorization = "Middleware.Authorization";
+    internal const string ActivityContentNegotiation = "Middleware.ContentNegotiation";
+    internal const string ActivityValidation = "Middleware.Validation";
+    internal const string ActivityUserProfileProvisioning = "Middleware.UserProfileProvisioning";
 
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
@@ -32,17 +42,21 @@ internal static class MiddlewareTelemetry
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 
+    // Uses TagList (struct) to avoid per-call KeyValuePair array allocation on the hot path.
     internal static void RecordException(string middlewareName, string? exceptionType, int statusCode)
     {
-        Exceptions.Add(1,
-            new KeyValuePair<string, object?>(MiddlewareTag, middlewareName),
-            new KeyValuePair<string, object?>(ExceptionTypeTag, exceptionType),
-            new KeyValuePair<string, object?>(HttpStatusCodeTag, statusCode));
+        var tags = new TagList
+        {
+            { MiddlewareTag, middlewareName },
+            { ExceptionTypeTag, exceptionType },
+            { HttpStatusCodeTag, statusCode },
+        };
+        Exceptions.Add(1, tags);
     }
 
     internal static void RecordDuration(string middlewareName, double elapsedMs)
     {
-        Duration.Record(elapsedMs,
-            new KeyValuePair<string, object?>(MiddlewareTag, middlewareName));
+        var tags = new TagList { { MiddlewareTag, middlewareName } };
+        Duration.Record(elapsedMs, tags);
     }
 }

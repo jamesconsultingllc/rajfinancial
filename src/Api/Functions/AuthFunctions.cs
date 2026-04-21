@@ -73,7 +73,7 @@ public partial class AuthFunctions(
         if (!userIdGuid.HasValue)
         {
             activity?.SetTag(AuthTelemetry.AuthOutcomeTag, AuthTelemetry.OutcomeMissingContext);
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext));
+            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext } });
             LogAuthMeMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
@@ -103,7 +103,7 @@ public partial class AuthFunctions(
             CreatedAt = profile.CreatedAt,  // Implicit DateTimeOffset → DtoDateTime
         };
 
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthMe));
+        AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthMe } });
         LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -148,7 +148,7 @@ public partial class AuthFunctions(
         if (!userIdGuid.HasValue)
         {
             activity?.SetTag(AuthTelemetry.AuthOutcomeTag, AuthTelemetry.OutcomeMissingContext);
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext));
+            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext } });
             LogAuthRolesMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
@@ -166,7 +166,7 @@ public partial class AuthFunctions(
         };
 
         activity?.SetTag(AuthTelemetry.AuthRolesCountTag, roles.Count);
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthRoles));
+        AuthTelemetry.RecordSuccess(new TagList { { AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthRoles } });
         LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);

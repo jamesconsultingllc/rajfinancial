@@ -43,9 +43,9 @@ public partial class ExceptionMiddleware(
         // (not this middleware's span, which would become Activity.Current).
         var invocationActivity = Activity.Current;
 
-        using var activity = MiddlewareTelemetry.StartActivity("Middleware.Exception");
-        activity?.SetTag("middleware.name", MiddlewareName);
-        activity?.SetTag("code.function", context.FunctionDefinition.Name);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityException);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, MiddlewareName);
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var sw = Stopwatch.StartNew();
         try
@@ -66,11 +66,11 @@ public partial class ExceptionMiddleware(
 
             var exceptionType = ex.GetType().Name;
             var statusCode = (int)MapStatusCode(ex);
-            activity?.SetTag("exception.type", exceptionType);
-            activity?.SetTag("http.status_code", statusCode);
+            activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, exceptionType);
+            activity?.SetTag(MiddlewareTelemetry.HttpStatusCodeTag, statusCode);
             MiddlewareTelemetry.RecordException(MiddlewareName, exceptionType, statusCode);
 
-            await HandleExceptionAsync(context, ex);
+            await HandleExceptionAsync(context, ex, (HttpStatusCode)statusCode);
         }
         finally
         {
@@ -90,12 +90,11 @@ public partial class ExceptionMiddleware(
         _ => HttpStatusCode.InternalServerError,
     };
 
-    private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex)
+    private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex, HttpStatusCode statusCode)
     {
-        // Status code is resolved once by MapStatusCode (the single source of truth,
-        // also used to tag the exception metric). This switch owns logging + body
-        // shape + the error code.
-        var statusCode = MapStatusCode(ex);
+        // statusCode is resolved once by Invoke via MapStatusCode (single source of truth,
+        // also used to tag the exception metric) and passed in. This switch owns logging +
+        // body shape + the error code only.
         switch (ex)
         {
             case NotFoundException nfe:
