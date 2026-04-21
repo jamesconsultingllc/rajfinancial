@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.Contacts;
 using RajFinancial.Shared.Contracts.Entities;
@@ -21,17 +21,6 @@ public partial class EntityService(
     IContactResolver contactResolver,
     ILogger<EntityService> logger) : IEntityService
 {
-    private static readonly ActivitySource ActivitySource = new("RajFinancial.Api.Entities");
-    private static readonly Meter Meter = new("RajFinancial.Api.Entities");
-
-    private static readonly Counter<long> EntitiesCreated =
-        Meter.CreateCounter<long>("entities.created.count");
-
-    private static readonly Counter<long> EntityRolesAssigned =
-        Meter.CreateCounter<long>("entities.roles.assigned.count");
-
-    private static readonly Histogram<double> EntitiesQueryDuration =
-        Meter.CreateHistogram<double>("entities.query.duration.ms");
     // =========================================================================
     // Entity queries
     // =========================================================================
@@ -41,69 +30,85 @@ public partial class EntityService(
         Guid ownerUserId,
         EntityType? filterType = null)
     {
-        using var activity = ActivitySource.StartActivity("Entities.GetEntities");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.owner.id", ownerUserId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntitiesService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
         if (filterType.HasValue)
-            activity?.SetTag("entity.type", filterType.Value.ToString());
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, filterType.Value.ToString());
 
         var stopwatch = Stopwatch.StartNew();
 
-        await AuthorizeReadAsync(requestingUserId, ownerUserId);
+        try
+        {
+            await AuthorizeReadAsync(requestingUserId, ownerUserId);
 
-        var query = db.Entities
-            .AsNoTracking()
-            .Where(e => e.UserId == ownerUserId);
+            var query = db.Entities
+                .AsNoTracking()
+                .Where(e => e.UserId == ownerUserId);
 
-        if (filterType.HasValue)
-            query = query.Where(e => e.Type == filterType.Value);
+            if (filterType.HasValue)
+                query = query.Where(e => e.Type == filterType.Value);
 
-        var entities = await query
-            .OrderBy(e => e.Type)
-            .ThenBy(e => e.Name)
-            .ToListAsync();
+            var entities = await query
+                .OrderBy(e => e.Type)
+                .ThenBy(e => e.Name)
+                .ToListAsync();
 
-        stopwatch.Stop();
-        EntitiesQueryDuration.Record(
-            stopwatch.Elapsed.TotalMilliseconds,
-            new KeyValuePair<string, object?>("entities.query.op", "list"));
+            stopwatch.Stop();
+            EntityTelemetry.RecordQueryDuration(
+                EntityTelemetry.QueryOpGetEntities,
+                stopwatch.Elapsed.TotalMilliseconds);
 
-        return entities.Select(e => e.ToDto()).ToList();
+            return entities.Select(e => e.ToDto()).ToList();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId)
     {
-        using var activity = ActivitySource.StartActivity("Entities.GetEntityById");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntityByIdService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
         var stopwatch = Stopwatch.StartNew();
 
-        var ownerId = await db.Entities
-            .AsNoTracking()
-            .Where(e => e.Id == entityId)
-            .Select(e => (Guid?)e.UserId)
-            .FirstOrDefaultAsync()
-            ?? throw EntityDbErrors.NotFound(entityId);
+        try
+        {
+            var ownerId = await db.Entities
+                .AsNoTracking()
+                .Where(e => e.Id == entityId)
+                .Select(e => (Guid?)e.UserId)
+                .FirstOrDefaultAsync()
+                ?? throw EntityDbErrors.NotFound(entityId);
 
-        await AuthorizeReadAsync(requestingUserId, ownerId);
+            await AuthorizeReadAsync(requestingUserId, ownerId);
 
-        var entity = await db.Entities
-            .AsNoTracking()
-            .Include(e => e.Roles)
-            .Include(e => e.ChildEntities)
-            .FirstOrDefaultAsync(e => e.Id == entityId)
-            ?? throw EntityDbErrors.NotFound(entityId);
+            var entity = await db.Entities
+                .AsNoTracking()
+                .Include(e => e.Roles)
+                .Include(e => e.ChildEntities)
+                .FirstOrDefaultAsync(e => e.Id == entityId)
+                ?? throw EntityDbErrors.NotFound(entityId);
 
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-        stopwatch.Stop();
-        EntitiesQueryDuration.Record(
-            stopwatch.Elapsed.TotalMilliseconds,
-            new KeyValuePair<string, object?>("entities.query.op", "get"));
+            stopwatch.Stop();
+            EntityTelemetry.RecordQueryDuration(
+                EntityTelemetry.QueryOpGetEntityById,
+                stopwatch.Elapsed.TotalMilliseconds);
 
-        return entity.ToDetailDto();
+            return entity.ToDetailDto();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     // =========================================================================
@@ -112,66 +117,72 @@ public partial class EntityService(
 
     public async Task<EntityDto> CreateEntityAsync(Guid userId, CreateEntityRequest request)
     {
-        using var activity = ActivitySource.StartActivity("Entities.CreateEntity");
-        activity?.SetTag("user.id", userId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityCreateEntityService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
         if (request.Type.HasValue)
-            activity?.SetTag("entity.type", request.Type.Value.ToString());
-
-        await AuthorizeWriteAsync(userId, userId);
-
-        // Validator guarantees Type.HasValue; treat absence as an internal bug.
-        var requestedType = request.Type
-            ?? throw new InvalidOperationException(
-                "CreateEntityRequest.Type was null despite validation; validator likely misconfigured.");
-
-        await ValidatePersonalUniquenessAsync(userId, requestedType);
-        await ValidateParentEntityAsync(userId, request.ParentEntityId);
-
-        var slug = await ResolveUniqueSlugAsync(userId, request.Name, request.Slug);
-
-        var entity = new Entity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Type = requestedType,
-            Name = request.Name,
-            Slug = slug,
-            ParentEntityId = request.ParentEntityId,
-            StorageConnectionId = request.StorageConnectionId,
-            IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow,
-            Business = requestedType == EntityType.Business ? request.Business : null,
-            Trust = requestedType == EntityType.Trust ? request.Trust : null
-        };
-
-        db.Entities.Add(entity);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, request.Type.Value.ToString());
 
         try
         {
-            await db.SaveChangesAsync();
+            await AuthorizeWriteAsync(userId, userId);
+
+            // Validator guarantees Type.HasValue; treat absence as an internal bug.
+            var requestedType = request.Type
+                ?? throw new InvalidOperationException(
+                    "CreateEntityRequest.Type was null despite validation; validator likely misconfigured.");
+
+            await ValidatePersonalUniquenessAsync(userId, requestedType);
+            await ValidateParentEntityAsync(userId, request.ParentEntityId);
+
+            var slug = await ResolveUniqueSlugAsync(userId, request.Name, request.Slug);
+
+            var entity = new Entity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = requestedType,
+                Name = request.Name,
+                Slug = slug,
+                ParentEntityId = request.ParentEntityId,
+                StorageConnectionId = request.StorageConnectionId,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                Business = requestedType == EntityType.Business ? request.Business : null,
+                Trust = requestedType == EntityType.Trust ? request.Trust : null
+            };
+
+            db.Entities.Add(entity);
+
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
+            {
+                // Concurrent caller inserted the same (UserId, Slug) between the
+                // AnyAsync pre-check and SaveChangesAsync. Translate the SQL-level
+                // unique-index violation into the domain 409 ENTITY_SLUG_DUPLICATE
+                // rather than letting a raw 500 surface.
+                db.Entities.Remove(entity);
+                throw new ConflictException(
+                    EntityErrorCodes.SlugDuplicate,
+                    $"Slug '{slug}' is already in use.");
+            }
+
+            activity?.SetTag(EntityTelemetry.EntityIdTag, entity.Id.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
+
+            EntityTelemetry.RecordEntityCreated(entity.Type.ToString());
+
+            LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
+
+            return entity.ToDto();
         }
-        catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
+        catch (Exception ex)
         {
-            // Concurrent caller inserted the same (UserId, Slug) between the
-            // AnyAsync pre-check and SaveChangesAsync. Translate the SQL-level
-            // unique-index violation into the domain 409 ENTITY_SLUG_DUPLICATE
-            // rather than letting a raw 500 surface.
-            db.Entities.Remove(entity);
-            throw new ConflictException(
-                EntityErrorCodes.SlugDuplicate,
-                $"Slug '{slug}' is already in use.");
+            activity?.RecordExceptionOutcome(ex);
+            throw;
         }
-
-        activity?.SetTag("entity.id", entity.Id);
-        activity?.SetTag("entity.slug", entity.Slug);
-
-        EntitiesCreated.Add(
-            1,
-            new KeyValuePair<string, object?>("entity.type", entity.Type.ToString()));
-
-        LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
-
-        return entity.ToDto();
     }
 
     private async Task ValidatePersonalUniquenessAsync(Guid userId, EntityType requestedType)
@@ -232,152 +243,174 @@ public partial class EntityService(
         Guid entityId,
         UpdateEntityRequest request)
     {
-        using var activity = ActivitySource.StartActivity("Entities.UpdateEntity");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityUpdateEntityService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
-        var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw EntityDbErrors.NotFound(entityId);
-
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
-
-        await AuthorizeWriteAsync(requestingUserId, entity.UserId);
-
-        if (entity.Type == EntityType.Personal && !string.Equals(entity.Name, request.Name, StringComparison.Ordinal))
-            throw new BusinessRuleException(
-                EntityErrorCodes.PersonalNameImmutable,
-                "Personal entity name cannot be changed.");
-
-        entity.Name = request.Name;
-        if (request.IsActive.HasValue)
-            entity.IsActive = request.IsActive.Value;
-        // Partial-update semantics: only overwrite StorageConnectionId when the caller
-        // supplied a non-null value. Clients sending { name: "..." } must not
-        // inadvertently detach an existing storage connection. A dedicated
-        // "clear storage connection" mechanism can be added if that use case arises.
-        if (request.StorageConnectionId.HasValue)
-            entity.StorageConnectionId = request.StorageConnectionId.Value;
-        entity.UpdatedAt = DateTimeOffset.UtcNow;
-
-        switch (entity.Type)
+        try
         {
-            case EntityType.Business when request.Business is not null:
-                entity.Business = request.Business;
-                break;
-            case EntityType.Trust when request.Trust is not null:
-                entity.Trust = request.Trust;
-                break;
+            var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
+                         ?? throw EntityDbErrors.NotFound(entityId);
+
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
+
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+
+            if (entity.Type == EntityType.Personal && !string.Equals(entity.Name, request.Name, StringComparison.Ordinal))
+                throw new BusinessRuleException(
+                    EntityErrorCodes.PersonalNameImmutable,
+                    "Personal entity name cannot be changed.");
+
+            entity.Name = request.Name;
+            if (request.IsActive.HasValue)
+                entity.IsActive = request.IsActive.Value;
+            // Partial-update semantics: only overwrite StorageConnectionId when the caller
+            // supplied a non-null value. Clients sending { name: "..." } must not
+            // inadvertently detach an existing storage connection. A dedicated
+            // "clear storage connection" mechanism can be added if that use case arises.
+            if (request.StorageConnectionId.HasValue)
+                entity.StorageConnectionId = request.StorageConnectionId.Value;
+            entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+            switch (entity.Type)
+            {
+                case EntityType.Business when request.Business is not null:
+                    entity.Business = request.Business;
+                    break;
+                case EntityType.Trust when request.Trust is not null:
+                    entity.Trust = request.Trust;
+                    break;
+            }
+
+            await db.SaveChangesAsync();
+
+            LogEntityUpdated(entity.Id, requestingUserId);
+
+            return entity.ToDto();
         }
-
-        await db.SaveChangesAsync();
-
-        LogEntityUpdated(entity.Id, requestingUserId);
-
-        return entity.ToDto();
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task DeleteEntityAsync(Guid requestingUserId, Guid entityId)
     {
-        using var activity = ActivitySource.StartActivity("Entities.DeleteEntity");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityDeleteEntityService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
-        var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw EntityDbErrors.NotFound(entityId);
+        try
+        {
+            var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
+                         ?? throw EntityDbErrors.NotFound(entityId);
 
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-        await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
-        if (entity.Type == EntityType.Personal)
-            throw new BusinessRuleException(
-                EntityErrorCodes.PersonalCannotDelete,
-                "Personal entities cannot be deleted.");
+            if (entity.Type == EntityType.Personal)
+                throw new BusinessRuleException(
+                    EntityErrorCodes.PersonalCannotDelete,
+                    "Personal entities cannot be deleted.");
 
-        var hasChildren = await db.Entities.AnyAsync(e => e.ParentEntityId == entityId);
-        if (hasChildren)
-            throw new BusinessRuleException(
-                EntityErrorCodes.HasChildrenCannotDelete,
-                "Cannot delete an entity that has child entities.");
+            var hasChildren = await db.Entities.AnyAsync(e => e.ParentEntityId == entityId);
+            if (hasChildren)
+                throw new BusinessRuleException(
+                    EntityErrorCodes.HasChildrenCannotDelete,
+                    "Cannot delete an entity that has child entities.");
 
-        var roles = await db.EntityRoles.Where(r => r.EntityId == entityId).ToListAsync();
-        if (roles.Count > 0)
-            db.EntityRoles.RemoveRange(roles);
+            var roles = await db.EntityRoles.Where(r => r.EntityId == entityId).ToListAsync();
+            if (roles.Count > 0)
+                db.EntityRoles.RemoveRange(roles);
 
-        db.Entities.Remove(entity);
-        await db.SaveChangesAsync();
+            db.Entities.Remove(entity);
+            await db.SaveChangesAsync();
 
-        LogEntityDeleted(entityId, requestingUserId);
+            LogEntityDeleted(entityId, requestingUserId);
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task<EntityDto> EnsurePersonalEntityAsync(Guid userId)
     {
-        using var activity = ActivitySource.StartActivity("Entities.EnsurePersonalEntity");
-        activity?.SetTag("user.id", userId);
-        activity?.SetTag("entity.type", EntityType.Personal.ToString());
-
-        var existing = await db.Entities
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
-
-        if (existing is not null)
-        {
-            activity?.SetTag("entity.id", existing.Id);
-            activity?.SetTag("entity.slug", existing.Slug);
-            return existing.ToDto();
-        }
-
-        var entity = new Entity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Type = EntityType.Personal,
-            Name = "Personal",
-            Slug = "personal",
-            IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        db.Entities.Add(entity);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityEnsurePersonalEntityService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityTypeTag, EntityType.Personal.ToString());
 
         try
         {
-            await db.SaveChangesAsync();
+            var existing = await db.Entities
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal);
+
+            if (existing is not null)
+            {
+                activity?.SetTag(EntityTelemetry.EntityIdTag, existing.Id.ToString());
+                activity?.SetTag(EntityTelemetry.EntitySlugTag, existing.Slug);
+                return existing.ToDto();
+            }
+
+            var entity = new Entity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = EntityType.Personal,
+                Name = "Personal",
+                Slug = "personal",
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            db.Entities.Add(entity);
+
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
+            {
+                // Concurrent first-auth requests for the same brand-new user can both
+                // pass the "no existing Personal" check and race to insert. The unique
+                // (UserId, Slug) index raises SqlException 2601/2627 — treat that as
+                // "someone else just provisioned it" and return the winner instead of
+                // bubbling a 500.
+                db.Entities.Remove(entity);
+                var winner = await db.Entities
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal)
+                    ?? throw new InvalidOperationException(
+                        "Unique constraint violation on Personal entity insert, but no " +
+                        "Personal entity exists for the user. Database state is inconsistent.");
+
+                LogPersonalEntityConcurrentlyProvisioned(winner.Id, userId);
+
+                activity?.SetTag(EntityTelemetry.EntityIdTag, winner.Id.ToString());
+                activity?.SetTag(EntityTelemetry.EntitySlugTag, winner.Slug);
+
+                return winner.ToDto();
+            }
+
+            LogPersonalEntityProvisioned(entity.Id, userId);
+
+            activity?.SetTag(EntityTelemetry.EntityIdTag, entity.Id.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
+
+            EntityTelemetry.RecordEntityCreated(entity.Type.ToString());
+
+            return entity.ToDto();
         }
-        catch (DbUpdateException ex) when (EntityDbErrors.IsUniqueConstraintViolation(ex))
+        catch (Exception ex)
         {
-            // Concurrent first-auth requests for the same brand-new user can both
-            // pass the "no existing Personal" check and race to insert. The unique
-            // (UserId, Slug) index raises SqlException 2601/2627 — treat that as
-            // "someone else just provisioned it" and return the winner instead of
-            // bubbling a 500.
-            db.Entities.Remove(entity);
-            var winner = await db.Entities
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.UserId == userId && e.Type == EntityType.Personal)
-                ?? throw new InvalidOperationException(
-                    "Unique constraint violation on Personal entity insert, but no " +
-                    "Personal entity exists for the user. Database state is inconsistent.");
-
-            LogPersonalEntityConcurrentlyProvisioned(winner.Id, userId);
-
-            activity?.SetTag("entity.id", winner.Id);
-            activity?.SetTag("entity.slug", winner.Slug);
-
-            return winner.ToDto();
+            activity?.RecordExceptionOutcome(ex);
+            throw;
         }
-
-        LogPersonalEntityProvisioned(entity.Id, userId);
-
-        activity?.SetTag("entity.id", entity.Id);
-        activity?.SetTag("entity.slug", entity.Slug);
-
-        EntitiesCreated.Add(
-            1,
-            new KeyValuePair<string, object?>("entity.type", entity.Type.ToString()));
-
-        return entity.ToDto();
     }
 
     // =========================================================================
@@ -389,52 +422,58 @@ public partial class EntityService(
         Guid entityId,
         CreateEntityRoleRequest request)
     {
-        using var activity = ActivitySource.StartActivity("Entities.AssignRole");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityAssignRoleService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
         if (request.RoleType.HasValue)
-            activity?.SetTag("entity.role.type", request.RoleType.Value.ToString());
+            activity?.SetTag(EntityTelemetry.EntityRoleTypeTag, request.RoleType.Value.ToString());
 
-        var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw EntityDbErrors.NotFound(entityId);
+        try
+        {
+            var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
+                         ?? throw EntityDbErrors.NotFound(entityId);
 
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-        await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
-        // Validator guarantees RoleType.HasValue; treat absence as an internal bug.
-        var roleType = request.RoleType
-            ?? throw new InvalidOperationException(
-                "CreateEntityRoleRequest.RoleType was null despite validation; " +
-                "validator likely misconfigured.");
+            // Validator guarantees RoleType.HasValue; treat absence as an internal bug.
+            var roleType = request.RoleType
+                ?? throw new InvalidOperationException(
+                    "CreateEntityRoleRequest.RoleType was null despite validation; " +
+                    "validator likely misconfigured.");
 
-        // Phase 1: there is no Contacts table yet. The production-default
-        // IContactResolver rejects every GUID (PlaceholderContactResolver),
-        // preventing cross-tenant linking via arbitrary client-supplied ids.
-        // Integration tests swap in SeedableContactResolver via the
-        // ENABLE_CONTACT_TEST_SEEDING env flag.
-        await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
+            // Phase 1: there is no Contacts table yet. The production-default
+            // IContactResolver rejects every GUID (PlaceholderContactResolver),
+            // preventing cross-tenant linking via arbitrary client-supplied ids.
+            // Integration tests swap in SeedableContactResolver via the
+            // ENABLE_CONTACT_TEST_SEEDING env flag.
+            await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
-        EntityRoleRules.ValidateRoleCompatibility(roleType, entity.Type, request);
-        await ValidateOwnershipAsync(entityId, roleType, request.OwnershipPercent);
-        await ValidateBeneficialInterestAsync(entityId, roleType, request.BeneficialInterestPercent);
-        EntityRoleRules.ValidateRoleDateRange(request.EffectiveDate, request.EndDate);
+            EntityRoleRules.ValidateRoleCompatibility(roleType, entity.Type, request);
+            await ValidateOwnershipAsync(entityId, roleType, request.OwnershipPercent);
+            await ValidateBeneficialInterestAsync(entityId, roleType, request.BeneficialInterestPercent);
+            EntityRoleRules.ValidateRoleDateRange(request.EffectiveDate, request.EndDate);
 
-        var role = EntityRoleFactory.Build(entityId, roleType, request);
+            var role = EntityRoleFactory.Build(entityId, roleType, request);
 
-        db.EntityRoles.Add(role);
-        await db.SaveChangesAsync();
+            db.EntityRoles.Add(role);
+            await db.SaveChangesAsync();
 
-        activity?.SetTag("entity.role.id", role.Id);
+            activity?.SetTag(EntityTelemetry.EntityRoleIdTag, role.Id.ToString());
 
-        EntityRolesAssigned.Add(
-            1,
-            new KeyValuePair<string, object?>("entity.role.type", role.RoleType.ToString()));
+            EntityTelemetry.RecordEntityRoleAssigned(role.RoleType.ToString());
 
-        LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
+            LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
 
-        return role.ToRoleDto();
+            return role.ToRoleDto();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     private async Task ValidateOwnershipAsync(Guid entityId, EntityRoleType roleType, double? ownershipPercent)
@@ -492,61 +531,77 @@ public partial class EntityService(
 
     public async Task<IReadOnlyList<EntityRoleDto>> GetRolesAsync(Guid requestingUserId, Guid entityId)
     {
-        using var activity = ActivitySource.StartActivity("Entities.GetRoles");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetRolesService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
         var stopwatch = Stopwatch.StartNew();
 
-        var entity = await db.Entities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.Id == entityId)
-            ?? throw EntityDbErrors.NotFound(entityId);
+        try
+        {
+            var entity = await db.Entities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == entityId)
+                ?? throw EntityDbErrors.NotFound(entityId);
 
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-        await AuthorizeReadAsync(requestingUserId, entity.UserId);
+            await AuthorizeReadAsync(requestingUserId, entity.UserId);
 
-        var roles = await db.EntityRoles
-            .AsNoTracking()
-            .Where(r => r.EntityId == entityId)
-            .OrderBy(r => r.SortOrder)
-            .ThenBy(r => r.RoleType)
-            .ToListAsync();
+            var roles = await db.EntityRoles
+                .AsNoTracking()
+                .Where(r => r.EntityId == entityId)
+                .OrderBy(r => r.SortOrder)
+                .ThenBy(r => r.RoleType)
+                .ToListAsync();
 
-        stopwatch.Stop();
-        EntitiesQueryDuration.Record(
-            stopwatch.Elapsed.TotalMilliseconds,
-            new KeyValuePair<string, object?>("entities.query.op", "list-roles"));
+            stopwatch.Stop();
+            EntityTelemetry.RecordQueryDuration(
+                EntityTelemetry.QueryOpGetRoles,
+                stopwatch.Elapsed.TotalMilliseconds);
 
-        return roles.Select(r => r.ToRoleDto()).ToList();
+            return roles.Select(r => r.ToRoleDto()).ToList();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task RemoveRoleAsync(Guid requestingUserId, Guid entityId, Guid roleId)
     {
-        using var activity = ActivitySource.StartActivity("Entities.RemoveRole");
-        activity?.SetTag("user.id", requestingUserId);
-        activity?.SetTag("entity.id", entityId);
-        activity?.SetTag("entity.role.id", roleId);
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityRemoveRoleService);
+        activity?.SetTag(EntityTelemetry.UserIdTag, requestingUserId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityRoleIdTag, roleId.ToString());
 
-        var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
-                     ?? throw EntityDbErrors.NotFound(entityId);
+        try
+        {
+            var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
+                         ?? throw EntityDbErrors.NotFound(entityId);
 
-        activity?.SetTag("entity.type", entity.Type.ToString());
-        activity?.SetTag("entity.slug", entity.Slug);
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+            activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-        await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
 
-        var role = await db.EntityRoles.FirstOrDefaultAsync(r => r.Id == roleId && r.EntityId == entityId)
-                   ?? throw new NotFoundException(
-                       EntityErrorCodes.RoleNotFound,
-                       $"Role {roleId} was not found on entity {entityId}.");
+            var role = await db.EntityRoles.FirstOrDefaultAsync(r => r.Id == roleId && r.EntityId == entityId)
+                       ?? throw new NotFoundException(
+                           EntityErrorCodes.RoleNotFound,
+                           $"Role {roleId} was not found on entity {entityId}.");
 
-        db.EntityRoles.Remove(role);
-        await db.SaveChangesAsync();
+            db.EntityRoles.Remove(role);
+            await db.SaveChangesAsync();
 
-        LogRoleRemoved(roleId, entityId, requestingUserId);
+            LogRoleRemoved(roleId, entityId, requestingUserId);
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     // =========================================================================
