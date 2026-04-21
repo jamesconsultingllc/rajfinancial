@@ -67,13 +67,40 @@ func start --useHttps | Tee-Object -FilePath ..\..\phase1c-spans.log
 Wait for `Host started` and `Functions:` listing.
 
 ```powershell
-# Terminal 2 — fire the 6 requests
-inso run collection "Phase 1c Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
+# Terminal 2 — fire the 7 requests (healthcheck + 6 captures)
+inso run collection "Phase 1c Span Capture" `
+  --env Local `
+  --env-var bearer=<token> `
+  --env-var asset_id=<guid> `
+  --env-var entity_id=<guid> `
+  --env-var denied_asset_id=<guid-owned-by-other-user> `
+  --disableCertValidation `
+  --ci `
+  -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
+  | Tee-Object -FilePath phase1c-requests.log
 ```
+
+Requests run in sortKey order: `00 Healthcheck` → `01 Auth` → `02 UserProfile`
+→ `03 Assets` → `04 Entities` → `05 ClientManagement` → `06 Denied`.
 
 Alternatively, step through each request in the Insomnia GUI (right-click →
 Send) and read the stdout tail — useful if you want to inspect each trace in
 isolation.
+
+### `inso` quirks (v12.5.0)
+
+- **Collection identifier** passed to `run collection` is the top-level `name`
+  (`Phase 1c Span Capture`), not the `Phase 1c Capture` folder inside.
+- A workspace YAML must contain at least one top-level (non-folder) request
+  for `inso` to recognize it as a workspace — that's the purpose of the
+  `00 Healthcheck` request. Don't remove it.
+- `inso` aborts the batch on the first network timeout regardless of
+  `--bail=false`. That's fine against a live worker; against a cold/missing
+  worker you'll only see the first request attempted.
+- On Windows, if `npm i -g insomnia-inso` fails on the `@kong/insomnia-plugin-*`
+  native builds, download the standalone `inso-windows-<ver>.zip` from
+  [Kong/insomnia releases](https://github.com/Kong/insomnia/releases) (tag
+  `core@<ver>`) and invoke `inso.exe` directly.
 
 ## 4. Paste into the scaffold
 

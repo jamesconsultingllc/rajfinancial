@@ -2,37 +2,51 @@ type: collection.insomnia.rest/5.0
 schema_version: "5.1"
 name: Phase 1c Span Capture
 meta:
-  id: wrk_phase1c_span_capture
-  description: >-
-    Canonical set of HTTP requests used by Phase 1c of Feature #632 to capture a
-    real trace from a locally-running Functions worker (`func start --useHttps`)
-    and decide whether to ship per-domain `<Domain>.Http.<Op>` spans or rely on
-    the host's auto-emitted Invoke span via the Phase 2 enrichment middleware
-    (#628).
-
-    One request per ObservabilityDomain (see
-    src/Api/Configuration/ObservabilityDomains.cs) plus one intentionally-denied
-    request to exercise the AuthorizationMiddleware `Authorization.CheckAccess`
-    span + NotFoundException path.
-
-    Token is sourced from the `bearer` env var — mint it the same way the
-    integration tests do (tests/IntegrationTests/Support/TestAuthHelper.cs for a
-    local unsigned JWT, or RopcTokenProvider against Entra). Nothing secret is
-    committed in this file.
+  id: wrk_74a908c020854cb894b6c6928a5f5f58
+  created: 1776794652085
+  modified: 1776794652085
+  description: "Phase 1c span-capture collection. See docs/plans/phase-1c/README.md."
 collection:
+  - url: "{{ _.endpoint }}/health/live"
+    name: "00 Healthcheck (no auth)"
+    meta:
+      id: req_phase1c_health
+      created: 1776794652084
+      modified: 1776794652084
+      isPrivate: false
+      description: Sanity ping — used to confirm the worker is up before the capture run.
+      sortKey: -1776794652094
+    method: GET
+    headers:
+      - name: Accept
+        value: application/json
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: false
+        store: false
+      rebuildPath: true
   - name: Phase 1c Capture
     meta:
       id: fld_phase1c
+      created: 1776794652085
+      modified: 1776794652085
+      sortKey: -1776794652085
       description: Run in order. Tail func stdout to capture emitted spans.
     children:
       - url: "{{ _.endpoint }}/auth/me"
         name: "01 Auth - GET /auth/me"
         meta:
           id: req_phase1c_auth_me
+          created: 1776794652085
+          modified: 1776794652085
+          isPrivate: false
           description: >-
             Exercises RajFinancial.Api.Auth ActivitySource. No owner check;
             pulls claims + roles for the caller. Expect 200.
-          sortKey: 1
+          sortKey: -1776794652093
         method: GET
         headers:
           - name: Accept
@@ -43,16 +57,21 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
       - url: "{{ _.endpoint }}/profile/me"
         name: "02 UserProfile - GET /profile/me"
         meta:
           id: req_phase1c_profile_me
+          created: 1776794652086
+          modified: 1776794652086
+          isPrivate: false
           description: >-
             Exercises RajFinancial.Api.UserProfile ActivitySource + the
             UserProfile service span. Expect 200.
-          sortKey: 2
+          sortKey: -1776794652092
         method: GET
         headers:
           - name: Accept
@@ -63,18 +82,23 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
       - url: "{{ _.endpoint }}/assets/{{ _.asset_id }}"
         name: "03 Assets - GET /assets/{id} (Mode A)"
         meta:
           id: req_phase1c_assets_get
+          created: 1776794652087
+          modified: 1776794652087
+          isPrivate: false
           description: >-
             Exercises RajFinancial.Api.Assets ActivitySource, AssetService
             span, and AuthorizationMiddleware `Authorization.CheckAccess` span
             (service-layer `AuthorizeReadAsync`, Mode A). Expect 200 for an
             owned asset id.
-          sortKey: 3
+          sortKey: -1776794652091
         method: GET
         headers:
           - name: Accept
@@ -85,17 +109,22 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
       - url: "{{ _.endpoint }}/entities/{{ _.entity_id }}"
         name: "04 Entities - GET /entities/{id} (Mode A)"
         meta:
           id: req_phase1c_entities_get
+          created: 1776794652088
+          modified: 1776794652088
+          isPrivate: false
           description: >-
             Exercises RajFinancial.Api.Entities ActivitySource + EntityService
             span + Authorization.CheckAccess. Expect 200 for an owned entity
             id.
-          sortKey: 4
+          sortKey: -1776794652090
         method: GET
         headers:
           - name: Accept
@@ -106,18 +135,23 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
       - url: "{{ _.endpoint }}/auth/clients"
         name: "05 ClientManagement - GET /auth/clients (Mode B)"
         meta:
           id: req_phase1c_clients_list
+          created: 1776794652089
+          modified: 1776794652089
+          isPrivate: false
           description: >-
             Exercises RajFinancial.Api.ClientManagement ActivitySource. Mode B
             (role-gated `[RequireRole(Administrator, Advisor)]`); service does
             not call AuthorizeReadAsync. Expect 200 as Advisor or Administrator,
             403 as Client.
-          sortKey: 5
+          sortKey: -1776794652089
         method: GET
         headers:
           - name: Accept
@@ -128,20 +162,24 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
       - url: "{{ _.endpoint }}/assets/{{ _.denied_asset_id }}"
         name: "06 Denied - GET /assets/{id} for non-owned id"
         meta:
           id: req_phase1c_assets_denied
+          created: 1776794652090
+          modified: 1776794652090
+          isPrivate: false
           description: >-
             Exercises the deny path. Expect 404 (NotFoundException — IDOR-safe
             response). Traces should show AssetService span with error +
             Authorization.CheckAccess span marked AccessDenied + ExceptionMiddleware
             mapping the NotFoundException. This single request validates the
-            "four-layer exception recording" rule from the canonical pattern
-            doc.
-          sortKey: 6
+            four-layer exception recording rule from the canonical pattern doc.
+          sortKey: -1776794652088
         method: GET
         headers:
           - name: Accept
@@ -152,13 +190,24 @@ collection:
           renderRequestBody: true
           encodeUrl: true
           followRedirects: global
-          cookies: { send: false, store: false }
+          cookies:
+            send: false
+            store: false
           rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_phase1c_default
+    created: 1776794652085
+    modified: 1776794652085
+  cookies: []
 environments:
-  name: Base
+  name: Base Environment
   meta:
     id: env_phase1c_base
-    description: Shared placeholders. Populate per-env values in the Local sub-env.
+    created: 1776794652085
+    modified: 1776794652085
+    isPrivate: false
   data:
     bearer: ""
     asset_id: ""
@@ -168,10 +217,9 @@ environments:
     - name: Local
       meta:
         id: env_phase1c_local
+        created: 1776794652085
+        modified: 1776794652085
         isPrivate: true
-        description: >-
-          Used for local Phase 1c capture. Pairs with `func start --useHttps`
-          in src/Api. Keep bearer / id values in your own (private, untracked)
-          overrides — do not commit real tokens here.
+        sortKey: 1776794652085
       data:
         endpoint: https://localhost:7071/api
