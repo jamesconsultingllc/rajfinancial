@@ -60,7 +60,7 @@ public partial class AuthenticationMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        using var activity = AuthTelemetry.StartActivity("Auth.Authenticate");
+        using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityAuthenticate);
         activity?.SetTag("code.function", context.FunctionDefinition.Name);
         activity?.SetTag("faas.invocation_id", context.InvocationId);
 
@@ -75,13 +75,13 @@ public partial class AuthenticationMiddleware(
             activity?.SetTag("auth.authenticated", true);
             if (!string.IsNullOrEmpty(userId))
                 activity?.SetTag("user.id", userId);
-            AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("source", "middleware"));
+            AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.SourceTag, "middleware"));
         }
         else
         {
             context.Items[FunctionContextKeys.IsAuthenticated] = false;
             activity?.SetTag("auth.authenticated", false);
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "no_principal"));
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, "no_principal"));
         }
 
         await next(context);

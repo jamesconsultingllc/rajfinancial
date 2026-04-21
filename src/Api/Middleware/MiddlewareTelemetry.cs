@@ -17,6 +17,10 @@ internal static class MiddlewareTelemetry
     private const string ExceptionsInstrument = "middleware.exceptions.count";
     private const string DurationInstrument = "middleware.duration.ms";
 
+    internal const string MiddlewareTag = "middleware";
+    internal const string ExceptionTypeTag = "exception.type";
+    internal const string HttpStatusCodeTag = "http.status_code";
+
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
 
@@ -31,14 +35,14 @@ internal static class MiddlewareTelemetry
     internal static void RecordException(string middlewareName, string? exceptionType, int statusCode)
     {
         Exceptions.Add(1,
-            new KeyValuePair<string, object?>("middleware", middlewareName),
-            new KeyValuePair<string, object?>("exception.type", exceptionType),
-            new KeyValuePair<string, object?>("http.status_code", statusCode));
+            new KeyValuePair<string, object?>(MiddlewareTag, middlewareName),
+            new KeyValuePair<string, object?>(ExceptionTypeTag, exceptionType),
+            new KeyValuePair<string, object?>(HttpStatusCodeTag, statusCode));
     }
 
     internal static void RecordDuration(string middlewareName, double elapsedMs)
     {
         Duration.Record(elapsedMs,
-            new KeyValuePair<string, object?>("middleware", middlewareName));
+            new KeyValuePair<string, object?>(MiddlewareTag, middlewareName));
     }
 }

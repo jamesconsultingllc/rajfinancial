@@ -92,27 +92,31 @@ public partial class ExceptionMiddleware(
 
     private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex)
     {
+        // Status code is resolved once by MapStatusCode (the single source of truth,
+        // also used to tag the exception metric). This switch owns logging + body
+        // shape + the error code.
+        var statusCode = MapStatusCode(ex);
         switch (ex)
         {
             case NotFoundException nfe:
                 LogResourceNotFound(nfe, nfe.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.NotFound, nfe.ErrorCode, nfe.Message);
+                await WriteErrorResponseAsync(context, statusCode, nfe.ErrorCode, nfe.Message);
                 break;
             case ValidationException vex:
                 LogValidationFailed(vex, vex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, MiddlewareErrorCodes.ValidationFailed, vex.Message, vex.Errors);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.ValidationFailed, vex.Message, vex.Errors);
                 break;
             case UnauthorizedException uex:
                 LogUnauthorized(uex, uex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, MiddlewareErrorCodes.AuthRequired, uex.Message);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.AuthRequired, uex.Message);
                 break;
             case ForbiddenException fex:
                 LogForbidden(fex, fex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, MiddlewareErrorCodes.AuthForbidden, fex.Message);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.AuthForbidden, fex.Message);
                 break;
             case ConflictException cex:
                 LogConflict(cex, cex.ErrorCode, cex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, cex.ErrorCode, cex.Message);
+                await WriteErrorResponseAsync(context, statusCode, cex.ErrorCode, cex.Message);
                 break;
             case DbUpdateConcurrencyException dbex:
                 // EF-level optimistic concurrency failure. Translate centrally
@@ -121,21 +125,21 @@ public partial class ExceptionMiddleware(
                 LogDbConcurrency(dbex, dbex.Message);
                 await WriteErrorResponseAsync(
                     context,
-                    HttpStatusCode.Conflict,
+                    statusCode,
                     MiddlewareErrorCodes.DbConcurrencyConflict,
                     "The resource was modified concurrently. Please reload and retry.");
                 break;
             case BusinessRuleException brex:
                 LogBusinessRuleViolation(brex, brex.ErrorCode, brex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, brex.ErrorCode, brex.Message);
+                await WriteErrorResponseAsync(context, statusCode, brex.ErrorCode, brex.Message);
                 break;
             case ConfigurationException confex:
                 LogConfigurationError(confex, confex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
                 break;
             default:
                 LogUnhandledException(ex, context.FunctionDefinition.Name, ex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.InternalError, "An unexpected error occurred");
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.InternalError, "An unexpected error occurred");
                 break;
         }
     }

@@ -64,16 +64,16 @@ public partial class AuthFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = AuthTelemetry.StartActivity("Auth.GetMe");
-        activity?.SetTag("http.method", req.Method);
-        activity?.SetTag("http.route", "auth/me");
+        using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityGetMe);
+        activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthMe);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
         {
-            activity?.SetTag("auth.outcome", "missing_context");
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "missing_context"));
+            activity?.SetTag(AuthTelemetry.AuthOutcomeTag, AuthTelemetry.OutcomeMissingContext);
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext));
             LogAuthMeMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
@@ -103,7 +103,7 @@ public partial class AuthFunctions(
             CreatedAt = profile.CreatedAt,  // Implicit DateTimeOffset → DtoDateTime
         };
 
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/me"));
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthMe));
         LogAuthMeReturning(userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
@@ -139,16 +139,16 @@ public partial class AuthFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
-        using var activity = AuthTelemetry.StartActivity("Auth.GetRoles");
-        activity?.SetTag("http.method", req.Method);
-        activity?.SetTag("http.route", "auth/roles");
+        using var activity = AuthTelemetry.StartActivity(AuthTelemetry.ActivityGetRoles);
+        activity?.SetTag(AuthTelemetry.HttpMethodTag, req.Method);
+        activity?.SetTag(AuthTelemetry.HttpRouteTag, AuthTelemetry.RouteAuthRoles);
 
         var userIdGuid = context.GetUserIdAsGuid();
 
         if (!userIdGuid.HasValue)
         {
-            activity?.SetTag("auth.outcome", "missing_context");
-            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>("reason", "missing_context"));
+            activity?.SetTag(AuthTelemetry.AuthOutcomeTag, AuthTelemetry.OutcomeMissingContext);
+            AuthTelemetry.RecordFailure(new KeyValuePair<string, object?>(AuthTelemetry.ReasonTag, AuthTelemetry.OutcomeMissingContext));
             LogAuthRolesMissingContext();
             return await FunctionHelpers.WriteErrorResponse(req, HttpStatusCode.Unauthorized,
                 MiddlewareErrorCodes.AuthRequired, "Authentication is required");
@@ -165,8 +165,8 @@ public partial class AuthFunctions(
             IsAdministrator = isAdministrator
         };
 
-        activity?.SetTag("auth.roles.count", roles.Count);
-        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>("endpoint", "auth/roles"));
+        activity?.SetTag(AuthTelemetry.AuthRolesCountTag, roles.Count);
+        AuthTelemetry.RecordSuccess(new KeyValuePair<string, object?>(AuthTelemetry.EndpointTag, AuthTelemetry.RouteAuthRoles));
         LogAuthRolesReturning(roles.Count, userIdGuid.Value);
 
         var response = req.CreateResponse(HttpStatusCode.OK);

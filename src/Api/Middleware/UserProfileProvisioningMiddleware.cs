@@ -60,45 +60,51 @@ public partial class UserProfileProvisioningMiddleware(
                     var profileService = context.InstanceServices
                         .GetRequiredService<IUserProfileService>();
 
-                    await profileService.EnsureProfileExistsAsync(
-                        userIdGuid.Value,
-                        email,
-                        displayName,
-                        roles);
+                    try
+                    {
+                        await profileService.EnsureProfileExistsAsync(
+                            userIdGuid.Value,
+                            email,
+                            displayName,
+                            roles);
 
-                    // Auto-provision the user's Personal entity.
-                    // Always called (not just for "new" profiles) so the system self-heals
-                    // if the Personal entity is ever missing. The service is idempotent —
-                    // a single indexed lookup on (UserId, Type=Personal) and returns fast
-                    // when the entity already exists.
-                    var entityService = context.InstanceServices
-                        .GetRequiredService<IEntityService>();
+                        // Auto-provision the user's Personal entity.
+                        // Always called (not just for "new" profiles) so the system self-heals
+                        // if the Personal entity is ever missing. The service is idempotent —
+                        // a single indexed lookup on (UserId, Type=Personal) and returns fast
+                        // when the entity already exists.
+                        var entityService = context.InstanceServices
+                            .GetRequiredService<IEntityService>();
 
-                    await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
+                        await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
+                    }
+                    catch (SysException ex) when (!IsCriticalException(ex))
+                    {
+                        // Non-critical provisioning failure: record, log, continue pipeline.
+                        MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
+                        activity?.SetTag("exception.type", ex.GetType().Name);
+                        LogProvisioningFailed(ex, context.InvocationId);
+                    }
                 }
             }
-        }
-        catch (SysException ex)
-        {
-            if (IsCriticalException(ex))
-            {
-                MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
-                activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
-                throw;
-            }
 
+            await next(context);
+        }
+        catch (SysException ex) when (IsCriticalException(ex))
+        {
+            // Critical failure (cancellation, OOM, etc.) OR an exception bubbling up
+            // from the downstream pipeline. Record and re-throw — ExceptionMiddleware
+            // will classify the invocation span and format the response.
             MiddlewareTelemetry.RecordException("UserProfileProvisioningMiddleware", ex.GetType().Name, 0);
             activity?.SetTag("exception.type", ex.GetType().Name);
-
-            LogProvisioningFailed(ex, context.InvocationId);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            throw;
         }
         finally
         {
             sw.Stop();
             MiddlewareTelemetry.RecordDuration("UserProfileProvisioningMiddleware", sw.Elapsed.TotalMilliseconds);
         }
-
-        await next(context);
     }
 
     [LoggerMessage(EventId = 5100, Level = LogLevel.Warning,

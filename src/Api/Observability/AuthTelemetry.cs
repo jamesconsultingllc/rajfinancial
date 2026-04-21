@@ -17,6 +17,34 @@ internal static class AuthTelemetry
     private const string SuccessesInstrument = "auth.successes.count";
     private const string FailuresInstrument = "auth.failures.count";
 
+    // Tag keys (shared across auth functions and middleware so the metric
+    // dimensions stay consistent and don't split on typos).
+    internal const string EndpointTag = "endpoint";
+    internal const string ReasonTag = "reason";
+    internal const string SourceTag = "source";
+    internal const string HttpRouteTag = "http.route";
+    internal const string HttpMethodTag = "http.method";
+    internal const string AuthOutcomeTag = "auth.outcome";
+    internal const string AuthRolesCountTag = "auth.roles.count";
+
+    // Outcomes / reasons.
+    internal const string OutcomeMissingContext = "missing_context";
+
+    // Activity names.
+    internal const string ActivityGetMe = "Auth.GetMe";
+    internal const string ActivityGetRoles = "Auth.GetRoles";
+    internal const string ActivityStatus = "Auth.Status";
+    internal const string ActivityClient = "Auth.Client";
+    internal const string ActivityAdmin = "Auth.Admin";
+    internal const string ActivityAuthenticate = "Auth.Authenticate";
+
+    // Routes / endpoints.
+    internal const string RouteAuthMe = "auth/me";
+    internal const string RouteAuthRoles = "auth/roles";
+    internal const string RouteAuthStatus = "auth/status";
+    internal const string RouteAuthClient = "auth/client";
+    internal const string RouteAuthAdmin = "auth/admin";
+
     private static readonly ActivitySource ActivitySource = new(SourceName);
     private static readonly Meter Meter = new(SourceName);
 
