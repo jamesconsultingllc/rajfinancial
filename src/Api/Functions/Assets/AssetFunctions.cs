@@ -7,6 +7,7 @@ using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Entities.Assets;
@@ -97,8 +98,7 @@ public partial class AssetFunctions(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -152,8 +152,7 @@ public partial class AssetFunctions(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -205,8 +204,7 @@ public partial class AssetFunctions(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -264,8 +262,7 @@ public partial class AssetFunctions(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -316,8 +313,7 @@ public partial class AssetFunctions(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }

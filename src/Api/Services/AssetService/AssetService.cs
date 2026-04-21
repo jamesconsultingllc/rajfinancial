@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Entities.Access;
@@ -65,8 +66,7 @@ public partial class AssetService(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -96,8 +96,7 @@ public partial class AssetService(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -165,8 +164,7 @@ public partial class AssetService(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -258,8 +256,7 @@ public partial class AssetService(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
@@ -289,8 +286,7 @@ public partial class AssetService(
         }
         catch (Exception ex)
         {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.RecordExceptionOutcome(ex);
             throw;
         }
     }
