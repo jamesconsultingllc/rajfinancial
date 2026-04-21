@@ -6,10 +6,12 @@
 // mapping to/from DTOs and computing depreciation at read time.
 // ============================================================================
 
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Data;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Shared.Contracts.Assets;
 using RajFinancial.Shared.Entities.Access;
@@ -31,177 +33,262 @@ public partial class AssetService(
         AssetType? filterType = null,
         bool includeDisposed = false)
     {
-        await AuthorizeReadAsync(requestingUserId, ownerUserId);
-
-        var query = db.Assets
-            .AsNoTracking()
-            .Where(a => a.UserId == ownerUserId);
-
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetList);
+        activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         if (filterType.HasValue)
-            query = query.Where(a => a.Type == filterType.Value);
+            activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
 
-        if (!includeDisposed)
-            query = query.Where(a => !a.IsDisposed);
+        try
+        {
+            await AuthorizeReadAsync(requestingUserId, ownerUserId);
 
-        var assets = await query
-            .OrderBy(a => a.Name)
-            .ToListAsync();
+            // Tag owner.user.id only after authorization succeeds so denied
+            // requests don't leak the requested owner id (user-supplied) into
+            // telemetry.
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, ownerUserId);
 
-        return assets.Select(a => a.ToDto()).ToList();
+            var query = db.Assets
+                .AsNoTracking()
+                .Where(a => a.UserId == ownerUserId);
+
+            if (filterType.HasValue)
+                query = query.Where(a => a.Type == filterType.Value);
+
+            if (!includeDisposed)
+                query = query.Where(a => !a.IsDisposed);
+
+            var assets = await query
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+
+            activity?.SetTag(AssetsTelemetry.TagAssetsCount, assets.Count);
+            return assets.Select(a => a.ToDto()).ToList();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(Guid requestingUserId, Guid assetId)
     {
-        var asset = await db.Assets
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == assetId);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetById);
+        activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
+        activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
-        if (asset is null)
-            return null;
+        try
+        {
+            var asset = await db.Assets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == assetId);
 
-        await AuthorizeReadAsync(requestingUserId, asset.UserId);
+            if (asset is null)
+                return null;
 
-        return asset.ToDetailDto();
+            await AuthorizeReadAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
+
+            return asset.ToDetailDto();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task<AssetDto> CreateAssetAsync(Guid userId, CreateAssetRequest request)
     {
-        var isDepreciable = request.DepreciationMethod.HasValue
-                            && request.DepreciationMethod != DepreciationMethod.None;
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityCreate);
+        activity?.SetTag(AssetsTelemetry.TagUserId, userId);
+        activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
+        activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
-        Asset asset = isDepreciable
-            ? new DepreciableAsset
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Name = request.Name,
-                Type = request.Type,
-                CurrentValue = request.CurrentValue.ToMoney(),
-                PurchasePrice = request.PurchasePrice.ToMoney(),
-                PurchaseDate = request.PurchaseDate,
-                Description = request.Description,
-                Location = request.Location,
-                AccountNumber = request.AccountNumber,
-                InstitutionName = request.InstitutionName,
-                MarketValue = request.MarketValue.ToMoney(),
-                LastValuationDate = request.LastValuationDate,
-                CreatedAt = DateTimeOffset.UtcNow,
-                DepreciationMethod = request.DepreciationMethod!.Value,
-                SalvageValue = request.SalvageValue.ToMoney(),
-                UsefulLifeMonths = request.UsefulLifeMonths,
-                InServiceDate = request.InServiceDate
-            }
-            : new Asset
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Name = request.Name,
-                Type = request.Type,
-                CurrentValue = request.CurrentValue.ToMoney(),
-                PurchasePrice = request.PurchasePrice.ToMoney(),
-                PurchaseDate = request.PurchaseDate,
-                Description = request.Description,
-                Location = request.Location,
-                AccountNumber = request.AccountNumber,
-                InstitutionName = request.InstitutionName,
-                MarketValue = request.MarketValue.ToMoney(),
-                LastValuationDate = request.LastValuationDate,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
+        try
+        {
+            var isDepreciable = request.DepreciationMethod.HasValue
+                                && request.DepreciationMethod != DepreciationMethod.None;
 
-        db.Assets.Add(asset);
-        await db.SaveChangesAsync();
+            Asset asset = isDepreciable
+                ? new DepreciableAsset
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = request.Name,
+                    Type = request.Type,
+                    CurrentValue = request.CurrentValue.ToMoney(),
+                    PurchasePrice = request.PurchasePrice.ToMoney(),
+                    PurchaseDate = request.PurchaseDate,
+                    Description = request.Description,
+                    Location = request.Location,
+                    AccountNumber = request.AccountNumber,
+                    InstitutionName = request.InstitutionName,
+                    MarketValue = request.MarketValue.ToMoney(),
+                    LastValuationDate = request.LastValuationDate,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    DepreciationMethod = request.DepreciationMethod!.Value,
+                    SalvageValue = request.SalvageValue.ToMoney(),
+                    UsefulLifeMonths = request.UsefulLifeMonths,
+                    InServiceDate = request.InServiceDate
+                }
+                : new Asset
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = request.Name,
+                    Type = request.Type,
+                    CurrentValue = request.CurrentValue.ToMoney(),
+                    PurchasePrice = request.PurchasePrice.ToMoney(),
+                    PurchaseDate = request.PurchaseDate,
+                    Description = request.Description,
+                    Location = request.Location,
+                    AccountNumber = request.AccountNumber,
+                    InstitutionName = request.InstitutionName,
+                    MarketValue = request.MarketValue.ToMoney(),
+                    LastValuationDate = request.LastValuationDate,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
 
-        LogAssetCreated(asset.Id, userId);
+            db.Assets.Add(asset);
+            await db.SaveChangesAsync();
 
-        return asset.ToDto();
+            activity?.SetTag(AssetsTelemetry.TagAssetId, asset.Id);
+            AssetsTelemetry.RecordCreated(asset.Type.ToString());
+            LogAssetCreated(asset.Id, userId);
+
+            return asset.ToDto();
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     public async Task<AssetDto> UpdateAssetAsync(Guid requestingUserId, Guid assetId, UpdateAssetRequest request)
     {
-        var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
-                    ?? throw NotFoundException.Asset(assetId);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityUpdate);
+        activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
+        activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
+        activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
 
-        await AuthorizeWriteAsync(requestingUserId, asset.UserId);
-
-        var nowIsDepreciable = request.DepreciationMethod.HasValue
-                               && request.DepreciationMethod != DepreciationMethod.None;
-        var wasDepreciable = asset is DepreciableAsset;
-
-        // If the asset type is changing between depreciable and non-depreciable,
-        // we need to delete and recreate due to TPH discriminator constraints.
-        // Wrapped in a transaction to ensure atomicity of remove+add.
-        // DbUpdateException is caught to handle concurrent type-switch race conditions
-        // (e.g., two requests both attempting to switch the same asset's type simultaneously).
-        if (nowIsDepreciable != wasDepreciable)
+        try
         {
-            var newAsset = asset.Recreate(request, nowIsDepreciable);
+            var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
+                        ?? throw NotFoundException.Asset(assetId);
 
-            try
+            await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
+
+            var nowIsDepreciable = request.DepreciationMethod.HasValue
+                                   && request.DepreciationMethod != DepreciationMethod.None;
+            var wasDepreciable = asset is DepreciableAsset;
+
+            // If the asset type is changing between depreciable and non-depreciable,
+            // we need to delete and recreate due to TPH discriminator constraints.
+            // Wrapped in a transaction to ensure atomicity of remove+add.
+            // DbUpdateException is caught to handle concurrent type-switch race conditions
+            // (e.g., two requests both attempting to switch the same asset's type simultaneously).
+            if (nowIsDepreciable != wasDepreciable)
             {
-                await using var transaction = await db.Database.BeginTransactionAsync();
-                db.Assets.Remove(asset);
-                await db.SaveChangesAsync();
+                var newAsset = asset.Recreate(request, nowIsDepreciable);
 
-                db.Assets.Add(newAsset);
-                await db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                try
+                {
+                    await using var transaction = await db.Database.BeginTransactionAsync();
+                    db.Assets.Remove(asset);
+                    await db.SaveChangesAsync();
+
+                    db.Assets.Add(newAsset);
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    LogAssetConcurrentTypeSwitch(ex, assetId);
+
+                    throw new BusinessRuleException(
+                        "ASSET_CONCURRENT_MODIFICATION",
+                        $"Asset '{assetId}' was modified by another request. Please retry.");
+                }
+
+                LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
+
+                AssetsTelemetry.RecordUpdated(newAsset.Type.ToString(), typeSwitch: true);
+
+                return newAsset.ToDto();
             }
-            catch (DbUpdateException ex)
+
+            // Update common fields
+            asset.Name = request.Name;
+            asset.Type = request.Type;
+            asset.CurrentValue = request.CurrentValue.ToMoney();
+            asset.PurchasePrice = request.PurchasePrice.ToMoney();
+            asset.PurchaseDate = request.PurchaseDate;
+            asset.Description = request.Description;
+            asset.Location = request.Location;
+            asset.AccountNumber = request.AccountNumber;
+            asset.InstitutionName = request.InstitutionName;
+            asset.MarketValue = request.MarketValue.ToMoney();
+            asset.LastValuationDate = request.LastValuationDate;
+            asset.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Update depreciation fields if applicable
+            if (asset is DepreciableAsset depreciable && nowIsDepreciable)
             {
-                LogAssetConcurrentTypeSwitch(ex, assetId);
-
-                throw new BusinessRuleException(
-                    "ASSET_CONCURRENT_MODIFICATION",
-                    $"Asset '{assetId}' was modified by another request. Please retry.");
+                depreciable.DepreciationMethod = request.DepreciationMethod!.Value;
+                depreciable.SalvageValue = request.SalvageValue.ToMoney();
+                depreciable.UsefulLifeMonths = request.UsefulLifeMonths;
+                depreciable.InServiceDate = request.InServiceDate;
             }
 
-            LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
+            await db.SaveChangesAsync();
 
-            return newAsset.ToDto();
+            AssetsTelemetry.RecordUpdated(asset.Type.ToString());
+            LogAssetUpdated(assetId, requestingUserId);
+
+            return asset.ToDto();
         }
-
-        // Update common fields
-        asset.Name = request.Name;
-        asset.Type = request.Type;
-        asset.CurrentValue = request.CurrentValue.ToMoney();
-        asset.PurchasePrice = request.PurchasePrice.ToMoney();
-        asset.PurchaseDate = request.PurchaseDate;
-        asset.Description = request.Description;
-        asset.Location = request.Location;
-        asset.AccountNumber = request.AccountNumber;
-        asset.InstitutionName = request.InstitutionName;
-        asset.MarketValue = request.MarketValue.ToMoney();
-        asset.LastValuationDate = request.LastValuationDate;
-        asset.UpdatedAt = DateTimeOffset.UtcNow;
-
-        // Update depreciation fields if applicable
-        if (asset is DepreciableAsset depreciable && nowIsDepreciable)
+        catch (Exception ex)
         {
-            depreciable.DepreciationMethod = request.DepreciationMethod!.Value;
-            depreciable.SalvageValue = request.SalvageValue.ToMoney();
-            depreciable.UsefulLifeMonths = request.UsefulLifeMonths;
-            depreciable.InServiceDate = request.InServiceDate;
+            activity?.RecordExceptionOutcome(ex);
+            throw;
         }
-
-        await db.SaveChangesAsync();
-
-        LogAssetUpdated(assetId, requestingUserId);
-
-        return asset.ToDto();
     }
 
     public async Task DeleteAssetAsync(Guid requestingUserId, Guid assetId)
     {
-        var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
-                    ?? throw NotFoundException.Asset(assetId);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityDelete);
+        activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
+        activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
-        await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+        try
+        {
+            var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
+                        ?? throw NotFoundException.Asset(assetId);
 
-        db.Assets.Remove(asset);
-        await db.SaveChangesAsync();
+            await AuthorizeWriteAsync(requestingUserId, asset.UserId);
 
-        LogAssetDeleted(assetId, requestingUserId);
+            activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
+
+            activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
+
+            db.Assets.Remove(asset);
+            await db.SaveChangesAsync();
+
+            AssetsTelemetry.RecordDeleted(asset.Type.ToString());
+            LogAssetDeleted(assetId, requestingUserId);
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
     }
 
     // =========================================================================
