@@ -35,7 +35,8 @@ public interface IEntityService
         EntityType? filterType = null);
 
     /// <summary>Retrieves a single entity by ID with full details including roles.</summary>
-    Task<EntityDetailDto?> GetEntityByIdAsync(Guid requestingUserId, Guid entityId);
+    /// <remarks>Throws <see cref="NotFoundException"/> when the entity does not exist or the caller is not authorized.</remarks>
+    Task<EntityDetailDto> GetEntityByIdAsync(Guid requestingUserId, Guid entityId);
 
     /// <summary>Creates a new Business or Trust entity for the authenticated user.</summary>
     Task<EntityDto> CreateEntityAsync(Guid userId, CreateEntityRequest request);

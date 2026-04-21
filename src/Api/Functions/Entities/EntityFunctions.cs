@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -6,6 +7,7 @@ using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.EntityService;
 using RajFinancial.Shared.Contracts.Entities;
 using RajFinancial.Shared.Entities;
@@ -45,15 +47,25 @@ public partial class EntityFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntities);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
         var ownerUserId = ParseGuid(req, "ownerUserId") ?? userId;
         var filterType = ParseEntityType(req);
 
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        if (filterType.HasValue)
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, filterType.Value.ToString());
+
         LogFetchingEntities(ownerUserId, userId, filterType);
 
         var entities = await entityService.GetEntitiesAsync(userId, ownerUserId, filterType);
+
+        // Tag owner.id only after the service call succeeds so denied requests
+        // don't leak the requested owner id (user-supplied) into telemetry.
+        activity?.SetTag(EntityTelemetry.EntityOwnerIdTag, ownerUserId.ToString());
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, entities, serializationFactory);
@@ -71,18 +83,23 @@ public partial class EntityFunctions(
         FunctionContext context,
         string id)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntityById);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var entityId))
             throw new ValidationException($"Invalid entity ID format: '{id}'");
 
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
+
         LogFetchingEntityById(entityId, userId);
 
-        var entity = await entityService.GetEntityByIdAsync(userId, entityId)
-                     ?? throw new NotFoundException(
-                         EntityErrorCodes.NotFound,
-                         $"Entity with ID {entityId} was not found.");
+        var entity = await entityService.GetEntityByIdAsync(userId, entityId);
+
+        activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+        activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, entity, serializationFactory);
@@ -99,14 +116,23 @@ public partial class EntityFunctions(
         HttpRequestData req,
         FunctionContext context)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityCreateEntity);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
         var request = await context.GetValidatedBodyAsync<CreateEntityRequest>();
 
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        if (request.Type.HasValue)
+            activity?.SetTag(EntityTelemetry.EntityTypeTag, request.Type.Value.ToString());
+
         LogCreatingEntity(request.Type, request.Name, userId);
 
         var entity = await entityService.CreateEntityAsync(userId, request);
+
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entity.Id.ToString());
+        activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.Created, entity, serializationFactory);
@@ -124,6 +150,8 @@ public partial class EntityFunctions(
         FunctionContext context,
         string id)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityUpdateEntity);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
@@ -132,9 +160,15 @@ public partial class EntityFunctions(
 
         var request = await context.GetValidatedBodyAsync<UpdateEntityRequest>();
 
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
+
         LogUpdatingEntity(entityId, userId);
 
         var entity = await entityService.UpdateEntityAsync(userId, entityId, request);
+
+        activity?.SetTag(EntityTelemetry.EntityTypeTag, entity.Type.ToString());
+        activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.OK, entity, serializationFactory);
@@ -152,11 +186,16 @@ public partial class EntityFunctions(
         FunctionContext context,
         string id)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityDeleteEntity);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var entityId))
             throw new ValidationException($"Invalid entity ID format: '{id}'");
+
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
         LogDeletingEntity(entityId, userId);
 
@@ -177,11 +216,16 @@ public partial class EntityFunctions(
         FunctionContext context,
         string id)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityGetEntityRoles);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
         if (!Guid.TryParse(id, out var entityId))
             throw new ValidationException($"Invalid entity ID format: '{id}'");
+
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
 
         var roles = await entityService.GetRolesAsync(userId, entityId);
 
@@ -201,6 +245,8 @@ public partial class EntityFunctions(
         FunctionContext context,
         string id)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityAssignEntityRole);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
@@ -209,9 +255,16 @@ public partial class EntityFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateEntityRoleRequest>();
 
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
+        if (request.RoleType.HasValue)
+            activity?.SetTag(EntityTelemetry.EntityRoleTypeTag, request.RoleType.Value.ToString());
+
         LogAssigningRole(request.RoleType, entityId, userId);
 
         var role = await entityService.AssignRoleAsync(userId, entityId, request);
+
+        activity?.SetTag(EntityTelemetry.EntityRoleIdTag, role.Id.ToString());
 
         return await context.CreateSerializedResponseAsync(
             req, HttpStatusCode.Created, role, serializationFactory);
@@ -230,6 +283,8 @@ public partial class EntityFunctions(
         string id,
         string roleId)
     {
+        using var activity = EntityTelemetry.StartActivity(EntityTelemetry.ActivityRemoveEntityRole);
+
         var userId = context.GetUserIdAsGuid()
                      ?? throw new UnauthorizedException("User ID not found");
 
@@ -238,6 +293,10 @@ public partial class EntityFunctions(
 
         if (!Guid.TryParse(roleId, out var roleGuid))
             throw new ValidationException($"Invalid role ID format: '{roleId}'");
+
+        activity?.SetTag(EntityTelemetry.UserIdTag, userId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityIdTag, entityId.ToString());
+        activity?.SetTag(EntityTelemetry.EntityRoleIdTag, roleGuid.ToString());
 
         LogRemovingRole(roleGuid, entityId, userId);
 
@@ -270,25 +329,25 @@ public partial class EntityFunctions(
         return null;
     }
 
-    [LoggerMessage(EventId = 6001, Level = LogLevel.Information,
+    [LoggerMessage(EventId = 3101, Level = LogLevel.Information,
         Message = "Fetching entities for owner {OwnerUserId} (requested by {UserId}, type={FilterType})")]
     private partial void LogFetchingEntities(Guid ownerUserId, Guid userId, EntityType? filterType);
 
-    [LoggerMessage(EventId = 6002, Level = LogLevel.Information, Message = "Fetching entity {EntityId} for user {UserId}")]
+    [LoggerMessage(EventId = 3102, Level = LogLevel.Information, Message = "Fetching entity {EntityId} for user {UserId}")]
     private partial void LogFetchingEntityById(Guid entityId, Guid userId);
 
-    [LoggerMessage(EventId = 6003, Level = LogLevel.Information, Message = "Creating {Type} entity '{Name}' for user {UserId}")]
+    [LoggerMessage(EventId = 3103, Level = LogLevel.Information, Message = "Creating {Type} entity '{Name}' for user {UserId}")]
     private partial void LogCreatingEntity(EntityType? type, string name, Guid userId);
 
-    [LoggerMessage(EventId = 6004, Level = LogLevel.Information, Message = "Updating entity {EntityId} for user {UserId}")]
+    [LoggerMessage(EventId = 3104, Level = LogLevel.Information, Message = "Updating entity {EntityId} for user {UserId}")]
     private partial void LogUpdatingEntity(Guid entityId, Guid userId);
 
-    [LoggerMessage(EventId = 6005, Level = LogLevel.Information, Message = "Deleting entity {EntityId} for user {UserId}")]
+    [LoggerMessage(EventId = 3105, Level = LogLevel.Information, Message = "Deleting entity {EntityId} for user {UserId}")]
     private partial void LogDeletingEntity(Guid entityId, Guid userId);
 
-    [LoggerMessage(EventId = 6006, Level = LogLevel.Information, Message = "Assigning role {RoleType} on entity {EntityId} by user {UserId}")]
+    [LoggerMessage(EventId = 3106, Level = LogLevel.Information, Message = "Assigning role {RoleType} on entity {EntityId} by user {UserId}")]
     private partial void LogAssigningRole(EntityRoleType? roleType, Guid entityId, Guid userId);
 
-    [LoggerMessage(EventId = 6007, Level = LogLevel.Information, Message = "Removing role {RoleId} from entity {EntityId} by user {UserId}")]
+    [LoggerMessage(EventId = 3107, Level = LogLevel.Information, Message = "Removing role {RoleId} from entity {EntityId} by user {UserId}")]
     private partial void LogRemovingRole(Guid roleId, Guid entityId, Guid userId);
 }
