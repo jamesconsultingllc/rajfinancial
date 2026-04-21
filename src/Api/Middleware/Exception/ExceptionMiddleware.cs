@@ -34,8 +34,20 @@ public partial class ExceptionMiddleware(
     ISerializationFactory serializationFactory)
     : IFunctionsWorkerMiddleware
 {
+    private const string MiddlewareName = "ExceptionMiddleware";
+
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        // Capture the outer invocation span BEFORE starting our own activity, so
+        // RecordExceptionOutcome below classifies the Functions Invoke span
+        // (not this middleware's span, which would become Activity.Current).
+        var invocationActivity = Activity.Current;
+
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityException);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, MiddlewareName);
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
+
+        var sw = Stopwatch.StartNew();
         try
         {
             await next(context);
@@ -46,38 +58,64 @@ public partial class ExceptionMiddleware(
         }
         catch (System.Exception ex)
         {
-            // Classify the Functions Invoke span (Activity.Current) centrally
-            // so per-function code doesn't need to tag it. Service-level
-            // activities are already classified by their own try/catch
-            // (they've been disposed by the time we get here).
-            Activity.Current?.RecordExceptionOutcome(ex);
-            await HandleExceptionAsync(context, ex);
+            // Classify the Functions Invoke span centrally so per-function
+            // code doesn't need to tag it. Service-level activities were
+            // already classified by their own exception handlers and have
+            // been disposed by the time execution reaches this middleware.
+            invocationActivity?.RecordExceptionOutcome(ex);
+
+            var exceptionType = ex.GetType().Name;
+            var statusCode = (int)MapStatusCode(ex);
+            activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, exceptionType);
+            activity?.SetTag(MiddlewareTelemetry.HttpStatusCodeTag, statusCode);
+            MiddlewareTelemetry.RecordException(MiddlewareName, exceptionType, statusCode);
+
+            await HandleExceptionAsync(context, ex, (HttpStatusCode)statusCode);
+        }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration(MiddlewareName, sw.Elapsed.TotalMilliseconds);
         }
     }
 
-    private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex)
+    private static HttpStatusCode MapStatusCode(System.Exception ex) => ex switch
     {
+        NotFoundException => HttpStatusCode.NotFound,
+        ValidationException => HttpStatusCode.BadRequest,
+        UnauthorizedException => HttpStatusCode.Unauthorized,
+        ForbiddenException => HttpStatusCode.Forbidden,
+        ConflictException or DbUpdateConcurrencyException => HttpStatusCode.Conflict,
+        BusinessRuleException => HttpStatusCode.UnprocessableEntity,
+        _ => HttpStatusCode.InternalServerError,
+    };
+
+    private async Task HandleExceptionAsync(FunctionContext context, System.Exception ex, HttpStatusCode statusCode)
+    {
+        // statusCode is resolved once by Invoke via MapStatusCode (single source of truth,
+        // also used to tag the exception metric) and passed in. This switch owns logging +
+        // body shape + the error code only.
         switch (ex)
         {
             case NotFoundException nfe:
                 LogResourceNotFound(nfe, nfe.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.NotFound, nfe.ErrorCode, nfe.Message);
+                await WriteErrorResponseAsync(context, statusCode, nfe.ErrorCode, nfe.Message);
                 break;
             case ValidationException vex:
                 LogValidationFailed(vex, vex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, MiddlewareErrorCodes.ValidationFailed, vex.Message, vex.Errors);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.ValidationFailed, vex.Message, vex.Errors);
                 break;
             case UnauthorizedException uex:
                 LogUnauthorized(uex, uex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, MiddlewareErrorCodes.AuthRequired, uex.Message);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.AuthRequired, uex.Message);
                 break;
             case ForbiddenException fex:
                 LogForbidden(fex, fex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, MiddlewareErrorCodes.AuthForbidden, fex.Message);
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.AuthForbidden, fex.Message);
                 break;
             case ConflictException cex:
                 LogConflict(cex, cex.ErrorCode, cex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, cex.ErrorCode, cex.Message);
+                await WriteErrorResponseAsync(context, statusCode, cex.ErrorCode, cex.Message);
                 break;
             case DbUpdateConcurrencyException dbex:
                 // EF-level optimistic concurrency failure. Translate centrally
@@ -86,21 +124,21 @@ public partial class ExceptionMiddleware(
                 LogDbConcurrency(dbex, dbex.Message);
                 await WriteErrorResponseAsync(
                     context,
-                    HttpStatusCode.Conflict,
+                    statusCode,
                     MiddlewareErrorCodes.DbConcurrencyConflict,
                     "The resource was modified concurrently. Please reload and retry.");
                 break;
             case BusinessRuleException brex:
                 LogBusinessRuleViolation(brex, brex.ErrorCode, brex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, brex.ErrorCode, brex.Message);
+                await WriteErrorResponseAsync(context, statusCode, brex.ErrorCode, brex.Message);
                 break;
             case ConfigurationException confex:
                 LogConfigurationError(confex, confex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
                 break;
             default:
                 LogUnhandledException(ex, context.FunctionDefinition.Name, ex.Message);
-                await WriteErrorResponseAsync(context, HttpStatusCode.InternalServerError, MiddlewareErrorCodes.InternalError, "An unexpected error occurred");
+                await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.InternalError, "An unexpected error occurred");
                 break;
         }
     }

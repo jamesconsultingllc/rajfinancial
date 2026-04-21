@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,11 @@ public partial class UserProfileProvisioningMiddleware(
     /// <inheritdoc/>
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityUserProfileProvisioning);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(UserProfileProvisioningMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
+
+        var sw = Stopwatch.StartNew();
         try
         {
             if (context.IsAuthenticated())
@@ -45,6 +51,8 @@ public partial class UserProfileProvisioningMiddleware(
 
                 if (userIdGuid.HasValue)
                 {
+                    activity?.SetTag("user.id", userIdGuid.Value.ToString());
+
                     var email = context.GetUserEmail() ?? string.Empty;
                     var displayName = context.GetUserName();
                     var roles = context.GetUserRoles();
@@ -52,35 +60,51 @@ public partial class UserProfileProvisioningMiddleware(
                     var profileService = context.InstanceServices
                         .GetRequiredService<IUserProfileService>();
 
-                    await profileService.EnsureProfileExistsAsync(
-                        userIdGuid.Value,
-                        email,
-                        displayName,
-                        roles);
+                    try
+                    {
+                        await profileService.EnsureProfileExistsAsync(
+                            userIdGuid.Value,
+                            email,
+                            displayName,
+                            roles);
 
-                    // Auto-provision the user's Personal entity.
-                    // Always called (not just for "new" profiles) so the system self-heals
-                    // if the Personal entity is ever missing. The service is idempotent —
-                    // a single indexed lookup on (UserId, Type=Personal) and returns fast
-                    // when the entity already exists.
-                    var entityService = context.InstanceServices
-                        .GetRequiredService<IEntityService>();
+                        // Auto-provision the user's Personal entity.
+                        // Always called (not just for "new" profiles) so the system self-heals
+                        // if the Personal entity is ever missing. The service is idempotent —
+                        // a single indexed lookup on (UserId, Type=Personal) and returns fast
+                        // when the entity already exists.
+                        var entityService = context.InstanceServices
+                            .GetRequiredService<IEntityService>();
 
-                    await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
+                        await entityService.EnsurePersonalEntityAsync(userIdGuid.Value);
+                    }
+                    catch (SysException ex) when (!IsCriticalException(ex))
+                    {
+                        // Non-critical provisioning failure: record, log, continue pipeline.
+                        MiddlewareTelemetry.RecordException(nameof(UserProfileProvisioningMiddleware), ex.GetType().Name, 0);
+                        activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, ex.GetType().Name);
+                        LogProvisioningFailed(ex, context.InvocationId);
+                    }
                 }
             }
+
+            await next(context);
         }
-        catch (SysException ex)
+        catch (SysException ex) when (IsCriticalException(ex))
         {
-            if (IsCriticalException(ex))
-            {
-                throw;
-            }
-
-            LogProvisioningFailed(ex, context.InvocationId);
+            // Critical failure (cancellation, OOM, etc.) OR an exception bubbling up
+            // from the downstream pipeline. Record and re-throw — ExceptionMiddleware
+            // will classify the invocation span and format the response.
+            MiddlewareTelemetry.RecordException(nameof(UserProfileProvisioningMiddleware), ex.GetType().Name, 0);
+            activity?.SetTag(MiddlewareTelemetry.ExceptionTypeTag, ex.GetType().Name);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            throw;
         }
-
-        await next(context);
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration(nameof(UserProfileProvisioningMiddleware), sw.Elapsed.TotalMilliseconds);
+        }
     }
 
     [LoggerMessage(EventId = 5100, Level = LogLevel.Warning,

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
@@ -25,29 +26,47 @@ namespace RajFinancial.Api.Middleware;
 /// </remarks>
 public partial class ValidationMiddleware(ILogger<ValidationMiddleware> logger) : IFunctionsWorkerMiddleware
 {
-    public Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
+    public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-#pragma warning disable S125 // False positive: documentation comment mentions code-like context key.
-        // ContentNegotiationMiddleware runs before this and stores the raw body bytes
-        // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
-        // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
-#pragma warning restore S125
-        if (context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) &&
-            bytesObj is byte[] { Length: > 0 } bodyBytes)
-        {
-            var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ctObj)
-                ? ctObj as string ?? SerializationFactory.JsonContentType
-                : SerializationFactory.JsonContentType;
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityValidation);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(ValidationMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
-            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+        var sw = Stopwatch.StartNew();
+        try
+        {
+#pragma warning disable S125 // False positive: documentation comment mentions code-like context key.
+            // ContentNegotiationMiddleware runs before this and stores the raw body bytes
+            // in context.Items["RequestBodyBytes"]. Only convert to string for JSON payloads;
+            // MemoryPack binary payloads would be corrupted by UTF-8 string conversion.
+#pragma warning restore S125
+            if (context.Items.TryGetValue(FunctionContextKeys.RequestBodyBytes, out var bytesObj) &&
+                bytesObj is byte[] { Length: > 0 } bodyBytes)
             {
-                context.Items[FunctionContextKeys.RequestBody] = Encoding.UTF8.GetString(bodyBytes);
+                var contentType = context.Items.TryGetValue(FunctionContextKeys.RequestContentType, out var ctObj)
+                    ? ctObj as string ?? SerializationFactory.JsonContentType
+                    : SerializationFactory.JsonContentType;
+
+                if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Items[FunctionContextKeys.RequestBody] = Encoding.UTF8.GetString(bodyBytes);
+                }
+
+                LogBodyCaptured(contentType);
             }
 
-            LogBodyCaptured(contentType);
+            await next(context);
         }
-
-        return next(context);
+        catch (System.Exception ex)
+        {
+            MiddlewareTelemetry.RecordException(nameof(ValidationMiddleware), ex.GetType().Name, 0);
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration(nameof(ValidationMiddleware), sw.Elapsed.TotalMilliseconds);
+        }
     }
 
     [LoggerMessage(EventId = 5400, Level = LogLevel.Debug,

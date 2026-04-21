@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Middleware.Authorization;
 
@@ -48,37 +50,62 @@ public partial class AuthorizationMiddleware(ILogger<AuthorizationMiddleware> lo
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        var targetMethod = GetTargetMethod(context);
+        using var activity = MiddlewareTelemetry.StartActivity(MiddlewareTelemetry.ActivityAuthorization);
+        activity?.SetTag(MiddlewareTelemetry.MiddlewareNameTag, nameof(AuthorizationMiddleware));
+        activity?.SetTag(MiddlewareTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
-        if (targetMethod is not null)
+        var sw = Stopwatch.StartNew();
+        try
         {
-            // Check [RequireRole] first — it implies authentication
-            var requireRole = targetMethod.GetCustomAttribute<RequireRoleAttribute>()
-                ?? targetMethod.DeclaringType?.GetCustomAttribute<RequireRoleAttribute>();
+            var targetMethod = GetTargetMethod(context);
 
-            if (requireRole is not null)
+            if (targetMethod is not null)
             {
-                EnsureAuthenticated(context);
-                EnsureHasRole(context, requireRole.Roles);
+                // Check [RequireRole] first — it implies authentication
+                var requireRole = targetMethod.GetCustomAttribute<RequireRoleAttribute>()
+                    ?? targetMethod.DeclaringType?.GetCustomAttribute<RequireRoleAttribute>();
 
-                LogAuthorizationPassed(context.FunctionDefinition.Name);
-            }
-            else
-            {
-                // Check [RequireAuthentication] — authentication only, no role check
-                var requireAuth = targetMethod.GetCustomAttribute<RequireAuthenticationAttribute>()
-                    ?? targetMethod.DeclaringType?.GetCustomAttribute<RequireAuthenticationAttribute>();
-
-                if (requireAuth is not null)
+                if (requireRole is not null)
                 {
+                    activity?.SetTag("authz.required_roles", string.Join(",", requireRole.Roles));
                     EnsureAuthenticated(context);
+                    EnsureHasRole(context, requireRole.Roles);
 
-                    LogAuthenticationVerified(context.FunctionDefinition.Name);
+                    LogAuthorizationPassed(context.FunctionDefinition.Name);
+                }
+                else
+                {
+                    // Check [RequireAuthentication] — authentication only, no role check
+                    var requireAuth = targetMethod.GetCustomAttribute<RequireAuthenticationAttribute>()
+                        ?? targetMethod.DeclaringType?.GetCustomAttribute<RequireAuthenticationAttribute>();
+
+                    if (requireAuth is not null)
+                    {
+                        EnsureAuthenticated(context);
+
+                        LogAuthenticationVerified(context.FunctionDefinition.Name);
+                    }
                 }
             }
-        }
 
-        await next(context);
+            await next(context);
+        }
+        catch (System.Exception ex) when (ex is UnauthorizedException or ForbiddenException)
+        {
+            // Record per-middleware with the known status so operators can slice by
+            // middleware.name. ExceptionMiddleware will re-record with the same exception
+            // (tagged middleware=ExceptionMiddleware); aggregate with group-by on the
+            // "middleware" tag to prevent double counting.
+            var statusCode = ex is UnauthorizedException ? 401 : 403;
+            MiddlewareTelemetry.RecordException(nameof(AuthorizationMiddleware), ex.GetType().Name, statusCode);
+            activity?.RecordExceptionOutcome(ex);
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            MiddlewareTelemetry.RecordDuration(nameof(AuthorizationMiddleware), sw.Elapsed.TotalMilliseconds);
+        }
     }
 
     /// <summary>
