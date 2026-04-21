@@ -1,0 +1,223 @@
+# Phase 1c — 30-minute span validation procedure
+
+> **Status:** Scaffolded. Execution pending — capture must be run against a live `func start` + seeded DB. Output gets pasted into the *Decision capture* section at the bottom of this file and then copied into ADR 0002 when Phase 1a authors it.
+>
+> **Feature:** [AB#632](https://dev.azure.com/jamesconsulting/_workitems/edit/632)
+> **Task:** [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633)
+> **Related:** [AB#628](https://dev.azure.com/jamesconsulting/_workitems/edit/628) (centralized HTTP-span enrichment) — Option (a) below is coupled to this work.
+
+---
+
+## 1. What this phase decides
+
+The canonical pattern doc ([`docs/patterns/service-function-pattern.md`](../patterns/service-function-pattern.md) §3.1) lists the HTTP-layer span name as **TBD per Phase 1c**. This procedure resolves that TBD by capturing a real local trace and picking between two options.
+
+### Option (a) — Drop per-domain HTTP spans
+
+- Rely on the auto-emitted Functions Invoke span (or whatever the isolated worker host emits unaided).
+- `TelemetryEnrichmentMiddleware` from [AB#628](https://dev.azure.com/jamesconsulting/_workitems/edit/628) tags that span with `domain` / `operation` attributes.
+- Dashboards group by tag, not by span name.
+- Removes `Assets.Http.*` from [`AssetsTelemetry.cs`](../../src/Api/Services/AssetService/AssetsTelemetry.cs); no equivalent added to Entities / ClientManagement.
+- **Gating constraint:** if Option (a) wins, Phases 3a / 3b / 4 / 7 are blocked on #628 landing first — otherwise the enrichment tags that replace per-domain HTTP spans won't exist.
+
+### Option (b) — Keep per-domain HTTP spans as `<Domain>.Http.<Op>`
+
+- Every function body keeps a `using var activity = StartActivity("<Domain>.Http.<Op>")` + try/catch + `RecordExceptionOutcome`.
+- Pro: clearer domain grouping in trace UIs where tag-based filtering is awkward.
+- Con: one redundant span per request; three domains must each maintain their own `*Telemetry.cs` HTTP-span constants.
+- **No dependency on #628.** Phases 3a / 3b / 4 can proceed independently.
+
+**Expectation:** Option (a) wins because #628's enrichment tags subsume the domain-grouping use case — but this procedure is authoritative; neither option is locked until the trace is captured and reviewed against the criteria in §5.
+
+---
+
+## 2. Why a local trace is required
+
+Reading the OTel registration code ([`ObservabilityRegistration.cs`](../../src/Api/Configuration/ObservabilityRegistration.cs)) tells us which `ActivitySource` / `Meter` names we subscribed to (`AddSource(DomainSources)` on line 84, `AddMeter(DomainSources)` on line 107). It does **not** tell us what the Functions isolated worker host emits for the HTTP layer on its own — that depends on the host version, the worker package (`Microsoft.Azure.Functions.Worker.OpenTelemetry`), and the trigger binding. A real trace capture is the only way to see:
+
+1. The actual span name the host emits for each HTTP request (candidates include `Microsoft.Azure.Functions.Worker.Invoke`, `Invoke`, `Function.<Name>`, or an `ActivityKind.Server` span with no explicit name).
+2. The parent/child relationship between that span and the domain's service span (`Assets.GetById`, etc.).
+3. Whether the host-emitted span already carries tags (`code.function`, `faas.trigger`, HTTP method/route) that would make Option (a)'s per-call `domain`/`operation` tags redundant or complementary.
+4. Whether the per-domain HTTP span added today (`Assets.Http.<Op>`) is nested *inside* the host span (making it a 3-level trace) or at the same level (2-level).
+
+The observability stack already has `AddConsoleExporter` registered for both traces and metrics when `env.IsDevelopment()` (see `ObservabilityRegistration.cs:89, 110`), so **no external collector is required** — spans stream to the `func start` stdout.
+
+---
+
+## 3. Prerequisites
+
+- [ ] Docker running with the SQL container (connection string via `ConnectionStrings__SqlConnectionString` env var or `src/Api/local.settings.json`; see repo README / `scripts/infra/` for the compose file and seed scripts).
+- [ ] `src/Api/local.settings.json` exists and provides the connection string plus Entra-related values the Functions host needs at boot. (`appsettings.local.json` is a tests-only override consumed by `tests/IntegrationTests/Support/FunctionsHostFixture.cs`, not by the running worker.)
+- [ ] Development environment is signaled to the host. `src/Api/Properties/launchSettings.json` sets both `ASPNETCORE_ENVIRONMENT=Development` and `AZURE_FUNCTIONS_ENVIRONMENT=Development`; if you start the worker outside those profiles (e.g. a bare `func start` in a plain shell), set both env vars explicitly — a few code paths key off `AZURE_FUNCTIONS_ENVIRONMENT` (`DesignTimeDbContextFactory`, `SerializationFactory`) and the Console exporters + file logging gate on `IHostEnvironment.IsDevelopment()` (`ObservabilityRegistration.cs:59, 86, 109, 120`).
+- [ ] `dotnet build src/Api/RajFinancial.Api.csproj -c Debug` succeeds.
+- [ ] A seeded user + one asset + one entity + one client assignment exist in the DB with known IDs, and a bearer token for that user is in hand — see §3.1 below for how to obtain each.
+- [ ] `curl` (or PowerShell `Invoke-WebRequest`) available, plus `jq` for token sanity-checks (optional).
+
+### 3.1 Obtaining the bearer token + IDs
+
+Keep these values handy — they go into the curl commands in §4.
+
+| Variable | How to get it |
+|---|---|
+| `BEARER` | For local (unsigned-JWT) runs, mint a dev token the same way the integration tests do — see `tests/IntegrationTests/Support/TestAuthHelper.cs` plus `tests/IntegrationTests/appsettings.json` (the `Entra:TestUsers:*` entries it reads) and `appsettings.local.json` if present. For a real Entra token against the running worker, use `RopcTokenProvider` with `TEST_{ROLE}_PASSWORD` env vars set (same as the integration suite). **The fixture itself does not mint tokens** — only `TestAuthHelper` / `RopcTokenProvider` do. |
+| `ASSET_ID` | After `func start --useHttps` is up (see §4.1), `curl -k -H "Authorization: Bearer $BEARER" https://localhost:7071/api/assets` and pick any `id` from the response. |
+| `ENTITY_ID` | Same pattern against `/api/entities`. |
+| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). Pull from `/api/clients` (the advisor-scoped list endpoint). |
+
+The `FunctionsHostFixture` used by the integration suite **does not seed data or start the host** — it only builds an `HttpClient` and checks that something is already listening at `FunctionsHost:BaseUrl` (from `tests/IntegrationTests/appsettings.json`, default `https://localhost:7071`). Feature data comes from either (a) the test scenarios making their own HTTP calls, or (b) helper endpoints like `/api/testing/seed-contact`. If the DB is empty, create a user / asset / entity / assignment via the normal create endpoints before starting this procedure, or run one integration scenario that exercises those create paths first.
+
+---
+
+## 4. Capture procedure
+
+### 4.1 Start the worker with the Console exporter active
+
+From `src/Api/`:
+
+```powershell
+cd src\Api
+func start --useHttps
+```
+
+`--useHttps` is not optional — `tests/IntegrationTests/appsettings.json` has `FunctionsHost:BaseUrl=https://localhost:7071`, `src/Api/Properties/launchSettings.json` declares HTTPS profiles, and the fixture's cert validator only trusts the dev cert on `localhost`. (`func start` alone defaults to HTTP and breaks integration tests + this procedure's curl commands, which all hit HTTPS.)
+
+Wait for `Host lock lease acquired` and the endpoint list. Leave this window visible — the Console exporter dumps every span to it.
+
+### 4.2 Hit one endpoint per domain + mode
+
+Run each from a second terminal. Keep each request to a single in-flight operation so the console output is clean. Between requests, let stdout settle for ~2 seconds.
+
+**Owner-scoped read (Mode A, Assets):**
+
+```powershell
+$env:BEARER="..."; $env:ASSET_ID="..."
+curl.exe -k -H "Authorization: Bearer $env:BEARER" `
+  "https://localhost:7071/api/assets/$env:ASSET_ID"
+```
+
+**Owner-scoped read (Mode A, Entities):**
+
+```powershell
+$env:ENTITY_ID="..."
+curl.exe -k -H "Authorization: Bearer $env:BEARER" `
+  "https://localhost:7071/api/entities/$env:ENTITY_ID"
+```
+
+**Role-gated read (Mode B, ClientManagement):**
+
+```powershell
+$env:CLIENT_USER_ID="..."
+curl.exe -k -H "Authorization: Bearer $env:BEARER" `
+  "https://localhost:7071/api/clients/$env:CLIENT_USER_ID/assets"
+```
+
+**(Optional) Forced-error path for exception-recording verification:**
+
+```powershell
+# Non-existent asset id — should return 404 and show exception recording on
+# the service span + the outer Functions Invoke span.
+curl.exe -k -H "Authorization: Bearer $env:BEARER" `
+  "https://localhost:7071/api/assets/00000000-0000-0000-0000-000000000000"
+```
+
+### 4.3 Collect the relevant `Activity` dumps
+
+The Console exporter writes one block per completed span, of the form:
+
+```
+Activity.TraceId:            <...>
+Activity.SpanId:             <...>
+Activity.ParentSpanId:       <...>
+Activity.TraceFlags:          Recorded
+Activity.ActivitySourceName:  <source>
+Activity.DisplayName:         <name>
+Activity.Kind:                <Server|Internal|Client>
+Activity.StartTime:           <...>
+Activity.Duration:            <...>
+Activity.Tags:
+    <key>: <value>
+    ...
+```
+
+For each of the three (or four) requests, copy every `Activity` block whose `TraceId` matches the outermost request's trace id (all child spans share the same trace id). Anonymize anything that looks like a real user id or email.
+
+Paste the captures into §6 below.
+
+---
+
+## 5. Decision criteria
+
+Review the captures and answer each question. The answers together pick Option (a) or (b).
+
+| # | Question | Option (a) wins if... | Option (b) wins if... |
+|---|---|---|---|
+| 1 | Does the Functions host emit a span for each HTTP request without our help? | **Yes** — there's already a server-kind span per request. | **No** — there's no server span and our `<Domain>.Http.*` span is the only HTTP-layer record. |
+| 2 | If yes, does that host span carry usable tags (HTTP method, route template, status code)? | **Yes** — tagging it with `domain`/`operation` (from #628) gives us everything Option (b) would. | **No** — the host span is a blank `Invoke` with no correlating attributes, and tag enrichment would still leave important facets missing. |
+| 3 | Is the per-domain `Assets.Http.<Op>` span a sibling or a child of the host span? | **Child** (wrapping the host span adds a useless outer layer). | **Sibling / separate trace** (no natural parenting — then the per-domain span is the only coherent server-side view). |
+| 4 | Is #628's `TelemetryEnrichmentMiddleware` on a concrete timeline? | **Yes** — pick (a) and accept the blocking dependency on 3a / 3b / 4 / 7. | **No / indefinite** — Option (b) ships without waiting for #628 and we retire the per-domain HTTP span later if #628 lands. |
+
+The final call lives in §7.
+
+---
+
+## 6. Capture (paste here during execution)
+
+> **Placeholder — replace before closing ADO #633.**
+
+### 6.1 Mode A — `GET /api/assets/{id}`
+
+```text
+<paste full Activity blocks for the trace here>
+```
+
+### 6.2 Mode A — `GET /api/entities/{id}`
+
+```text
+<paste>
+```
+
+### 6.3 Mode B — `GET /api/clients/{userId}/assets`
+
+```text
+<paste>
+```
+
+### 6.4 (Optional) Forced 404 path
+
+```text
+<paste>
+```
+
+### 6.5 Observations
+
+- Host-emitted server span name: `<TBD>`
+- Host-emitted server span tags: `<TBD>`
+- Parent/child relationship of `<Domain>.<Op>` service span to the host span: `<TBD>`
+- Parent/child relationship of existing `Assets.Http.<Op>` span (Assets only) to the host span: `<TBD>`
+- Exception recording: confirm `exception.type` / `exception.message` / `status=Error` tags land on both the service span and the host span on the forced-404 path: `<TBD>`
+
+---
+
+## 7. Decision
+
+> **To be filled in after §6 is complete.**
+
+- **Chosen option:** `<Option (a) | Option (b)>`
+- **Rationale (one paragraph):** `<...>`
+- **Blocking dependencies created:** `<none | #628 must land before Phases 3a / 3b / 4 / 7 can proceed>`
+
+This §7 block is the exact content that gets copied into ADR 0002 (*Activity naming convention*) when Phase 1a authors it, with the ADR adding only its standard frontmatter (Context / Decision / Consequences / Alternatives considered / References).
+
+---
+
+## 8. Execution checklist
+
+- [ ] §3 prerequisites satisfied (DB up, build passing, token + IDs in hand).
+- [ ] §4.1 `func start --useHttps` running; Console exporter producing output.
+- [ ] §4.2 all three (or four) requests executed; each returned the expected status code.
+- [ ] §4.3 Activity blocks captured and anonymized.
+- [ ] §6 sections 6.1 – 6.5 filled in this file, committed on a feature branch.
+- [ ] §5 decision criteria evaluated; answers recorded in §6.5.
+- [ ] §7 decision recorded.
+- [ ] Phase 1a opened (ADO #637) to author ADR 0002 with §7's content.
+- [ ] This file linked from ADO #633; work item moved to Done.
