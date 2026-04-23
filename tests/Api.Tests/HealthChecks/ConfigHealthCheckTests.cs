@@ -41,14 +41,14 @@ public class ConfigHealthCheckTests
     public async Task Unhealthy_When_Required_Key_Missing_In_Dev_Description_Names_The_Key()
     {
         var settings = AllPopulated();
-        settings[ConfigurationKeys.EntraDomain] = null;
+        settings[ConfigurationKeys.EntraTenantId] = null;
 
         var sut = CreateSut(settings, isDevelopment: true);
 
         var result = await sut.CheckHealthAsync(ReadyContext);
 
         result.Status.Should().Be(HealthStatus.Unhealthy);
-        result.Description.Should().Contain(ConfigurationKeys.EntraDomain,
+        result.Description.Should().Contain(ConfigurationKeys.EntraTenantId,
             "Dev output is meant to help developers — name the missing key explicitly.");
     }
 
@@ -142,7 +142,8 @@ public class ConfigHealthCheckTests
     private static Dictionary<string, string?> AllPopulated() => new()
     {
         [ConfigurationKeys.EntraInstance] = "https://rajfinancial.ciamlogin.com/",
-        [ConfigurationKeys.EntraDomain] = "rajfinancial.onmicrosoft.com",
+        [ConfigurationKeys.EntraTenantId] = Guid.NewGuid().ToString(),
+        [ConfigurationKeys.EntraClientId] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleClient] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleAdministrator] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleAdvisor] = Guid.NewGuid().ToString(),

@@ -22,12 +22,11 @@ public sealed partial class ConfigHealthCheck(
     IHostEnvironment environment,
     ILogger<ConfigHealthCheck> logger) : IHealthCheck
 {
-    private const string PLACEHOLDER_VALUE = "<SET-IN-ENVIRONMENT>";
-
     private static readonly string[] RequiredKeys =
     [
         ConfigurationKeys.EntraInstance,
-        ConfigurationKeys.EntraDomain,
+        ConfigurationKeys.EntraTenantId,
+        ConfigurationKeys.EntraClientId,
         ConfigurationKeys.AppRoleClient,
         ConfigurationKeys.AppRoleAdministrator,
         ConfigurationKeys.AppRoleAdvisor,
@@ -42,7 +41,7 @@ public sealed partial class ConfigHealthCheck(
         foreach (var key in RequiredKeys)
         {
             var value = configuration[key];
-            if (string.IsNullOrWhiteSpace(value) || value == PLACEHOLDER_VALUE)
+            if (string.IsNullOrWhiteSpace(value) || value == ConfigurationKeys.PlaceholderValue)
                 missing.Add(key);
         }
 

@@ -14,7 +14,8 @@ internal static class HealthCheckRegistration
         services
             .AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>(HealthCheckNames.Database, tags: [HealthCheckTags.Ready])
-            .AddCheck<ConfigHealthCheck>(HealthCheckNames.Config, tags: [HealthCheckTags.Ready]);
+            .AddCheck<ConfigHealthCheck>(HealthCheckNames.Config, tags: [HealthCheckTags.Ready])
+            .AddCheck<AuthValidatorHealthCheck>(HealthCheckNames.AuthValidator, tags: [HealthCheckTags.Ready]);
 
         return services;
     }

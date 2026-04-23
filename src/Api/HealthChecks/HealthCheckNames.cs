@@ -1,3 +1,5 @@
+using RajFinancial.Shared.HealthContract;
+
 namespace RajFinancial.Api.HealthChecks;
 
 /// <summary>
@@ -7,6 +9,8 @@ namespace RajFinancial.Api.HealthChecks;
 /// </summary>
 internal static class HealthCheckNames
 {
-    internal const string Database = "database";
-    internal const string Config = "config";
+    internal const string Database = HealthCheckContract.DatabaseCheckName;
+    internal const string Config = HealthCheckContract.ConfigCheckName;
+    internal const string AuthValidator = HealthCheckContract.AuthValidatorCheckName;
 }
+
