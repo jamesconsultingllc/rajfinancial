@@ -36,6 +36,22 @@ if (useUnsignedLocalValidator && !string.IsNullOrEmpty(Environment.GetEnvironmen
 var builder = FunctionsApplication.CreateBuilder(args);
 
 // ============================================================================
+// Security guard (post-builder) — also fail fast when the unsigned validator
+// is requested outside Development environments. This catches non-App-Service
+// deployments (e.g., container hosts, AKS) where WEBSITE_SITE_NAME is absent
+// but the host is still serving production traffic.
+// ============================================================================
+if (useUnsignedLocalValidator && !builder.Environment.IsDevelopment())
+{
+    await Console.Error.WriteLineAsync(
+        $"FATAL: {EnvironmentVariableNames.UseUnsignedLocalValidator}=true is only permitted when " +
+        $"the Functions environment is Development. Current environment: {builder.Environment.EnvironmentName}.");
+    throw new InvalidOperationException(
+        $"Refusing to start: {EnvironmentVariableNames.UseUnsignedLocalValidator} requires Development environment " +
+        $"(was '{builder.Environment.EnvironmentName}').");
+}
+
+// ============================================================================
 // Configuration Sources (order matters - later sources override earlier)
 // ============================================================================
 // Azure Functions automatically loads local.settings.json (local dev) and

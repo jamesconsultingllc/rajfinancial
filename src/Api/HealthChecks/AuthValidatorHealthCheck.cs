@@ -34,16 +34,29 @@ internal sealed class AuthValidatorHealthCheck(
 
         var data = new Dictionary<string, object> { [AuthValidatorNames.DataKey] = validatorName };
 
-        if (validator is JwtBearerValidator && options.Value.ValidAudiences.Count == 0)
+        if (validator is JwtBearerValidator)
         {
-            return Task.FromResult(new HealthCheckResult(
-                context.Registration.FailureStatus,
-                description: $"{ConfigurationKeys.EntraValidAudiences} is empty; every token would be rejected.",
-                data: data));
+            var audiences = options.Value.ValidAudiences;
+            // Reject empty lists AND lists where every entry is whitespace or the
+            // configuration placeholder — both produce a validator that rejects every
+            // token at runtime, which is far worse than failing the readiness probe.
+            var hasUsableAudience = audiences.Any(a =>
+                !string.IsNullOrWhiteSpace(a) && !string.Equals(a, ConfigurationPlaceholder, StringComparison.Ordinal));
+
+            if (!hasUsableAudience)
+            {
+                return Task.FromResult(new HealthCheckResult(
+                    context.Registration.FailureStatus,
+                    description: $"{ConfigurationKeys.EntraValidAudiences} has no usable entry " +
+                                 $"(empty, whitespace, or '{ConfigurationPlaceholder}'); every token would be rejected.",
+                    data: data));
+            }
         }
 
         return Task.FromResult(HealthCheckResult.Healthy(
             description: $"Auth validator: {validatorName}",
             data: data));
     }
+
+    private const string ConfigurationPlaceholder = "<SET-IN-ENVIRONMENT>";
 }
