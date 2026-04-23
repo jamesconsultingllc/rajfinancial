@@ -201,7 +201,7 @@ public partial class AuthenticationMiddleware(
         Message = "Invalid 'tid' claim value '{Value}' — not a GUID; tenant id not stored on context")]
     private partial void LogInvalidTenantClaim(string value);
 
-    [LoggerMessage(EventId = 1108, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 1109, Level = LogLevel.Warning,
         Message = "Authenticated principal had no usable subject ('oid') claim; treating request as unauthenticated.")]
     private partial void LogMissingSubjectClaim();
 

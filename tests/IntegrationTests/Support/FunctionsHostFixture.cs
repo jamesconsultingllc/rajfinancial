@@ -13,6 +13,22 @@ namespace RajFinancial.IntegrationTests.Support;
 /// </summary>
 public class FunctionsHostFixture
 {
+    /// <summary>
+    ///     Maximum number of characters of an HTTP response body included in diagnostic
+    ///     messages when the fixture fails. Keeps failure messages readable without
+    ///     flooding test output with full payloads.
+    /// </summary>
+    private const int MaxBodyPreviewLength = 500;
+
+    /// <summary>
+    ///     Paths for the in-proc health check endpoints exposed by
+    ///     <c>HealthCheckFunction</c>. Centralised here so tests reference a single
+    ///     constant rather than duplicating route literals.
+    /// </summary>
+    private const string LivePath = "/api/health/live";
+
+    private const string ReadyPath = "/api/health/ready";
+
     public FunctionsHostFixture()
     {
         Configuration = new ConfigurationBuilder()
@@ -60,7 +76,7 @@ public class FunctionsHostFixture
         HttpResponseMessage? response = null;
         try
         {
-            response = await Client.GetAsync("/api/health/live");
+            response = await Client.GetAsync(LivePath);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 var body = await SafeReadBodyAsync(response);
@@ -85,9 +101,9 @@ public class FunctionsHostFixture
     ///     expected mode (<c>unsigned_local</c> locally, <c>jwt</c> remote). Skips the
     ///     identity assertion when per-check details aren't present (production payloads
     ///     omit the <c>checks</c> array entirely or omit the <c>data</c> field on each
-    ///     check) so that production deployments still run the suite. If
-    ///     <c>/api/health/ready</c> is reachable but returns a non-200 status, this method
-    ///     throws <see cref="InvalidOperationException"/> with the response status and body so
+    ///     check) so that production deployments still run the suite. If the ready
+    ///     endpoint is reachable but returns a non-200 status, this method throws
+    ///     <see cref="InvalidOperationException"/> with the response status and body so
     ///     readiness failures (unhealthy validator, missing config, database probe failure)
     ///     surface immediately instead of being masked by the first authenticated request.
     /// </summary>
@@ -97,7 +113,7 @@ public class FunctionsHostFixture
         HttpStatusCode statusCode;
         try
         {
-            using var readyResponse = await Client.GetAsync("/api/health/ready");
+            using var readyResponse = await Client.GetAsync(ReadyPath);
             statusCode = readyResponse.StatusCode;
             payload = await SafeReadBodyAsync(readyResponse);
         }
@@ -114,7 +130,7 @@ public class FunctionsHostFixture
         if (statusCode != HttpStatusCode.OK)
         {
             throw new InvalidOperationException(
-                $"Functions host at {BaseUrl} returned {(int)statusCode} from /api/health/ready. " +
+                $"Functions host at {BaseUrl} returned {(int)statusCode} from {ReadyPath}. " +
                 $"Body: {payload ?? "<empty>"}");
         }
 
@@ -158,8 +174,8 @@ public class FunctionsHostFixture
             // as a fail-fast so a confusing HTTP 200-but-unusable host doesn't propagate
             // into downstream test failures.
             throw new InvalidOperationException(
-                $"Functions host at {BaseUrl} returned a non-JSON 200 payload from /api/health/ready. " +
-                $"Body (truncated): {payload[..Math.Min(payload.Length, 500)]}",
+                $"Functions host at {BaseUrl} returned a non-JSON 200 payload from {ReadyPath}. " +
+                $"Body (truncated): {payload[..Math.Min(payload.Length, MaxBodyPreviewLength)]}",
                 ex);
         }
 
@@ -194,7 +210,7 @@ public class FunctionsHostFixture
         try
         {
             var content = await response.Content.ReadAsStringAsync();
-            return string.IsNullOrWhiteSpace(content) ? null : content[..Math.Min(content.Length, 500)];
+            return string.IsNullOrWhiteSpace(content) ? null : content[..Math.Min(content.Length, MaxBodyPreviewLength)];
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
@@ -212,7 +228,7 @@ public class FunctionsHostFixture
         else
         {
             var bodySuffix = body is null ? ". " : $" (body: {body}). ";
-            prefix = $"Functions host at {BaseUrl} returned {(int)statusCode} {statusCode} from /api/health/live" + bodySuffix;
+            prefix = $"Functions host at {BaseUrl} returned {(int)statusCode} {statusCode} from {LivePath}" + bodySuffix;
         }
 
         var remediation = IsLocalhost(BaseUrl)

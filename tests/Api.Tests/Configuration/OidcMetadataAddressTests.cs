@@ -35,7 +35,7 @@ public class OidcMetadataAddressTests
     }
 
     [Fact]
-    public void Build_ThrowsWhenInstanceIsNotAbsoluteHttpUrl()
+    public void Build_ThrowsWhenInstanceIsNotAbsoluteHttpsUrl()
     {
         var options = new EntraExternalIdOptions
         {
@@ -46,7 +46,22 @@ public class OidcMetadataAddressTests
         var act = () => OidcMetadataAddress.Build(options);
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*not a valid absolute http(s) URL*");
+            .WithMessage("*not a valid absolute https URL*");
+    }
+
+    [Fact]
+    public void Build_RejectsHttpScheme()
+    {
+        var options = new EntraExternalIdOptions
+        {
+            Instance = "http://login.microsoftonline.com/",
+            TenantId = "00000000-0000-0000-0000-000000000001",
+        };
+
+        var act = () => OidcMetadataAddress.Build(options);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*not a valid absolute https URL*");
     }
 
     [Fact]

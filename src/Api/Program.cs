@@ -133,7 +133,7 @@ var host = builder.Build();
 
 // Surface validator selection in the host log so operators can spot accidental
 // unsigned-validator usage immediately after startup.
-var startupLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RajFinancial.Api.Startup");
+var startupLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger(StartupLog.Category);
 if (useUnsignedLocalValidator)
 {
     StartupLog.UsingUnsignedValidator(startupLogger);
@@ -153,6 +153,12 @@ namespace RajFinancial.Api
     /// </summary>
     internal static partial class StartupLog
     {
+        /// <summary>
+        ///     Logger category used for the startup banner. Centralised so tests and log
+        ///     queries can reference the same constant instead of a magic string literal.
+        /// </summary>
+        public const string Category = "RajFinancial.Api.Startup";
+
         [LoggerMessage(EventId = 1105, Level = LogLevel.Information,
             Message = "Auth validator: JwtBearerValidator (production)")]
         public static partial void UsingProductionValidator(ILogger logger);

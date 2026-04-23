@@ -31,12 +31,11 @@ internal static class OidcMetadataAddress
         var instanceBase = options.Instance.EndsWith('/') ? options.Instance : options.Instance + "/";
         var address = $"{instanceBase}{options.TenantId}/v2.0/.well-known/openid-configuration";
 
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
         {
             throw new InvalidOperationException(
-                $"OIDC discovery URL '{address}' is not a valid absolute http(s) URL. " +
-                $"Check {EntraExternalIdOptions.SectionName}:Instance.");
+                $"OIDC discovery URL '{address}' is not a valid absolute https URL. " +
+                $"Check {EntraExternalIdOptions.SectionName}:Instance (must be an https:// URL).");
         }
 
         return uri.AbsoluteUri;
