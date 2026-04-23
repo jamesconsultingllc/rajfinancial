@@ -122,7 +122,14 @@ public class FunctionsHostFixture
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or SocketException)
         {
-            return;
+            // EnsureHostIsRunningAsync already confirmed /api/health/live was reachable,
+            // so failing on /api/health/ready here is almost certainly a routing, proxy,
+            // or configuration issue — surface it instead of letting downstream tests
+            // fail in less obvious ways.
+            throw new InvalidOperationException(
+                $"Functions host at {BaseUrl} was reachable on {LivePath} but {ReadyPath} failed. " +
+                "This usually indicates a routing/proxy/config issue between /live and /ready.",
+                ex);
         }
 
         // /api/health/ready is Anonymous and returns 503 when any registered check
@@ -148,6 +155,17 @@ public class FunctionsHostFixture
             if (!doc.RootElement.TryGetProperty("checks", out var checks) ||
                 checks.ValueKind != JsonValueKind.Array)
             {
+                // Local dev is expected to run in Development mode, which always emits
+                // per-check details; a missing `checks` array there indicates a regression
+                // in HealthCheckFunction.Ready. For remote/production payloads the checks
+                // array is intentionally omitted, so we return silently.
+                if (IsLocal)
+                {
+                    throw new InvalidOperationException(
+                        $"Functions host at {BaseUrl} returned a 200 readiness payload without a `checks` array. " +
+                        "Local runs are expected to be in Development mode and include per-check details. " +
+                        $"Body (truncated): {TruncateForDiagnostics(payload)}");
+                }
                 return;
             }
 
