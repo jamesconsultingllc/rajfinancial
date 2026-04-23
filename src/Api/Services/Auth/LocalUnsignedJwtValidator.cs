@@ -34,6 +34,8 @@ internal sealed partial class LocalUnsignedJwtValidator(
     /// <inheritdoc/>
     public Task<JwtValidationResult> ValidateAsync(string bearerToken, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(bearerToken))
             return Task.FromResult(JwtValidationResult.Failure(Observability.AuthTelemetry.ReasonMalformed));
 
