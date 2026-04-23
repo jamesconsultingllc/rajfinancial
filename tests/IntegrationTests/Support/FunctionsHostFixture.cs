@@ -107,18 +107,6 @@ public class FunctionsHostFixture
     ///     readiness failures (unhealthy validator, missing config, database probe failure)
     ///     surface immediately instead of being masked by the first authenticated request.
     /// </summary>
-    /// <summary>
-    ///     Calls <c>/api/health/ready</c> and — when the host runs in Development and exposes
-    ///     per-check data — asserts that the configured JWT bearer validator matches the
-    ///     expected mode (<c>unsigned_local</c> locally, <c>jwt</c> remote). Skips the
-    ///     identity assertion when per-check details aren't present (production payloads
-    ///     omit the <c>checks</c> array entirely or omit the <c>data</c> field on each
-    ///     check) so that production deployments still run the suite. If the ready
-    ///     endpoint is reachable but returns a non-200 status, this method throws
-    ///     <see cref="InvalidOperationException"/> with the response status and body so
-    ///     readiness failures (unhealthy validator, missing config, database probe failure)
-    ///     surface immediately instead of being masked by the first authenticated request.
-    /// </summary>
     private async Task VerifyAuthValidatorAsync()
     {
         string? payload;

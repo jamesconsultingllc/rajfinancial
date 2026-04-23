@@ -113,7 +113,8 @@ internal sealed partial class JwtBearerValidator(
                 var principal = handler.ValidateToken(bearerToken, validationParameters, out _);
                 return JwtValidationResult.Success(principal);
             }
-            catch (SecurityTokenSignatureKeyNotFoundException ex) when (!hasRefreshedConfiguration)
+            catch (System.Exception ex) when (ex is not OperationCanceledException
+                && !hasRefreshedConfiguration && IsKeyNotFound(ex))
             {
                 // The token's kid isn't in our cached discovery document. Force a refresh
                 // and retry once so routine key rotation doesn't fail authentication until
@@ -122,52 +123,34 @@ internal sealed partial class JwtBearerValidator(
                     return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
                 hasRefreshedConfiguration = true;
             }
-            catch (SecurityTokenInvalidSignatureException ex)
-                when (!hasRefreshedConfiguration && ex.InnerException is SecurityTokenSignatureKeyNotFoundException)
-            {
-                if (!await TryRefreshSigningKeysAsync(validationParameters, cancellationToken, ex))
-                    return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
-                hasRefreshedConfiguration = true;
-            }
             catch (System.Exception ex) when (ex is not OperationCanceledException)
             {
-                return MapValidationException(ex);
+                var reason = MapValidationException(ex);
+                if (reason is null)
+                    throw; // Unknown exception type — preserve original stack via in-catch rethrow.
+
+                LogValidationFailed(reason, ex);
+                return JwtValidationResult.Failure(reason);
             }
         }
     }
 
-    private JwtValidationResult MapValidationException(System.Exception ex)
-    {
-        string reason;
-        switch (ex)
-        {
-            case SecurityTokenExpiredException:
-                reason = AuthTelemetry.ReasonExpired;
-                break;
-            case SecurityTokenInvalidSignatureException:
-                reason = AuthTelemetry.ReasonInvalidSignature;
-                break;
-            case SecurityTokenInvalidAudienceException:
-                reason = AuthTelemetry.ReasonInvalidAudience;
-                break;
-            case SecurityTokenInvalidIssuerException:
-                reason = AuthTelemetry.ReasonInvalidIssuer;
-                break;
-            case SecurityTokenException:
-                reason = AuthTelemetry.ReasonInvalidToken;
-                break;
-            case ArgumentException:
-                // Thrown for malformed tokens (e.g. wrong segment count).
-                reason = AuthTelemetry.ReasonMalformed;
-                break;
-            default:
-                // Unknown exception type — propagate to preserve the original stack.
-                throw ex;
-        }
+    private static bool IsKeyNotFound(System.Exception ex) =>
+        ex is SecurityTokenSignatureKeyNotFoundException
+        || (ex is SecurityTokenInvalidSignatureException inv
+            && inv.InnerException is SecurityTokenSignatureKeyNotFoundException);
 
-        LogValidationFailed(reason, ex);
-        return JwtValidationResult.Failure(reason);
-    }
+    private static string? MapValidationException(System.Exception ex) => ex switch
+    {
+        SecurityTokenExpiredException => AuthTelemetry.ReasonExpired,
+        SecurityTokenInvalidSignatureException => AuthTelemetry.ReasonInvalidSignature,
+        SecurityTokenInvalidAudienceException => AuthTelemetry.ReasonInvalidAudience,
+        SecurityTokenInvalidIssuerException => AuthTelemetry.ReasonInvalidIssuer,
+        SecurityTokenException => AuthTelemetry.ReasonInvalidToken,
+        // ArgumentException is thrown for malformed tokens (e.g. wrong segment count).
+        ArgumentException => AuthTelemetry.ReasonMalformed,
+        _ => null,
+    };
 
     /// <summary>
     ///     Forces the OIDC configuration manager to refresh its cached discovery document
