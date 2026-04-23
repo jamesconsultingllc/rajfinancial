@@ -89,14 +89,28 @@ public class FunctionsHostFixture
     private async Task VerifyAuthValidatorAsync()
     {
         string? payload;
+        HttpStatusCode statusCode;
         try
         {
             using var readyResponse = await Client.GetAsync("/api/health/ready");
+            statusCode = readyResponse.StatusCode;
             payload = await SafeReadBodyAsync(readyResponse);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or SocketException)
         {
             return;
+        }
+
+        // /api/health/ready is Anonymous and returns 503 when any registered check
+        // is unhealthy (e.g. AuthValidatorHealthCheck rejecting an empty
+        // ValidAudiences list, or the database probe failing). Failing fast here
+        // — instead of parsing the body and skipping — surfaces the underlying
+        // readiness problem instead of letting the suite blow up on first request.
+        if (statusCode != HttpStatusCode.OK)
+        {
+            throw new InvalidOperationException(
+                $"Functions host at {BaseUrl} returned {(int)statusCode} from /api/health/ready. " +
+                $"Body: {payload ?? "<empty>"}");
         }
 
         if (string.IsNullOrWhiteSpace(payload))
