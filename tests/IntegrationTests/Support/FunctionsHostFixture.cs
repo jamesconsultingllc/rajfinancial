@@ -107,6 +107,18 @@ public class FunctionsHostFixture
     ///     readiness failures (unhealthy validator, missing config, database probe failure)
     ///     surface immediately instead of being masked by the first authenticated request.
     /// </summary>
+    /// <summary>
+    ///     Calls <c>/api/health/ready</c> and — when the host runs in Development and exposes
+    ///     per-check data — asserts that the configured JWT bearer validator matches the
+    ///     expected mode (<c>unsigned_local</c> locally, <c>jwt</c> remote). Skips the
+    ///     identity assertion when per-check details aren't present (production payloads
+    ///     omit the <c>checks</c> array entirely or omit the <c>data</c> field on each
+    ///     check) so that production deployments still run the suite. If the ready
+    ///     endpoint is reachable but returns a non-200 status, this method throws
+    ///     <see cref="InvalidOperationException"/> with the response status and body so
+    ///     readiness failures (unhealthy validator, missing config, database probe failure)
+    ///     surface immediately instead of being masked by the first authenticated request.
+    /// </summary>
     private async Task VerifyAuthValidatorAsync()
     {
         string? payload;
@@ -115,7 +127,10 @@ public class FunctionsHostFixture
         {
             using var readyResponse = await Client.GetAsync(ReadyPath);
             statusCode = readyResponse.StatusCode;
-            payload = await SafeReadBodyAsync(readyResponse);
+            // Read the full body (not the truncated preview) so JsonDocument.Parse
+            // succeeds even when the readiness payload grows past MaxBodyPreviewLength.
+            // SafeReadBodyAsync is still used below for error diagnostics only.
+            payload = await SafeReadFullBodyAsync(readyResponse);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or SocketException)
         {
@@ -131,7 +146,7 @@ public class FunctionsHostFixture
         {
             throw new InvalidOperationException(
                 $"Functions host at {BaseUrl} returned {(int)statusCode} from {ReadyPath}. " +
-                $"Body: {payload ?? "<empty>"}");
+                $"Body: {TruncateForDiagnostics(payload) ?? "<empty>"}");
         }
 
         if (string.IsNullOrWhiteSpace(payload))
@@ -175,7 +190,7 @@ public class FunctionsHostFixture
             // into downstream test failures.
             throw new InvalidOperationException(
                 $"Functions host at {BaseUrl} returned a non-JSON 200 payload from {ReadyPath}. " +
-                $"Body (truncated): {payload[..Math.Min(payload.Length, MaxBodyPreviewLength)]}",
+                $"Body (truncated): {TruncateForDiagnostics(payload)}",
                 ex);
         }
 
@@ -206,17 +221,32 @@ public class FunctionsHostFixture
     }
 
     private static async Task<string?> SafeReadBodyAsync(HttpResponseMessage response)
+        => TruncateForDiagnostics(await SafeReadFullBodyAsync(response));
+
+    /// <summary>
+    ///     Reads the full response body without truncation. Returns <c>null</c> when the
+    ///     body is empty/whitespace or the read failed for a transient network reason, so
+    ///     callers can always treat a non-null value as the complete payload.
+    /// </summary>
+    private static async Task<string?> SafeReadFullBodyAsync(HttpResponseMessage response)
     {
         try
         {
             var content = await response.Content.ReadAsStringAsync();
-            return string.IsNullOrWhiteSpace(content) ? null : content[..Math.Min(content.Length, MaxBodyPreviewLength)];
+            return string.IsNullOrWhiteSpace(content) ? null : content;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             return null;
         }
     }
+
+    /// <summary>
+    ///     Caps a response body at <see cref="MaxBodyPreviewLength"/> characters so
+    ///     failure diagnostics stay readable. Returns <c>null</c> when input is <c>null</c>.
+    /// </summary>
+    private static string? TruncateForDiagnostics(string? body)
+        => body is null ? null : body[..Math.Min(body.Length, MaxBodyPreviewLength)];
 
     private string UnreachableMessage(HttpStatusCode? statusCode, string? body)
     {

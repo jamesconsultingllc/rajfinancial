@@ -216,7 +216,49 @@ public class JwtBearerValidatorTests : IDisposable
         result.Principal.Should().NotBeNull();
     }
 
-    // ------------------------------------------------------------------
+    [Fact]
+    public async Task ValidateAsync_SignatureKeyNotFound_RefreshesDiscoveryAndRetriesOnce()
+    {
+        // Scenario: a token signed with the rotated key arrives while the cached
+        // discovery document still has the old key. The validator must detect the
+        // missing kid, call RequestRefresh(), re-read the configuration, and succeed
+        // on the retry.
+        using var rotatedRsa = RSA.Create(2048);
+        var rotatedKey = new RsaSecurityKey(rotatedRsa) { KeyId = "rotated-key" };
+        var rotatedCreds = new SigningCredentials(rotatedKey, SecurityAlgorithms.RsaSha256);
+
+        var staleConfig = new OpenIdConnectConfiguration { Issuer = Issuer };
+        staleConfig.SigningKeys.Add(signingKey); // the old key only
+
+        var freshConfig = new OpenIdConnectConfiguration { Issuer = Issuer };
+        freshConfig.SigningKeys.Add(rotatedKey); // after refresh, new key present
+
+        var refreshCount = 0;
+        var getConfigCount = 0;
+        var rotationMock = new Mock<IConfigurationManager<OpenIdConnectConfiguration>>();
+        rotationMock.Setup(m => m.GetConfigurationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                getConfigCount++;
+                // First call returns stale; subsequent calls (after RequestRefresh) return fresh.
+                return refreshCount == 0 ? staleConfig : freshConfig;
+            });
+        rotationMock.Setup(m => m.RequestRefresh()).Callback(() => refreshCount++);
+
+        var rotationValidator = new JwtBearerValidator(
+            rotationMock.Object,
+            Options.Create(options),
+            NullLogger<JwtBearerValidator>.Instance);
+
+        var token = CreateToken(signingCredentials: rotatedCreds);
+
+        var result = await rotationValidator.ValidateAsync(token, CancellationToken.None);
+
+        result.Principal.Should().NotBeNull("key-rotation retry should recover after forcing a discovery refresh");
+        refreshCount.Should().Be(1, "validator must call RequestRefresh exactly once before retrying");
+        getConfigCount.Should().BeGreaterThanOrEqualTo(2, "validator must re-read the discovery document after refresh");
+    }
+
     public void Dispose()
     {
         Dispose(disposing: true);

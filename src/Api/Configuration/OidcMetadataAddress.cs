@@ -11,11 +11,13 @@ internal static class OidcMetadataAddress
     ///     Builds the v2.0 OIDC discovery URL for the configured tenant. Normalises the
     ///     <see cref="EntraExternalIdOptions.Instance"/> value so a missing or duplicated
     ///     trailing slash never produces a malformed URL, and validates the result is a
-    ///     well-formed absolute http(s) URI so misconfiguration fails fast at startup.
+    ///     well-formed absolute https URI so misconfiguration fails fast at startup. Only
+    ///     https is accepted because the OIDC discovery client
+    ///     (<c>HttpDocumentRetriever</c>) rejects non-TLS endpoints by default.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     ///     Thrown when Instance / TenantId are missing or the resulting address is not a
-    ///     valid absolute http or https URL.
+    ///     valid absolute https URL.
     /// </exception>
     public static string Build(EntraExternalIdOptions options)
     {

@@ -53,10 +53,20 @@ internal sealed partial class JwtBearerValidator(
         if (string.IsNullOrWhiteSpace(bearerToken))
             return JwtValidationResult.Failure(AuthTelemetry.ReasonMalformed);
 
-        OpenIdConnectConfiguration config;
+        var configResult = await LoadDiscoveryAsync(cancellationToken);
+        if (configResult.Failure is { } discoveryFailure)
+            return discoveryFailure;
+
+        var validationParameters = BuildValidationParameters(configResult.Config!);
+        return await ValidateWithRefreshAsync(bearerToken, validationParameters, cancellationToken);
+    }
+
+    private async Task<(OpenIdConnectConfiguration? Config, JwtValidationResult? Failure)> LoadDiscoveryAsync(
+        CancellationToken cancellationToken)
+    {
         try
         {
-            config = await configurationManager.GetConfigurationAsync(cancellationToken);
+            return (await configurationManager.GetConfigurationAsync(cancellationToken), null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -68,62 +78,125 @@ internal sealed partial class JwtBearerValidator(
         catch (System.Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
             LogValidationFailed(AuthTelemetry.ReasonDiscoveryUnavailable, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonDiscoveryUnavailable);
+            return (null, JwtValidationResult.Failure(AuthTelemetry.ReasonDiscoveryUnavailable));
+        }
+    }
+
+    private TokenValidationParameters BuildValidationParameters(OpenIdConnectConfiguration config) => new()
+    {
+        ValidateIssuer = true,
+        ValidIssuer = config.Issuer,
+        ValidateAudience = true,
+        ValidAudiences = options.ValidAudiences,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKeys = config.SigningKeys,
+        ValidateLifetime = true,
+        ClockSkew = DefaultClockSkew,
+        NameClaimType = JwtClaimNames.Name,
+        RoleClaimType = JwtClaimNames.Roles,
+        // Match LocalUnsignedJwtValidator so the resulting identity's AuthenticationType
+        // is "Bearer" in both modes. Keeps any downstream code that branches on
+        // Identity.AuthenticationType behaving identically.
+        AuthenticationType = HttpHeaderNames.BearerSchemePrefix.TrimEnd(),
+    };
+
+    private async Task<JwtValidationResult> ValidateWithRefreshAsync(
+        string bearerToken,
+        TokenValidationParameters validationParameters,
+        CancellationToken cancellationToken)
+    {
+        var hasRefreshedConfiguration = false;
+        while (true)
+        {
+            try
+            {
+                var principal = handler.ValidateToken(bearerToken, validationParameters, out _);
+                return JwtValidationResult.Success(principal);
+            }
+            catch (SecurityTokenSignatureKeyNotFoundException ex) when (!hasRefreshedConfiguration)
+            {
+                // The token's kid isn't in our cached discovery document. Force a refresh
+                // and retry once so routine key rotation doesn't fail authentication until
+                // the automatic refresh interval elapses.
+                if (!await TryRefreshSigningKeysAsync(validationParameters, cancellationToken, ex))
+                    return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
+                hasRefreshedConfiguration = true;
+            }
+            catch (SecurityTokenInvalidSignatureException ex)
+                when (!hasRefreshedConfiguration && ex.InnerException is SecurityTokenSignatureKeyNotFoundException)
+            {
+                if (!await TryRefreshSigningKeysAsync(validationParameters, cancellationToken, ex))
+                    return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
+                hasRefreshedConfiguration = true;
+            }
+            catch (System.Exception ex) when (ex is not OperationCanceledException)
+            {
+                return MapValidationException(ex);
+            }
+        }
+    }
+
+    private JwtValidationResult MapValidationException(System.Exception ex)
+    {
+        string reason;
+        switch (ex)
+        {
+            case SecurityTokenExpiredException:
+                reason = AuthTelemetry.ReasonExpired;
+                break;
+            case SecurityTokenInvalidSignatureException:
+                reason = AuthTelemetry.ReasonInvalidSignature;
+                break;
+            case SecurityTokenInvalidAudienceException:
+                reason = AuthTelemetry.ReasonInvalidAudience;
+                break;
+            case SecurityTokenInvalidIssuerException:
+                reason = AuthTelemetry.ReasonInvalidIssuer;
+                break;
+            case SecurityTokenException:
+                reason = AuthTelemetry.ReasonInvalidToken;
+                break;
+            case ArgumentException:
+                // Thrown for malformed tokens (e.g. wrong segment count).
+                reason = AuthTelemetry.ReasonMalformed;
+                break;
+            default:
+                // Unknown exception type — propagate to preserve the original stack.
+                throw ex;
         }
 
-        var validationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = config.Issuer,
-            ValidateAudience = true,
-            ValidAudiences = options.ValidAudiences,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKeys = config.SigningKeys,
-            ValidateLifetime = true,
-            ClockSkew = DefaultClockSkew,
-            NameClaimType = JwtClaimNames.Name,
-            RoleClaimType = JwtClaimNames.Roles,
-            // Match LocalUnsignedJwtValidator so the resulting identity's AuthenticationType
-            // is "Bearer" in both modes. Keeps any downstream code that branches on
-            // Identity.AuthenticationType behaving identically.
-            AuthenticationType = HttpHeaderNames.BearerSchemePrefix.TrimEnd(),
-        };
+        LogValidationFailed(reason, ex);
+        return JwtValidationResult.Failure(reason);
+    }
 
+    /// <summary>
+    ///     Forces the OIDC configuration manager to refresh its cached discovery document
+    ///     and copies the fresh issuer / signing keys onto <paramref name="validationParameters"/>.
+    ///     Returns <c>false</c> when the refresh itself fails so the caller can map the
+    ///     outcome to <see cref="AuthTelemetry.ReasonInvalidSignature"/> instead of spinning
+    ///     on a doomed retry.
+    /// </summary>
+    private async Task<bool> TryRefreshSigningKeysAsync(
+        TokenValidationParameters validationParameters,
+        CancellationToken cancellationToken,
+        System.Exception triggeringException)
+    {
         try
         {
-            var principal = handler.ValidateToken(bearerToken, validationParameters, out _);
-            return JwtValidationResult.Success(principal);
+            configurationManager.RequestRefresh();
+            var refreshed = await configurationManager.GetConfigurationAsync(cancellationToken);
+            validationParameters.ValidIssuer = refreshed.Issuer;
+            validationParameters.IssuerSigningKeys = refreshed.SigningKeys;
+            return true;
         }
-        catch (SecurityTokenExpiredException ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            LogValidationFailed(AuthTelemetry.ReasonExpired, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonExpired);
+            throw;
         }
-        catch (SecurityTokenInvalidSignatureException ex)
+        catch (System.Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
-            LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
-        }
-        catch (SecurityTokenInvalidAudienceException ex)
-        {
-            LogValidationFailed(AuthTelemetry.ReasonInvalidAudience, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidAudience);
-        }
-        catch (SecurityTokenInvalidIssuerException ex)
-        {
-            LogValidationFailed(AuthTelemetry.ReasonInvalidIssuer, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidIssuer);
-        }
-        catch (SecurityTokenException ex)
-        {
-            LogValidationFailed(AuthTelemetry.ReasonInvalidToken, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidToken);
-        }
-        catch (ArgumentException ex)
-        {
-            // Thrown for malformed tokens (e.g. wrong segment count).
-            LogValidationFailed(AuthTelemetry.ReasonMalformed, ex);
-            return JwtValidationResult.Failure(AuthTelemetry.ReasonMalformed);
+            LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, triggeringException);
+            return false;
         }
     }
 
