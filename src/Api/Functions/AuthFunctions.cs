@@ -92,7 +92,7 @@ public partial class AuthFunctions(
             displayName,
             roles,
             tenantId: context.GetTenantId(),
-            cancellationToken: CancellationToken.None);
+            cancellationToken: context.CancellationToken);
 
         var responseDto = new UserProfileResponse
         {

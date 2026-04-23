@@ -67,7 +67,8 @@ public partial class UserProfileProvisioningMiddleware(
                             email,
                             displayName,
                             roles,
-                            tenantId: context.GetTenantId());
+                            tenantId: context.GetTenantId(),
+                            cancellationToken: context.CancellationToken);
 
                         // Auto-provision the user's Personal entity.
                         // Always called (not just for "new" profiles) so the system self-heals
