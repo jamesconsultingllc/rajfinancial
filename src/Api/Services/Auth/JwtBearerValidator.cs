@@ -119,7 +119,7 @@ internal sealed partial class JwtBearerValidator(
                 // The token's kid isn't in our cached discovery document. Force a refresh
                 // and retry once so routine key rotation doesn't fail authentication until
                 // the automatic refresh interval elapses.
-                if (!await TryRefreshSigningKeysAsync(validationParameters, cancellationToken, ex))
+                if (!await TryRefreshSigningKeysAsync(validationParameters, cancellationToken))
                     return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
                 hasRefreshedConfiguration = true;
             }
@@ -161,8 +161,7 @@ internal sealed partial class JwtBearerValidator(
     /// </summary>
     private async Task<bool> TryRefreshSigningKeysAsync(
         TokenValidationParameters validationParameters,
-        CancellationToken cancellationToken,
-        System.Exception triggeringException)
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -178,7 +177,9 @@ internal sealed partial class JwtBearerValidator(
         }
         catch (System.Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
-            LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, triggeringException);
+            // Log the actual refresh failure so operators can diagnose discovery/HTTP
+            // problems rather than re-seeing the signature/key error that triggered the retry.
+            LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, ex);
             return false;
         }
     }

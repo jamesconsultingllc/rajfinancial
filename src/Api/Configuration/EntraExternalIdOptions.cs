@@ -7,8 +7,9 @@ namespace RajFinancial.Api.Configuration;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         Discovery URL is composed as <c>{Instance}{TenantId}/v2.0/.well-known/openid-configuration</c>.
-///         <see cref="Instance"/> is expected to end with a trailing slash.
+///         Discovery URL is composed as <c>{Instance}{TenantId}/v2.0/.well-known/openid-configuration</c>
+///         via <see cref="RajFinancial.Api.Configuration.OidcMetadataAddress.Build"/>, which
+///         normalizes a missing trailing slash on <see cref="Instance"/> before concatenation.
 ///     </para>
 ///     <para>
 ///         <see cref="ValidAudiences"/> is intentionally a list. CIAM access tokens carry
@@ -23,7 +24,8 @@ internal sealed class EntraExternalIdOptions
 
     /// <summary>
     ///     Authority instance base URL — e.g. <c>https://rajfinancialdev.ciamlogin.com/</c>.
-    ///     Must end with a trailing slash.
+    ///     A missing trailing slash is normalized by
+    ///     <see cref="RajFinancial.Api.Configuration.OidcMetadataAddress.Build"/>.
     /// </summary>
     public string Instance { get; set; } = string.Empty;
 
