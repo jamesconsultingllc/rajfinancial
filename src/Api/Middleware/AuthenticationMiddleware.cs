@@ -202,7 +202,7 @@ public partial class AuthenticationMiddleware(
     private partial void LogInvalidTenantClaim(string value);
 
     [LoggerMessage(EventId = 1109, Level = LogLevel.Warning,
-        Message = "Authenticated principal had no usable subject ('oid') claim; treating request as unauthenticated.")]
+        Message = "Authenticated principal was missing a required subject claim (oid/objectidentifier); treating request as unauthenticated.")]
     private partial void LogMissingSubjectClaim();
 
     private static string? GetUserId(ClaimsPrincipal principal)
