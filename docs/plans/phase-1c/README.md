@@ -4,9 +4,10 @@ Paired artifact for [`../phase-1c-span-validation.md`](../phase-1c-span-validati
 This folder ships:
 
 - `phase-1c.insomnia.yaml` — committable Insomnia workspace with a single
-  collection (`Phase 1c Capture`) holding one request per
-  [`ObservabilityDomain`](../../../src/Api/Configuration/ObservabilityDomains.cs)
-  plus one intentionally-denied request.
+  collection (`Phase 1c Capture`) holding one request per primary API domain
+  (Auth/UserProfile/Assets/Entities/ClientManagement), plus one
+  intentionally-denied request that also exercises Authorization +
+  middleware.
 - `README.md` — this file. How to run the capture via `inso` (or the GUI)
   without leaking secrets.
 
@@ -56,8 +57,12 @@ Insomnia sub-env that never gets committed.
 on Linux / `%APPDATA%\Insomnia` on Windows). After importing once via the GUI
 the CLI can drive it directly. For fully scripted runs, point `--workingDir`
 at a cloned directory that contains both the YAML and your private env
-override (gitignored per `/docs/Insomnia_*.yaml` in the repo root
-`.gitignore`).
+override. Note: the repo root `.gitignore` rule `/docs/Insomnia_*.yaml`
+matches only files directly under `/docs/` (not under
+`docs/plans/phase-1c/`), so place any private override under `/docs/`
+(e.g. `docs/Insomnia_local.yaml`) to ensure it stays gitignored — or
+broaden the rule to `docs/**/Insomnia_*` before putting overrides in
+subdirectories.
 
 ## 3. Run the capture
 
@@ -65,7 +70,7 @@ Two terminals:
 
 ```powershell
 # Terminal 1 — worker + stdout tail
-cd E:\rajfinancial\src\Api
+cd <repo-root>/src/Api
 func start --useHttps | Tee-Object -FilePath ..\..\phase1c-spans.log
 ```
 

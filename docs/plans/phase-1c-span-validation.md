@@ -147,9 +147,9 @@ curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/a
 ```powershell
 $env:DENIED_ASSET_ID="..."   # an asset id owned by a different user
 curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/assets/$env:DENIED_ASSET_ID"
-# Expected: 404 (NotFoundException — IDOR-safe). Traces should show the service
-# span with error, the Authorization.CheckAccess span marked AccessDenied, and
-# ExceptionMiddleware mapping the NotFoundException.
+# Expected: 403 (ForbiddenException). Traces should show Authorization.CheckAccess
+# marked AccessDenied with status=Error, while the service/Invoke spans should
+# record the handled exception event but should not be marked status=Error.
 ```
 
 ### 4.4 Collect the relevant `Activity` dumps
@@ -238,7 +238,7 @@ The final call lives in §7.
 - Host-emitted server span tags: `<TBD>`
 - Parent/child relationship of `<Domain>.<Op>` service span to the host span: `<TBD>`
 - Parent/child relationship of existing `Assets.Http.<Op>` span (Assets only) to the host span: `<TBD>`
-- Exception recording on the denied request (§6.6): confirm `exception.type` / `exception.message` / `status=Error` tags land on the service span, the `Authorization.CheckAccess` span, and the host span: `<TBD>`
+- Exception recording on the denied request (§6.6): confirm `exception.type` / `exception.message` are recorded on the service span and the host span without setting `status=Error`, and confirm the `Authorization.CheckAccess` span records the exception and is explicitly marked `status=Error`: `<TBD>`
 
 ---
 

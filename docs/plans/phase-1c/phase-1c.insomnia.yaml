@@ -95,9 +95,9 @@ collection:
           isPrivate: false
           description: >-
             Exercises RajFinancial.Api.Assets ActivitySource, AssetService
-            span, and AuthorizationMiddleware `Authorization.CheckAccess` span
-            (service-layer `AuthorizeReadAsync`, Mode A). Expect 200 for an
-            owned asset id.
+            span, and `Authorization.CheckAccess` span from the service-layer
+            `AuthorizeReadAsync` check (Mode A). Expect 200 for an owned
+            asset id.
           sortKey: -1776794652091
         method: GET
         headers:
@@ -174,10 +174,12 @@ collection:
           modified: 1776794652090
           isPrivate: false
           description: >-
-            Exercises the deny path. Expect 404 (NotFoundException — IDOR-safe
-            response). Traces should show AssetService span with error +
-            Authorization.CheckAccess span marked AccessDenied + ExceptionMiddleware
-            mapping the NotFoundException. This single request validates the
+            Exercises the deny path. Expect 403 (ForbiddenException) for a
+            non-owned but existing asset id. Traces should show
+            `Authorization.CheckAccess` marked AccessDenied with status=Error,
+            while the handled 4xx leaves the AssetService and host Invoke
+            spans status=Unset; ExceptionMiddleware maps the
+            ForbiddenException. This single request validates the
             four-layer exception recording rule from the canonical pattern doc.
           sortKey: -1776794652088
         method: GET
