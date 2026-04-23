@@ -121,6 +121,7 @@ public class FunctionsHostFixture
             return;
 
         string? validatorName;
+        bool foundAuthValidatorCheck = false;
         try
         {
             using var doc = JsonDocument.Parse(payload);
@@ -139,6 +140,7 @@ public class FunctionsHostFixture
                     continue;
                 }
 
+                foundAuthValidatorCheck = true;
                 if (check.TryGetProperty("data", out var data) &&
                     data.ValueKind == JsonValueKind.Object &&
                     data.TryGetProperty(HealthCheckContract.AuthValidatorDataKey, out var validatorElem))
@@ -148,11 +150,29 @@ public class FunctionsHostFixture
                 break;
             }
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return;
+            // /api/health/ready returned 200 but the body isn't valid JSON — the host
+            // is almost certainly behind a broken proxy or misconfigured. Surface this
+            // as a fail-fast so a confusing HTTP 200-but-unusable host doesn't propagate
+            // into downstream test failures.
+            throw new InvalidOperationException(
+                $"Functions host at {BaseUrl} returned a non-JSON 200 payload from /api/health/ready. " +
+                $"Body (truncated): {payload[..Math.Min(payload.Length, 500)]}",
+                ex);
         }
 
+        if (!foundAuthValidatorCheck)
+        {
+            throw new InvalidOperationException(
+                $"Functions host at {BaseUrl} did not register the '{HealthCheckContract.AuthValidatorCheckName}' " +
+                "health check. Ensure AuthValidatorHealthCheck is wired into HealthCheckRegistration and that the " +
+                "host build includes Middleware/HealthCheck changes.");
+        }
+
+        // In Production, HealthCheckFunction.Ready omits per-check data fields by design,
+        // so validatorName will be null here. That's expected and NOT a misconfiguration —
+        // skip the identity assertion and rely on the separate config health check.
         if (validatorName is null)
             return;
 
