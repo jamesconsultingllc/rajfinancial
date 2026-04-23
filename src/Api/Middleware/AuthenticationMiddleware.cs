@@ -65,9 +65,8 @@ public partial class AuthenticationMiddleware(
 
         var (principal, failureReason) = await GetClaimsPrincipalAsync(context);
 
-        if (principal?.Identity?.IsAuthenticated == true)
+        if (principal?.Identity?.IsAuthenticated == true && PopulateAuthenticatedContext(context, principal))
         {
-            PopulateAuthenticatedContext(context, principal);
             var userId = context.Items.TryGetValue(FunctionContextKeys.UserId, out var uid)
                 ? uid as string
                 : null;
@@ -78,20 +77,28 @@ public partial class AuthenticationMiddleware(
         }
         else
         {
+            // When the principal exists and is authenticated but PopulateAuthenticatedContext
+            // refused (missing subject), the validator's "failureReason" actually carries the
+            // success-path placeholder. Override it with ReasonMissingSubject so telemetry
+            // doesn't conflate "no auth attempt" with "auth attempt with unusable claims".
+            var effectiveReason = principal?.Identity?.IsAuthenticated == true
+                ? AuthTelemetry.ReasonMissingSubject
+                : failureReason;
             context.Items[FunctionContextKeys.IsAuthenticated] = false;
             activity?.SetTag("auth.authenticated", false);
-            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, failureReason } });
+            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, effectiveReason } });
         }
 
         await next(context);
     }
 
-    private void PopulateAuthenticatedContext(FunctionContext context, ClaimsPrincipal principal)
+    private bool PopulateAuthenticatedContext(FunctionContext context, ClaimsPrincipal principal)
     {
         var userId = GetUserId(principal);
         if (string.IsNullOrEmpty(userId))
         {
-            return;
+            LogMissingSubjectClaim();
+            return false;
         }
 
         var email = GetEmail(principal);
@@ -134,6 +141,8 @@ public partial class AuthenticationMiddleware(
             var roleList = string.Join(", ", roles);
             LogAuthenticatedUser(userId, roleList);
         }
+
+        return true;
     }
 
     private async Task<(ClaimsPrincipal? Principal, string FailureReason)> GetClaimsPrincipalAsync(FunctionContext context)
@@ -191,6 +200,10 @@ public partial class AuthenticationMiddleware(
     [LoggerMessage(EventId = 1107, Level = LogLevel.Warning,
         Message = "Invalid 'tid' claim value '{Value}' — not a GUID; tenant id not stored on context")]
     private partial void LogInvalidTenantClaim(string value);
+
+    [LoggerMessage(EventId = 1108, Level = LogLevel.Warning,
+        Message = "Authenticated principal had no usable subject ('oid') claim; treating request as unauthenticated.")]
+    private partial void LogMissingSubjectClaim();
 
     private static string? GetUserId(ClaimsPrincipal principal)
     {

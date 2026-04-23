@@ -39,6 +39,7 @@ internal static class AuthTelemetry
     internal const string ReasonInvalidIssuer = "invalid_issuer";
     internal const string ReasonMalformed = "malformed";
     internal const string ReasonDiscoveryUnavailable = "discovery_unavailable";
+    internal const string ReasonMissingSubject = "missing_subject";
 
     // Activity names.
     internal const string ActivityGetMe = "Auth.GetMe";

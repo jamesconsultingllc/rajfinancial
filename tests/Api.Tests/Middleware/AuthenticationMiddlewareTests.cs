@@ -230,6 +230,8 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
         context.Items.Should().NotContainKey(FunctionContextKeys.UserId);
+        context.Items.Should().ContainKey(FunctionContextKeys.IsAuthenticated)
+            .WhoseValue.Should().Be(false, "an authenticated principal with no usable subject claim must be downgraded to unauthenticated so downstream authorization fails closed");
     }
 
     // =========================================================================

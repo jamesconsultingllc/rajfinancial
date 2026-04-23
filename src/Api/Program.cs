@@ -108,7 +108,7 @@ builder.Services.Configure<EntraExternalIdOptions>(
 builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>(sp =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EntraExternalIdOptions>>().Value;
-    var metadataAddress = $"{options.Instance}{options.TenantId}/v2.0/.well-known/openid-configuration";
+    var metadataAddress = OidcMetadataAddress.Build(options);
     return new ConfigurationManager<OpenIdConnectConfiguration>(
         metadataAddress,
         new OpenIdConnectConfigurationRetriever(),
