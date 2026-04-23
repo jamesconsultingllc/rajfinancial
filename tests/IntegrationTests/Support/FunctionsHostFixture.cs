@@ -83,8 +83,12 @@ public class FunctionsHostFixture
     ///     Calls <c>/api/health/ready</c> and — when the host runs in Development and exposes
     ///     per-check data — asserts that the configured JWT bearer validator matches the
     ///     expected mode (<c>unsigned_local</c> locally, <c>jwt</c> remote). Silently skips
-    ///     the check when the endpoint is unreachable or the data field isn't exposed, so
-    ///     production deployments (which omit check details) still run the suite.
+    ///     the check only when the endpoint cannot be reached or when the data field isn't
+    ///     exposed, so production deployments (which omit check details) still run the suite.
+    ///     If <c>/api/health/ready</c> is reachable but returns a non-200 status, this method
+    ///     throws <see cref="InvalidOperationException"/> with the response status and body so
+    ///     readiness failures (unhealthy validator, missing config, database probe failure)
+    ///     surface immediately instead of being masked by the first authenticated request.
     /// </summary>
     private async Task VerifyAuthValidatorAsync()
     {

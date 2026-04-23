@@ -27,7 +27,6 @@ public sealed partial class ConfigHealthCheck(
     private static readonly string[] RequiredKeys =
     [
         ConfigurationKeys.EntraInstance,
-        ConfigurationKeys.EntraDomain,
         ConfigurationKeys.EntraTenantId,
         ConfigurationKeys.EntraClientId,
         ConfigurationKeys.AppRoleClient,
