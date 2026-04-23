@@ -34,6 +34,14 @@ param entraExternalIdTenantId string
 @description('Entra External ID API Client ID (from API app registration)')
 param entraExternalIdClientId string
 
+@description('Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/)')
+@minLength(1)
+param entraExternalIdInstance string
+
+@description('Accepted JWT audiences (App ID URI and client-id GUID forms)')
+@minLength(1)
+param entraExternalIdValidAudiences array
+
 @description('Client App Role GUID')
 param appRoleClient string
 
@@ -174,6 +182,8 @@ module functions 'modules/functions.bicep' = {
     sqlDatabaseName: sqlDatabaseName
     entraExternalIdTenantId: entraExternalIdTenantId
     entraExternalIdClientId: entraExternalIdClientId
+    entraExternalIdInstance: entraExternalIdInstance
+    entraExternalIdValidAudiences: entraExternalIdValidAudiences
     appRoleClient: appRoleClient
     appRoleAdministrator: appRoleAdministrator
     appRoleAdvisor: appRoleAdvisor

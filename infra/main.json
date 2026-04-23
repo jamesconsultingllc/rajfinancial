@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "7964813067211776627"
+      "templateHash": "17714371425842571173"
     }
   },
   "parameters": {
@@ -50,6 +50,20 @@
       "type": "string",
       "metadata": {
         "description": "Entra External ID API Client ID (from API app registration)"
+      }
+    },
+    "entraExternalIdInstance": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/)"
+      }
+    },
+    "entraExternalIdValidAudiences": {
+      "type": "array",
+      "minLength": 1,
+      "metadata": {
+        "description": "Accepted JWT audiences (App ID URI and client-id GUID forms)"
       }
     },
     "appRoleClient": {
@@ -664,6 +678,12 @@
           "entraExternalIdClientId": {
             "value": "[parameters('entraExternalIdClientId')]"
           },
+          "entraExternalIdInstance": {
+            "value": "[parameters('entraExternalIdInstance')]"
+          },
+          "entraExternalIdValidAudiences": {
+            "value": "[parameters('entraExternalIdValidAudiences')]"
+          },
           "appRoleClient": {
             "value": "[parameters('appRoleClient')]"
           },
@@ -684,7 +704,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "4510191872344432149"
+              "templateHash": "17053488604975824757"
             }
           },
           "parameters": {
@@ -748,6 +768,20 @@
                 "description": "Entra External ID API Client ID"
               }
             },
+            "entraExternalIdInstance": {
+              "type": "string",
+              "minLength": 1,
+              "metadata": {
+                "description": "Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/). Used by JwtBearerValidator to build the OIDC discovery URL."
+              }
+            },
+            "entraExternalIdValidAudiences": {
+              "type": "array",
+              "minLength": 1,
+              "metadata": {
+                "description": "Accepted values for the JWT aud claim. Include both the App ID URI (api://...) and the client-id GUID to tolerate token issuance variants."
+              }
+            },
             "appRoleClient": {
               "type": "string",
               "metadata": {
@@ -774,6 +808,16 @@
             }
           },
           "variables": {
+            "copy": [
+              {
+                "name": "validAudiencesAppSettings",
+                "count": "[length(parameters('entraExternalIdValidAudiences'))]",
+                "input": {
+                  "name": "[format('EntraExternalId__ValidAudiences__{0}', copyIndex('validAudiencesAppSettings'))]",
+                  "value": "[parameters('entraExternalIdValidAudiences')[copyIndex('validAudiencesAppSettings')]]"
+                }
+              }
+            ],
             "planName": "[format('asp-{0}', parameters('functionAppName'))]"
           },
           "resources": [
@@ -820,60 +864,7 @@
                     ],
                     "supportCredentials": true
                   },
-                  "appSettings": [
-                    {
-                      "name": "AzureWebJobsStorage__accountName",
-                      "value": "[parameters('storageAccountName')]"
-                    },
-                    {
-                      "name": "FUNCTIONS_EXTENSION_VERSION",
-                      "value": "~4"
-                    },
-                    {
-                      "name": "FUNCTIONS_WORKER_RUNTIME",
-                      "value": "dotnet-isolated"
-                    },
-                    {
-                      "name": "WEBSITE_RUN_FROM_PACKAGE",
-                      "value": "1"
-                    },
-                    {
-                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                      "value": "[parameters('appInsightsConnectionString')]"
-                    },
-                    {
-                      "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                      "value": "[parameters('appInsightsInstrumentationKey')]"
-                    },
-                    {
-                      "name": "SqlConnectionString",
-                      "value": "[format('Server=tcp:{0},1433;Initial Catalog={1};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default', parameters('sqlServerFqdn'), parameters('sqlDatabaseName'))]"
-                    },
-                    {
-                      "name": "EntraExternalId__TenantId",
-                      "value": "[parameters('entraExternalIdTenantId')]"
-                    },
-                    {
-                      "name": "EntraExternalId__ClientId",
-                      "value": "[parameters('entraExternalIdClientId')]"
-                    },
-                    {
-                      "name": "EntraExternalId__ServicePrincipalId",
-                      "value": "[parameters('entraServicePrincipalId')]"
-                    },
-                    {
-                      "name": "AppRoles__Client",
-                      "value": "[parameters('appRoleClient')]"
-                    },
-                    {
-                      "name": "AppRoles__Administrator",
-                      "value": "[parameters('appRoleAdministrator')]"
-                    },
-                    {
-                      "name": "AppRoles__Advisor",
-                      "value": "[parameters('appRoleAdvisor')]"
-                    }
-                  ]
+                  "appSettings": "[concat(createArray(createObject('name', 'AzureWebJobsStorage__accountName', 'value', parameters('storageAccountName')), createObject('name', 'FUNCTIONS_EXTENSION_VERSION', 'value', '~4'), createObject('name', 'FUNCTIONS_WORKER_RUNTIME', 'value', 'dotnet-isolated'), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', parameters('appInsightsConnectionString')), createObject('name', 'APPINSIGHTS_INSTRUMENTATIONKEY', 'value', parameters('appInsightsInstrumentationKey')), createObject('name', 'SqlConnectionString', 'value', format('Server=tcp:{0},1433;Initial Catalog={1};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default', parameters('sqlServerFqdn'), parameters('sqlDatabaseName'))), createObject('name', 'EntraExternalId__TenantId', 'value', parameters('entraExternalIdTenantId')), createObject('name', 'EntraExternalId__ClientId', 'value', parameters('entraExternalIdClientId')), createObject('name', 'EntraExternalId__Instance', 'value', parameters('entraExternalIdInstance')), createObject('name', 'EntraExternalId__ServicePrincipalId', 'value', parameters('entraServicePrincipalId')), createObject('name', 'AppRoles__Client', 'value', parameters('appRoleClient')), createObject('name', 'AppRoles__Administrator', 'value', parameters('appRoleAdministrator')), createObject('name', 'AppRoles__Advisor', 'value', parameters('appRoleAdvisor'))), variables('validAudiencesAppSettings'))]"
                 }
               },
               "dependsOn": [
