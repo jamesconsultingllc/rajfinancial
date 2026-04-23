@@ -2,11 +2,36 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using RajFinancial.Api;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Middleware.Authorization;
 using RajFinancial.Api.Middleware.Content;
 using RajFinancial.Api.Middleware.Exception;
+using RajFinancial.Api.Services.Auth;
+
+// ============================================================================
+// Security guard — must run BEFORE anything else.
+// AUTH__USE_UNSIGNED_LOCAL_VALIDATOR replaces the production JWT validator with
+// one that skips signature verification. It is intended for local integration
+// tests only. Fail loudly if the flag is ever left on in App Service.
+// ============================================================================
+var useUnsignedLocalValidator = string.Equals(
+    Environment.GetEnvironmentVariable("AUTH__USE_UNSIGNED_LOCAL_VALIDATOR"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+
+if (useUnsignedLocalValidator && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
+{
+    await Console.Error.WriteLineAsync(
+        "FATAL: AUTH__USE_UNSIGNED_LOCAL_VALIDATOR=true detected while WEBSITE_SITE_NAME is set " +
+        "(running on Azure App Service). The unsigned JWT validator must never run outside local development.");
+    throw new InvalidOperationException(
+        "Refusing to start: AUTH__USE_UNSIGNED_LOCAL_VALIDATOR is enabled on Azure App Service.");
+}
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -51,10 +76,73 @@ builder.Services.Configure<AppRoleOptions>(
     builder.Configuration.GetSection(AppRoleOptions.SectionName));
 builder.Services.AddSingleton(builder.Configuration);
 
+// ---------------------------------------------------------------------------
+// Authentication / JWT bearer validator
+// ---------------------------------------------------------------------------
+// - Bind EntraExternalIdOptions (Instance, TenantId, ClientId, ValidAudiences).
+// - Register a singleton ConfigurationManager<OpenIdConnectConfiguration> so
+//   the OIDC discovery document + signing keys are cached and auto-rotated.
+// - Register IJwtBearerValidator as a singleton. In normal operation this is
+//   JwtBearerValidator; the unsigned local-only validator is swapped in when
+//   AUTH__USE_UNSIGNED_LOCAL_VALIDATOR=true (gated above).
+// ---------------------------------------------------------------------------
+builder.Services.Configure<EntraExternalIdOptions>(
+    builder.Configuration.GetSection(EntraExternalIdOptions.SectionName));
+
+builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>(sp =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EntraExternalIdOptions>>().Value;
+    var metadataAddress = $"{options.Instance}{options.TenantId}/v2.0/.well-known/openid-configuration";
+    return new ConfigurationManager<OpenIdConnectConfiguration>(
+        metadataAddress,
+        new OpenIdConnectConfigurationRetriever(),
+        new HttpDocumentRetriever());
+});
+
+if (useUnsignedLocalValidator)
+{
+    builder.Services.AddSingleton<IJwtBearerValidator, LocalUnsignedJwtValidator>();
+}
+else
+{
+    builder.Services.AddSingleton<IJwtBearerValidator, JwtBearerValidator>();
+}
+
 builder.Services.AddApplicationDatabase(builder.Configuration, builder.Environment);
 builder.Services.AddContactResolver(builder.Environment);
 builder.Services.AddApplicationServices();
 builder.Services.AddApplicationValidators();
 
 var host = builder.Build();
+
+// Surface validator selection in the host log so operators can spot accidental
+// unsigned-validator usage immediately after startup.
+var startupLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RajFinancial.Api.Startup");
+if (useUnsignedLocalValidator)
+{
+    StartupLog.UsingUnsignedValidator(startupLogger);
+}
+else
+{
+    StartupLog.UsingProductionValidator(startupLogger);
+}
+
 await host.RunAsync();
+
+namespace RajFinancial.Api
+{
+    /// <summary>
+    ///     Source-generated logger for the startup banner so we honour CA1848 without
+    ///     polluting regular product code with new partial types.
+    /// </summary>
+    internal static partial class StartupLog
+    {
+        [LoggerMessage(EventId = 1105, Level = LogLevel.Information,
+            Message = "Auth validator: JwtBearerValidator (production)")]
+        public static partial void UsingProductionValidator(ILogger logger);
+
+        [LoggerMessage(EventId = 1108, Level = LogLevel.Warning,
+            Message = "Auth validator: LocalUnsignedJwtValidator (UNSIGNED — DEV ONLY)")]
+        public static partial void UsingUnsignedValidator(ILogger logger);
+    }
+}

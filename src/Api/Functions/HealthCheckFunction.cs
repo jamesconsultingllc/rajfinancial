@@ -71,6 +71,7 @@ public partial class HealthCheckFunction(
                     status = e.Value.Status.ToString().ToLowerInvariant(),
                     description = e.Value.Description,
                     duration = e.Value.Duration.TotalMilliseconds,
+                    data = e.Value.Data,
                 }),
             };
         }

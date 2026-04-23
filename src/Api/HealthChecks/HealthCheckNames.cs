@@ -9,4 +9,5 @@ internal static class HealthCheckNames
 {
     internal const string Database = "database";
     internal const string Config = "config";
+    internal const string AuthValidator = "auth_validator";
 }

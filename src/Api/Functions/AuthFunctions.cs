@@ -91,6 +91,7 @@ public partial class AuthFunctions(
             email,
             displayName,
             roles,
+            tenantId: context.GetTenantId(),
             cancellationToken: CancellationToken.None);
 
         var responseDto = new UserProfileResponse

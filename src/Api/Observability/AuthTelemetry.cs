@@ -31,6 +31,7 @@ internal static class AuthTelemetry
     internal const string OutcomeMissingContext = "missing_context";
     internal const string OutcomeMiddlewareSource = "middleware";
     internal const string ReasonNoPrincipal = "no_principal";
+    internal const string ReasonInvalidToken = "invalid_token";
 
     // Activity names.
     internal const string ActivityGetMe = "Auth.GetMe";

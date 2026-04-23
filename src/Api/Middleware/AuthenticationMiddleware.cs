@@ -1,12 +1,10 @@
 using System.Diagnostics;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using RajFinancial.Api.Observability;
+using RajFinancial.Api.Services.Auth;
 
 namespace RajFinancial.Api.Middleware;
 
@@ -22,31 +20,31 @@ namespace RajFinancial.Api.Middleware;
 /// </list>
 /// </para>
 /// <para>
-/// The middleware extracts user information from Entra External ID JWT tokens and
-/// makes it available to functions via <see cref="FunctionContext.Items"/>.
+/// The middleware resolves the <see cref="ClaimsPrincipal"/> by:
+/// <list type="number">
+///   <item>Using an explicit principal set in <c>Items[<see cref="FunctionContextKeys.ClaimsPrincipal"/>]</c>
+///     by an upstream middleware or a unit test.</item>
+///   <item>Parsing the <c>Authorization: Bearer ...</c> header and validating the token via the
+///     configured <see cref="IJwtBearerValidator"/>.</item>
+/// </list>
+/// A missing or invalid token yields a non-authenticated request; downstream
+/// <c>AuthorizationMiddleware</c> converts that into a 401 for endpoints marked
+/// <c>[RequireAuthentication]</c>.
 /// </para>
 /// <para>
 /// <b>Context Items Set:</b>
 /// <list type="bullet">
-///   <item><c>UserId</c> - The authenticated user's Entra Object ID (GUID)</item>
-///   <item><c>UserEmail</c> - The user's email address</item>
-///   <item><c>UserRoles</c> - Collection of app roles assigned to the user</item>
-///   <item><c>ClaimsPrincipal</c> - The full claims principal for advanced scenarios</item>
-/// </list>
-/// </para>
-/// <para>
-/// <b>Authentication Flow (priority order):</b>
-/// <list type="number">
-///   <item><c>FunctionContext.Items["ClaimsPrincipal"]</c> — explicit principal set by a prior middleware or test harness.</item>
-///   <item><c>HttpContext.User</c> — principal populated by Azure App Service EasyAuth when using <c>ConfigureFunctionsWebApplication()</c>.</item>
-///   <item>Authorization header JWT parse — Development environment only; allows local testing without EasyAuth.</item>
+///   <item><c>UserId</c> / <c>UserIdGuid</c> — Entra Object ID (<c>oid</c>)</item>
+///   <item><c>UserEmail</c>, <c>UserName</c>, <c>UserRoles</c></item>
+///   <item><c>TenantId</c> — Entra tenant GUID (<c>tid</c>), when parseable</item>
+///   <item><c>ClaimsPrincipal</c>, <c>IsAuthenticated</c></item>
 /// </list>
 /// </para>
 /// </remarks>
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthenticationMiddleware(
     ILogger<AuthenticationMiddleware> logger,
-    IHostEnvironment environment) : IFunctionsWorkerMiddleware
+    IJwtBearerValidator validator) : IFunctionsWorkerMiddleware
 {
     // Standard claim types for Entra External ID
     private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
@@ -57,6 +55,7 @@ public partial class AuthenticationMiddleware(
     private const string UPN_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn";
     private const string ROLES_CLAIM = "roles";
     private const string NAME_CLAIM = "name";
+    private const string TENANT_ID_CLAIM = "tid";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -64,7 +63,7 @@ public partial class AuthenticationMiddleware(
         activity?.SetTag("code.function", context.FunctionDefinition.Name);
         activity?.SetTag("faas.invocation_id", context.InvocationId);
 
-        var principal = await GetClaimsPrincipalAsync(context);
+        var (principal, failureReason) = await GetClaimsPrincipalAsync(context);
 
         if (principal?.Identity?.IsAuthenticated == true)
         {
@@ -81,7 +80,7 @@ public partial class AuthenticationMiddleware(
         {
             context.Items[FunctionContextKeys.IsAuthenticated] = false;
             activity?.SetTag("auth.authenticated", false);
-            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, AuthTelemetry.ReasonNoPrincipal } });
+            AuthTelemetry.RecordFailure(new TagList { { AuthTelemetry.ReasonTag, failureReason } });
         }
 
         await next(context);
@@ -109,6 +108,21 @@ public partial class AuthenticationMiddleware(
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
         context.Items[FunctionContextKeys.IsAuthenticated] = true;
 
+        // Extract Entra tenant id for downstream services (e.g. JIT provisioning).
+        // Non-GUID values are logged and dropped rather than stored as strings.
+        var rawTid = principal.FindFirst(TENANT_ID_CLAIM)?.Value;
+        if (!string.IsNullOrEmpty(rawTid))
+        {
+            if (Guid.TryParse(rawTid, out var tenantGuid))
+            {
+                context.Items[FunctionContextKeys.TenantId] = tenantGuid;
+            }
+            else
+            {
+                LogInvalidTenantClaim(rawTid);
+            }
+        }
+
         if (string.IsNullOrEmpty(email) && logger.IsEnabled(LogLevel.Warning))
         {
             var claimTypeNames = string.Join("; ", principal.Claims.Select(c => c.Type));
@@ -122,74 +136,43 @@ public partial class AuthenticationMiddleware(
         }
     }
 
-    private async Task<ClaimsPrincipal?> GetClaimsPrincipalAsync(FunctionContext context)
+    private async Task<(ClaimsPrincipal? Principal, string FailureReason)> GetClaimsPrincipalAsync(FunctionContext context)
     {
-        // Check if ClaimsPrincipal was already set (e.g. by Azure App Service EasyAuth)
+        // Check if ClaimsPrincipal was already set by an upstream middleware or a unit test.
         if (context.Items.TryGetValue(FunctionContextKeys.ClaimsPrincipal, out var existingPrincipal) &&
             existingPrincipal is ClaimsPrincipal principal)
         {
-            return principal;
+            return (principal, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        // Check HttpContext.User — populated by EasyAuth via ConfigureFunctionsWebApplication()
-        var httpContext = context.GetHttpContext();
-        if (httpContext?.User.Identity?.IsAuthenticated == true)
-        {
-            return httpContext.User;
-        }
-
-        // Fall back to JWT parsing (Development only) for local testing without EasyAuth
-        return await TryParseJwtFromAuthorizationHeaderAsync(context);
-    }
-
-    private async Task<ClaimsPrincipal?> TryParseJwtFromAuthorizationHeaderAsync(FunctionContext context)
-    {
+        // Parse + validate the Authorization: Bearer ... header.
         var httpRequestData = await context.GetHttpRequestDataAsync();
         if (httpRequestData is null)
         {
-            return null;
+            return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
         if (!httpRequestData.Headers.TryGetValues("Authorization", out var authValues))
         {
-            return null;
+            return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
         var authHeader = authValues.FirstOrDefault();
         if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
         var token = authHeader["Bearer ".Length..].Trim();
         if (string.IsNullOrEmpty(token))
         {
-            return null;
+            return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        // SECURITY: Only parse JWTs without signature validation in Development.
-        // In production, Azure App Service authentication (EasyAuth) sets the ClaimsPrincipal
-        // directly — if we reach this point in production, the token was not validated by EasyAuth
-        // and must be rejected to prevent forged JWT attacks.
-        if (!environment.IsDevelopment())
-        {
-            LogJwtRejectedNonDev(environment.EnvironmentName);
-            return null;
-        }
-
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-
-            var identity = new ClaimsIdentity(jwtToken.Claims, "Bearer");
-            return new ClaimsPrincipal(identity);
-        }
-        catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
-        {
-            LogJwtParseFailed(ex);
-            return null;
-        }
+        var validated = await validator.ValidateAsync(token, CancellationToken.None);
+        return validated is not null
+            ? (validated, AuthTelemetry.ReasonNoPrincipal)
+            : (null, AuthTelemetry.ReasonInvalidToken);
     }
 
     [LoggerMessage(EventId = 1101, Level = LogLevel.Warning,
@@ -200,14 +183,9 @@ public partial class AuthenticationMiddleware(
         Message = "Authenticated user: {UserId}, Roles: {Roles}")]
     private partial void LogAuthenticatedUser(string userId, string roles);
 
-    [LoggerMessage(EventId = 1103, Level = LogLevel.Warning,
-        Message = "JWT token found in Authorization header but EasyAuth did not set ClaimsPrincipal. " +
-                  "Rejecting unvalidated token in {Environment} environment")]
-    private partial void LogJwtRejectedNonDev(string environment);
-
-    [LoggerMessage(EventId = 1104, Level = LogLevel.Warning,
-        Message = "Failed to parse JWT token from Authorization header")]
-    private partial void LogJwtParseFailed(System.Exception ex);
+    [LoggerMessage(EventId = 1107, Level = LogLevel.Warning,
+        Message = "Invalid 'tid' claim value '{Value}' — not a GUID; tenant id not stored on context")]
+    private partial void LogInvalidTenantClaim(string value);
 
     private static string? GetUserId(ClaimsPrincipal principal)
     {

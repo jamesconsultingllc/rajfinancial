@@ -104,4 +104,14 @@ public static class FunctionContextExtensions
             ? principal as ClaimsPrincipal
             : null;
     }
+
+    /// <summary>
+    /// Gets the authenticated user's Entra tenant id (<c>tid</c> claim) as a <see cref="Guid"/>.
+    /// </summary>
+    /// <param name="context">The function context.</param>
+    /// <returns>The tenant id, or <c>null</c> if the claim was absent or not a valid Guid.</returns>
+    public static Guid? GetTenantId(this FunctionContext context)
+    {
+        return context.Items.TryGetValue(FunctionContextKeys.TenantId, out var tid) ? tid as Guid? : null;
+    }
 }

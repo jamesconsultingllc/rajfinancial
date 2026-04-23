@@ -1,13 +1,11 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Services.Auth;
 
 namespace RajFinancial.Api.Tests.Middleware;
 
@@ -19,40 +17,32 @@ public class AuthenticationMiddlewareTests
 {
     private readonly AuthenticationMiddleware middleware;
     private readonly Mock<ILogger<AuthenticationMiddleware>> loggerMock;
-    private readonly Mock<IHostEnvironment> environmentMock;
+    private readonly Mock<IJwtBearerValidator> validatorMock;
 
     public AuthenticationMiddlewareTests()
     {
         loggerMock = new Mock<ILogger<AuthenticationMiddleware>>();
         loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
-        environmentMock = new Mock<IHostEnvironment>();
-        environmentMock.Setup(e => e.EnvironmentName).Returns("Development");
-        middleware = new AuthenticationMiddleware(loggerMock.Object, environmentMock.Object);
+        validatorMock = new Mock<IJwtBearerValidator>();
+        middleware = new AuthenticationMiddleware(loggerMock.Object, validatorMock.Object);
     }
 
     // =========================================================================
-    // Authenticated user context population
+    // Authenticated user context population (Items[ClaimsPrincipal] path)
     // =========================================================================
 
     [Fact]
     public async Task Invoke_WithAuthenticatedPrincipal_SetsUserIdInContext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
         var nextCalled = false;
-        Task Next(FunctionContext _)
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        }
+        Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
-        // Act
         await middleware.Invoke(context, Next);
 
-        // Assert
         nextCalled.Should().BeTrue();
         context.Items[FunctionContextKeys.UserId].Should().Be("user-123");
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
@@ -61,51 +51,36 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithAuthenticatedPrincipal_SetsEmailInContext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", email: "test@rajfinancial.com");
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserEmail].Should().Be("test@rajfinancial.com");
     }
 
     [Fact]
     public async Task Invoke_WithAuthenticatedPrincipal_SetsNameInContext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", name: "John Doe");
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserName].Should().Be("John Doe");
     }
 
     [Fact]
     public async Task Invoke_WithAuthenticatedPrincipal_SetsRolesInContext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123", roles: ["Client", "Administrator"]);
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
         roles.Should().NotBeNull();
         roles.Should().Contain("Client");
@@ -115,17 +90,12 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithAuthenticatedPrincipal_SetsClaimsPrincipalInContext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.ClaimsPrincipal].Should().Be(principal);
     }
 
@@ -136,53 +106,35 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithUnauthenticatedPrincipal_SetsIsAuthenticatedFalse()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var identity = new ClaimsIdentity(); // Not authenticated (no auth type)
         var principal = new ClaimsPrincipal(identity);
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
     }
 
     [Fact]
     public async Task Invoke_WithNoPrincipal_SetsIsAuthenticatedFalse()
     {
-        // Arrange
         var context = new TestFunctionContext();
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
     }
 
     [Fact]
     public async Task Invoke_AlwaysCallsNext()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var nextCalled = false;
+        Task Next(FunctionContext _) { nextCalled = true; return Task.CompletedTask; }
 
-        Task Next(FunctionContext _)
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        }
-
-        // Act
         await middleware.Invoke(context, Next);
 
-        // Assert
         nextCalled.Should().BeTrue();
     }
 
@@ -193,68 +145,47 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithOidClaim_ExtractsUserId()
     {
-        // Arrange - Entra uses 'oid' as alternative claim for object ID
         var context = new TestFunctionContext();
-        var claims = new List<Claim>
-        {
-            new("oid", "user-alt-123")
-        };
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        var claims = new List<Claim> { new("oid", "user-alt-123") };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserId].Should().Be("user-alt-123");
     }
 
     [Fact]
     public async Task Invoke_WithEmailsClaim_ExtractsEmail()
     {
-        // Arrange - Entra External ID uses 'emails' claim
         var context = new TestFunctionContext();
         var claims = new List<Claim>
         {
             new("http://schemas.microsoft.com/identity/claims/objectidentifier", "user-123"),
             new("emails", "external@rajfinancial.com")
         };
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserEmail].Should().Be("external@rajfinancial.com");
     }
 
     [Fact]
     public async Task Invoke_WithStandardEmailClaim_ExtractsEmail()
     {
-        // Arrange - fallback to standard email claim
         var context = new TestFunctionContext();
         var claims = new List<Claim>
         {
             new("http://schemas.microsoft.com/identity/claims/objectidentifier", "user-123"),
             new("email", "standard@rajfinancial.com")
         };
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserEmail].Should().Be("standard@rajfinancial.com");
     }
 
@@ -265,7 +196,6 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithDuplicateRoles_DeduplicatesRoles()
     {
-        // Arrange - roles and ClaimTypes.Role may overlap
         var context = new TestFunctionContext();
         var claims = new List<Claim>
         {
@@ -273,16 +203,11 @@ public class AuthenticationMiddlewareTests
             new("roles", "Administrator"),
             new(ClaimTypes.Role, "Administrator")
         };
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
         roles.Should().NotBeNull();
         roles.Should().HaveCount(1);
@@ -296,22 +221,13 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithAuthenticatedButNoObjectId_DoesNotSetUserId()
     {
-        // Arrange - authenticated but missing object ID claim
         var context = new TestFunctionContext();
-        var claims = new List<Claim>
-        {
-            new("email", "noid@rajfinancial.com")
-        };
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        var claims = new List<Claim> { new("email", "noid@rajfinancial.com") };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items.Should().NotContainKey("UserId");
     }
 
@@ -322,17 +238,12 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithAuthenticatedUser_LogsDebugMessage()
     {
-        // Arrange
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-for-log", roles: ["Client"]);
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         loggerMock.Verify(
             x => x.Log(
                 LogLevel.Debug,
@@ -350,255 +261,150 @@ public class AuthenticationMiddlewareTests
     [Fact]
     public async Task Invoke_WithValidGuidObjectId_SetsUserIdGuidInContext()
     {
-        // Arrange
         var guid = Guid.Parse("aaaa0000-0000-0000-0000-000000000001");
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: guid.ToString());
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserIdGuid].Should().Be(guid);
     }
 
     [Fact]
     public async Task Invoke_WithNonGuidObjectId_DoesNotSetUserIdGuid()
     {
-        // Arrange — "user-123" is not a valid Guid
         var context = new TestFunctionContext();
         var principal = CreatePrincipal(objectId: "user-123");
         context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert
         context.Items[FunctionContextKeys.UserId].Should().Be("user-123");
         context.Items.Should().NotContainKey("UserIdGuid");
     }
 
     // =========================================================================
-    // JWT parsing — environment gating (Finding #1 security fix)
+    // tid (tenant id) claim extraction
     // =========================================================================
 
     [Fact]
-    public async Task Invoke_ProductionEnvironment_RejectsUnvalidatedJwt()
+    public async Task Invoke_WithValidTidClaim_SetsTenantIdInContext()
     {
-        // Arrange — create middleware with Production environment
-        var prodEnv = new Mock<IHostEnvironment>();
-        prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
-        var prodMiddleware = new AuthenticationMiddleware(loggerMock.Object, prodEnv.Object);
+        var tenantId = Guid.Parse("496527a2-41f8-4297-a979-c916e7255a22");
+        var context = new TestFunctionContext();
+        var claims = new List<Claim>
+        {
+            new("http://schemas.microsoft.com/identity/claims/objectidentifier", Guid.NewGuid().ToString()),
+            new("tid", tenantId.ToString())
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        // Build a minimal JWT token (unvalidated) to pass via Authorization header
-        var handler = new JwtSecurityTokenHandler();
-        var token = handler.CreateEncodedJwt(
-            issuer: "https://fake-issuer",
-            audience: "fake-audience",
-            subject: new ClaimsIdentity([
-                new Claim("oid", Guid.NewGuid().ToString()),
-                new Claim("roles", "Administrator")
-            ]),
-            notBefore: DateTime.UtcNow.AddMinutes(-5),
-            expires: DateTime.UtcNow.AddHours(1),
-            issuedAt: DateTime.UtcNow,
-            signingCredentials: null);
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        context.Items[FunctionContextKeys.TenantId].Should().Be(tenantId);
+    }
 
-        // Act
-        await prodMiddleware.Invoke(context, Next);
+    [Fact]
+    public async Task Invoke_WithNonGuidTidClaim_DoesNotSetTenantId()
+    {
+        var context = new TestFunctionContext();
+        var claims = new List<Claim>
+        {
+            new("http://schemas.microsoft.com/identity/claims/objectidentifier", Guid.NewGuid().ToString()),
+            new("tid", "not-a-guid")
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
 
-        // Assert — token must be rejected; user must NOT be authenticated
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        context.Items.Should().NotContainKey("TenantId");
+    }
+
+    [Fact]
+    public async Task Invoke_WithMissingTidClaim_DoesNotSetTenantId()
+    {
+        var context = new TestFunctionContext();
+        var principal = CreatePrincipal(objectId: Guid.NewGuid().ToString());
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = principal;
+
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        context.Items.Should().NotContainKey("TenantId");
+    }
+
+    // =========================================================================
+    // Validator-based Bearer token path
+    // =========================================================================
+
+    [Fact]
+    public async Task Invoke_WithBearerToken_InvokesValidatorAndPopulatesContext()
+    {
+        var userId = Guid.NewGuid().ToString();
+        var principal = CreatePrincipal(objectId: userId);
+        validatorMock
+            .Setup(v => v.ValidateAsync("opaque-token", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(principal);
+
+        var context = CreateContextWithAuthorizationHeader("Bearer opaque-token");
+
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
+        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
+        validatorMock.Verify(v => v.ValidateAsync("opaque-token", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Invoke_WithBearerToken_ValidatorReturnsNull_IsUnauthenticated()
+    {
+        validatorMock
+            .Setup(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClaimsPrincipal?)null);
+
+        var context = CreateContextWithAuthorizationHeader("Bearer forged-or-expired");
+
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
         context.Items.Should().NotContainKey("UserId");
-
-        // Verify warning was logged
-        loggerMock.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Rejecting unvalidated token")),
-                null,
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
     }
 
     [Fact]
-    public async Task Invoke_DevelopmentEnvironment_ParsesUnvalidatedJwt()
+    public async Task Invoke_WithoutBearerPrefix_DoesNotInvokeValidator()
     {
-        // Arrange — default fixture middleware uses Development environment
-        var handler = new JwtSecurityTokenHandler();
-        var userId = Guid.NewGuid().ToString();
-        var token = handler.CreateEncodedJwt(
-            issuer: "https://fake-issuer",
-            audience: "fake-audience",
-            subject: new ClaimsIdentity([
-                new Claim("oid", userId),
-                new Claim("roles", "Client")
-            ]),
-            notBefore: DateTime.UtcNow.AddMinutes(-5),
-            expires: DateTime.UtcNow.AddHours(1),
-            issuedAt: DateTime.UtcNow,
-            signingCredentials: null);
+        var context = CreateContextWithAuthorizationHeader("Basic abc123");
 
-        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
-        Task Next(FunctionContext _) => Task.CompletedTask;
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert — in Development, the unvalidated JWT should be trusted
-        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
-        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
-    }
-
-    // =========================================================================
-    // EasyAuth via HttpContext.User (ConfigureFunctionsWebApplication)
-    // =========================================================================
-
-    [Fact]
-    public async Task Invoke_WithEasyAuthHttpContextUser_SetsUserContext()
-    {
-        // Arrange — simulate EasyAuth populating HttpContext.User via ConfigureFunctionsWebApplication
-        var userId = Guid.NewGuid().ToString();
-        var easyAuthPrincipal = CreatePrincipal(objectId: userId, email: "easyauth@rajfinancial.com", roles: ["Client"]);
-        var context = CreateContextWithHttpContextUser(easyAuthPrincipal);
-
-        Task Next(FunctionContext _) => Task.CompletedTask;
-
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert — claims from HttpContext.User must be used
-        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
-        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
-        context.Items[FunctionContextKeys.UserEmail].Should().Be("easyauth@rajfinancial.com");
-        var roles = context.Items[FunctionContextKeys.UserRoles] as IReadOnlyList<string>;
-        roles.Should().Contain("Client");
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
+        validatorMock.Verify(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Invoke_WithEasyAuthHttpContextUser_ProductionNoJwtBypass()
+    public async Task Invoke_WithNoHttpRequestData_DoesNotInvokeValidator()
     {
-        // Arrange — Production environment; EasyAuth sets HttpContext.User (no bearer token needed)
-        var prodEnv = new Mock<IHostEnvironment>();
-        prodEnv.Setup(e => e.EnvironmentName).Returns("Production");
-        // Use a fresh logger mock so previous test runs don't pollute the Times.Never assertion
-        var freshLogger = new Mock<ILogger<AuthenticationMiddleware>>();
-        freshLogger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
-        var prodMiddleware = new AuthenticationMiddleware(freshLogger.Object, prodEnv.Object);
+        var context = new TestFunctionContext();
 
-        var userId = Guid.NewGuid().ToString();
-        var easyAuthPrincipal = CreatePrincipal(objectId: userId);
-        var context = CreateContextWithHttpContextUser(easyAuthPrincipal);
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        Task Next(FunctionContext _) => Task.CompletedTask;
-
-        // Act
-        await prodMiddleware.Invoke(context, Next);
-
-        // Assert — EasyAuth-validated principal accepted; no "unvalidated token" warning logged
-        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
-        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
-        freshLogger.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Rejecting unvalidated token")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Never);
+        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
+        validatorMock.Verify(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Invoke_WithUnauthenticatedHttpContextUser_FallsThroughToJwt()
+    public async Task Invoke_ItemsClaimsPrincipal_TakesPriorityOverAuthorizationHeader()
     {
-        // Arrange — HttpContext.User present but not authenticated; should fall through to JWT parsing
-        var unauthenticatedPrincipal = new ClaimsPrincipal(new ClaimsIdentity()); // no auth type → not authenticated
-        var context = CreateContextWithHttpContextUser(unauthenticatedPrincipal);
-
-        // Also add an Authorization header so the JWT path is exercised
-        var handler = new JwtSecurityTokenHandler();
-        var userId = Guid.NewGuid().ToString();
-        var token = handler.CreateEncodedJwt(
-            issuer: "https://fake-issuer",
-            audience: "fake-audience",
-            subject: new ClaimsIdentity([new Claim("oid", userId)]),
-            notBefore: DateTime.UtcNow.AddMinutes(-5),
-            expires: DateTime.UtcNow.AddHours(1),
-            issuedAt: DateTime.UtcNow,
-            signingCredentials: null);
-
-        var headers = new HttpHeadersCollection { { "Authorization", $"Bearer {token}" } };
-        context.SetHttpRequestHeaders(headers);
-
-        Task Next(FunctionContext _) => Task.CompletedTask;
-
-        // Act — Development middleware used so JWT fallback is allowed
-        await middleware.Invoke(context, Next);
-
-        // Assert — JWT parsed because HttpContext.User was not authenticated
-        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
-        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
-    }
-
-    [Fact]
-    public async Task Invoke_ItemsClaimsPrincipalTakesPriorityOverHttpContextUser()
-    {
-#pragma warning disable S125 // Descriptive prose comment, not commented-out code.
-        // Arrange — both Items[FunctionContextKeys.ClaimsPrincipal] and HttpContext.User are set;
-        // Items[FunctionContextKeys.ClaimsPrincipal] should win (existing behavior preserved)
-#pragma warning restore S125
         var itemsUserId = Guid.NewGuid().ToString();
-        var httpContextUserId = Guid.NewGuid().ToString();
+        var context = CreateContextWithAuthorizationHeader("Bearer should-not-be-used");
+        context.Items[FunctionContextKeys.ClaimsPrincipal] = CreatePrincipal(objectId: itemsUserId);
 
-        var itemsPrincipal = CreatePrincipal(objectId: itemsUserId);
-        var httpContextPrincipal = CreatePrincipal(objectId: httpContextUserId);
+        await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        var context = CreateContextWithHttpContextUser(httpContextPrincipal);
-        context.Items[FunctionContextKeys.ClaimsPrincipal] = itemsPrincipal;
-
-        Task Next(FunctionContext _) => Task.CompletedTask;
-
-        // Act
-        await middleware.Invoke(context, Next);
-
-        // Assert — the principal from Items takes precedence
         context.Items[FunctionContextKeys.UserId].Should().Be(itemsUserId);
-    }
-
-    [Fact]
-    public async Task Invoke_WithNullHttpContext_FallsThroughToJwtParsing()
-    {
-        // Arrange — no HttpContext set (non-HTTP trigger or missing context); falls through to JWT path
-        var handler = new JwtSecurityTokenHandler();
-        var userId = Guid.NewGuid().ToString();
-        var token = handler.CreateEncodedJwt(
-            issuer: "https://fake-issuer",
-            audience: "fake-audience",
-            subject: new ClaimsIdentity([new Claim("oid", userId)]),
-            notBefore: DateTime.UtcNow.AddMinutes(-5),
-            expires: DateTime.UtcNow.AddHours(1),
-            issuedAt: DateTime.UtcNow,
-            signingCredentials: null);
-
-        var context = CreateContextWithAuthorizationHeader($"Bearer {token}");
-
-        Task Next(FunctionContext _) => Task.CompletedTask;
-
-        // Act — Development middleware; no Items[FunctionContextKeys.ClaimsPrincipal], no HttpContext in Items
-        await middleware.Invoke(context, Next);
-
-        // Assert — fell through to JWT parsing
-        context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(true);
-        context.Items[FunctionContextKeys.UserId].Should().Be(userId);
+        validatorMock.Verify(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // =========================================================================
@@ -619,52 +425,26 @@ public class AuthenticationMiddlewareTests
             new("http://schemas.microsoft.com/identity/claims/objectidentifier", objectId)
         };
 
-        if (email is not null)
-            claims.Add(new Claim("emails", email));
-
-        if (name is not null)
-            claims.Add(new Claim("name", name));
-
+        if (email is not null) claims.Add(new Claim("emails", email));
+        if (name is not null) claims.Add(new Claim("name", name));
         if (roles is not null)
         {
             foreach (var role in roles)
                 claims.Add(new Claim("roles", role));
         }
 
-        var identity = new ClaimsIdentity(claims, "Bearer");
-        return new ClaimsPrincipal(identity);
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
     }
 
     /// <summary>
     /// Creates a <see cref="TestFunctionContext"/> with an HTTP request containing
-    /// an Authorization header. Used to test the JWT parsing path (no EasyAuth principal).
+    /// an Authorization header. Used to drive the validator path.
     /// </summary>
     private static TestFunctionContext CreateContextWithAuthorizationHeader(string authorizationHeader)
     {
         var context = new TestFunctionContext();
         var headers = new HttpHeadersCollection { { "Authorization", authorizationHeader } };
         context.SetHttpRequestHeaders(headers);
-        return context;
-    }
-
-    /// <summary>
-    /// Creates a <see cref="TestFunctionContext"/> that simulates EasyAuth populating
-    /// <see cref="HttpContext.User"/> via <c>ConfigureFunctionsWebApplication()</c>.
-    /// </summary>
-    private static TestFunctionContext CreateContextWithHttpContextUser(ClaimsPrincipal userPrincipal)
-    {
-        var mockHttpContext = new Mock<HttpContext>();
-        mockHttpContext.SetupGet(h => h.User).Returns(userPrincipal);
-
-        var context = new TestFunctionContext
-        {
-            Items =
-            {
-                // GetHttpContext() reads from Items["HttpRequestContext"] — the key used internally
-                // by Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore (Constants.HttpContextKey).
-                ["HttpRequestContext"] = mockHttpContext.Object
-            }
-        };
         return context;
     }
 }

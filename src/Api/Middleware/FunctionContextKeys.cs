@@ -28,6 +28,9 @@ public static class FunctionContextKeys
     /// <summary><see cref="System.Security.Claims.ClaimsPrincipal"/>; may be pre-set by upstream middleware or tests, otherwise resolved by <c>AuthenticationMiddleware</c>.</summary>
     public const string ClaimsPrincipal = "ClaimsPrincipal";
 
+    /// <summary>Authenticated user's Entra tenant id (<c>tid</c> claim) as <see cref="System.Guid"/>; populated by <c>AuthenticationMiddleware</c> when the claim is present and parseable.</summary>
+    public const string TenantId = "TenantId";
+
     /// <summary><c>bool</c> flag: whether the request is authenticated; populated by <c>AuthenticationMiddleware</c>.</summary>
     public const string IsAuthenticated = "IsAuthenticated";
 

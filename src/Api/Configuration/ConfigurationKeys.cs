@@ -12,6 +12,9 @@ internal static class ConfigurationKeys
 {
     internal const string EntraInstance = "EntraExternalId:Instance";
     internal const string EntraDomain = "EntraExternalId:Domain";
+    internal const string EntraTenantId = "EntraExternalId:TenantId";
+    internal const string EntraClientId = "EntraExternalId:ClientId";
+    internal const string EntraValidAudiences = "EntraExternalId:ValidAudiences";
     internal const string AppRoleClient = "AppRoles:Client";
     internal const string AppRoleAdministrator = "AppRoles:Administrator";
     internal const string AppRoleAdvisor = "AppRoles:Advisor";
