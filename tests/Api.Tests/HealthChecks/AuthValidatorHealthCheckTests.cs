@@ -8,13 +8,14 @@ using Moq;
 using RajFinancial.Api.Configuration;
 using RajFinancial.Api.HealthChecks;
 using RajFinancial.Api.Services.Auth;
+using RajFinancial.Shared.HealthContract;
 
 namespace RajFinancial.Api.Tests.HealthChecks;
 
 public class AuthValidatorHealthCheckTests
 {
     private static readonly Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckRegistration Registration = new(
-        "auth_validator",
+        HealthCheckContract.AuthValidatorCheckName,
         Mock.Of<IHealthCheck>(),
         HealthStatus.Unhealthy,
         tags: null);
@@ -79,7 +80,7 @@ public class AuthValidatorHealthCheckTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("<SET-IN-ENVIRONMENT>")]
+    [InlineData(ConfigurationKeys.PlaceholderValue)]
     public async Task Unhealthy_When_Production_Validator_With_Placeholder_Or_Whitespace_Audience(string entry)
     {
         // Defensive: a single junk entry with Count==1 must NOT fool the probe into reporting Healthy,
@@ -101,7 +102,7 @@ public class AuthValidatorHealthCheckTests
             CreateProductionValidator(),
             Options.Create(new EntraExternalIdOptions
             {
-                ValidAudiences = new List<string> { "<SET-IN-ENVIRONMENT>", "api://example" }
+                ValidAudiences = new List<string> { ConfigurationKeys.PlaceholderValue, "api://example" }
             }));
 
         var result = await sut.CheckHealthAsync(CreateContext());

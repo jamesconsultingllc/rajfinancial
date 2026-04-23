@@ -229,7 +229,7 @@ public class AuthenticationMiddlewareTests
 
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        context.Items.Should().NotContainKey("UserId");
+        context.Items.Should().NotContainKey(FunctionContextKeys.UserId);
     }
 
     // =========================================================================
@@ -282,7 +282,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
         context.Items[FunctionContextKeys.UserId].Should().Be("user-123");
-        context.Items.Should().NotContainKey("UserIdGuid");
+        context.Items.Should().NotContainKey(FunctionContextKeys.UserIdGuid);
     }
 
     // =========================================================================
@@ -321,7 +321,7 @@ public class AuthenticationMiddlewareTests
 
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        context.Items.Should().NotContainKey("TenantId");
+        context.Items.Should().NotContainKey(FunctionContextKeys.TenantId);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public class AuthenticationMiddlewareTests
 
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        context.Items.Should().NotContainKey("TenantId");
+        context.Items.Should().NotContainKey(FunctionContextKeys.TenantId);
     }
 
     // =========================================================================
@@ -370,7 +370,7 @@ public class AuthenticationMiddlewareTests
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
-        context.Items.Should().NotContainKey("UserId");
+        context.Items.Should().NotContainKey(FunctionContextKeys.UserId);
     }
 
     [Fact]

@@ -41,14 +41,14 @@ internal sealed class AuthValidatorHealthCheck(
             // configuration placeholder — both produce a validator that rejects every
             // token at runtime, which is far worse than failing the readiness probe.
             var hasUsableAudience = audiences.Any(a =>
-                !string.IsNullOrWhiteSpace(a) && !string.Equals(a, ConfigurationPlaceholder, StringComparison.Ordinal));
+                !string.IsNullOrWhiteSpace(a) && !string.Equals(a, ConfigurationKeys.PlaceholderValue, StringComparison.Ordinal));
 
             if (!hasUsableAudience)
             {
                 return Task.FromResult(new HealthCheckResult(
                     context.Registration.FailureStatus,
                     description: $"{ConfigurationKeys.EntraValidAudiences} has no usable entry " +
-                                 $"(empty, whitespace, or '{ConfigurationPlaceholder}'); every token would be rejected.",
+                                 $"(empty, whitespace, or '{ConfigurationKeys.PlaceholderValue}'); every token would be rejected.",
                     data: data));
             }
         }
@@ -57,6 +57,4 @@ internal sealed class AuthValidatorHealthCheck(
             description: $"Auth validator: {validatorName}",
             data: data));
     }
-
-    private const string ConfigurationPlaceholder = "<SET-IN-ENVIRONMENT>";
 }

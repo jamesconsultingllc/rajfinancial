@@ -20,4 +20,11 @@ internal static class ConfigurationKeys
 
     /// <summary>Application Insights connection string used by the OTel Azure Monitor exporter.</summary>
     internal const string ApplicationInsightsConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+
+    /// <summary>
+    ///     Canonical placeholder used in appsettings.json to indicate a configuration value
+    ///     must be supplied via environment-specific settings. Readiness probes reject values
+    ///     equal to this placeholder so production deployments fail fast on missing wiring.
+    /// </summary>
+    internal const string PlaceholderValue = "<SET-IN-ENVIRONMENT>";
 }
