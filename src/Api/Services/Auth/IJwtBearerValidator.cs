@@ -3,8 +3,30 @@ using System.Security.Claims;
 namespace RajFinancial.Api.Services.Auth;
 
 /// <summary>
+///     Outcome of a JWT bearer token validation attempt.
+/// </summary>
+/// <param name="Principal">
+///     The validated, authenticated principal on success; <c>null</c> on failure.
+/// </param>
+/// <param name="FailureReason">
+///     Short, low-cardinality reason code for failure (e.g.
+///     <c>expired</c>, <c>invalid_signature</c>, <c>discovery_unavailable</c>) suitable
+///     as an OTel metric tag value. <c>null</c> on success. Match values exposed on
+///     <see cref="RajFinancial.Api.Observability.AuthTelemetry"/> so dashboards can
+///     pivot on the underlying cause.
+/// </param>
+public readonly record struct JwtValidationResult(ClaimsPrincipal? Principal, string? FailureReason)
+{
+    /// <summary>Convenience factory for the successful outcome.</summary>
+    public static JwtValidationResult Success(ClaimsPrincipal principal) => new(principal, null);
+
+    /// <summary>Convenience factory for the failed outcome.</summary>
+    public static JwtValidationResult Failure(string reason) => new(null, reason);
+}
+
+/// <summary>
 ///     Validates an incoming bearer JWT and returns the resulting
-///     <see cref="ClaimsPrincipal"/>, or <c>null</c> if validation fails.
+///     <see cref="ClaimsPrincipal"/>, or a failure reason for telemetry.
 /// </summary>
 /// <remarks>
 ///     Two implementations exist:
@@ -30,11 +52,17 @@ public interface IJwtBearerValidator
     /// <param name="bearerToken">
     ///     Raw JWT (the value that follows <c>Bearer </c> in the <c>Authorization</c> header).
     /// </param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="cancellationToken">
+    ///     Cancellation token. Implementations MUST allow <see cref="OperationCanceledException"/>
+    ///     to propagate when the token is cancelled — they should never silently return a
+    ///     "discovery unavailable" failure for a cancelled request.
+    /// </param>
     /// <returns>
-    ///     A <see cref="ClaimsPrincipal"/> whose <c>Identity.IsAuthenticated</c> is <c>true</c>
-    ///     on success; otherwise <c>null</c>. Implementations must not throw on validation
-    ///     failure — return <c>null</c> so the middleware can emit a 401 via the standard chain.
+    ///     A <see cref="JwtValidationResult"/> with a populated <c>Principal</c> on success
+    ///     or a low-cardinality <c>FailureReason</c> on failure. Implementations must not
+    ///     throw on validation failure — return a failure result so the middleware can emit
+    ///     a 401 via the standard chain.
     /// </returns>
-    Task<ClaimsPrincipal?> ValidateAsync(string bearerToken, CancellationToken cancellationToken);
+    Task<JwtValidationResult> ValidateAsync(string bearerToken, CancellationToken cancellationToken);
 }
+

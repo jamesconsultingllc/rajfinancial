@@ -142,7 +142,12 @@ public partial class AuthenticationMiddleware(
         if (context.Items.TryGetValue(FunctionContextKeys.ClaimsPrincipal, out var existingPrincipal) &&
             existingPrincipal is ClaimsPrincipal principal)
         {
-            return (principal, AuthTelemetry.ReasonNoPrincipal);
+            // Distinct reason from "header missing" so dashboards can tell apart
+            // "no auth attempt" vs "auth attempt produced an unauthenticated principal".
+            var reason = principal.Identity?.IsAuthenticated == true
+                ? AuthTelemetry.ReasonNoPrincipal
+                : AuthTelemetry.ReasonUnauthenticatedPrincipal;
+            return (principal, reason);
         }
 
         // Parse + validate the Authorization: Bearer ... header.
@@ -169,10 +174,10 @@ public partial class AuthenticationMiddleware(
             return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        var validated = await validator.ValidateAsync(token, context.CancellationToken);
-        return validated is not null
-            ? (validated, AuthTelemetry.ReasonNoPrincipal)
-            : (null, AuthTelemetry.ReasonInvalidToken);
+        var validationResult = await validator.ValidateAsync(token, context.CancellationToken);
+        return validationResult.Principal is not null
+            ? (validationResult.Principal, AuthTelemetry.ReasonNoPrincipal)
+            : (null, validationResult.FailureReason ?? AuthTelemetry.ReasonInvalidToken);
     }
 
     [LoggerMessage(EventId = 1101, Level = LogLevel.Warning,

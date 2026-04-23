@@ -59,6 +59,15 @@ internal class TestFunctionContext : FunctionContext
     }
     public override IInvocationFeatures Features => features;
 
+    private CancellationToken cancellationToken = CancellationToken.None;
+    public override CancellationToken CancellationToken => cancellationToken;
+
+    /// <summary>
+    /// Test helper: sets the value returned by <see cref="CancellationToken"/>
+    /// so middleware that forwards request cancellation can be exercised.
+    /// </summary>
+    public void SetCancellationToken(CancellationToken token) => cancellationToken = token;
+
     // =========================================================================
     // Legacy method – kept for backward compatibility with existing tests
     // =========================================================================

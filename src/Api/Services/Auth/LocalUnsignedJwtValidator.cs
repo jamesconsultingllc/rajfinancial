@@ -32,24 +32,23 @@ internal sealed partial class LocalUnsignedJwtValidator(
     private readonly JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
 
     /// <inheritdoc/>
-    public Task<ClaimsPrincipal?> ValidateAsync(string bearerToken, CancellationToken cancellationToken)
+    public Task<JwtValidationResult> ValidateAsync(string bearerToken, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(bearerToken))
-            return Task.FromResult<ClaimsPrincipal?>(null);
+            return Task.FromResult(JwtValidationResult.Failure(Observability.AuthTelemetry.ReasonMalformed));
 
         try
         {
             var jwt = handler.ReadJwtToken(bearerToken);
-            // Trim trailing space from the canonical "Bearer " prefix to use it as the
-            // ClaimsIdentity authentication type — keeps it identical to what the
-            // production validator emits (an authenticated identity backed by a bearer token).
+            // ClaimsIdentity authentication type so the local test principal is marked
+            // as authenticated and clearly associated with a bearer token.
             var identity = new ClaimsIdentity(jwt.Claims, authenticationType: HttpHeaderNames.BearerSchemePrefix.TrimEnd());
-            return Task.FromResult<ClaimsPrincipal?>(new ClaimsPrincipal(identity));
+            return Task.FromResult(JwtValidationResult.Success(new ClaimsPrincipal(identity)));
         }
         catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
         {
             LogParseFailed(ex);
-            return Task.FromResult<ClaimsPrincipal?>(null);
+            return Task.FromResult(JwtValidationResult.Failure(Observability.AuthTelemetry.ReasonMalformed));
         }
     }
 

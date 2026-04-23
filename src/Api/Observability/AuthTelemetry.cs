@@ -31,6 +31,7 @@ internal static class AuthTelemetry
     internal const string OutcomeMissingContext = "missing_context";
     internal const string OutcomeMiddlewareSource = "middleware";
     internal const string ReasonNoPrincipal = "no_principal";
+    internal const string ReasonUnauthenticatedPrincipal = "unauthenticated_principal";
     internal const string ReasonInvalidToken = "invalid_token";
     internal const string ReasonExpired = "expired";
     internal const string ReasonInvalidSignature = "invalid_signature";

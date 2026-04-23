@@ -63,9 +63,10 @@ public class JwtBearerValidatorTests : IDisposable
     {
         var token = CreateToken();
 
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().NotBeNull();
+        var principal = result.Principal;
+        result.Principal.Should().NotBeNull();
         principal!.Identity!.IsAuthenticated.Should().BeTrue();
         principal.FindFirst("oid")!.Value.Should().Be("aaaa0000-0000-0000-0000-000000000001");
     }
@@ -77,9 +78,11 @@ public class JwtBearerValidatorTests : IDisposable
         var token = CreateToken();
 
         // Act
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
         // Assert — MapInboundClaims=false means claim types stay as emitted
+        var principal = result.Principal;
+        result.Principal.Should().NotBeNull();
         principal!.FindFirst("oid").Should().NotBeNull();
         principal.FindFirst("tid").Should().NotBeNull();
         principal.FindFirst("emails").Should().NotBeNull();
@@ -92,9 +95,9 @@ public class JwtBearerValidatorTests : IDisposable
         var otherKey = new RsaSecurityKey(otherRsa) { KeyId = "other-key" };
         var token = CreateToken(signingCredentials: new SigningCredentials(otherKey, SecurityAlgorithms.RsaSha256));
 
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
@@ -102,9 +105,9 @@ public class JwtBearerValidatorTests : IDisposable
     {
         var token = CreateToken(audience: "api://some-other-app");
 
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
@@ -112,9 +115,9 @@ public class JwtBearerValidatorTests : IDisposable
     {
         var token = CreateToken(issuer: "https://contoso.ciamlogin.com/other/v2.0");
 
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
@@ -124,17 +127,17 @@ public class JwtBearerValidatorTests : IDisposable
             notBefore: DateTime.UtcNow.AddHours(-2),
             expires: DateTime.UtcNow.AddHours(-1));
 
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
     public async Task ValidateAsync_MalformedToken_ReturnsNull()
     {
-        var principal = await validator.ValidateAsync("not.a.valid.jwt.token", CancellationToken.None);
+        var result = await validator.ValidateAsync("not.a.valid.jwt.token", CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Theory]
@@ -142,9 +145,9 @@ public class JwtBearerValidatorTests : IDisposable
     [InlineData("   ")]
     public async Task ValidateAsync_EmptyOrWhitespaceToken_ReturnsNull(string token)
     {
-        var principal = await validator.ValidateAsync(token, CancellationToken.None);
+        var result = await validator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
@@ -159,9 +162,9 @@ public class JwtBearerValidatorTests : IDisposable
             Options.Create(options),
             NullLogger<JwtBearerValidator>.Instance);
 
-        var principal = await outageValidator.ValidateAsync(CreateToken(), CancellationToken.None);
+        var result = await outageValidator.ValidateAsync(CreateToken(), CancellationToken.None);
 
-        principal.Should().BeNull();
+        result.Principal.Should().BeNull();
     }
 
     [Fact]
@@ -182,9 +185,9 @@ public class JwtBearerValidatorTests : IDisposable
 
         var token = CreateToken(issuer: newIssuer);
 
-        var principal = await freshValidator.ValidateAsync(token, CancellationToken.None);
+        var result = await freshValidator.ValidateAsync(token, CancellationToken.None);
 
-        principal.Should().NotBeNull();
+        result.Principal.Should().NotBeNull();
     }
 
     [Fact]
@@ -208,9 +211,9 @@ public class JwtBearerValidatorTests : IDisposable
 
         var tokenSignedWithRotatedKey = CreateToken(signingCredentials: rotatedCreds);
 
-        var principal = await rotatedValidator.ValidateAsync(tokenSignedWithRotatedKey, CancellationToken.None);
+        var result = await rotatedValidator.ValidateAsync(tokenSignedWithRotatedKey, CancellationToken.None);
 
-        principal.Should().NotBeNull();
+        result.Principal.Should().NotBeNull();
     }
 
     // ------------------------------------------------------------------
@@ -260,3 +263,5 @@ public class JwtBearerValidatorTests : IDisposable
             signingCredentials: signingCredentials ?? this.signingCredentials);
     }
 }
+
+

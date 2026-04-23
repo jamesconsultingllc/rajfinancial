@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using RajFinancial.Api.Configuration;
+using RajFinancial.Api.Middleware;
 using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Services.Auth;
@@ -47,20 +48,27 @@ internal sealed partial class JwtBearerValidator(
     private readonly JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
 
     /// <inheritdoc/>
-    public async Task<ClaimsPrincipal?> ValidateAsync(string bearerToken, CancellationToken cancellationToken)
+    public async Task<JwtValidationResult> ValidateAsync(string bearerToken, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(bearerToken))
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonMalformed);
 
         OpenIdConnectConfiguration config;
         try
         {
             config = await configurationManager.GetConfigurationAsync(cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Honour caller cancellation — never silently swallow into a
+            // discovery_unavailable failure that would let the pipeline run
+            // as an unauthenticated request.
+            throw;
+        }
         catch (System.Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
             LogValidationFailed(AuthTelemetry.ReasonDiscoveryUnavailable, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonDiscoveryUnavailable);
         }
 
         var validationParameters = new TokenValidationParameters
@@ -75,43 +83,47 @@ internal sealed partial class JwtBearerValidator(
             ClockSkew = DefaultClockSkew,
             NameClaimType = JwtClaimNames.Name,
             RoleClaimType = JwtClaimNames.Roles,
+            // Match LocalUnsignedJwtValidator so the resulting identity's AuthenticationType
+            // is "Bearer" in both modes. Keeps any downstream code that branches on
+            // Identity.AuthenticationType behaving identically.
+            AuthenticationType = HttpHeaderNames.BearerSchemePrefix.TrimEnd(),
         };
 
         try
         {
             var principal = handler.ValidateToken(bearerToken, validationParameters, out _);
-            return principal;
+            return JwtValidationResult.Success(principal);
         }
         catch (SecurityTokenExpiredException ex)
         {
             LogValidationFailed(AuthTelemetry.ReasonExpired, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonExpired);
         }
         catch (SecurityTokenInvalidSignatureException ex)
         {
             LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature);
         }
         catch (SecurityTokenInvalidAudienceException ex)
         {
             LogValidationFailed(AuthTelemetry.ReasonInvalidAudience, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidAudience);
         }
         catch (SecurityTokenInvalidIssuerException ex)
         {
             LogValidationFailed(AuthTelemetry.ReasonInvalidIssuer, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidIssuer);
         }
         catch (SecurityTokenException ex)
         {
             LogValidationFailed(AuthTelemetry.ReasonInvalidToken, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidToken);
         }
         catch (ArgumentException ex)
         {
             // Thrown for malformed tokens (e.g. wrong segment count).
             LogValidationFailed(AuthTelemetry.ReasonMalformed, ex);
-            return null;
+            return JwtValidationResult.Failure(AuthTelemetry.ReasonMalformed);
         }
     }
 

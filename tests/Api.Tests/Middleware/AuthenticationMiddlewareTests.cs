@@ -5,6 +5,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RajFinancial.Api.Middleware;
+using RajFinancial.Api.Observability;
 using RajFinancial.Api.Services.Auth;
 
 namespace RajFinancial.Api.Tests.Middleware;
@@ -346,7 +347,7 @@ public class AuthenticationMiddlewareTests
         var principal = CreatePrincipal(objectId: userId);
         validatorMock
             .Setup(v => v.ValidateAsync("opaque-token", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(principal);
+            .ReturnsAsync(JwtValidationResult.Success(principal));
 
         var context = CreateContextWithAuthorizationHeader("Bearer opaque-token");
 
@@ -362,7 +363,7 @@ public class AuthenticationMiddlewareTests
     {
         validatorMock
             .Setup(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ClaimsPrincipal?)null);
+            .ReturnsAsync(JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidSignature));
 
         var context = CreateContextWithAuthorizationHeader("Bearer forged-or-expired");
 
@@ -370,6 +371,27 @@ public class AuthenticationMiddlewareTests
 
         context.Items[FunctionContextKeys.IsAuthenticated].Should().Be(false);
         context.Items.Should().NotContainKey("UserId");
+    }
+
+    [Fact]
+    public async Task Invoke_PassesContextCancellationTokenToValidator()
+    {
+        // Arrange — capture the CancellationToken passed to the validator and confirm
+        // it is the same instance the caller's FunctionContext exposes (not
+        // CancellationToken.None), so request shutdown propagates into OIDC discovery.
+        CancellationToken capturedToken = default;
+        validatorMock
+            .Setup(v => v.ValidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, CancellationToken>((_, ct) => capturedToken = ct)
+            .ReturnsAsync(JwtValidationResult.Failure(AuthTelemetry.ReasonInvalidToken));
+
+        using var cts = new CancellationTokenSource();
+        var context = CreateContextWithAuthorizationHeader("Bearer abc");
+        context.SetCancellationToken(cts.Token);
+
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        capturedToken.Should().Be(cts.Token);
     }
 
     [Fact]
