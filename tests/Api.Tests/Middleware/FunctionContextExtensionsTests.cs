@@ -296,4 +296,39 @@ public class FunctionContextExtensionsTests
         // Assert
         result.Should().BeNull();
     }
+
+    [Fact]
+    public void GetTenantId_WhenGuidExists_ReturnsGuid()
+    {
+        var context = new TestFunctionContext();
+        var expected = Guid.NewGuid();
+        context.Items[FunctionContextKeys.TenantId] = expected;
+
+        var result = context.GetTenantId();
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void GetTenantId_WhenMissing_ReturnsNull()
+    {
+        var context = new TestFunctionContext();
+
+        var result = context.GetTenantId();
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetTenantId_WhenWrongType_ReturnsNull()
+    {
+        // Defensive: a non-Guid value (e.g., string) should not throw and should
+        // return null so callers downstream of JIT provisioning don't observe a cast crash.
+        var context = new TestFunctionContext();
+        context.Items[FunctionContextKeys.TenantId] = "not-a-guid";
+
+        var result = context.GetTenantId();
+
+        result.Should().BeNull();
+    }
 }
