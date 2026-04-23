@@ -70,7 +70,7 @@ The `FunctionsHostFixture` used by the integration suite **does not seed data or
 
 ## 4. Capture procedure
 
-There are two supported paths. Both require the worker running with `--useHttps`; they differ only in how the 6 requests are fired.
+There are two supported paths. Both require the worker running with `--useHttps`; they differ only in how the 7 requests (1 healthcheck + 6 captures) are fired.
 
 - **Path A — `inso` CLI (recommended for reproducibility).** See [`phase-1c/README.md`](./phase-1c/README.md). Uses the committed [`phase-1c/phase-1c.insomnia.yaml`](./phase-1c/phase-1c.insomnia.yaml) workspace so the same set of requests runs the same way every time, regardless of who's at the keyboard.
 - **Path B — ad-hoc curl (fallback).** Kept in §4.3 below for anyone who can't install `inso` or just wants to tweak a single request.
@@ -92,13 +92,13 @@ func start --useHttps | Tee-Object -FilePath ..\..\phase1c-spans.log
 
 Wait for `Host lock lease acquired` and the endpoint list. Leave the window visible — the Console exporter dumps every span to it.
 
-### 4.2 Fire the 6 requests
+### 4.2 Fire the 7 requests (healthcheck + 6 captures)
 
 **Path A — `inso`:**
 
 ```powershell
 # Second terminal:
-inso run collection "Phase 1c Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
+inso run collection "Phase 1c Span Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
 ```
 
 Six requests execute in order, with ~2 s between them (the runner serializes). See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
