@@ -39,6 +39,12 @@ param entraExternalIdTenantId string
 @description('Entra External ID API Client ID')
 param entraExternalIdClientId string
 
+@description('Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/). Used by JwtBearerValidator to build the OIDC discovery URL.')
+param entraExternalIdInstance string
+
+@description('Accepted values for the JWT aud claim. Include both the App ID URI (api://...) and the client-id GUID to tolerate token issuance variants.')
+param entraExternalIdValidAudiences array
+
 @description('Client App Role GUID')
 param appRoleClient string
 
@@ -56,6 +62,14 @@ param tags object
 // ============================================================================
 
 var planName = 'asp-${functionAppName}'
+
+// Expand the ValidAudiences array into individual app settings. The .NET configuration
+// binder flattens `EntraExternalId__ValidAudiences__N` entries into the IList<string>
+// ValidAudiences property on EntraExternalIdOptions.
+var validAudiencesAppSettings = [for (audience, index) in entraExternalIdValidAudiences: {
+  name: 'EntraExternalId__ValidAudiences__${index}'
+  value: audience
+}]
 
 // Use Consumption (Y1) plan for all environments - pay per execution only.
 // To use EP1 (Elastic Premium) for VNet integration or always-warm, update this SKU explicitly.
@@ -103,7 +117,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         ]
         supportCredentials: true
       }
-      appSettings: [
+      appSettings: concat([
         // ====================================================================
         // Azure Functions Runtime
         // ====================================================================
@@ -152,6 +166,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'EntraExternalId__ClientId'
           value: entraExternalIdClientId
         }
+        {
+          name: 'EntraExternalId__Instance'
+          value: entraExternalIdInstance
+        }
         // ====================================================================
         // Entra External ID (Service Principal ID - not sensitive)
         // ====================================================================
@@ -174,7 +192,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'AppRoles__Advisor'
           value: appRoleAdvisor
         }
-      ]
+      ], validAudiencesAppSettings)
     }
   }
 }

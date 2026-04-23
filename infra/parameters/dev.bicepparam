@@ -15,6 +15,16 @@ param entraExternalIdTenantId = '496527a2-41f8-4297-a979-c916e7255a22'
 // API App Registration (rajfinancial-api-dev)
 param entraExternalIdClientId = '211438af-9f00-47be-a367-796dd7770113'
 
+// Entra External ID authority for CIAM token issuance + OIDC discovery
+param entraExternalIdInstance = 'https://rajfinancialdev.ciamlogin.com/'
+
+// Accepted audiences for the JWT 'aud' claim. CIAM may emit either the App ID URI
+// or the client-id GUID form; accept both.
+param entraExternalIdValidAudiences = [
+  'api://rajfinancial-api-dev'
+  '211438af-9f00-47be-a367-796dd7770113'
+]
+
 // App Roles (defined in API app registration)
 param appRoleClient = 'bc34bd6c-38b8-46a6-9d4c-d338afeea81f'
 param appRoleAdministrator = '2202014c-e4b9-4ab9-9e6a-4cc53e13598f'
