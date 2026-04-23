@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "8567540095213717005"
+      "templateHash": "17714371425842571173"
     }
   },
   "parameters": {
@@ -54,12 +54,14 @@
     },
     "entraExternalIdInstance": {
       "type": "string",
+      "minLength": 1,
       "metadata": {
         "description": "Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/)"
       }
     },
     "entraExternalIdValidAudiences": {
       "type": "array",
+      "minLength": 1,
       "metadata": {
         "description": "Accepted JWT audiences (App ID URI and client-id GUID forms)"
       }
@@ -702,7 +704,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "7888929892853360785"
+              "templateHash": "17053488604975824757"
             }
           },
           "parameters": {
@@ -768,12 +770,14 @@
             },
             "entraExternalIdInstance": {
               "type": "string",
+              "minLength": 1,
               "metadata": {
                 "description": "Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/). Used by JwtBearerValidator to build the OIDC discovery URL."
               }
             },
             "entraExternalIdValidAudiences": {
               "type": "array",
+              "minLength": 1,
               "metadata": {
                 "description": "Accepted values for the JWT aud claim. Include both the App ID URI (api://...) and the client-id GUID to tolerate token issuance variants."
               }

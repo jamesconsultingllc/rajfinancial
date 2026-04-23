@@ -35,9 +35,11 @@ param entraExternalIdTenantId string
 param entraExternalIdClientId string
 
 @description('Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/)')
+@minLength(1)
 param entraExternalIdInstance string
 
 @description('Accepted JWT audiences (App ID URI and client-id GUID forms)')
+@minLength(1)
 param entraExternalIdValidAudiences array
 
 @description('Client App Role GUID')

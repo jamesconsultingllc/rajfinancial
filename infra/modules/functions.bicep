@@ -40,9 +40,11 @@ param entraExternalIdTenantId string
 param entraExternalIdClientId string
 
 @description('Entra External ID authority instance URL (e.g., https://rajfinancialdev.ciamlogin.com/). Used by JwtBearerValidator to build the OIDC discovery URL.')
+@minLength(1)
 param entraExternalIdInstance string
 
 @description('Accepted values for the JWT aud claim. Include both the App ID URI (api://...) and the client-id GUID to tolerate token issuance variants.')
+@minLength(1)
 param entraExternalIdValidAudiences array
 
 @description('Client App Role GUID')
