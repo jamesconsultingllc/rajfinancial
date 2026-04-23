@@ -21,26 +21,24 @@ internal sealed class AuthValidatorHealthCheck(
     IJwtBearerValidator validator,
     IOptions<EntraExternalIdOptions> options) : IHealthCheck
 {
-    private const string DataKey = "auth.validator";
-
     public Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
         var validatorName = validator switch
         {
-            JwtBearerValidator => "jwt",
-            LocalUnsignedJwtValidator => "unsigned_local",
+            JwtBearerValidator => AuthValidatorNames.Jwt,
+            LocalUnsignedJwtValidator => AuthValidatorNames.UnsignedLocal,
             _ => validator.GetType().Name,
         };
 
-        var data = new Dictionary<string, object> { [DataKey] = validatorName };
+        var data = new Dictionary<string, object> { [AuthValidatorNames.DataKey] = validatorName };
 
         if (validator is JwtBearerValidator && options.Value.ValidAudiences.Count == 0)
         {
             return Task.FromResult(new HealthCheckResult(
                 context.Registration.FailureStatus,
-                description: "EntraExternalId:ValidAudiences is empty; every token would be rejected.",
+                description: $"{ConfigurationKeys.EntraValidAudiences} is empty; every token would be rejected.",
                 data: data));
         }
 

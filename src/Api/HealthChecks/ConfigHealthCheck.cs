@@ -28,6 +28,8 @@ public sealed partial class ConfigHealthCheck(
     [
         ConfigurationKeys.EntraInstance,
         ConfigurationKeys.EntraDomain,
+        ConfigurationKeys.EntraTenantId,
+        ConfigurationKeys.EntraClientId,
         ConfigurationKeys.AppRoleClient,
         ConfigurationKeys.AppRoleAdministrator,
         ConfigurationKeys.AppRoleAdvisor,

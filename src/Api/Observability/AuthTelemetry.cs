@@ -32,6 +32,12 @@ internal static class AuthTelemetry
     internal const string OutcomeMiddlewareSource = "middleware";
     internal const string ReasonNoPrincipal = "no_principal";
     internal const string ReasonInvalidToken = "invalid_token";
+    internal const string ReasonExpired = "expired";
+    internal const string ReasonInvalidSignature = "invalid_signature";
+    internal const string ReasonInvalidAudience = "invalid_audience";
+    internal const string ReasonInvalidIssuer = "invalid_issuer";
+    internal const string ReasonMalformed = "malformed";
+    internal const string ReasonDiscoveryUnavailable = "discovery_unavailable";
 
     // Activity names.
     internal const string ActivityGetMe = "Auth.GetMe";

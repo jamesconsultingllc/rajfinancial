@@ -143,6 +143,8 @@ public class ConfigHealthCheckTests
     {
         [ConfigurationKeys.EntraInstance] = "https://rajfinancial.ciamlogin.com/",
         [ConfigurationKeys.EntraDomain] = "rajfinancial.onmicrosoft.com",
+        [ConfigurationKeys.EntraTenantId] = Guid.NewGuid().ToString(),
+        [ConfigurationKeys.EntraClientId] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleClient] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleAdministrator] = Guid.NewGuid().ToString(),
         [ConfigurationKeys.AppRoleAdvisor] = Guid.NewGuid().ToString(),

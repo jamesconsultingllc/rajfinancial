@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using RajFinancial.Shared.HealthContract;
 
 namespace RajFinancial.IntegrationTests.Support;
 
@@ -115,14 +116,14 @@ public class FunctionsHostFixture
             foreach (var check in checks.EnumerateArray())
             {
                 if (!check.TryGetProperty("name", out var nameElem) ||
-                    nameElem.GetString() != "auth_validator")
+                    nameElem.GetString() != HealthCheckContract.AuthValidatorCheckName)
                 {
                     continue;
                 }
 
                 if (check.TryGetProperty("data", out var data) &&
                     data.ValueKind == JsonValueKind.Object &&
-                    data.TryGetProperty("auth.validator", out var validatorElem))
+                    data.TryGetProperty(HealthCheckContract.AuthValidatorDataKey, out var validatorElem))
                 {
                     validatorName = validatorElem.GetString();
                 }
@@ -137,11 +138,11 @@ public class FunctionsHostFixture
         if (validatorName is null)
             return;
 
-        var expected = IsLocal ? "unsigned_local" : "jwt";
+        var expected = IsLocal ? HealthCheckContract.AuthValidatorUnsignedLocal : HealthCheckContract.AuthValidatorJwt;
         if (!string.Equals(validatorName, expected, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                $"Functions host at {BaseUrl} reports auth.validator='{validatorName}', " +
+                $"Functions host at {BaseUrl} reports {HealthCheckContract.AuthValidatorDataKey}='{validatorName}', " +
                 $"but integration tests expect '{expected}' (IsLocal={IsLocal}). " +
                 (IsLocal
                     ? "Ensure AUTH__USE_UNSIGNED_LOCAL_VALIDATOR=true is set in src/Api/local.settings.json."

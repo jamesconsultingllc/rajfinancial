@@ -20,17 +20,17 @@ using RajFinancial.Api.Services.Auth;
 // tests only. Fail loudly if the flag is ever left on in App Service.
 // ============================================================================
 var useUnsignedLocalValidator = string.Equals(
-    Environment.GetEnvironmentVariable("AUTH__USE_UNSIGNED_LOCAL_VALIDATOR"),
+    Environment.GetEnvironmentVariable(EnvironmentVariableNames.UseUnsignedLocalValidator),
     "true",
     StringComparison.OrdinalIgnoreCase);
 
-if (useUnsignedLocalValidator && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
+if (useUnsignedLocalValidator && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(EnvironmentVariableNames.WebsiteSiteName)))
 {
     await Console.Error.WriteLineAsync(
-        "FATAL: AUTH__USE_UNSIGNED_LOCAL_VALIDATOR=true detected while WEBSITE_SITE_NAME is set " +
+        $"FATAL: {EnvironmentVariableNames.UseUnsignedLocalValidator}=true detected while {EnvironmentVariableNames.WebsiteSiteName} is set " +
         "(running on Azure App Service). The unsigned JWT validator must never run outside local development.");
     throw new InvalidOperationException(
-        "Refusing to start: AUTH__USE_UNSIGNED_LOCAL_VALIDATOR is enabled on Azure App Service.");
+        $"Refusing to start: {EnvironmentVariableNames.UseUnsignedLocalValidator} is enabled on Azure App Service.");
 }
 
 var builder = FunctionsApplication.CreateBuilder(args);

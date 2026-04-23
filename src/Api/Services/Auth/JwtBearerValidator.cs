@@ -37,6 +37,12 @@ internal sealed partial class JwtBearerValidator(
     IOptions<EntraExternalIdOptions> options,
     ILogger<JwtBearerValidator> logger) : IJwtBearerValidator
 {
+    /// <summary>
+    ///     Allowance for clock skew between the token issuer and this host. Matches the
+    ///     long-standing default in <c>Microsoft.AspNetCore.Authentication.JwtBearer</c>.
+    /// </summary>
+    internal static readonly TimeSpan DefaultClockSkew = TimeSpan.FromMinutes(5);
+
     private readonly EntraExternalIdOptions options = options.Value;
     private readonly JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
 
@@ -53,7 +59,7 @@ internal sealed partial class JwtBearerValidator(
         }
         catch (System.Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
-            LogValidationFailed("discovery_unavailable", ex);
+            LogValidationFailed(AuthTelemetry.ReasonDiscoveryUnavailable, ex);
             return null;
         }
 
@@ -66,9 +72,9 @@ internal sealed partial class JwtBearerValidator(
             ValidateIssuerSigningKey = true,
             IssuerSigningKeys = config.SigningKeys,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(5),
-            NameClaimType = "name",
-            RoleClaimType = "roles",
+            ClockSkew = DefaultClockSkew,
+            NameClaimType = JwtClaimNames.Name,
+            RoleClaimType = JwtClaimNames.Roles,
         };
 
         try
@@ -78,33 +84,33 @@ internal sealed partial class JwtBearerValidator(
         }
         catch (SecurityTokenExpiredException ex)
         {
-            LogValidationFailed("expired", ex);
+            LogValidationFailed(AuthTelemetry.ReasonExpired, ex);
             return null;
         }
         catch (SecurityTokenInvalidSignatureException ex)
         {
-            LogValidationFailed("invalid_signature", ex);
+            LogValidationFailed(AuthTelemetry.ReasonInvalidSignature, ex);
             return null;
         }
         catch (SecurityTokenInvalidAudienceException ex)
         {
-            LogValidationFailed("invalid_audience", ex);
+            LogValidationFailed(AuthTelemetry.ReasonInvalidAudience, ex);
             return null;
         }
         catch (SecurityTokenInvalidIssuerException ex)
         {
-            LogValidationFailed("invalid_issuer", ex);
+            LogValidationFailed(AuthTelemetry.ReasonInvalidIssuer, ex);
             return null;
         }
         catch (SecurityTokenException ex)
         {
-            LogValidationFailed("invalid_token", ex);
+            LogValidationFailed(AuthTelemetry.ReasonInvalidToken, ex);
             return null;
         }
         catch (ArgumentException ex)
         {
             // Thrown for malformed tokens (e.g. wrong segment count).
-            LogValidationFailed("malformed", ex);
+            LogValidationFailed(AuthTelemetry.ReasonMalformed, ex);
             return null;
         }
     }

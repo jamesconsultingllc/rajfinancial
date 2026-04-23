@@ -47,15 +47,15 @@ public partial class AuthenticationMiddleware(
     IJwtBearerValidator validator) : IFunctionsWorkerMiddleware
 {
     // Standard claim types for Entra External ID
-    private const string OBJECT_ID_CLAIM = "http://schemas.microsoft.com/identity/claims/objectidentifier";
-    private const string OBJECT_ID_CLAIM_ALT = "oid";
-    private const string EMAIL_CLAIM = "emails";
-    private const string EMAIL_CLAIM_ALT = "email";
-    private const string PREFERRED_USERNAME_CLAIM = "preferred_username";
-    private const string UPN_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn";
-    private const string ROLES_CLAIM = "roles";
-    private const string NAME_CLAIM = "name";
-    private const string TENANT_ID_CLAIM = "tid";
+    private const string OBJECT_ID_CLAIM = JwtClaimNames.ObjectIdLongForm;
+    private const string OBJECT_ID_CLAIM_ALT = JwtClaimNames.Oid;
+    private const string EMAIL_CLAIM = JwtClaimNames.Emails;
+    private const string EMAIL_CLAIM_ALT = JwtClaimNames.Email;
+    private const string PREFERRED_USERNAME_CLAIM = JwtClaimNames.PreferredUsername;
+    private const string UPN_CLAIM = JwtClaimNames.UpnLongForm;
+    private const string ROLES_CLAIM = JwtClaimNames.Roles;
+    private const string NAME_CLAIM = JwtClaimNames.Name;
+    private const string TENANT_ID_CLAIM = JwtClaimNames.Tid;
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -152,24 +152,24 @@ public partial class AuthenticationMiddleware(
             return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        if (!httpRequestData.Headers.TryGetValues("Authorization", out var authValues))
+        if (!httpRequestData.Headers.TryGetValues(HttpHeaderNames.Authorization, out var authValues))
         {
             return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
         var authHeader = authValues.FirstOrDefault();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith(HttpHeaderNames.BearerSchemePrefix, StringComparison.OrdinalIgnoreCase))
         {
             return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        var token = authHeader["Bearer ".Length..].Trim();
+        var token = authHeader[HttpHeaderNames.BearerSchemePrefix.Length..].Trim();
         if (string.IsNullOrEmpty(token))
         {
             return (null, AuthTelemetry.ReasonNoPrincipal);
         }
 
-        var validated = await validator.ValidateAsync(token, CancellationToken.None);
+        var validated = await validator.ValidateAsync(token, context.CancellationToken);
         return validated is not null
             ? (validated, AuthTelemetry.ReasonNoPrincipal)
             : (null, AuthTelemetry.ReasonInvalidToken);

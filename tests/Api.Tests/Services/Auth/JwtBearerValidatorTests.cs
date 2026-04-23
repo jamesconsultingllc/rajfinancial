@@ -18,7 +18,7 @@ namespace RajFinancial.Api.Tests.Services.Auth;
 ///     Unit tests for <see cref="JwtBearerValidator"/> — signature, issuer, audience,
 ///     lifetime validation and graceful handling of discovery outages.
 /// </summary>
-public class JwtBearerValidatorTests
+public class JwtBearerValidatorTests : IDisposable
 {
     private const string Issuer = "https://496527a2-41f8-4297-a979-c916e7255a22.ciamlogin.com/496527a2-41f8-4297-a979-c916e7255a22/v2.0";
     private const string Audience = "api://rajfinancial-api-dev";
@@ -29,6 +29,7 @@ public class JwtBearerValidatorTests
     private readonly EntraExternalIdOptions options;
     private readonly Mock<IConfigurationManager<OpenIdConnectConfiguration>> configManagerMock;
     private readonly JwtBearerValidator validator;
+    private bool disposed;
 
     public JwtBearerValidatorTests()
     {
@@ -213,6 +214,25 @@ public class JwtBearerValidatorTests
     }
 
     // ------------------------------------------------------------------
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed)
+            return;
+
+        if (disposing)
+        {
+            rsa.Dispose();
+        }
+
+        disposed = true;
+    }
+
     private string CreateToken(
         string? issuer = null,
         string? audience = null,

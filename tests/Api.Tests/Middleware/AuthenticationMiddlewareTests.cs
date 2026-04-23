@@ -443,7 +443,7 @@ public class AuthenticationMiddlewareTests
     private static TestFunctionContext CreateContextWithAuthorizationHeader(string authorizationHeader)
     {
         var context = new TestFunctionContext();
-        var headers = new HttpHeadersCollection { { "Authorization", authorizationHeader } };
+        var headers = new HttpHeadersCollection { { HttpHeaderNames.Authorization, authorizationHeader } };
         context.SetHttpRequestHeaders(headers);
         return context;
     }

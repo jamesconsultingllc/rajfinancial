@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using RajFinancial.Api.Middleware;
 
 namespace RajFinancial.Api.Services.Auth;
 
@@ -39,7 +40,10 @@ internal sealed partial class LocalUnsignedJwtValidator(
         try
         {
             var jwt = handler.ReadJwtToken(bearerToken);
-            var identity = new ClaimsIdentity(jwt.Claims, authenticationType: "Bearer");
+            // Trim trailing space from the canonical "Bearer " prefix to use it as the
+            // ClaimsIdentity authentication type — keeps it identical to what the
+            // production validator emits (an authenticated identity backed by a bearer token).
+            var identity = new ClaimsIdentity(jwt.Claims, authenticationType: HttpHeaderNames.BearerSchemePrefix.TrimEnd());
             return Task.FromResult<ClaimsPrincipal?>(new ClaimsPrincipal(identity));
         }
         catch (System.Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
