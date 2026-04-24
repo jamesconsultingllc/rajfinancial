@@ -97,9 +97,18 @@ Wait for `Host lock lease acquired` and the endpoint list. Leave the window visi
 **Path A — `inso`:**
 
 ```powershell
-# Second terminal:
-inso run collection "Phase 1c Span Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
+# Second terminal (from repo root):
+inso run collection "Phase 1c Span Capture" `
+  --env Local `
+  --disableCertValidation `
+  -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
+  | Tee-Object -FilePath phase1c-requests.log
 ```
+
+`-w` points at the committed workspace so the run is reproducible without a
+prior Insomnia GUI import. `--disableCertValidation` is required for the
+localhost dev cert on `https://localhost:7071`. If you have already imported
+the workspace into the Insomnia app, `-w` is optional.
 
 Seven requests execute in order, with ~2 s between them (the runner serializes): `00 Healthcheck` first as a worker-liveness sanity ping, then `01`–`06` as the actual capture set. Ignore the healthcheck trace in §6 — it hits `/health/live` and is not one of the six captures. See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
 

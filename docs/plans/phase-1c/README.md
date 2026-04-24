@@ -7,7 +7,9 @@ This folder ships:
   collection (`Phase 1c Capture`) holding one request per primary API domain
   (Auth/UserProfile/Assets/Entities/ClientManagement), plus one
   intentionally-denied request that also exercises Authorization +
-  middleware.
+  middleware, plus a leading `00 Healthcheck` worker-liveness ping
+  (7 requests total; the healthcheck is not part of the 6 captures
+  pasted into §6 of the span-validation doc).
 - `README.md` — this file. How to run the capture via `inso` (or the GUI)
   without leaking secrets.
 
