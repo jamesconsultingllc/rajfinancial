@@ -40,7 +40,7 @@ catch (Exception ex)
 - Handled client exceptions (`ValidationException`, `NotFoundException`, `ForbiddenException`, `UnauthorizedException`, `ConflictException`, `BusinessRuleException`, `DbUpdateConcurrencyException` — the set identified by `ExceptionClassification.IsHandledClientException`) are recorded as an `exception` event on the span but **do not** set the span status to `Error`.
 - All other exceptions (5xx-class, unexpected) are recorded as an `exception` event **and** set the span status to `Error`.
 
-The recording is intentionally duplicated — service, function, authorization middleware, and `ExceptionMiddleware` each record on their own span. The `ExceptionMiddleware` path uses the same helper against `FunctionContext.GetInvocationActivity()` so the outer Functions Invoke span carries the same classification. `ExceptionMiddleware` then converts the exception into the HTTP response body.
+The recording is intentionally duplicated — service, function, authorization middleware, and `ExceptionMiddleware` each record on their own span. `ExceptionMiddleware` applies the same helper to the outer Functions Invoke span (captured via `Activity.Current` *before* it starts its own `Middleware.Exception` activity — see the [Consequences](#consequences) section), so the host-emitted invocation span carries the same classification. `ExceptionMiddleware` then converts the exception into the HTTP response body.
 
 Direct calls to `activity.SetStatus(...)`, `activity.RecordException(...)`, or `activity.AddException(...)` outside this helper are **not allowed** in call sites. All recording is routed through `RecordExceptionOutcome` so the classification rule lives in one place.
 
