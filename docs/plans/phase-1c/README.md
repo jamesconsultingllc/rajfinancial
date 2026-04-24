@@ -70,8 +70,10 @@ For secrets, prefer the imported private sub-env (populated once via the GUI —
 §2 Option A) or shell environment variables (§3, Option B below). If you
 really want a repo-local file-based override alongside the workspace for
 scripted runs, you must first broaden the repo root `.gitignore` from
-`/docs/Insomnia_*.yaml` to `docs/**/Insomnia_*` so an override dropped next to
-`phase-1c.insomnia.yaml` (inside the `-w` working dir) stays untracked.
+`/docs/Insomnia_*.yaml` (plus the paired `.yml` / `.json` lines) to
+`/docs/**/Insomnia_*` so any override (`Insomnia_*.yaml`, `Insomnia_*.yml`,
+or `Insomnia_*.json`) dropped next to `phase-1c.insomnia.yaml` (inside the
+`-w` working dir) stays untracked.
 
 ## 3. Run the capture
 
@@ -153,7 +155,8 @@ isolation.
 - Real tokens go only in the private Local sub-env (or a shell env var).
 - Never `Save All` + export an Insomnia workspace that contains the populated
   bearer back into this folder — the repo root `.gitignore` blocks
-  `/docs/Insomnia_*.yaml`, but a misplaced paste into this file would bypass
+  `/docs/Insomnia_*.yaml`, `/docs/Insomnia_*.yml`, and
+  `/docs/Insomnia_*.json`, but a misplaced paste into this file would bypass
   that.
 - If a token leaks anyway, revoke the Entra app registration credentials and
   any dev-user passwords rather than trying to scrub git history.
