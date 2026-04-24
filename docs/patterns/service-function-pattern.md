@@ -2,7 +2,7 @@
 
 > **Status:** Draft (Phase 1 of [ADO Feature #632](https://dev.azure.com/jamesconsulting/_workitems/edit/632))
 > **Scope:** Every new or refactored Azure Function endpoint and the service it delegates to.
-> **Related ADRs:** 0001 (IDOR → 404), 0002 (activity naming — resolved by Phase 1c, see [`docs/plans/phase-1c-span-validation.md §7`](../plans/phase-1c-span-validation.md)), 0003 (layered exception recording).
+> **Related ADRs:** [0001](../adr/0001-idor-returns-404.md) (IDOR → 404), [0002](../adr/0002-activity-naming-convention.md) (activity naming — resolved by Phase 1c, see [`docs/plans/phase-1c-span-validation.md §7`](../plans/phase-1c-span-validation.md)), [0003](../adr/0003-layered-exception-recording.md) (layered exception recording).
 
 This document is the single written standard for how an HTTP endpoint, its service, and the cross-cutting middleware cooperate in this codebase. It exists so reviewers can reject PRs that drift from the pattern by pointing at one document instead of inferring intent from whichever domain they read first. Three domains (Assets, Entities, ClientManagement) currently implement the same cross-cutting concerns three different ways; this pattern is the convergence target.
 
@@ -119,7 +119,7 @@ Each span belongs to a different logical scope. Deleting the service-level `try/
 
 ## 5. IDOR: owner-scoped reads return 404 on deny
 
-Per ADR 0001 (pending).
+Per [ADR 0001](../adr/0001-idor-returns-404.md).
 
 For Mode A endpoints, the service's `AuthorizeReadAsync` / `AuthorizeWriteAsync` throws `NotFoundException.<Domain>(id)` on denial — not `ForbiddenException`. The response body, status code, and error code are identical to the truly-missing-id case.
 
