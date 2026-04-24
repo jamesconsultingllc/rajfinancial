@@ -546,19 +546,12 @@ Three incompatible shapes across four domains plus two abbreviation violations. 
 
 The ClientMgmt rows also fold in the existing "no abbreviations" rule from pattern §3.1 (`ClientMgmt` → `ClientManagement`). `GetClientAssignments` → `GetClients.Service` aligns the service operation token with the function operation token as required by b2.
 
-### 7.3 Follow-up work (out of scope for this PR)
+### 7.3 Follow-up work
 
-This PR (docs only) locks the decision. A follow-up work item tracks the code-side rename:
+The code-side rename per §7.2 was applied in this PR alongside the docs. Remaining follow-ups:
 
-- [ ] Rename activity constants in [`AssetsTelemetry.cs`](../../src/Api/Services/AssetService/AssetsTelemetry.cs) per §7.2 (remove the `ActivityHttp*` block; add `.Service` suffix to the existing constants).
-- [ ] Rename activity constants in `ClientMgmt` telemetry class (rename type/namespace to `ClientManagement` at the same time).
-- [ ] Update call sites in `src/Api/Functions/**` and `src/Api/Services/**`.
-- [ ] Update [`ObservabilityDomains.cs`](../../src/Api/Configuration/ObservabilityDomains.cs) entries if the domain `ActivitySource` names change (`RajFinancial.Api.ClientManagement` vs `RajFinancial.Api.ClientMgmt`).
-- [ ] Update [`service-function-pattern.md`](../patterns/service-function-pattern.md) §3.1, §4, §6.1 to reference the new names.
-- [ ] Update any integration-test or architecture-test asserts that hard-code the old names.
-- [ ] Verify no Application Insights/Azure Monitor KQL dashboards reference the old names (search workspace before merging).
-
-The Option (a) validation (host-emitted span on Azure) is a separate follow-up, scoped to whichever work item carries the first non-local deployment.
+- [ ] Option (a) validation (host-emitted span on Azure with `faas.name` / `faas.trigger` attributes) — scoped to whichever work item carries the first non-local deployment.
+- [ ] Confirm no Application Insights / Azure Monitor KQL dashboards reference the old names (`Assets.Http.*`, `ClientMgmt.*`, `ClientMgmt.GetClientAssignments`, `UserProfile.EnsureProfileExists`) before the rename reaches a shared environment.
 
 ---
 
@@ -572,7 +565,8 @@ The Option (a) validation (host-emitted span on Azure) is a separate follow-up, 
 - [x] §6.4 observations recorded.
 - [x] §6.5 pre-b2 naming inventory documented.
 - [x] §7 decision recorded (Option b2) with rename mapping.
+- [x] §7.2 code rename applied (activity constants + call sites for Assets / ClientManagement / UserProfile).
+- [x] Build clean; 583 unit tests + 5 architecture tests pass.
 - [ ] `phase1c-spans.log` attached to [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633) (reviewer to attach; the file is gitignored and not in this PR).
-- [ ] Follow-up work item created for the §7.3 code rename (reviewer to open or link).
 - [ ] ADR 0002 (*Activity naming convention*) authored in Phase 1a (AB#637) using §7.1 as its Decision body.
-- [ ] [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633) moved to Done once log is attached and follow-up item is linked.
+- [ ] [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633) moved to Done once log is attached.
