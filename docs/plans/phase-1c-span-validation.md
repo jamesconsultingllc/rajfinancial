@@ -101,13 +101,13 @@ Wait for `Host lock lease acquired` and the endpoint list. Leave the window visi
 inso run collection "Phase 1c Span Capture" --env Local | Tee-Object -FilePath phase1c-requests.log
 ```
 
-Six requests execute in order, with ~2 s between them (the runner serializes). See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
+Seven requests execute in order, with ~2 s between them (the runner serializes): `00 Healthcheck` first as a worker-liveness sanity ping, then `01`–`06` as the actual capture set. Ignore the healthcheck trace in §6 — it hits `/health/live` and is not one of the six captures. See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
 
 **Path B — curl fallback:** see §4.3.
 
-### 4.3 Curl fallback (equivalent to Path A)
+### 4.3 Curl fallback (equivalent to Path A's 6 captures)
 
-Run each from a second terminal. Between requests, let stdout settle for ~2 seconds.
+Run each from a second terminal. Between requests, let stdout settle for ~2 seconds. Path A's `00 Healthcheck` request is a worker-liveness sanity ping only and is intentionally omitted here — if you want the equivalent, `curl -k https://localhost:7071/api/health/live` before the capture set. It is not one of the six traces copied into §6.
 
 **01 Auth — GET /auth/me:**
 
