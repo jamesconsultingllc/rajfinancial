@@ -118,9 +118,10 @@ isolation.
 ## 4. Paste into the scaffold
 
 - Copy the full stdout block for each request into §6 of
-  [`../phase-1c-span-validation.md`](../phase-1c-span-validation.md#6-captured-traces).
-- Fill in §7 (decision block) and §4 of the `service-function-pattern.md`
-  cross-ref note.
+  [`../phase-1c-span-validation.md`](../phase-1c-span-validation.md#6-capture-paste-here-during-execution).
+- Fill in §7 (decision block) of `../phase-1c-span-validation.md` and
+  §3.1 (Activity names — HTTP span TBD) of
+  [`../../patterns/service-function-pattern.md`](../../patterns/service-function-pattern.md#31-activity-names).
 - Attach `phase1c-spans.log` to ADO #633.
 
 ## 5. Secrets hygiene
