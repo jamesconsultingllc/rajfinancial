@@ -60,16 +60,18 @@ Insomnia sub-env that never gets committed.
 
 `inso` reads the workspace from the Insomnia app data dir (`~/.config/Insomnia`
 on Linux / `%APPDATA%\Insomnia` on Windows). After importing once via the GUI
-the CLI can drive it directly. For fully scripted runs, point
-`-w` / `--workingDir` at the **directory** that contains
-`phase-1c.insomnia.yaml` and any private env override — for this repo that
+the CLI can drive that same workspace and its private `isPrivate` sub-env
+directly. For fully scripted runs, point `-w` / `--workingDir` at the
+**directory** that contains `phase-1c.insomnia.yaml` — for this repo that
 directory is `docs/plans/phase-1c/`. Pass the folder path, not the YAML file
-path. Note: the repo root `.gitignore` rule `/docs/Insomnia_*.yaml`
-matches only files directly under `/docs/` (not under
-`docs/plans/phase-1c/`), so place any private override under `/docs/`
-(e.g. `docs/Insomnia_local.yaml`) to ensure it stays gitignored — or
-broaden the rule to `docs/**/Insomnia_*` before putting overrides in
-subdirectories.
+path.
+
+For secrets, prefer the imported private sub-env (populated once via the GUI —
+§2 Option A) or shell environment variables (§3, Option B below). If you
+really want a repo-local file-based override alongside the workspace for
+scripted runs, you must first broaden the repo root `.gitignore` from
+`/docs/Insomnia_*.yaml` to `docs/**/Insomnia_*` so an override dropped next to
+`phase-1c.insomnia.yaml` (inside the `-w` working dir) stays untracked.
 
 ## 3. Run the capture
 

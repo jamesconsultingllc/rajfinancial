@@ -142,7 +142,8 @@ Run each from a second terminal. Between requests, let stdout settle for ~2 seco
 **01 Auth — GET /auth/me:**
 
 ```powershell
-$env:BEARER="..."
+# Prompt securely once for the bearer token so it is not written to PSReadLine history.
+$env:BEARER = (Get-Credential -UserName bearer -Message 'Paste bearer token').GetNetworkCredential().Password
 curl.exe -k -H "Authorization: Bearer $env:BEARER" "https://localhost:7071/api/auth/me"
 ```
 
