@@ -81,22 +81,40 @@ func start --useHttps | Tee-Object -FilePath ..\..\phase1c-spans.log
 
 Wait for `Host started` and `Functions:` listing.
 
-```powershell
-# Terminal 2 — fire the 7 requests (healthcheck + 6 captures)
-inso run collection "Phase 1c Span Capture" `
-  --env Local `
-  --env-var bearer=<token> `
-  --env-var asset_id=<guid> `
-  --env-var entity_id=<guid> `
-  --env-var denied_asset_id=<guid-owned-by-other-user> `
-  --disableCertValidation `
-  --ci `
-  -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
-  | Tee-Object -FilePath phase1c-requests.log
-```
-
 Requests run in sortKey order: `00 Healthcheck` → `01 Auth` → `02 UserProfile`
 → `03 Assets` → `04 Entities` → `05 ClientManagement` → `06 Denied`.
+
+Two ways to feed the bearer + ids without leaking secrets into shell history:
+
+- **Preferred — populate the private `Local` sub-env once via the GUI import**
+  (see §2, Option A). `inso run collection` will read them from there and
+  nothing sensitive appears on the command line.
+- **Scripted** — export shell env vars up front, then let `inso` interpolate
+  them into `--env-var`:
+
+  ```powershell
+  # Terminal 2 — set once per shell, never echo to logs
+  $env:BEARER = (Get-Credential -UserName bearer -Message 'Paste bearer token').GetNetworkCredential().Password
+  $env:ASSET_ID = "<guid>"
+  $env:ENTITY_ID = "<guid>"
+  $env:DENIED_ASSET_ID = "<guid-owned-by-other-user>"
+
+  inso run collection "Phase 1c Span Capture" `
+    --env Local `
+    --env-var bearer=$env:BEARER `
+    --env-var asset_id=$env:ASSET_ID `
+    --env-var entity_id=$env:ENTITY_ID `
+    --env-var denied_asset_id=$env:DENIED_ASSET_ID `
+    --disableCertValidation `
+    --ci `
+    -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
+    | Tee-Object -FilePath phase1c-requests.log
+  ```
+
+  `Get-Credential` hides the token entry from the shell prompt so it never
+  hits PSReadLine history (works on both Windows PowerShell 5.1 and PS 7+).
+  Unset the vars (`Remove-Item Env:BEARER,Env:ASSET_ID,Env:ENTITY_ID,Env:DENIED_ASSET_ID`)
+  when you're done.
 
 Alternatively, step through each request in the Insomnia GUI (right-click →
 Send) and read the stdout tail — useful if you want to inspect each trace in

@@ -62,7 +62,7 @@ Keep these values handy — they go into the curl commands in §4.
 | `BEARER` | For local (unsigned-JWT) runs, mint a dev token the same way the integration tests do — see `tests/IntegrationTests/Support/TestAuthHelper.cs` plus `tests/IntegrationTests/appsettings.json` (the `Entra:TestUsers:*` entries it reads) and `appsettings.local.json` if present. For a real Entra token against the running worker, use `RopcTokenProvider` with `TEST_{ROLE}_PASSWORD` env vars set (same as the integration suite). **The fixture itself does not mint tokens** — only `TestAuthHelper` / `RopcTokenProvider` do. |
 | `ASSET_ID` | After `func start --useHttps` is up (see §4.1), `curl -k -H "Authorization: Bearer $BEARER" https://localhost:7071/api/assets` and pick any `id` from the response. |
 | `ENTITY_ID` | Same pattern against `/api/entities`. |
-| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). Pull from `/api/clients` (the advisor-scoped list endpoint). |
+| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). Pull from `/api/auth/clients` (the advisor-scoped list endpoint). |
 
 The `FunctionsHostFixture` used by the integration suite **does not seed data or start the host** — it only builds an `HttpClient` and checks that something is already listening at `FunctionsHost:BaseUrl` (from `tests/IntegrationTests/appsettings.json`, default `https://localhost:7071`). Feature data comes from either (a) the test scenarios making their own HTTP calls, or (b) helper endpoints like `/api/testing/seed-contact`. If the DB is empty, create a user / asset / entity / assignment via the normal create endpoints before starting this procedure, or run one integration scenario that exercises those create paths first.
 
@@ -96,14 +96,24 @@ Wait for `Host lock lease acquired` and the endpoint list. Leave the window visi
 
 **Path A — `inso`:**
 
+Feed the bearer + ids via shell env vars (or populate the private `Local`
+sub-env in Insomnia once — see [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file)).
+**Do not paste literal tokens on the command line** — they land in
+PSReadLine history and any CI job log.
+
 ```powershell
 # Second terminal (from repo root):
+$env:BEARER = (Get-Credential -UserName bearer -Message 'Paste bearer token').GetNetworkCredential().Password
+$env:ASSET_ID = "<guid>"
+$env:ENTITY_ID = "<guid>"
+$env:DENIED_ASSET_ID = "<guid-owned-by-other-user>"
+
 inso run collection "Phase 1c Span Capture" `
   --env Local `
-  --env-var bearer=<token> `
-  --env-var asset_id=<guid> `
-  --env-var entity_id=<guid> `
-  --env-var denied_asset_id=<guid-owned-by-other-user> `
+  --env-var bearer=$env:BEARER `
+  --env-var asset_id=$env:ASSET_ID `
+  --env-var entity_id=$env:ENTITY_ID `
+  --env-var denied_asset_id=$env:DENIED_ASSET_ID `
   --disableCertValidation `
   -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
   | Tee-Object -FilePath phase1c-requests.log
@@ -112,12 +122,14 @@ inso run collection "Phase 1c Span Capture" `
 `-w` points at the committed workspace so the run is reproducible without a
 prior Insomnia GUI import. The committed YAML intentionally ships the `bearer`
 / `asset_id` / `entity_id` / `denied_asset_id` values blank, so you **must**
-either (a) pass them with `--env-var` as shown above, or (b) import the
-workspace into Insomnia once and populate the private `Local` sub-env there
-(see [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file)).
-Skipping both will cause 401s/404s and an incomplete capture.
-`--disableCertValidation` is required for the localhost dev cert on
-`https://localhost:7071`.
+either (a) pass them via `--env-var` as shown above (reading from shell env
+vars populated via `Get-Credential` / manual assignment, never a literal
+token on the command line), or (b) import the workspace into Insomnia once
+and populate the private `Local` sub-env there. Skipping both will cause
+401s/404s and an incomplete capture. `--disableCertValidation` is required
+for the localhost dev cert on `https://localhost:7071`. Unset the env vars
+(`Remove-Item Env:BEARER,Env:ASSET_ID,Env:ENTITY_ID,Env:DENIED_ASSET_ID`)
+when you're done.
 
 Seven requests execute in order, with ~2 s between them (the runner serializes): `00 Healthcheck` first as a worker-liveness sanity ping, then `01`–`06` as the actual capture set. Ignore the healthcheck trace in §6 — it hits `/health/live` and is not one of the six captures. See [`phase-1c/README.md`](./phase-1c/README.md#2-populate-your-private-env-file) for how to populate the `bearer` / `asset_id` / `entity_id` / `denied_asset_id` env vars (they live in a private `isPrivate: true` Insomnia sub-env — not in the committed YAML).
 
