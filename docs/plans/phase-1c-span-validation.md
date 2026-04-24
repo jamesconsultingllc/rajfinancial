@@ -79,7 +79,7 @@ Either way, the stdout of `func start --useHttps` is the capture surface — §4
 
 ### 4.1 Start the worker with the Console exporter active
 
-From `src/Api/`:
+From repo root:
 
 ```powershell
 cd src\Api
@@ -256,7 +256,7 @@ The final call lives in §7.
 - Host-emitted server span tags: `<TBD>`
 - Parent/child relationship of `<Domain>.<Op>` service span to the host span: `<TBD>`
 - Parent/child relationship of existing `Assets.Http.<Op>` span (Assets only) to the host span: `<TBD>`
-- Exception recording on the denied request (§6.6): confirm `exception.type` / `exception.message` are recorded on the service span and the host span without setting `status=Error`, and confirm the `Authorization.CheckAccess` span records the exception and is explicitly marked `status=Error`: `<TBD>`
+- Exception recording on the denied request (§6.6): confirm `exception.type` / `exception.message` are recorded on the service span and the host span without setting `status=Error`, and confirm the `Authorization.CheckAccess` span is explicitly marked `status=Error` with an access-denied description (via `AuthorizationTelemetry.RecordDenied`) rather than recording an exception event: `<TBD>`
 
 ---
 
