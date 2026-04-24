@@ -28,6 +28,9 @@ src/Client/src/generated/memorypack/*.ts
 # Test results
 TestResults/
 *.trx
+
+# Phase 1c local trace capture (attached to AB#633; do not commit)
+phase1c-spans.log
 tests/e2e/*.log
 
 # OS
