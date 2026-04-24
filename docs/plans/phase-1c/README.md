@@ -32,10 +32,11 @@ scope for 1c.
    for code paths that check it), build succeeds, a seed user + owned asset +
    owned entity + one client assignment exist.
 
-   Both env vars must be set **inside `local.settings.json` → `Values`**, not just
-   the shell — `func start` only forwards shell env vars that are explicitly named
-   in the settings file. Without these, `AuthenticationMiddleware` rejects
-   unsigned JWTs and every authenticated request returns `401 AUTH_REQUIRED`.
+   Both env vars must be available to the worker, either by setting them in the
+   shell before starting `func` or by adding them under
+   `src/Api/local.settings.json` → `Values`. Without these,
+   `AuthenticationMiddleware` rejects unsigned JWTs and every authenticated
+   request returns `401 AUTH_REQUIRED`.
 4. A bearer token minted the same way `tests/IntegrationTests/Support/TestAuthHelper.cs`
    mints one (local unsigned JWT for localhost, or `RopcTokenProvider` for
    Entra).
