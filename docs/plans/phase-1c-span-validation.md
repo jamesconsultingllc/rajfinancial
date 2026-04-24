@@ -62,7 +62,7 @@ Keep these values handy — they go into the curl commands in §4.
 | `BEARER` | For local (unsigned-JWT) runs, mint a dev token the same way the integration tests do — see `tests/IntegrationTests/Support/TestAuthHelper.cs` plus `tests/IntegrationTests/appsettings.json` (the `Entra:TestUsers:*` entries it reads) and `appsettings.local.json` if present. For a real Entra token against the running worker, use `RopcTokenProvider` with `TEST_{ROLE}_PASSWORD` env vars set (same as the integration suite). **The fixture itself does not mint tokens** — only `TestAuthHelper` / `RopcTokenProvider` do. |
 | `ASSET_ID` | After `func start --useHttps` is up (see §4.1), `curl -k -H "Authorization: Bearer $BEARER" https://localhost:7071/api/assets` and pick any `id` from the response. |
 | `ENTITY_ID` | Same pattern against `/api/entities`. |
-| `CLIENT_USER_ID` | A user id the token's advisor has assigned (Mode B endpoint). Pull from `/api/auth/clients` (the advisor-scoped list endpoint). |
+| `DENIED_ASSET_ID` | An asset id owned by a **different** user than the one `BEARER` represents. Seed a second user with an asset, then pick that asset's id. Required for the denied-request capture (§4.3 request 06). |
 
 The `FunctionsHostFixture` used by the integration suite **does not seed data or start the host** — it only builds an `HttpClient` and checks that something is already listening at `FunctionsHost:BaseUrl` (from `tests/IntegrationTests/appsettings.json`, default `https://localhost:7071`). Feature data comes from either (a) the test scenarios making their own HTTP calls, or (b) helper endpoints like `/api/testing/seed-contact`. If the DB is empty, create a user / asset / entity / assignment via the normal create endpoints before starting this procedure, or run one integration scenario that exercises those create paths first.
 
@@ -115,7 +115,7 @@ inso run collection "Phase 1c Span Capture" `
   --env-var entity_id=$env:ENTITY_ID `
   --env-var denied_asset_id=$env:DENIED_ASSET_ID `
   --disableCertValidation `
-  -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
+  -w docs\plans\phase-1c `
   | Tee-Object -FilePath phase1c-requests.log
 ```
 

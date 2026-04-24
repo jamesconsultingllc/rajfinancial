@@ -60,9 +60,11 @@ Insomnia sub-env that never gets committed.
 
 `inso` reads the workspace from the Insomnia app data dir (`~/.config/Insomnia`
 on Linux / `%APPDATA%\Insomnia` on Windows). After importing once via the GUI
-the CLI can drive it directly. For fully scripted runs, point `--workingDir`
-at a cloned directory that contains both the YAML and your private env
-override. Note: the repo root `.gitignore` rule `/docs/Insomnia_*.yaml`
+the CLI can drive it directly. For fully scripted runs, point
+`-w` / `--workingDir` at the **directory** that contains
+`phase-1c.insomnia.yaml` and any private env override — for this repo that
+directory is `docs/plans/phase-1c/`. Pass the folder path, not the YAML file
+path. Note: the repo root `.gitignore` rule `/docs/Insomnia_*.yaml`
 matches only files directly under `/docs/` (not under
 `docs/plans/phase-1c/`), so place any private override under `/docs/`
 (e.g. `docs/Insomnia_local.yaml`) to ensure it stays gitignored — or
@@ -107,7 +109,7 @@ Two ways to feed the bearer + ids without leaking secrets into shell history:
     --env-var denied_asset_id=$env:DENIED_ASSET_ID `
     --disableCertValidation `
     --ci `
-    -w docs\plans\phase-1c\phase-1c.insomnia.yaml `
+    -w docs\plans\phase-1c `
     | Tee-Object -FilePath phase1c-requests.log
   ```
 
