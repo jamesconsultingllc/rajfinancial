@@ -33,7 +33,7 @@ namespace RajFinancial.Api.Services.UserProfile;
 internal static class UserProfileTelemetry
 {
     // Activity names (service layer)
-    internal const string ActivityEnsureProfileExists = "UserProfile.EnsureProfileExists";
+    internal const string ActivityEnsureProfileExistsService = "UserProfile.EnsureProfileExists.Service";
     internal const string ActivityGetById = "UserProfile.GetById";
     internal const string ActivityUpdateProfile = "UserProfile.UpdateProfile";
 

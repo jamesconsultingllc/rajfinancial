@@ -34,16 +34,17 @@ internal static class ClientManagementTelemetry
     internal const string ClientUserIdTag = "client.user_id";
     internal const string GrantorUserIdTag = "grant.grantor_user_id";
 
-    // Activity (span) names. Endpoint spans are emitted by the HTTP function; service spans are
-    // emitted by the domain service. Keeping them distinct makes nested traces easier to read
-    // (endpoint parent → service child), per review feedback on PR #86.
-    internal const string ActivityAssignClient = "ClientMgmt.AssignClient";
-    internal const string ActivityGetClients = "ClientMgmt.GetClients";
-    internal const string ActivityRemoveClient = "ClientMgmt.RemoveClient";
-    internal const string ActivityAssignClientService = "ClientMgmt.AssignClient.Service";
-    internal const string ActivityGetClientAssignments = "ClientMgmt.GetClientAssignments";
-    internal const string ActivityGetGrantById = "ClientMgmt.GetGrantById";
-    internal const string ActivityRemoveClientAccess = "ClientMgmt.RemoveClientAccess";
+    // Activity (span) names follow the Phase 1c decision (Option b2, see
+    // docs/plans/phase-1c-span-validation.md §7):
+    //   - Function-layer span:  ClientManagement.<Op>
+    //   - Service-layer span:   ClientManagement.<Op>.Service
+    internal const string ActivityAssignClient = "ClientManagement.AssignClient";
+    internal const string ActivityGetClients = "ClientManagement.GetClients";
+    internal const string ActivityRemoveClient = "ClientManagement.RemoveClient";
+    internal const string ActivityAssignClientService = "ClientManagement.AssignClient.Service";
+    internal const string ActivityGetClientsService = "ClientManagement.GetClients.Service";
+    internal const string ActivityGetGrantByIdService = "ClientManagement.GetGrantById.Service";
+    internal const string ActivityRemoveClientAccessService = "ClientManagement.RemoveClientAccess.Service";
 
     // Error/response codes used by the function endpoints.
     internal const string SelfAssignmentNotAllowedCode = "SELF_ASSIGNMENT_NOT_ALLOWED";

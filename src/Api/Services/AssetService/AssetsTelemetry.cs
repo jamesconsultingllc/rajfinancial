@@ -7,12 +7,15 @@
 // invariant and the AGENT.md "No Magic Strings or Numbers" rule.
 //
 // NOTE for future contributors (tracked by ADO #628):
-// The per-call counter helpers (RecordCreated/Updated/Deleted) and the
-// Assets.Http.* activity names below are STAGING for this PR only. They will
-// be removed once #628 lands a SaveChangesInterceptor that emits business
-// counters and a TelemetryEnrichmentMiddleware that tags the auto-emitted
-// Functions Invoke span. Do NOT add new per-domain counter helpers or new
-// *.Http.* activities in other domains; let #628 do them centrally.
+// The per-call counter helpers (RecordCreated/Updated/Deleted) are STAGING
+// for this domain only. They will be consolidated once #628 lands a
+// SaveChangesInterceptor that emits business counters centrally. Do NOT add
+// new per-domain counter helpers in other domains; let #628 do them centrally.
+//
+// Span naming follows the Phase 1c decision (Option b2, see
+// docs/plans/phase-1c-span-validation.md §7):
+//   - Function-layer span:  Assets.<Op>
+//   - Service-layer span:   Assets.<Op>.Service
 // ============================================================================
 
 using System.Diagnostics;
@@ -26,19 +29,19 @@ namespace RajFinancial.Api.Services.AssetService;
 /// </summary>
 internal static class AssetsTelemetry
 {
-    // Activity names (service layer)
+    // Activity names (function layer — Assets.<Op>)
     internal const string ActivityGetList = "Assets.GetList";
     internal const string ActivityGetById = "Assets.GetById";
     internal const string ActivityCreate = "Assets.Create";
     internal const string ActivityUpdate = "Assets.Update";
     internal const string ActivityDelete = "Assets.Delete";
 
-    // Activity names (HTTP layer)
-    internal const string ActivityHttpGetList = "Assets.Http.GetList";
-    internal const string ActivityHttpGetById = "Assets.Http.GetById";
-    internal const string ActivityHttpCreate = "Assets.Http.Create";
-    internal const string ActivityHttpUpdate = "Assets.Http.Update";
-    internal const string ActivityHttpDelete = "Assets.Http.Delete";
+    // Activity names (service layer — Assets.<Op>.Service)
+    internal const string ActivityGetListService = "Assets.GetList.Service";
+    internal const string ActivityGetByIdService = "Assets.GetById.Service";
+    internal const string ActivityCreateService = "Assets.Create.Service";
+    internal const string ActivityUpdateService = "Assets.Update.Service";
+    internal const string ActivityDeleteService = "Assets.Delete.Service";
 
     // Tag keys
     internal const string TagUserId = "user.id";

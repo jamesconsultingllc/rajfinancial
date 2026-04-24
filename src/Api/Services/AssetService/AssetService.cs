@@ -33,7 +33,7 @@ public partial class AssetService(
         AssetType? filterType = null,
         bool includeDisposed = false)
     {
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetList);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetListService);
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
@@ -73,7 +73,7 @@ public partial class AssetService(
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(Guid requestingUserId, Guid assetId)
     {
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetById);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetByIdService);
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
@@ -103,7 +103,7 @@ public partial class AssetService(
 
     public async Task<AssetDto> CreateAssetAsync(Guid userId, CreateAssetRequest request)
     {
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityCreate);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityCreateService);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
@@ -171,7 +171,7 @@ public partial class AssetService(
 
     public async Task<AssetDto> UpdateAssetAsync(Guid requestingUserId, Guid assetId, UpdateAssetRequest request)
     {
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityUpdate);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityUpdateService);
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
@@ -263,7 +263,7 @@ public partial class AssetService(
 
     public async Task DeleteAssetAsync(Guid requestingUserId, Guid assetId)
     {
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityDelete);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityDeleteService);
         activity?.SetTag(AssetsTelemetry.TagUserId, requestingUserId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 

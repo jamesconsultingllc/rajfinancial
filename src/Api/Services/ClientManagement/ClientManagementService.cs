@@ -92,7 +92,7 @@ public partial class ClientManagementService(
         bool isAdmin,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetClientAssignments);
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetClientsService);
         activity?.SetTag(ClientManagementTelemetry.UserIdTag, userId.ToString());
         activity?.SetTag(ClientManagementTelemetry.UserIsAdminTag, isAdmin);
 
@@ -127,7 +127,7 @@ public partial class ClientManagementService(
         Guid grantId,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetGrantById);
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityGetGrantByIdService);
         activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grantId.ToString());
 
         try
@@ -147,7 +147,7 @@ public partial class ClientManagementService(
         Guid grantId,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityRemoveClientAccess);
+        using var activity = ClientManagementTelemetry.StartActivity(ClientManagementTelemetry.ActivityRemoveClientAccessService);
         activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grantId.ToString());
 
         try

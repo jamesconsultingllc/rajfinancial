@@ -38,7 +38,7 @@ public partial class UserProfileService(
         Guid? tenantId = null,
         CancellationToken cancellationToken = default)
     {
-        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityEnsureProfileExists);
+        using var activity = UserProfileTelemetry.ActivitySource.StartActivity(UserProfileTelemetry.ActivityEnsureProfileExistsService);
         activity?.SetTag(UserProfileTelemetry.TagUserId, userId);
         if (tenantId.HasValue)
         {
