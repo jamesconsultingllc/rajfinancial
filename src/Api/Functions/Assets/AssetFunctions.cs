@@ -75,7 +75,7 @@ public partial class AssetFunctions(
         var filterType = ParseAssetType(req);
         var includeDisposed = ParseBool(req, "includeDisposed");
 
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpGetList);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetList);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         if (filterType.HasValue)
             activity?.SetTag(AssetsTelemetry.TagAssetType, filterType.Value.ToString());
@@ -133,7 +133,7 @@ public partial class AssetFunctions(
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
 
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpGetById);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetById);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
@@ -185,7 +185,7 @@ public partial class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<CreateAssetRequest>();
 
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpCreate);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityCreate);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagOwnerUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
@@ -244,7 +244,7 @@ public partial class AssetFunctions(
 
         var request = await context.GetValidatedBodyAsync<UpdateAssetRequest>();
 
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpUpdate);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityUpdate);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
         activity?.SetTag(AssetsTelemetry.TagAssetType, request.Type.ToString());
@@ -297,7 +297,7 @@ public partial class AssetFunctions(
         if (!Guid.TryParse(id, out var assetId))
             throw new ValidationException($"Invalid asset ID format: '{id}'");
 
-        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpDelete);
+        using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityDelete);
         activity?.SetTag(AssetsTelemetry.TagUserId, userId);
         activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 

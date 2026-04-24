@@ -2,7 +2,7 @@
 
 > **Status:** Draft (Phase 1 of [ADO Feature #632](https://dev.azure.com/jamesconsulting/_workitems/edit/632))
 > **Scope:** Every new or refactored Azure Function endpoint and the service it delegates to.
-> **Related ADRs:** 0001 (IDOR → 404), 0002 (activity naming), 0003 (layered exception recording) — authored in Phase 1a after Phase 1c locks the HTTP-span decision.
+> **Related ADRs:** 0001 (IDOR → 404), 0002 (activity naming — resolved by Phase 1c, see [`docs/plans/phase-1c-span-validation.md §7`](../plans/phase-1c-span-validation.md)), 0003 (layered exception recording).
 
 This document is the single written standard for how an HTTP endpoint, its service, and the cross-cutting middleware cooperate in this codebase. It exists so reviewers can reject PRs that drift from the pattern by pointing at one document instead of inferring intent from whichever domain they read first. Three domains (Assets, Entities, ClientManagement) currently implement the same cross-cutting concerns three different ways; this pattern is the convergence target.
 
@@ -25,7 +25,7 @@ If something in this doc contradicts [`AGENT.md`](../../AGENT.md), **AGENT.md wi
 | Return DTO (not entity) | ✅ (serialize) | ✅ (return) | — |
 | Write HTTP response | ✅ via `context.CreateSerializedResponseAsync(...)` | ❌ — must not reference `HttpResponseData` / `HttpRequestData` / `FunctionContext` | — |
 | Exception → HTTP mapping + JSON body | ❌ | ❌ | `ExceptionMiddleware` |
-| Exception recording on own `Activity` | ✅ (if the function opens one — see Phase 1c) | ✅ | `ExceptionMiddleware` records on the outer Functions Invoke span via `invocationActivity?.RecordExceptionOutcome(ex)` |
+| Exception recording on own `Activity` | ✅ on the function-layer `<Domain>.<Op>` span it opens | ✅ on the service-layer `<Domain>.<Op>.Service` span | `ExceptionMiddleware` records on the outer Functions Invoke span via `invocationActivity?.RecordExceptionOutcome(ex)` |
 
 The "❌" rows are enforced — or will be, after Phase 6 — by architecture tests in [`tests/Architecture.Tests/FunctionInvariantsTests.cs`](../../tests/Architecture.Tests/FunctionInvariantsTests.cs). Reviewers should point at those tests when rejecting a PR that crosses a line.
 
@@ -63,12 +63,14 @@ If a role-gated endpoint *also* did per-owner authorization in the service, a de
 
 ### 3.1 Activity names
 
-Per ADR 0002 (pending Phase 1c):
+Per Phase 1c (Option b2, see [`docs/plans/phase-1c-span-validation.md §7`](../plans/phase-1c-span-validation.md)):
 
-- **Service span:** `<Domain>.<Op>` — e.g. `Assets.GetById`, `Entities.Create`, `ClientManagement.AssignClient`.
-  - No `.Service` suffix (drop from Entities / ClientManagement during Phase 3a / 4).
-  - No abbreviations — `ClientManagement`, never `ClientMgmt`.
-- **HTTP span:** **TBD per Phase 1c.** The two candidates are tracked in the Feature #632 plan; do **not** add new `<Domain>.Http.*` activity names until that decision is recorded in ADR 0002. The `Assets.Http.*` names that exist today are explicitly staging for removal (ADO #628).
+- **Function-layer span:** `<Domain>.<Op>` — e.g. `Assets.GetById`, `Entities.CreateEntity`, `ClientManagement.AssignClient`.
+- **Service-layer span:** `<Domain>.<Op>.Service` — e.g. `Assets.GetById.Service`, `Entities.CreateEntity.Service`, `ClientManagement.AssignClient.Service`.
+- **Thin-handler exception:** when an endpoint's handler has no meaningful work of its own and simply delegates to the service (e.g. `Auth.GetMe`, `UserProfile.GetById`), a **single function-layer span** is acceptable. Do not manufacture a `<Domain>.<Op>.Service` child purely for symmetry. If the handler grows a non-trivial body later, promote it to the two-layer shape at that time.
+- **Provisioning / internal side-effects:** activities emitted from a service in response to a middleware trigger (e.g. `UserProfileProvisioningMiddleware` calling `EnsureProfileExistsAsync` / `EnsurePersonalEntityAsync`) use the `<Domain>.<Op>.Service` form (`UserProfile.EnsureProfileExists.Service`, `Entities.EnsurePersonalEntity.Service`). The `.Service` suffix identifies these as service-owned, not function entry points.
+- **No transport / protocol in the name.** Never add `.Http.`, `.Rest.`, `.Grpc.`, or similar prefixes. Put protocol detail in attributes (`http.request.method`, `http.route`, `faas.trigger`). The `Assets.Http.*` names used up through PR #92 were a staging form and have been removed.
+- **No abbreviations in the domain segment.** `ClientManagement`, never `ClientMgmt`; `UserProfile`, never `UserProf`. The prior `ClientMgmt.*` activity names were likewise staging and have been renamed.
 
 ### 3.2 Tag keys
 
@@ -104,8 +106,8 @@ Up to four different layers may record the same exception on four different `Act
 
 | Layer | Activity | Records via |
 |---|---|---|
-| Function | (optional — per Phase 1c) per-call HTTP span | `activity?.RecordExceptionOutcome(ex); throw;` |
-| Service | `<Domain>.<Op>` service span | same pattern |
+| Function | `<Domain>.<Op>` function-layer span (when opened — thin handlers may skip this) | `activity?.RecordExceptionOutcome(ex); throw;` |
+| Service | `<Domain>.<Op>.Service` service-layer span | same pattern |
 | `AuthorizationMiddleware` | `Authorization.CheckAccess` span | same pattern |
 | `ExceptionMiddleware` | Functions Invoke span (outer; owned by the host) | `invocationActivity?.RecordExceptionOutcome(ex)` inside the middleware |
 
@@ -200,10 +202,9 @@ public async Task<HttpResponseData> GetAssetById(
     if (!Guid.TryParse(id, out var assetId))
         throw new ValidationException($"Invalid asset ID format: '{id}'");
 
-    // Function-level activity — per Phase 1c decision. Body reads the same
-    // either way; if Option (a) wins, the using/try/catch block is deleted
-    // and the ExceptionMiddleware records on the Functions Invoke span.
-    using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityHttpGetById);
+    // Function-layer activity — per §3.1 (Phase 1c, Option b2). Opens
+    // Assets.GetById; the service delegated to below opens Assets.GetById.Service.
+    using var activity = AssetsTelemetry.ActivitySource.StartActivity(AssetsTelemetry.ActivityGetById);
     activity?.SetTag(AssetsTelemetry.TagUserId, userId);
     activity?.SetTag(AssetsTelemetry.TagAssetId, assetId);
 
@@ -263,8 +264,10 @@ A PR drifts from this pattern if any of the following is true:
 - A call site tags a user-supplied id on an activity **before** the authorization call that would reject the request.
 - A service uses the `params KeyValuePair<string,object?>[]` overload of a counter / histogram in a hot path when a `TagList` would do.
 - A service omits its `try { … } catch (Exception ex) { activity?.RecordExceptionOutcome(ex); throw; }` wrapper around the `StartActivity` it opened.
-- A span name uses abbreviation (`ClientMgmt.*`) or trailing `.Service` suffix.
-- A new `<Domain>.Http.*` activity is introduced before ADR 0002 records the Phase 1c decision, **or** a new per-domain business counter helper (`RecordCreated` / `RecordUpdated` / `RecordDeleted`) is added outside the Assets domain while [ADO #628](https://dev.azure.com/jamesconsulting/_workitems/edit/628) is still in flight.
+- A function opens a service-layer (`<Domain>.<Op>.Service`) span, or a service opens a function-layer (`<Domain>.<Op>`) span — the two layers belong to distinct call sites and must not cross.
+- A span name uses an abbreviation in the domain segment (`ClientMgmt.*`, `UserProf.*`).
+- A span name encodes transport or protocol (`.Http.`, `.Rest.`, `.Grpc.`, etc.) rather than placing that information in attributes.
+- A new per-domain business counter helper (`RecordCreated` / `RecordUpdated` / `RecordDeleted`) is added outside the Assets domain while [ADO #628](https://dev.azure.com/jamesconsulting/_workitems/edit/628) is still in flight.
 
 A reviewer flagging any of the above should link to the specific section of this doc in their comment.
 
