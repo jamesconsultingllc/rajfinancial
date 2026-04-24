@@ -276,10 +276,10 @@ This §7 block is the exact content that gets copied into ADR 0002 (*Activity na
 
 - [ ] §3 prerequisites satisfied (DB up, build passing, token + IDs in hand).
 - [ ] §4.1 `func start --useHttps` running; Console exporter producing output.
-- [ ] §4.2 all three (or four) requests executed; each returned the expected status code.
-- [ ] §4.3 Activity blocks captured and anonymized.
-- [ ] §6 sections 6.1 – 6.5 filled in this file, committed on a feature branch.
-- [ ] §5 decision criteria evaluated; answers recorded in §6.5.
+- [ ] §4.2 all 6 capture requests executed (+ the `00 Healthcheck` liveness ping if using Path A); each returned the expected status code.
+- [ ] §4.4 Activity blocks captured and anonymized.
+- [ ] §6 sections 6.1 – 6.6 filled in this file, committed on a feature branch.
+- [ ] §5 decision criteria evaluated; answers recorded in §6.7.
 - [ ] §7 decision recorded.
 - [ ] Phase 1a opened (ADO #637) to author ADR 0002 with §7's content.
 - [ ] This file linked from ADO #633; work item moved to Done.

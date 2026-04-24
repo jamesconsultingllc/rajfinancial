@@ -3,13 +3,15 @@
 Paired artifact for [`../phase-1c-span-validation.md`](../phase-1c-span-validation.md).
 This folder ships:
 
-- `phase-1c.insomnia.yaml` — committable Insomnia workspace with a single
-  collection (`Phase 1c Capture`) holding one request per primary API domain
+- `phase-1c.insomnia.yaml` — committable Insomnia workspace named
+  `Phase 1c Span Capture` (this is the string you pass to
+  `inso run collection`). It contains a `Phase 1c Capture` folder holding
+  the 6 capture requests: one per primary API domain
   (Auth/UserProfile/Assets/Entities/ClientManagement), plus one
   intentionally-denied request that also exercises Authorization +
-  middleware, plus a leading `00 Healthcheck` worker-liveness ping
-  (7 requests total; the healthcheck is not part of the 6 captures
-  pasted into §6 of the span-validation doc).
+  middleware. A `00 Healthcheck` worker-liveness ping sits at the
+  workspace top level, outside that folder — 7 requests total. The
+  healthcheck is not pasted into §6 of the span-validation doc.
 - `README.md` — this file. How to run the capture via `inso` (or the GUI)
   without leaking secrets.
 

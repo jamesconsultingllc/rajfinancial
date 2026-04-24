@@ -96,3 +96,7 @@ tests-build.log
 
 inspect-results.xml
 
+
+threads.json
+tags.json
+
