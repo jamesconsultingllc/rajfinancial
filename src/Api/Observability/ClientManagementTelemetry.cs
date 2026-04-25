@@ -16,11 +16,11 @@ internal static class ClientManagementTelemetry
 {
     internal const string SourceName = ObservabilityDomains.ClientManagement;
 
-    private const string GrantsCreatedInstrument = "clientmgmt.grants.created.count";
-    private const string GrantsRevokedInstrument = "clientmgmt.grants.revoked.count";
-    private const string SelfAssignmentBlockedInstrument = "clientmgmt.self_assignment.blocked.count";
+    private const string GrantsCreatedInstrument = "clientmanagement.grants.created.count";
+    private const string GrantsRevokedInstrument = "clientmanagement.grants.revoked.count";
+    private const string SelfAssignmentBlockedInstrument = "clientmanagement.self_assignment.blocked.count";
 
-    // NOTE: Per-domain business counters (clientmgmt.*) are tactical and expected to be
+    // NOTE: Per-domain business counters (clientmanagement.*) are tactical and expected to be
     // consolidated into a centralized counter registry via ADO #628. Do not add new
     // per-domain counters in other domains without first checking that work item.
     // See AssetsTelemetry.cs:9-16 and UserProfileTelemetry.cs:9-17 for the same guidance.
