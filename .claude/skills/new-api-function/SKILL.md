@@ -40,7 +40,7 @@ Before creating any file, read the following reference implementations:
 Pattern:
 - `partial class` (required — logging source generator uses `.Logging.cs` sibling)
 - Primary constructor injecting `ILogger<T>` and `I<Resource>Service`
-- Decorated with `[RequireRole(...)]` using role constants from `AppRoleOptions`
+- Decorated with `[RequireRole(...)]` using string role names. The convention is to define them as `internal const string` on the per-feature telemetry class (e.g., `ClientManagementTelemetry.RoleAdvisor` / `RoleAdministrator`) and reference those constants — never reference `AppRoleOptions` (that holds role *GUIDs* for options binding, not names).
 - One method per HTTP verb/route
 - Extract request body via `FunctionHelpers` middleware — never re-read `HttpRequestData.Body` directly
 - Return typed `HttpResponseData` with appropriate `HttpStatusCode`
@@ -51,7 +51,7 @@ Pattern:
 // src/Api/Functions/<Resource>Functions.cs
 namespace RajFinancial.Api.Functions;
 
-[RequireRole(AppRoles.Advisor, AppRoles.Administrator)]
+[RequireRole(<Resource>Telemetry.RoleAdvisor, <Resource>Telemetry.RoleAdministrator)]
 public partial class <Resource>Functions(
     ILogger<<Resource>Functions> logger,
     I<Resource>Service <resource>Service)

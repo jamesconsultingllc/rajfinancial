@@ -81,5 +81,5 @@ Report:
 - Entity configurations: `src/Api/Data/Configurations/`
 - Entities: `src/Shared/Entities/` (MemoryPackable, EF-mapped)
 - Always run `dotnet build` after generating — EF model snapshot must compile
-- After adding a migration, run `dotnet test tests/Api.Tests` to confirm integration tests still pass
+- After adding a migration, run `dotnet test tests/Api.Tests` to confirm unit tests still pass
 - The DTO generation step (`npm run gen:dtos`) runs automatically on the next `npm run dev/build/test` via the `predev`/`prebuild`/`pretest` npm scripts — no manual step needed
