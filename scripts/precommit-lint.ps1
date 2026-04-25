@@ -17,8 +17,8 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (& git rev-parse --show-toplevel).Trim()
 Set-Location $repoRoot
 
-$stagedFiles = & git diff --cached --name-only --diff-filter=ACMR |
-    Where-Object { $_ -match '^src/Client/.*\.(ts|tsx)$' -and $_ -notmatch '\.d\.ts$' }
+$stagedFiles = @(& git diff --cached --name-only --diff-filter=ACMR |
+    Where-Object { $_ -match '^src/Client/.*\.(ts|tsx)$' -and $_ -notmatch '\.d\.ts$' })
 
 if (-not $stagedFiles) {
     Write-Host 'pre-commit: no staged TypeScript files in src/Client - skipping ESLint.' -ForegroundColor DarkGray
@@ -53,7 +53,7 @@ if ($dirtyFiles) {
 }
 
 # Absolute paths so ESLint finds files regardless of working directory
-$absolutePaths = $stagedFiles | ForEach-Object { Join-Path $repoRoot $_ }
+$absolutePaths = @($stagedFiles | ForEach-Object { Join-Path $repoRoot $_ })
 
 # Run from src/Client so ESLint resolves eslint.config.js and node_modules correctly
 Push-Location (Join-Path $repoRoot 'src/Client')
