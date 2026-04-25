@@ -4,7 +4,10 @@
 // scanning is delegated to the advanced-security Copilot plugin and to
 // pre-commit secret scanners.
 // Runs on both Windows and macOS via: node .claude/hooks/block-secrets.js
-const input = JSON.parse(process.env.CLAUDE_TOOL_INPUT || '{}');
+// Claude Code pipes the hook payload to stdin as JSON; fd 0 is portable across platforms.
+const fs = require('fs');
+const payload = JSON.parse(fs.readFileSync(0, 'utf-8') || '{}');
+const input = payload.tool_input || {};
 const fp = (input.file_path || '').replace(/\\/g, '/').toLowerCase();
 if (fp.includes('local.settings.json')) {
   console.log('BLOCKED: local.settings.json contains Azure connection strings and secrets.');

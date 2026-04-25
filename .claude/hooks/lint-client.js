@@ -1,9 +1,12 @@
 // PostToolUse hook: runs ESLint --fix on TypeScript files in src/Client after AI edits.
 // Runs on both Windows and macOS via: node .claude/hooks/lint-client.js
 // Uses spawnSync (array args) to avoid any shell-injection risk on file paths.
+const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const input = JSON.parse(process.env.CLAUDE_TOOL_INPUT || '{}');
+// Claude Code pipes the hook payload to stdin as JSON; fd 0 is portable across platforms.
+const payload = JSON.parse(fs.readFileSync(0, 'utf-8') || '{}');
+const input = payload.tool_input || {};
 const fp = (input.file_path || '').replace(/\\/g, '/');
 
 // We run ESLint with cwd=src/Client, so the path we hand it must be resolved
@@ -21,33 +24,31 @@ const isInClient =
 
 if (isInClient && /\.(ts|tsx)$/.test(eslintTarget) && !eslintTarget.endsWith('.d.ts')) {
   console.log(`ESLint: fixing ${fp}`);
-  // --no-install: fail fast if ESLint isn't already installed under
-  // src/Client/node_modules instead of silently downloading an arbitrary
-  // version from the registry. This keeps the hook deterministic and
-  // network-free.
-  const result = spawnSync('npx', ['--no-install', 'eslint', '--fix', eslintTarget], {
-    cwd: 'src/Client',
+  // Invoke ESLint's JS entry point via the running Node binary. This avoids the
+  // npx/.cmd shim, which Node 20+ refuses to spawn without shell=true on Windows
+  // (CVE-2024-27980). Using process.execPath + an absolute script path keeps
+  // shell=false, which preserves the no-shell-injection guarantee on file paths.
+  const eslintScript = path.join(clientRoot, 'node_modules', 'eslint', 'bin', 'eslint.js');
+  if (!fs.existsSync(eslintScript)) {
+    console.error('ESLint is not installed under src/Client. Run `npm ci` in src/Client to install dependencies, then retry.');
+    process.exit(1);
+  }
+  const result = spawnSync(process.execPath, [eslintScript, '--fix', eslintTarget], {
+    cwd: clientRoot,
     encoding: 'utf8',
     shell: false,
   });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
-  // Fail-closed: if spawn itself failed (e.g., npx not found, EPERM), result.error
-  // is populated and result.status is null — surface it and exit non-zero so the
-  // hook never silently stops linting.
+  // Fail-closed: if spawn itself failed (e.g., EPERM), result.error is populated
+  // and result.status is null — surface it and exit non-zero so the hook never
+  // silently stops linting.
   if (result.error) {
-    console.error(`ESLint hook failed to spawn npx: ${result.error.message}`);
+    console.error(`ESLint hook failed to spawn node: ${result.error.message}`);
     process.exit(1);
   }
   if (result.status === null) {
     console.error('ESLint hook: process terminated without an exit code (likely killed by signal).');
-    process.exit(1);
-  }
-  // Detect the --no-install path: npx exits non-zero when ESLint isn't
-  // available locally. Give a friendly hint so the user knows to install deps.
-  const stderr = result.stderr || '';
-  if (result.status !== 0 && /could not determine executable|not found|no such (file|package)/i.test(stderr)) {
-    console.error('ESLint is not installed under src/Client. Run `npm ci` in src/Client to install dependencies, then retry.');
     process.exit(1);
   }
   // Propagate ESLint's exit code: 1 = unfixable violations, 2 = config error.
