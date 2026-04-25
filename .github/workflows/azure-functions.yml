@@ -246,6 +246,7 @@ jobs:
 
       - name: Customize LivingDoc title and favicon
         if: always()
+        continue-on-error: true
         shell: pwsh
         run: |
           $html = Get-ChildItem -Path tests/IntegrationTests/bin/Release -Recurse -Filter LivingDoc.html | Select-Object -First 1

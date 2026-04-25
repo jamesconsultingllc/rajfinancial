@@ -105,11 +105,17 @@ internal static class EntityTestDataCleanup
             host = host[4..];
         }
 
-        // Hard reject any host that looks like a production server, regardless of allowlist.
-        if (host.Contains("prod", StringComparison.OrdinalIgnoreCase))
+        // Hard reject explicitly-known production hosts (substring check below catches obvious
+        // names like "*-prod-*", but the canonical prod host has no "prod" token in its name).
+        var deniedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "rajfinancial.database.windows.net",
+        };
+
+        if (deniedHosts.Contains(host) || host.Contains("prod", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Refusing to run destructive test cleanup against suspected production data source '{dataSource}'. " +
+                $"Refusing to run destructive test cleanup against known/suspected production data source '{dataSource}'. " +
                 "EntityTestDataCleanup issues unguarded DELETE statements and must never run against production.");
         }
 
