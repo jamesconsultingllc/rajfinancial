@@ -32,7 +32,7 @@ jobs:
         run: npm install -g @github/copilot
 
       # Install Microsoft-authored awesome-copilot plugins relevant to this repo
-      # (.NET 8 / Azure Functions / SQL Server). Local devs should run the same
+      # (.NET 10 / Azure Functions / SQL Server). Local devs should run the same
       # commands once on their workstation — see AGENT.md ("Copilot CLI Plugins").
       - name: Install Copilot CLI plugins (Microsoft-authored, awesome-copilot)
         run: |

@@ -32,6 +32,26 @@ if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
 
 Write-Host "pre-commit: linting $($stagedFiles.Count) staged TypeScript file(s)..." -ForegroundColor Cyan
 
+# Refuse to lint files with unstaged working-tree changes: ESLint --fix runs on
+# the working tree, and `git add` afterwards would silently stage edits the
+# developer never intended to include in this commit. Force them to be explicit.
+$dirtyFiles = & git diff --name-only -- @stagedFiles
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'pre-commit: failed to inspect working-tree state via git diff.' -ForegroundColor Red
+    exit 1
+}
+if ($dirtyFiles) {
+    Write-Host ''
+    Write-Host 'pre-commit: the following staged files also have UNSTAGED changes:' -ForegroundColor Red
+    $dirtyFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ''
+    Write-Host 'Auto-fix would re-stage those unstaged edits. Resolve before committing:' -ForegroundColor Yellow
+    Write-Host '  - stash unstaged edits:  git stash push --keep-index -- <files>' -ForegroundColor Yellow
+    Write-Host '  - or stage them:         git add <files>' -ForegroundColor Yellow
+    Write-Host '  - or bypass entirely:    git commit --no-verify' -ForegroundColor Yellow
+    exit 1
+}
+
 # Absolute paths so ESLint finds files regardless of working directory
 $absolutePaths = $stagedFiles | ForEach-Object { Join-Path $repoRoot $_ }
 
