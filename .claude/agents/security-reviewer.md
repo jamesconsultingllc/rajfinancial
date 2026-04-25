@@ -29,7 +29,7 @@ Files to scrutinize: `src/Api/Middleware/`, `src/Api/Functions/AuthFunctions.cs`
 Files: `src/Api/Middleware/Authorization/`, `src/Api/Configuration/AppRoleOptions.cs`, `src/Api/Functions/`
 
 - Every Function class or method that returns financial data must be decorated with `[RequireRole(...)]`
-- Role values must reference constants from `AppRoleOptions` — never inline string literals
+- Role values must reference the role-name constants used by the authorization middleware (e.g., per-feature `*Telemetry.Role*` `internal const string` constants such as `ClientManagementTelemetry.RoleAdvisor`) — never inline string literals, and never `AppRoleOptions` values (those are role *GUIDs* for options binding, not role names)
 - Check for IDOR: data queries must be scoped to the authenticated user's `ObjectId` claim or checked against a `DataAccessGrant`. A user must not be able to access another user's data by changing an ID in the URL
 - `DataAccessGrant` table: verify the service checks `IsActive` and `ExpiresAt` on every data-access path
 - Administrator bypass paths must be explicitly guarded — never rely on role absence implying non-admin
