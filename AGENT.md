@@ -1222,14 +1222,18 @@ Invoke this agent before any PR that touches auth, middleware, financial data se
 
 #### GitHub MCP
 
-Enables Claude Code to query GitHub directly: PR status, workflow run results, branch protection, issues.
+Enables Claude Code to query GitHub directly: PR status, workflow run results, branch protection, issues. Uses GitHub's official **remote** MCP server (`https://api.githubcopilot.com/mcp/`) — no Docker or local binary required.
 
-**Setup (one-time per developer):**
+**Setup (one-time per developer):** export a PAT with `repo` + `workflow` scopes:
+
 ```bash
-export GITHUB_PERSONAL_ACCESS_TOKEN=<your-pat-with-repo-scope>
+# Easiest: reuse the gh CLI's token (added to ~/.zshrc so every new shell picks it up)
+export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"
 ```
 
-The server config is in `.mcp.json` and is checked into the repo so all contributors get the same MCP setup automatically.
+The server config is in `.mcp.json` and is checked into the repo so all contributors get the same MCP setup automatically. The `Authorization: Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}` header is substituted at runtime — no token is stored in the file.
+
+> Note: The Copilot CLI ships its own GitHub MCP server using its own auth, so this `.mcp.json` is primarily for Claude Code and other MCP hosts.
 
 **Use cases:**
 - "Check if the CI workflows passed on this branch"
