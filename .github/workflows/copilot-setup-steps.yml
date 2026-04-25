@@ -29,7 +29,10 @@ jobs:
           node-version: "20"
 
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        # Pin to a known-good version so cloud-agent runs are reproducible.
+        # Bump intentionally when validated locally; the version below is what
+        # the maintainer is currently using.
+        run: npm install -g @github/copilot@1.0.36
 
       # Install Microsoft-authored awesome-copilot plugins relevant to this repo
       # (.NET 10 / Azure Functions / SQL Server). Local devs should run the same

@@ -21,7 +21,11 @@ const isInClient =
 
 if (isInClient && /\.(ts|tsx)$/.test(eslintTarget) && !eslintTarget.endsWith('.d.ts')) {
   console.log(`ESLint: fixing ${fp}`);
-  const result = spawnSync('npx', ['eslint', '--fix', eslintTarget], {
+  // --no-install: fail fast if ESLint isn't already installed under
+  // src/Client/node_modules instead of silently downloading an arbitrary
+  // version from the registry. This keeps the hook deterministic and
+  // network-free.
+  const result = spawnSync('npx', ['--no-install', 'eslint', '--fix', eslintTarget], {
     cwd: 'src/Client',
     encoding: 'utf8',
     shell: false,
@@ -37,6 +41,13 @@ if (isInClient && /\.(ts|tsx)$/.test(eslintTarget) && !eslintTarget.endsWith('.d
   }
   if (result.status === null) {
     console.error('ESLint hook: process terminated without an exit code (likely killed by signal).');
+    process.exit(1);
+  }
+  // Detect the --no-install path: npx exits non-zero when ESLint isn't
+  // available locally. Give a friendly hint so the user knows to install deps.
+  const stderr = result.stderr || '';
+  if (result.status !== 0 && /could not determine executable|not found|no such (file|package)/i.test(stderr)) {
+    console.error('ESLint is not installed under src/Client. Run `npm ci` in src/Client to install dependencies, then retry.');
     process.exit(1);
   }
   // Propagate ESLint's exit code: 1 = unfixable violations, 2 = config error.
