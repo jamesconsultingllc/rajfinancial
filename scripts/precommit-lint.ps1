@@ -86,7 +86,19 @@ if ($exitCode -eq 2) {
     exit 1
 }
 
-# Re-stage files that ESLint auto-fixed
+# Treat any non-zero, non-(1|2) exit code as a fatal failure. Examples include
+# npx itself crashing, an OOM kill, or ESLint surfacing an internal error code
+# we don't recognize. Do NOT `git add` in this case — the working tree state
+# is unknown and we don't want to silently stage anything.
+if ($exitCode -ne 0 -and $exitCode -ne 1) {
+    Write-Host ''
+    Write-Host "pre-commit: ESLint terminated unexpectedly (exit code $exitCode)." -ForegroundColor Red
+    Write-Host 'Inspect the output above. Bypass in an emergency with: git commit --no-verify' -ForegroundColor Yellow
+    exit 1
+}
+
+# Re-stage files that ESLint auto-fixed (only on success or recoverable lint
+# violations — never on the unexpected-failure path above).
 & git add @stagedFiles
 
 if ($exitCode -eq 1) {
