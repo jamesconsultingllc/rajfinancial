@@ -551,7 +551,19 @@ The ClientMgmt rows also fold in the existing "no abbreviations" rule from patte
 The code-side rename per §7.2 was applied in this PR alongside the docs. Remaining follow-ups:
 
 - [ ] Option (a) validation (host-emitted span on Azure with `faas.name` / `faas.trigger` attributes) — scoped to whichever work item carries the first non-local deployment.
-- [ ] Confirm no Application Insights / Azure Monitor KQL dashboards reference the old names (`Assets.Http.*`, `ClientMgmt.*`, `ClientMgmt.GetClientAssignments`, `UserProfile.EnsureProfileExists`) before the rename reaches a shared environment.
+- [x] Confirm no Application Insights / Azure Monitor KQL dashboards reference the old names (`Assets.Http.*`, `ClientMgmt.*`, `ClientMgmt.GetClientAssignments`, `UserProfile.EnsureProfileExists`) before the rename reaches a shared environment — [AB#638](https://dev.azure.com/jamesconsulting/_workitems/edit/638). Outcome recorded in §7.4.
+
+### 7.4 Dashboard audit (AB#638)
+
+Scope: every asset in the repo that could embed a span/metric name and be deployed to a shared environment. Audit performed against `develop` after the Phase 1c rename merged.
+
+Checked:
+
+- **Infra (Bicep / ARM).** `infra/modules/monitoring.bicep` provisions Log Analytics + Application Insights only. No `Microsoft.Portal/dashboards`, `Microsoft.Insights/workbooks`, `savedSearches`, or `Microsoft.Insights/scheduledQueryRules` resources exist anywhere in `infra/`. Nothing to update.
+- **Operational KQL.** [`docs/observability-runbook.md`](../observability-runbook.md) is the de facto dashboard-of-record. Every KQL block there filters by `operation_Name` / `customMetrics.name` / `customDimensions["EventId"]` or `customDimensions["authz.*"]` — none pin on a renamed span name (`Assets.Http.*`, `ClientMgmt.*`, `UserProfile.EnsureProfileExists`, or the old `ClientMgmt.GetClientAssignments` service token). The snippets remain correct after the rename because they address activity/metric names by *pattern*, not by the specific renamed tokens.
+- **Scripts / tests / docs.** A repo-wide search for `Assets\.Http`, `ClientMgmt` (as a telemetry name, not as a log/method substring), `GetClientAssignments` as a span name, and `UserProfile.EnsureProfileExists` without the `.Service` suffix returns only historical references in the Phase 1c plan (this document) and ADR 0002 — both of which intentionally cite the old names as part of the migration record. The surviving `ClientManagementService.GetClientAssignments` C# method name and its EventId 6002 log message are **not** telemetry span/metric names; they are internal code identifiers and out of scope for this audit.
+
+Conclusion: **no dashboard assets reference the renamed spans**. The rename is safe to reach shared environments without migration work. If Azure Portal dashboards / workbooks are introduced later (outside the repo), they must be authored against the b2 names from the start — there is no legacy query surface to migrate.
 
 ---
 
@@ -568,5 +580,5 @@ The code-side rename per §7.2 was applied in this PR alongside the docs. Remain
 - [x] §7.2 code rename applied (activity constants + call sites for Assets / ClientManagement / UserProfile).
 - [x] Build clean; 583 unit tests + 5 architecture tests pass.
 - [ ] `phase1c-spans.log` attached to [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633) (reviewer to attach; the file is gitignored and not in this PR).
-- [ ] ADR 0002 (*Activity naming convention*) authored in Phase 1a (AB#637) using §7.1 as its Decision body.
+- [x] ADR 0002 (*Activity naming convention*) authored in Phase 1a ([AB#637](https://dev.azure.com/jamesconsulting/_workitems/edit/637)) using §7.1 as its Decision body — see [`docs/adr/0002-activity-naming-convention.md`](../adr/0002-activity-naming-convention.md).
 - [ ] [AB#633](https://dev.azure.com/jamesconsulting/_workitems/edit/633) moved to Done once log is attached.
