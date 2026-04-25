@@ -410,24 +410,15 @@ public class AssetSteps
         doc.RootElement.GetProperty("currentValue").GetDecimal().Should().Be(expectedValue);
     }
 
-    [Then(@"access should be denied or filtered by the service tier")]
-    public void ThenAccessShouldBeDeniedOrFilteredByTheServiceTier()
-    {
-        response.Should().NotBeNull();
-        // The service tier enforces three-tier authorization:
-        // Either returns 403/404 or returns empty results depending on implementation
-        var status = (int)response!.StatusCode;
-        status.Should().BeOneOf([200, 403, 404],
-            "cross-user access should be denied or return empty/filtered results");
-    }
-
     [Then(@"access should be denied by the service tier")]
     public void ThenAccessShouldBeDeniedByTheServiceTier()
     {
         response.Should().NotBeNull();
+        // ADR 0001 / OWASP A01 — IDOR: cross-user access must look identical
+        // to a missing resource. The service tier returns 404, never 403.
         var status = (int)response!.StatusCode;
-        status.Should().BeOneOf([403, 404],
-            "cross-user asset access should be denied");
+        status.Should().Be(404,
+            "cross-user asset access must return 404 (not 403) to avoid leaking resource existence (OWASP A01).");
     }
 
     // =========================================================================

@@ -218,14 +218,19 @@ public sealed class EntityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetEntityById_OtherUser_ThrowsNotFoundException()
+    public async Task GetEntityById_OtherUser_ThrowsNotFound_WithSamePayloadAsMissing()
     {
         var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
         var act = () => service.GetEntityByIdAsync(StrangerId, entity.Id);
 
-        // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
-        await act.Should().ThrowAsync<NotFoundException>();
+        // IDOR prevention (ADR 0001 / OWASP A01): cross-user GET-by-id deny
+        // must surface as NotFoundException with the same ErrorCode/Message
+        // shape as a missing-id throw, so the HTTP body is indistinguishable.
+        var denied = (await act.Should().ThrowAsync<NotFoundException>()).Which;
+        var expected = Api.Services.EntityService.EntityDbErrors.NotFound(entity.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
     }
 
     // =========================================================================
@@ -272,6 +277,27 @@ public sealed class EntityServiceTests : IDisposable
         ex.Which.ErrorCode.Should().Be(EntityErrorCodes.PersonalNameImmutable);
     }
 
+    [Fact]
+    public async Task UpdateEntity_OtherUser_ThrowsNotFound_WithSamePayloadAsMissing()
+    {
+        var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
+
+        var request = new UpdateEntityRequest
+        {
+            Name = "Hijacked",
+            IsActive = true
+        };
+
+        var act = () => service.UpdateEntityAsync(StrangerId, entity.Id, request);
+
+        // IDOR prevention (ADR 0001): cross-user update deny must produce the
+        // same ErrorCode/Message as Update against a missing id.
+        var denied = (await act.Should().ThrowAsync<NotFoundException>()).Which;
+        var expected = Api.Services.EntityService.EntityDbErrors.NotFound(entity.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
+    }
+
     // =========================================================================
     // DeleteEntityAsync
     // =========================================================================
@@ -299,14 +325,18 @@ public sealed class EntityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteEntity_OtherUser_ThrowsNotFoundException()
+    public async Task DeleteEntity_OtherUser_ThrowsNotFound_WithSamePayloadAsMissing()
     {
         var entity = await SeedEntityAsync(OwnerId, "Acme LLC", EntityType.Business);
 
         var act = () => service.DeleteEntityAsync(StrangerId, entity.Id);
 
-        // IDOR prevention: return NotFound (not Forbidden) to avoid resource enumeration.
-        await act.Should().ThrowAsync<NotFoundException>();
+        // IDOR prevention (ADR 0001): cross-user delete deny must produce the
+        // same ErrorCode/Message as Delete against a missing id.
+        var denied = (await act.Should().ThrowAsync<NotFoundException>()).Which;
+        var expected = Api.Services.EntityService.EntityDbErrors.NotFound(entity.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
     }
 
     // =========================================================================

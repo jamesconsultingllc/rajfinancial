@@ -42,7 +42,7 @@ public partial class EntityService(
 
         try
         {
-            await AuthorizeReadAsync(requestingUserId, ownerUserId);
+            await AuthorizeReadAsync(requestingUserId, ownerUserId, entityId: null);
 
             // Tag owner.id only after authorization succeeds so denied
             // requests don't leak the requested owner id (user-supplied) into
@@ -93,7 +93,7 @@ public partial class EntityService(
                 .FirstOrDefaultAsync()
                 ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeReadAsync(requestingUserId, ownerId);
+            await AuthorizeReadAsync(requestingUserId, ownerId, entityId);
 
             // Stopwatch scoped to the EF fetch only (excludes ownership lookup
             // and authorization so the histogram reflects pure query time).
@@ -135,7 +135,7 @@ public partial class EntityService(
 
         try
         {
-            await AuthorizeWriteAsync(userId, userId);
+            await AuthorizeWriteAsync(userId, userId, entityId: null);
 
             // Validator guarantees Type.HasValue; treat absence as an internal bug.
             var requestedType = request.Type
@@ -263,7 +263,7 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId, entityId);
 
             // Tag DB-derived values only after authorization succeeds. Denied
             // requests throw NotFound (anti-enumeration); pre-auth tagging
@@ -321,7 +321,7 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId, entityId);
 
             // Tag DB-derived values only after authorization succeeds. Denied
             // requests throw NotFound (anti-enumeration); pre-auth tagging
@@ -450,7 +450,7 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId, entityId);
 
             // Tag DB-derived values only after authorization succeeds. Denied
             // requests throw NotFound (anti-enumeration); pre-auth tagging
@@ -562,7 +562,7 @@ public partial class EntityService(
                 .FirstOrDefaultAsync(e => e.Id == entityId)
                 ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeReadAsync(requestingUserId, entity.UserId);
+            await AuthorizeReadAsync(requestingUserId, entity.UserId, entityId);
 
             // Tag DB-derived values only after authorization succeeds. Denied
             // requests throw NotFound (anti-enumeration); pre-auth tagging
@@ -606,7 +606,7 @@ public partial class EntityService(
             var entity = await db.Entities.FirstOrDefaultAsync(e => e.Id == entityId)
                          ?? throw EntityDbErrors.NotFound(entityId);
 
-            await AuthorizeWriteAsync(requestingUserId, entity.UserId);
+            await AuthorizeWriteAsync(requestingUserId, entity.UserId, entityId);
 
             // Tag DB-derived values only after authorization succeeds. Denied
             // requests throw NotFound (anti-enumeration); pre-auth tagging
@@ -635,25 +635,52 @@ public partial class EntityService(
     // Authorization helpers
     // =========================================================================
 
-    private async Task AuthorizeReadAsync(Guid requestingUserId, Guid ownerUserId)
+    /// <summary>
+    ///     Checks read access for <paramref name="requestingUserId"/> against
+    ///     <paramref name="ownerUserId"/>. On deny, throws
+    ///     <see cref="NotFoundException"/> to prevent IDOR enumeration
+    ///     (OWASP A01) — see ADR 0001.
+    /// </summary>
+    /// <param name="entityId">
+    ///     The id of the entity being authorized. Required for per-resource
+    ///     calls (GetById/Update/Delete/role ops) so the deny payload is
+    ///     byte-identical to the missing-entity payload from
+    ///     <see cref="EntityDbErrors.NotFound(Guid)"/>. Pass <see langword="null"/>
+    ///     for collection-scope calls (list endpoints), where there is no
+    ///     resource id.
+    /// </param>
+    private async Task AuthorizeReadAsync(Guid requestingUserId, Guid ownerUserId, Guid? entityId)
     {
         var decision = await authorizationService.CheckAccessAsync(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Read);
 
-        // Return NotFound (not Forbidden) on cross-user access to prevent
-        // resource enumeration (OWASP A01 — IDOR). An attacker guessing IDs
-        // must not be able to distinguish "exists but forbidden" from "does not exist".
         if (!decision.IsGranted)
-            throw new NotFoundException(EntityErrorCodes.NotFound, "Entity was not found.");
+            throw DenyException(ownerUserId, entityId);
     }
 
-    private async Task AuthorizeWriteAsync(Guid requestingUserId, Guid ownerUserId)
+    /// <summary>
+    ///     Checks write access for <paramref name="requestingUserId"/> against
+    ///     <paramref name="ownerUserId"/>. On deny, throws
+    ///     <see cref="NotFoundException"/> to prevent IDOR enumeration
+    ///     (OWASP A01) — see ADR 0001.
+    /// </summary>
+    private async Task AuthorizeWriteAsync(Guid requestingUserId, Guid ownerUserId, Guid? entityId)
     {
         var decision = await authorizationService.CheckAccessAsync(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Full);
 
         if (!decision.IsGranted)
-            throw new NotFoundException(EntityErrorCodes.NotFound, "Entity was not found.");
+            throw DenyException(ownerUserId, entityId);
     }
+
+    /// <summary>
+    ///     Builds the deny exception. Per-resource denies mimic
+    ///     <c>EntityDbErrors.NotFound(id)</c> exactly; collection-scope denies
+    ///     mimic a missing owner (<c>NotFoundException.User</c>).
+    /// </summary>
+    private static NotFoundException DenyException(Guid ownerUserId, Guid? entityId) =>
+        entityId is { } id
+            ? EntityDbErrors.NotFound(id)
+            : NotFoundException.User(ownerUserId.ToString());
 
 }
