@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RajFinancial.Api.Data;
+using RajFinancial.Api.Data.Interceptors;
 
 namespace RajFinancial.Api.Configuration;
 
@@ -38,6 +39,8 @@ internal static class DatabaseRegistration
         if (useManagedIdentity)
             services.AddSingleton<ManagedIdentityConnectionInterceptor>();
 
+        services.AddScoped<BusinessEventsInterceptor>();
+
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
             ConfigureSqlServer(options, sp, environment, sqlConnectionString, useManagedIdentity));
 
@@ -46,9 +49,12 @@ internal static class DatabaseRegistration
 
     private static void AddInMemoryDatabase(IServiceCollection services, IHostEnvironment environment)
     {
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddScoped<BusinessEventsInterceptor>();
+
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             options.UseInMemoryDatabase(IN_MEMORY_DATABASE_NAME);
+            options.AddInterceptors(sp.GetRequiredService<BusinessEventsInterceptor>());
             ApplyDevelopmentOptions(options, environment);
         });
     }
@@ -74,6 +80,8 @@ internal static class DatabaseRegistration
             var interceptor = serviceProvider.GetRequiredService<ManagedIdentityConnectionInterceptor>();
             options.AddInterceptors(interceptor);
         }
+
+        options.AddInterceptors(serviceProvider.GetRequiredService<BusinessEventsInterceptor>());
 
         ApplyDevelopmentOptions(options, environment);
     }
