@@ -210,7 +210,7 @@ Feature: Asset CRUD Operations
         Given I am authenticated as user "other@rajfinancial.com" with role "Client"
         And user "owner@rajfinancial.com" has assets
         When I send a GET request to "/api/assets?ownerUserId={ownerUserId}"
-        Then access should be denied or filtered by the service tier
+        Then access should be denied by the service tier
 
     @security @A01 @idor
     Scenario: User cannot access another user's asset by ID without a grant
