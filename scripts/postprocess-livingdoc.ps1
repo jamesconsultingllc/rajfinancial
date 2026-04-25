@@ -61,12 +61,14 @@ $encodedTitle = [System.Net.WebUtility]::HtmlEncode($Title)
 $titlePattern = '<title>[^<]*</title>'
 $replacementText = "<title>$encodedTitle</title>$faviconLink"
 
-if ($html -notmatch $titlePattern) {
+$regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+$regex = [regex]::new($titlePattern, $regexOptions)
+
+if (-not $regex.IsMatch($html)) {
     throw "Could not locate <title> element in '$HtmlPath'."
 }
 
 $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $replacementText }
-$regex = [regex]::new($titlePattern)
 $updated = $regex.Replace($html, $evaluator, 1)
 [System.IO.File]::WriteAllText($HtmlPath, $updated)
 
