@@ -58,12 +58,27 @@ $absolutePaths = @($stagedFiles | ForEach-Object { Join-Path $repoRoot $_ })
 # Run from src/Client so ESLint resolves eslint.config.js and node_modules correctly
 Push-Location (Join-Path $repoRoot 'src/Client')
 try {
+    # --no-install: never silently download ESLint from the registry during a
+    # commit. Forces deterministic local execution and surfaces a clear error
+    # when src/Client/node_modules hasn't been installed yet.
     # ESLint exit codes: 0 = clean, 1 = unfixable lint errors, 2 = config/fatal error
-    & npx eslint --fix @absolutePaths
+    & npx --no-install eslint --fix @absolutePaths
     $exitCode = $LASTEXITCODE
 }
 finally {
     Pop-Location
+}
+
+# npx exits non-zero (typically 1) when --no-install can't find the binary.
+# Distinguish "ESLint is missing" from "ESLint ran and reported violations" by
+# checking for node_modules/eslint before treating exitCode==1 as a lint error.
+$eslintInstalled = Test-Path (Join-Path $repoRoot 'src/Client/node_modules/eslint/package.json')
+if (-not $eslintInstalled) {
+    Write-Host ''
+    Write-Host 'pre-commit: ESLint is not installed under src/Client/node_modules.' -ForegroundColor Red
+    Write-Host 'Run `npm ci` in src/Client to install dependencies, then retry the commit.' -ForegroundColor Yellow
+    Write-Host '(Bypass in an emergency with: git commit --no-verify)' -ForegroundColor DarkGray
+    exit 1
 }
 
 if ($exitCode -eq 2) {
