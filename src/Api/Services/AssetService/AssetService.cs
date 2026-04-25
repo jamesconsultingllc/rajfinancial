@@ -40,7 +40,7 @@ public partial class AssetService(
 
         try
         {
-            await AuthorizeReadAsync(requestingUserId, ownerUserId);
+            await AuthorizeReadAsync(requestingUserId, ownerUserId, assetId: null);
 
             // Tag owner.user.id only after authorization succeeds so denied
             // requests don't leak the requested owner id (user-supplied) into
@@ -86,7 +86,7 @@ public partial class AssetService(
             if (asset is null)
                 return null;
 
-            await AuthorizeReadAsync(requestingUserId, asset.UserId);
+            await AuthorizeReadAsync(requestingUserId, asset.UserId, asset.Id);
 
             activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
 
@@ -181,7 +181,7 @@ public partial class AssetService(
             var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                         ?? throw NotFoundException.Asset(assetId);
 
-            await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+            await AuthorizeWriteAsync(requestingUserId, asset.UserId, asset.Id);
 
             activity?.SetTag(AssetsTelemetry.TagOwnerUserId, asset.UserId);
 
@@ -272,7 +272,7 @@ public partial class AssetService(
             var asset = await db.Assets.FirstOrDefaultAsync(a => a.Id == assetId)
                         ?? throw NotFoundException.Asset(assetId);
 
-            await AuthorizeWriteAsync(requestingUserId, asset.UserId);
+            await AuthorizeWriteAsync(requestingUserId, asset.UserId, asset.Id);
 
             activity?.SetTag(AssetsTelemetry.TagAssetType, asset.Type.ToString());
 
@@ -295,23 +295,51 @@ public partial class AssetService(
     // Authorization helpers
     // =========================================================================
 
-    private async Task AuthorizeReadAsync(Guid requestingUserId, Guid ownerUserId)
+    /// <summary>
+    ///     Checks read access for <paramref name="requestingUserId"/> against
+    ///     <paramref name="ownerUserId"/>. On deny, throws <see cref="NotFoundException"/>
+    ///     to prevent IDOR enumeration (OWASP A01) — see ADR 0001.
+    /// </summary>
+    /// <param name="assetId">
+    ///     The id of the asset being authorized. Required for per-resource calls
+    ///     (GetById/Update/Delete) so the deny payload is byte-identical to the
+    ///     missing-asset payload (<c>NotFoundException.Asset(id)</c>). Pass
+    ///     <see langword="null"/> for collection-scope calls (list endpoints),
+    ///     where there is no resource id and the deny is shaped as a missing
+    ///     owner.
+    /// </param>
+    private async Task AuthorizeReadAsync(Guid requestingUserId, Guid ownerUserId, Guid? assetId)
     {
         var decision = await authorizationService.CheckAccessAsync(
             requestingUserId, ownerUserId, DataCategories.Assets, AccessType.Read);
 
         if (!decision.IsGranted)
-            throw new ForbiddenException();
+            throw DenyException(ownerUserId, assetId);
     }
 
-    private async Task AuthorizeWriteAsync(Guid requestingUserId, Guid ownerUserId)
+    /// <summary>
+    ///     Checks write access for <paramref name="requestingUserId"/> against
+    ///     <paramref name="ownerUserId"/>. On deny, throws <see cref="NotFoundException"/>
+    ///     to prevent IDOR enumeration (OWASP A01) — see ADR 0001.
+    /// </summary>
+    private async Task AuthorizeWriteAsync(Guid requestingUserId, Guid ownerUserId, Guid? assetId)
     {
         var decision = await authorizationService.CheckAccessAsync(
             requestingUserId, ownerUserId, DataCategories.Assets, AccessType.Full);
 
         if (!decision.IsGranted)
-            throw new ForbiddenException();
+            throw DenyException(ownerUserId, assetId);
     }
+
+    /// <summary>
+    ///     Builds the deny exception. Per-resource denies mimic
+    ///     <c>NotFoundException.Asset(id)</c> exactly; collection-scope denies
+    ///     mimic a missing owner (<c>NotFoundException.User</c>).
+    /// </summary>
+    private static NotFoundException DenyException(Guid ownerUserId, Guid? assetId) =>
+        assetId is { } id
+            ? NotFoundException.Asset(id)
+            : NotFoundException.User(ownerUserId.ToString());
 
     // =========================================================================
     // Source-generated logging (EventId 2000-2999)

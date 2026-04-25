@@ -191,13 +191,15 @@ public sealed class AssetServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAssets_UnauthorizedUser_ThrowsForbidden()
+    public async Task GetAssets_UnauthorizedUser_ThrowsNotFound()
     {
         await SeedAssetAsync(OwnerId, "Asset");
 
         var act = () => service.GetAssetsAsync(StrangerId, OwnerId);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        // IDOR prevention (ADR 0001): list-scope deny is shaped as a missing
+        // owner, not a 403. See OWASP A01 — id enumeration.
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     // =========================================================================
@@ -240,13 +242,28 @@ public sealed class AssetServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAssetById_UnauthorizedUser_ThrowsForbidden()
+    public async Task GetAssetById_UnauthorizedUser_ThrowsNotFound_WithSamePayloadAsMissing()
     {
         var asset = await SeedAssetAsync(OwnerId, "Asset");
+        var missingAssetId = Guid.NewGuid();
 
-        var act = () => service.GetAssetByIdAsync(StrangerId, asset.Id);
+        // IDOR prevention (ADR 0001 / OWASP A01): cross-user GET-by-id must be
+        // byte-identical to a GET-by-id for an asset that does not exist, so
+        // an attacker cannot enumerate ids by status code or body shape.
+        // The service layer returns null for "missing"; the function layer
+        // converts that null to NotFoundException.Asset(id). For "denied",
+        // the service throws NotFoundException.Asset(id) directly. Both end
+        // states must produce the same exception payload.
+        var deniedAct = () => service.GetAssetByIdAsync(StrangerId, asset.Id);
+        var denied = (await deniedAct.Should().ThrowAsync<NotFoundException>()).Which;
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        var expected = NotFoundException.Asset(asset.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
+
+        // Sanity: the missing-id path on the service returns null (not throws).
+        var missing = await service.GetAssetByIdAsync(OwnerId, missingAssetId);
+        missing.Should().BeNull();
     }
 
     // =========================================================================
@@ -283,14 +300,19 @@ public sealed class AssetServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsset_UnauthorizedUser_ThrowsForbidden()
+    public async Task UpdateAsset_UnauthorizedUser_ThrowsNotFound_WithSamePayloadAsMissing()
     {
         var asset = await SeedAssetAsync(OwnerId, "Asset");
         var request = new UpdateAssetRequest { Name = "X", Type = AssetType.BankAccount, CurrentValue = 1 };
 
         var act = () => service.UpdateAssetAsync(AdvisorId, asset.Id, request);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        // IDOR prevention (ADR 0001): cross-user write deny must surface as a
+        // NotFoundException with the same shape as Update against a missing id.
+        var denied = (await act.Should().ThrowAsync<NotFoundException>()).Which;
+        var expected = NotFoundException.Asset(asset.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
     }
 
     [Fact]
@@ -386,13 +408,18 @@ public sealed class AssetServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAsset_UnauthorizedUser_ThrowsForbidden()
+    public async Task DeleteAsset_UnauthorizedUser_ThrowsNotFound_WithSamePayloadAsMissing()
     {
         var asset = await SeedAssetAsync(OwnerId, "Asset");
 
         var act = () => service.DeleteAssetAsync(AdvisorId, asset.Id);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        // IDOR prevention (ADR 0001): cross-user delete deny must surface as a
+        // NotFoundException with the same shape as Delete against a missing id.
+        var denied = (await act.Should().ThrowAsync<NotFoundException>()).Which;
+        var expected = NotFoundException.Asset(asset.Id);
+        denied.ErrorCode.Should().Be(expected.ErrorCode);
+        denied.Message.Should().Be(expected.Message);
     }
 
     // =========================================================================
