@@ -9,7 +9,7 @@ namespace RajFinancial.IntegrationTests.Support;
 /// <remarks>
 /// Integration tests cannot tolerate residual rows from prior runs (for example, a duplicate
 /// slug assertion or a "cannot create a second Personal" assertion breaks when an earlier run
-/// left rows behind). This helper uses direct SQL against the local dev database to wipe
+/// left rows behind). This helper uses direct SQL to wipe
 /// <c>EntityRoles</c> and <c>Entities</c> for a fixed set of test users before each scenario.
 /// It never touches production data — the connection string must point at a local SQL Server
 /// instance or a host explicitly opted-in via the <c>INTEGRATION_TEST_ALLOWED_SQL_HOSTS</c>

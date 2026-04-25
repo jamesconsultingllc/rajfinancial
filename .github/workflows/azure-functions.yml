@@ -247,8 +247,13 @@ jobs:
         if: always()
         shell: pwsh
         run: |
+          $html = Get-ChildItem -Path tests/IntegrationTests/bin/Release -Recurse -Filter LivingDoc.html | Select-Object -First 1
+          if ($null -eq $html) {
+            Write-Warning "LivingDoc.html not found under tests/IntegrationTests/bin/Release; skipping post-processing."
+            return
+          }
           ./scripts/postprocess-livingdoc.ps1 `
-            -HtmlPath tests/IntegrationTests/bin/Release/net10.0/LivingDoc.html `
+            -HtmlPath $html.FullName `
             -FaviconPath src/Client/public/favicon.ico `
             -Title 'RajFinancial Integration Tests'
 
@@ -258,8 +263,8 @@ jobs:
         with:
           name: livingdoc-report
           path: |
-            tests/IntegrationTests/bin/Release/net10.0/LivingDoc.html
-            tests/IntegrationTests/bin/Release/net10.0/LivingDoc.ndjson
+            tests/IntegrationTests/bin/Release/**/LivingDoc.html
+            tests/IntegrationTests/bin/Release/**/LivingDoc.ndjson
           if-no-files-found: warn
           retention-days: 30
 
