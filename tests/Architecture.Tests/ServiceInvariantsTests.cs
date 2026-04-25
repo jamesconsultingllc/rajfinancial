@@ -17,10 +17,23 @@ namespace RajFinancial.Architecture.Tests;
 // available to the rest of the codebase either. Helper types in the same
 // namespace (`*Mapper`, `*Calculator`, `*Rules`, etc.) are explicitly allowed
 // to have private statics — that is their whole purpose.
-// Enforced: AGENT.md "Architecture Conventions (Enforced)" rule #3.
+//
+// Services must also stay pure of HTTP-boundary types. `HttpRequestData`,
+// `HttpResponseData`, and `FunctionContext` belong to the Functions worker
+// boundary; if a service depends on them it has either inverted the layering
+// (the Function should be shaping the HTTP, not the service) or it is reading
+// auth/correlation state by leaning on the boundary instead of accepting
+// arguments. Enforce the boundary here so it cannot drift back in.
+// Enforced: AGENT.md "Architecture Conventions (Enforced)" rule #3 + canonical
+// service/function pattern (docs/patterns/service-function-pattern.md).
 // ============================================================================
 public class ServiceInvariantsTests
 {
+    private const string ServicesNamespacePrefix = "RajFinancial.Api.Services.";
+    private const string HttpRequestDataFullName = "Microsoft.Azure.Functions.Worker.Http.HttpRequestData";
+    private const string HttpResponseDataFullName = "Microsoft.Azure.Functions.Worker.Http.HttpResponseData";
+    private const string FunctionContextFullName = "Microsoft.Azure.Functions.Worker.FunctionContext";
+
     private static readonly Assembly ApiAssembly = typeof(EntityService).Assembly;
 
     [Fact]
@@ -28,7 +41,7 @@ public class ServiceInvariantsTests
     {
         var offenders = ApiAssembly.GetTypes()
             .Where(t => t.Namespace is not null
-                        && t.Namespace.StartsWith("RajFinancial.Api.Services.", StringComparison.Ordinal)
+                        && t.Namespace.StartsWith(ServicesNamespacePrefix, StringComparison.Ordinal)
                         && t.Name.EndsWith("Service", StringComparison.Ordinal))
             .Select(t => new
             {
@@ -48,9 +61,48 @@ public class ServiceInvariantsTests
                 offenders.Select(o => $"{o.Type.FullName} -> [{string.Join(", ", o.PrivateStatics)}]")));
     }
 
+    [Fact]
+    public void Services_ShouldNotReferenceHttpRequestData()
+    {
+        AssertServicesDoNotDependOn(
+            HttpRequestDataFullName,
+            "services must not depend on HttpRequestData — keep HTTP-boundary types in Functions and pass plain CLR arguments into services.");
+    }
+
+    [Fact]
+    public void Services_ShouldNotReferenceHttpResponseData()
+    {
+        AssertServicesDoNotDependOn(
+            HttpResponseDataFullName,
+            "services must not depend on HttpResponseData — services return DTOs/throw exceptions; Functions shape the HTTP response.");
+    }
+
+    [Fact]
+    public void Services_ShouldNotReferenceFunctionContext()
+    {
+        AssertServicesDoNotDependOn(
+            FunctionContextFullName,
+            "services must not depend on FunctionContext — pass user/correlation state through explicit arguments, not by reaching into the worker boundary.");
+    }
+
+    private static void AssertServicesDoNotDependOn(string forbiddenTypeFullName, string because)
+    {
+        var result = Types
+            .InAssembly(ApiAssembly)
+            .That()
+            .ResideInNamespaceStartingWith(ServicesNamespacePrefix)
+            .Should()
+            .NotHaveDependencyOn(forbiddenTypeFullName)
+            .GetResult();
+
+        result.IsSuccessful.Should().BeTrue(
+            because + " Offenders: " + string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>()));
+    }
+
     private static bool IsCompilerGenerated(MethodInfo method) =>
         method.Name.StartsWith('<')
         || method.GetCustomAttribute<CompilerGeneratedAttribute>() is not null
         || method.GetCustomAttribute<GeneratedRegexAttribute>() is not null
         || method.GetCustomAttribute<LoggerMessageAttribute>() is not null;
 }
+

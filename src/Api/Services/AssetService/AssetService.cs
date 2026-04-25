@@ -314,7 +314,7 @@ public partial class AssetService(
             requestingUserId, ownerUserId, DataCategories.Assets, AccessType.Read);
 
         if (!decision.IsGranted)
-            throw DenyException(ownerUserId, assetId);
+            throw AssetAuthorizationDenials.Deny(ownerUserId, assetId);
     }
 
     /// <summary>
@@ -328,18 +328,8 @@ public partial class AssetService(
             requestingUserId, ownerUserId, DataCategories.Assets, AccessType.Full);
 
         if (!decision.IsGranted)
-            throw DenyException(ownerUserId, assetId);
+            throw AssetAuthorizationDenials.Deny(ownerUserId, assetId);
     }
-
-    /// <summary>
-    ///     Builds the deny exception. Per-resource denies mimic
-    ///     <c>NotFoundException.Asset(id)</c> exactly; collection-scope denies
-    ///     mimic a missing owner (<c>NotFoundException.User</c>).
-    /// </summary>
-    private static NotFoundException DenyException(Guid ownerUserId, Guid? assetId) =>
-        assetId is { } id
-            ? NotFoundException.Asset(id)
-            : NotFoundException.User(ownerUserId.ToString());
 
     // =========================================================================
     // Source-generated logging (EventId 2000-2999)
