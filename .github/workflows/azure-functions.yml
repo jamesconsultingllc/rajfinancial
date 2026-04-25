@@ -191,8 +191,7 @@ jobs:
 
   # Integration tests run against deployed dev environment; LivingDoc HTML is always uploaded
   # so the report is viewable even when scenarios fail. Requires secrets configured at the
-  # repo or environment level: TEST_*_EMAIL, TEST_*_PASSWORD, SQL_CONNECTION_STRING, ENTRA_*,
-  # and Azure OIDC credentials (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID).
+  # repo or environment level: TEST_*_EMAIL, TEST_*_PASSWORD, SQL_CONNECTION_STRING, ENTRA_*.
   integration-test-dev:
     if: ${{ needs.deploy-dev.result == 'success' }}
     runs-on: ubuntu-latest
@@ -207,18 +206,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Azure Login with OIDC
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Mask sensitive environment variables
         run: |
           echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+          echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_EMAIL }}"
+          echo "::add-mask::${{ secrets.TEST_ADVISOR_EMAIL }}"
+          echo "::add-mask::${{ secrets.TEST_CLIENT_EMAIL }}"
           echo "::add-mask::${{ secrets.SQL_CONNECTION_STRING }}"
           echo "::add-mask::${{ secrets.ENTRA_TENANT_ID }}"
           echo "::add-mask::${{ secrets.ENTRA_ROPC_CLIENT_ID }}"
