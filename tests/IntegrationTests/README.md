@@ -10,11 +10,20 @@ Provide the required configuration via `appsettings.local.json` (gitignored) or 
 dotnet test tests/IntegrationTests/RajFinancial.IntegrationTests.csproj
 ```
 
-Required configuration (see `appsettings.json` for the full shape):
+Required configuration (see `appsettings.json` for the full shape).
+
+In `appsettings.local.json`, use the JSON keys:
 
 - `ConnectionStrings:SqlConnectionString`
 - `Entra:TenantId`, `Entra:RopcClientId`, `Entra:ApiScope`
-- `Entra:TestUsers:{Administrator|Client|Advisor}` plus `TEST_{ROLE}_PASSWORD` env vars
+- `Entra:TestUsers:{Administrator|Client|Advisor}`
+
+When supplying the same values via environment variables, .NET configuration requires the double-underscore (`__`) separator for nested keys:
+
+- `ConnectionStrings__SqlConnectionString`
+- `Entra__TenantId`, `Entra__RopcClientId`, `Entra__ApiScope`
+- `Entra__TestUsers__Administrator`, `Entra__TestUsers__Client`, `Entra__TestUsers__Advisor`
+- `TEST_ADMINISTRATOR_PASSWORD`, `TEST_CLIENT_PASSWORD`, `TEST_ADVISOR_PASSWORD` (consumed directly, not via configuration binding)
 
 ## Living Documentation report (Expressium LivingDoc)
 
