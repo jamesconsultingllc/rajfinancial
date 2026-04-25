@@ -25,7 +25,7 @@ public class FunctionInvariantsTests
             .That()
             .ResideInNamespaceStartingWith("RajFinancial.Api.Functions")
             .Should()
-            .NotHaveDependencyOn(typeof(ApplicationDbContext).FullName)
+            .NotHaveDependencyOn(typeof(ApplicationDbContext).FullName!)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
@@ -48,7 +48,7 @@ public class FunctionInvariantsTests
             .That()
             .ResideInNamespaceStartingWith("RajFinancial.Api.Functions")
             .Should()
-            .NotHaveDependencyOn(typeof(IAuthorizationService).FullName)
+            .NotHaveDependencyOn(typeof(IAuthorizationService).FullName!)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(

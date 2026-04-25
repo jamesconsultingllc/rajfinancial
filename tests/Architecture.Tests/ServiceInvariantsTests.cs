@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RajFinancial.Api.Services.EntityService;
 
@@ -30,9 +32,10 @@ namespace RajFinancial.Architecture.Tests;
 public class ServiceInvariantsTests
 {
     private const string ServicesNamespacePrefix = "RajFinancial.Api.Services.";
-    private const string HttpRequestDataFullName = "Microsoft.Azure.Functions.Worker.Http.HttpRequestData";
-    private const string HttpResponseDataFullName = "Microsoft.Azure.Functions.Worker.Http.HttpResponseData";
-    private const string FunctionContextFullName = "Microsoft.Azure.Functions.Worker.FunctionContext";
+
+    private static readonly string HttpRequestDataFullName = typeof(HttpRequestData).FullName!;
+    private static readonly string HttpResponseDataFullName = typeof(HttpResponseData).FullName!;
+    private static readonly string FunctionContextFullName = typeof(FunctionContext).FullName!;
 
     private static readonly Assembly ApiAssembly = typeof(EntityService).Assembly;
 
