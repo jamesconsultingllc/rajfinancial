@@ -28,8 +28,14 @@ namespace RajFinancial.Api.Services.Authorization;
 /// </list>
 /// </para>
 /// <para>
-/// <b>Usage:</b> Inject this service into Azure Function handlers to gate access to
-/// user-scoped resources (accounts, assets, beneficiaries, documents).
+/// <b>Usage:</b> Inject this service into the <b>service layer</b> (e.g.,
+/// <c>AssetService</c>, <c>EntityService</c>) to gate access to user-scoped resources
+/// (accounts, assets, beneficiaries, documents). Azure Function handlers must NOT take
+/// a direct dependency on this interface — Mode A authorization runs inside the service
+/// alongside the data access so the deny path can shape responses identically to a true
+/// missing-id (ADR 0001 — IDOR returns 404). The
+/// <c>FunctionInvariantsTests.Functions_ShouldNotReferenceIAuthorizationService</c>
+/// architecture test enforces this boundary.
 /// </para>
 /// </remarks>
 public interface IAuthorizationService

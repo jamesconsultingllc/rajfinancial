@@ -655,7 +655,7 @@ public partial class EntityService(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Read);
 
         if (!decision.IsGranted)
-            throw DenyException(ownerUserId, entityId);
+            throw EntityAuthorizationDenials.Deny(ownerUserId, entityId);
     }
 
     /// <summary>
@@ -670,17 +670,7 @@ public partial class EntityService(
             requestingUserId, ownerUserId, DataCategories.Entities, AccessType.Full);
 
         if (!decision.IsGranted)
-            throw DenyException(ownerUserId, entityId);
+            throw EntityAuthorizationDenials.Deny(ownerUserId, entityId);
     }
-
-    /// <summary>
-    ///     Builds the deny exception. Per-resource denies mimic
-    ///     <c>EntityDbErrors.NotFound(id)</c> exactly; collection-scope denies
-    ///     mimic a missing owner (<c>NotFoundException.User</c>).
-    /// </summary>
-    private static NotFoundException DenyException(Guid ownerUserId, Guid? entityId) =>
-        entityId is { } id
-            ? EntityDbErrors.NotFound(id)
-            : NotFoundException.User(ownerUserId.ToString());
 
 }
