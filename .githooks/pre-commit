@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 # Pre-commit hook: (1) ESLint TypeScript, (2) JetBrains InspectCode C#.
-# Both run on staged files only. Either failure blocks the commit.
+# Both target staged files only. If a check runs and fails, it blocks the
+# commit. The checks are best-effort and may be skipped when PowerShell or a
+# required tool (npx + ESLint, jb InspectCode) is unavailable on the machine.
 #
 # Bypass in emergencies with: git commit --no-verify
 #
