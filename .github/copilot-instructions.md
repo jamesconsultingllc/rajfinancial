@@ -56,6 +56,63 @@ The following files are auto-generated and should be **ignored during code revie
 
 ---
 
+## AI Workflows (Skills)
+
+These workflows are defined in `.claude/skills/` for Claude Code (invoked as `/gen-migration`, `/new-api-function`) and apply equally to Copilot — follow the same procedure when asked.
+
+### Generate EF Core Migration
+
+**When asked to:** "add a migration", "create DB migration", "scaffold migration", or similar.
+
+Full procedure: [`.claude/skills/gen-migration/SKILL.md`](../.claude/skills/gen-migration/SKILL.md)
+
+**Summary:**
+1. Validate name is PascalCase, describes the schema change (e.g., `AddPaymentScheduleTable`)
+2. Run: `cd src/Api && dotnet ef migrations add <Name> --project . --startup-project .`
+3. Run: `dotnet build src/RajFinancial.sln --nologo -v:q` — must pass before proceeding
+4. Present checklist: `Up()`/`Down()` correctness, no irreversible drops, indexes for new FK columns
+5. Report file path, operation count, and build status
+
+Architecture: DbContext → `src/Api/Data/ApplicationDbContext.cs` | Configurations → `src/Api/Data/Configurations/` | Entities → `src/Shared/Entities/`
+
+---
+
+### Scaffold New Azure Function Endpoint
+
+**When asked to:** "add an endpoint", "create a new API function", "scaffold a resource", or similar.
+
+Full procedure: [`.claude/skills/new-api-function/SKILL.md`](../.claude/skills/new-api-function/SKILL.md)
+
+**Summary — create all four layers:**
+
+| Layer | Path | Pattern |
+|-------|------|---------|
+| Function | `src/Api/Functions/<Resource>Functions.cs` | `partial class`, primary constructor, `[RequireRole]`, XML doc |
+| Logging | `src/Api/Functions/<Resource>Functions.Logging.cs` | `[LoggerMessage]` partial methods |
+| Service interface | `src/Api/Services/<Resource>/I<Resource>Service.cs` | Interface |
+| Service impl | `src/Api/Services/<Resource>/<Resource>Service.cs` | No private static methods (architecture rule) |
+| Validator | `src/Api/Validators/<Resource>RequestValidator.cs` | `AbstractValidator<T>` with FluentValidation |
+| Contracts | `src/Shared/Contracts/<Resource>/` | `record` types, no entity references (architecture rule) |
+
+Register in `src/Api/Configuration/ApplicationServicesRegistration.cs`. BDD tests (`.feature` + step definitions) must be written before implementation. Run `dotnet build` and `dotnet test tests/Api.Tests` before presenting results.
+
+---
+
+### Security Review
+
+**When asked to:** "security review", "check for vulnerabilities", or before any PR touching auth/middleware/financial data.
+
+Full checklist: [`.claude/agents/security-reviewer.md`](../.claude/agents/security-reviewer.md)
+
+Review priority order:
+1. JWT/OIDC validation parameters (`ValidateIssuer`, `ValidateAudience`, `ValidateLifetime`, `ValidateIssuerSigningKey` all `true`)
+2. `[RequireRole]` coverage on every endpoint; IDOR — queries must be scoped to the claims principal's ObjectId
+3. EF Core: no raw SQL string concatenation; user-identity filters from claims only
+4. DTOs: no PII in list responses; no raw exceptions in error responses
+5. Frontend: bearer token on every request; no sensitive data in DOM attributes; no unsafe HTML injection
+
+---
+
 ## Links
 
 - **Global Standards**: [E:\AGENT.md](file:///E:/AGENT.md)

@@ -1122,6 +1122,122 @@ cd tests/e2e && npm run playwright:install        # Install browser binaries
 
 ---
 
+## Copilot CLI Plugins
+
+This repo standardizes on the following Microsoft-authored plugins from the
+[`awesome-copilot`](https://github.com/github/awesome-copilot) marketplace
+(included with Copilot CLI by default). Plugin contents are **not** vendored
+into this repo — each contributor (and the Copilot cloud agent, via
+`.github/workflows/copilot-setup-steps.yml`) installs them at the user level.
+
+| Plugin | Purpose |
+|--------|---------|
+| `dotnet` | .NET development skills |
+| `dotnet-diag` | .NET diagnostics skills |
+| `azure` | Azure MCP / Functions / infra skills |
+| `modernize-dotnet` | .NET modernization workflows |
+| `microsoft-docs` | Microsoft Learn docs lookup |
+| `advanced-security` (from `copilot-plugins`) | Local pre-commit secret scanning |
+
+One-time local install (idempotent; safe to re-run if a transient network error occurs):
+
+```bash
+for plugin in dotnet dotnet-diag azure modernize-dotnet microsoft-docs; do
+  copilot plugin install "$plugin@awesome-copilot"
+done
+copilot plugin install advanced-security@copilot-plugins
+copilot plugin list
+```
+
+Restart the Copilot CLI session (`/restart`) after install so the new skills load.
+
+---
+
+## AI Automations (Claude Code & Copilot)
+
+The following automations are configured for this project. Both Claude Code and GitHub Copilot should understand and use these workflows.
+
+### Hooks (Claude Code — `.claude/settings.json`)
+
+Hooks run automatically on every AI file edit. They are Node.js scripts in `.claude/hooks/` and run cross-platform (Windows + macOS).
+
+| Hook | Trigger | Script | What It Does |
+|------|---------|--------|-------------|
+| Block secrets | PreToolUse (Edit/Write) | `block-secrets.js` | Blocks any AI edit to `local.settings.json` — contains Azure connection strings |
+| Auto-lint | PostToolUse (Edit/Write) | `lint-client.js` | Runs `eslint --fix` on any `.ts`/`.tsx` file edited inside `src/Client/` |
+
+### Skills (Claude Code slash commands + Copilot workflows)
+
+Skills are defined in `.claude/skills/`. Claude Code users invoke them as `/skill-name`. Copilot users ask for the same workflow by name — Copilot follows the same procedure documented below.
+
+#### `/gen-migration` — Generate EF Core Migration
+
+**Full procedure:** `.claude/skills/gen-migration/SKILL.md`
+
+When asked to create a migration (any phrasing: "add migration", "scaffold migration", "create DB migration"):
+
+1. Validate the migration name is PascalCase and describes the schema change
+2. Run: `cd src/Api && dotnet ef migrations add <Name> --project . --startup-project .`
+3. Run: `dotnet build src/RajFinancial.sln --nologo -v:q` — build must pass
+4. Present a checklist: confirm `Up()`/`Down()` are correct, no destructive operations, indexes added where needed
+5. Report the generated file path, operation count, and build status
+
+**Architecture context:** DbContext at `src/Api/Data/ApplicationDbContext.cs`, entity configurations at `src/Api/Data/Configurations/`, entities at `src/Shared/Entities/`.
+
+#### `/new-api-function` — Scaffold Azure Function Endpoint
+
+**Full procedure:** `.claude/skills/new-api-function/SKILL.md`
+
+When asked to create a new API endpoint (any phrasing: "add endpoint", "create function", "scaffold resource"):
+
+1. Read the reference implementations in `src/Api/Functions/ClientManagementFunctions.cs` and `src/Api/Services/ClientManagement/`
+2. Create all four layers following the established patterns:
+   - `src/Api/Functions/<Resource>Functions.cs` — `partial class`, primary constructor, `[RequireRole]`, XML doc
+   - `src/Api/Functions/<Resource>Functions.Logging.cs` — `[LoggerMessage]` partial methods
+   - `src/Api/Services/<Resource>/I<Resource>Service.cs` — interface
+   - `src/Api/Services/<Resource>/<Resource>Service.cs` — implementation (no private static methods — architecture rule)
+   - `src/Api/Validators/<Resource>RequestValidator.cs` — `AbstractValidator<T>`
+   - `src/Shared/Contracts/<Resource>/` — request/response records (no entity references — architecture rule)
+3. Register in `src/Api/Configuration/ApplicationServicesRegistration.cs`
+4. Create BDD tests first: `tests/IntegrationTests/Features/<Resource>.feature` (Gherkin), then unit tests
+5. Run `dotnet build` and `dotnet test tests/Api.Tests` — both must pass
+
+### Subagent (Claude Code — `.claude/agents/`)
+
+#### `security-reviewer`
+
+**Full definition:** `.claude/agents/security-reviewer.md`
+
+Invoke this agent before any PR that touches auth, middleware, financial data services, or DTOs. It checks:
+
+- JWT/OIDC token validation parameters
+- `[RequireRole]` coverage and IDOR risks
+- EF Core parameterized queries and user-identity scoping
+- DTO PII exposure and error response safety
+- Frontend token handling and XSS patterns
+
+**Copilot:** Run a security review by asking "review this code for security issues using the security-reviewer checklist in `.claude/agents/security-reviewer.md`".
+
+### MCP Server (Claude Code — `.mcp.json`)
+
+#### GitHub MCP
+
+Enables Claude Code to query GitHub directly: PR status, workflow run results, branch protection, issues.
+
+**Setup (one-time per developer):**
+```bash
+export GITHUB_PERSONAL_ACCESS_TOKEN=<your-pat-with-repo-scope>
+```
+
+The server config is in `.mcp.json` and is checked into the repo so all contributors get the same MCP setup automatically.
+
+**Use cases:**
+- "Check if the CI workflows passed on this branch"
+- "List open PRs targeting develop"
+- "Show me the failing step in the azure-functions workflow"
+
+---
+
 ## Useful Reminders
 
 - **Run tests before committing** - Never commit code that fails tests

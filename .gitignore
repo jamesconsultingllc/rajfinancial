@@ -51,7 +51,14 @@ testsettings.local.json
 .env.test
 tests/e2e/.env
 appsettings.local.json
-/.claude/
+
+# Claude Code: track curated config (settings, hooks, skills, agents);
+# ignore any other state Claude Code may write under .claude/.
+/.claude/*
+!/.claude/settings.json
+!/.claude/hooks/
+!/.claude/skills/
+!/.claude/agents/
 
 /src/nul
 /tests/AcceptanceTests/appsettings.local.json

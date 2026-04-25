@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Pre-commit hook: run JetBrains InspectCode on staged C# files.
-# Invokes the PowerShell implementation so logic stays cross-platform.
+# Pre-commit hook: (1) ESLint TypeScript, (2) JetBrains InspectCode C#.
+# Both run on staged files only. Either failure blocks the commit.
 #
 # Bypass in emergencies with: git commit --no-verify
 #
@@ -15,8 +15,9 @@ if command -v pwsh >/dev/null 2>&1; then
 elif command -v powershell >/dev/null 2>&1; then
   PS="powershell"
 else
-  echo "pre-commit: neither 'pwsh' nor 'powershell' found on PATH; skipping inspection" >&2
+  echo "pre-commit: neither 'pwsh' nor 'powershell' found on PATH; skipping hooks" >&2
   exit 0
 fi
 
-exec "$PS" -NoProfile -ExecutionPolicy Bypass -File scripts/precommit-inspect.ps1
+"$PS" -NoProfile -ExecutionPolicy Bypass -File scripts/precommit-lint.ps1
+"$PS" -NoProfile -ExecutionPolicy Bypass -File scripts/precommit-inspect.ps1

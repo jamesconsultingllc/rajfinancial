@@ -1,0 +1,48 @@
+name: "Copilot Setup Steps"
+
+# Validate setup steps automatically when changed; allow manual runs from the
+# repo's "Actions" tab. The cloud agent re-runs these before every session.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called `copilot-setup-steps` for the cloud agent to pick it up.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot
+
+      # Install Microsoft-authored awesome-copilot plugins relevant to this repo
+      # (.NET 8 / Azure Functions / SQL Server). Local devs should run the same
+      # commands once on their workstation — see AGENT.md ("Copilot CLI Plugins").
+      - name: Install Copilot CLI plugins (Microsoft-authored, awesome-copilot)
+        run: |
+          set -euo pipefail
+          for plugin in dotnet dotnet-diag azure modernize-dotnet microsoft-docs; do
+            echo "::group::Install $plugin@awesome-copilot"
+            copilot plugin install "$plugin@awesome-copilot"
+            echo "::endgroup::"
+          done
+          echo "::group::Install advanced-security@copilot-plugins"
+          copilot plugin install advanced-security@copilot-plugins
+          echo "::endgroup::"
+          copilot plugin list
