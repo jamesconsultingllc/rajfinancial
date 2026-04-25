@@ -75,7 +75,6 @@ public partial class ClientManagementService(
             activity?.SetTag(ClientManagementTelemetry.GrantIdTag, grant.Id.ToString());
             activity?.SetTag(ClientManagementTelemetry.GrantTypeTag, accessType.ToString());
 
-            ClientManagementTelemetry.RecordGrantCreated();
             LogClientAssigned(grant.Id, grantorUserId, accessType);
             return grant;
         }
@@ -172,7 +171,6 @@ public partial class ClientManagementService(
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            ClientManagementTelemetry.RecordGrantRevoked();
             LogClientAccessRevoked(grantId);
         }
         catch (Exception ex)
