@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schemas.reqnroll.net/reqnroll-config-latest.json",
+  "formatters": {
+    "expressium": {
+      "outputFilePath": "LivingDoc.ndjson",
+      "outputFileTitle": "RajFinancial Integration Tests"
+    }
+  }
+}

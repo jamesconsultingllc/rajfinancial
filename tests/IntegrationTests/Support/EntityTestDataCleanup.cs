@@ -9,10 +9,11 @@ namespace RajFinancial.IntegrationTests.Support;
 /// <remarks>
 /// Integration tests cannot tolerate residual rows from prior runs (for example, a duplicate
 /// slug assertion or a "cannot create a second Personal" assertion breaks when an earlier run
-/// left rows behind). This helper uses direct SQL against the local dev database to wipe
+/// left rows behind). This helper uses direct SQL to wipe
 /// <c>EntityRoles</c> and <c>Entities</c> for a fixed set of test users before each scenario.
-/// It never touches production data — the connection string is scoped to <c>localhost</c> by
-/// convention and only resolves to real values in local dev and CI ephemeral databases.
+/// It never touches production data — the connection string must point at a local SQL Server
+/// instance or a host explicitly opted-in via the <c>INTEGRATION_TEST_ALLOWED_SQL_HOSTS</c>
+/// environment variable, and any host containing <c>"prod"</c> is always rejected.
 /// </remarks>
 internal static class EntityTestDataCleanup
 {
@@ -47,7 +48,7 @@ internal static class EntityTestDataCleanup
                 "then corrupt scenarios with stale rows from previous runs.");
         }
 
-        EnsureConnectionStringTargetsLocalDatabase(connectionString);
+        EnsureConnectionStringIsNonProduction(connectionString);
 
         var userIds = KnownTestEmails
             .Select(email => Guid.Parse(TestClaimsBuilder.DeterministicUserId(email)))
@@ -81,38 +82,73 @@ internal static class EntityTestDataCleanup
     }
 
     /// <summary>
-    /// Safety guard: refuse to run destructive DELETE statements against anything other than
-    /// a local/ephemeral SQL Server instance. Parses the connection string and requires the
-    /// DataSource to be an explicitly-allowed local value.
+    /// Safety guard: refuse to run destructive DELETE statements against a production database.
+    /// Parses the connection string and requires the DataSource to be either a local SQL Server
+    /// instance or a host explicitly listed in the <c>INTEGRATION_TEST_ALLOWED_SQL_HOSTS</c>
+    /// environment variable (semicolon-separated). Any host containing the substring
+    /// <c>"prod"</c> is always rejected, regardless of allowlist contents.
     /// </summary>
-    internal static void EnsureConnectionStringTargetsLocalDatabase(string connectionString)
+    internal static void EnsureConnectionStringIsNonProduction(string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
         var dataSource = builder.DataSource?.Trim() ?? string.Empty;
 
-        // Strip named-instance and port qualifiers (e.g., "localhost,1433" or "localhost\\SQLEXPRESS").
+        // Strip named-instance and port qualifiers (e.g., "localhost,1433" or "localhost\\SQLEXPRESS"
+        // or "tcp:rajfinancial-dev.database.windows.net,1433").
         var host = dataSource
             .Split(',')[0]
             .Split('\\')[0]
             .Trim();
 
-        var allowed = new[]
+        if (host.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
+        {
+            host = host[4..];
+        }
+
+        // Hard reject explicitly-known production hosts (substring check below catches obvious
+        // names like "*-prod-*", but the canonical prod host has no "prod" token in its name).
+        var deniedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "rajfinancial.database.windows.net",
+        };
+
+        if (deniedHosts.Contains(host) || host.Contains("prod", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Refusing to run destructive test cleanup against known/suspected production data source '{dataSource}'. " +
+                "EntityTestDataCleanup issues unguarded DELETE statements and must never run against production.");
+        }
+
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "localhost",
             "127.0.0.1",
             "(local)",
-            "."
+            ".",
         };
 
-        var isAllowed = allowed.Any(a => string.Equals(host, a, StringComparison.OrdinalIgnoreCase))
+        // Allow opting in additional non-prod hosts (e.g., a CI dev SQL server) via env var.
+        var extraHosts = Environment.GetEnvironmentVariable("INTEGRATION_TEST_ALLOWED_SQL_HOSTS");
+        if (!string.IsNullOrWhiteSpace(extraHosts))
+        {
+            foreach (var extra in extraHosts.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                allowed.Add(extra);
+            }
+        }
+
+        var isAllowed = allowed.Contains(host)
             || host.StartsWith("(localdb)", StringComparison.OrdinalIgnoreCase);
 
         if (!isAllowed)
         {
             throw new InvalidOperationException(
-                $"Refusing to run destructive test cleanup against non-local data source '{dataSource}'. " +
+                $"Refusing to run destructive test cleanup against unapproved data source '{dataSource}'. " +
                 "EntityTestDataCleanup issues unguarded DELETE statements and is only safe against a " +
-                "local or ephemeral database. Allowed hosts: localhost, 127.0.0.1, (local), ., (localdb)\\*.");
+                "local or explicitly-allowlisted ephemeral database. " +
+                "Allowed hosts: localhost, 127.0.0.1, (local), ., (localdb)\\*. " +
+                "Add additional non-prod hosts via the INTEGRATION_TEST_ALLOWED_SQL_HOSTS environment " +
+                "variable (semicolon-separated).");
         }
     }
 }
