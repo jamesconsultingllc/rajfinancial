@@ -190,8 +190,9 @@ jobs:
           exit 1
 
   # Integration tests run against deployed dev environment; LivingDoc HTML is always uploaded
-  # so the report is viewable even when scenarios fail. Requires CIAM secrets configured at
-  # the repo or environment level (TEST_*_PASSWORD, SQL_CONNECTION_STRING, ENTRA_*).
+  # so the report is viewable even when scenarios fail. Requires secrets configured at the
+  # repo or environment level: TEST_*_EMAIL, TEST_*_PASSWORD, SQL_CONNECTION_STRING, ENTRA_*,
+  # and Azure OIDC credentials (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID).
   integration-test-dev:
     if: ${{ needs.deploy-dev.result == 'success' }}
     runs-on: ubuntu-latest

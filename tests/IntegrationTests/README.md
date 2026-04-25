@@ -1,6 +1,6 @@
 # RajFinancial Integration Tests
 
-Reqnroll-driven BDD integration tests against the deployed `func-rajfinancial-dev` Azure Functions host.
+Reqnroll-driven BDD integration tests against a running Azure Functions host (local or deployed). The default base URL is `localhost:7071`; CI overrides it to the deployed `func-rajfinancial-dev` host.
 
 ## Running locally
 
