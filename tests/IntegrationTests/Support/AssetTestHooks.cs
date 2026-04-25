@@ -26,7 +26,7 @@ public sealed class AssetTestHooks(FunctionsHostFixture fixture)
             .Select(email => Guid.Parse(TestClaimsBuilder.DeterministicUserId(email)))
             .ToArray();
 
-        EntityTestDataCleanup.EnsureConnectionStringTargetsLocalDatabase(connectionString);
+        EntityTestDataCleanup.EnsureConnectionStringIsNonProduction(connectionString);
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();

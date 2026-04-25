@@ -218,6 +218,10 @@ jobs:
           echo "::add-mask::${{ secrets.TEST_ADMINISTRATOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_ADVISOR_PASSWORD }}"
           echo "::add-mask::${{ secrets.TEST_CLIENT_PASSWORD }}"
+          echo "::add-mask::${{ secrets.SQL_CONNECTION_STRING }}"
+          echo "::add-mask::${{ secrets.ENTRA_TENANT_ID }}"
+          echo "::add-mask::${{ secrets.ENTRA_ROPC_CLIENT_ID }}"
+          echo "::add-mask::${{ secrets.ENTRA_API_SCOPE }}"
 
       - name: Run integration tests against dev
         id: integration_tests
@@ -225,6 +229,9 @@ jobs:
         env:
           FunctionsHost__BaseUrl: https://func-rajfinancial-dev.azurewebsites.net
           ConnectionStrings__SqlConnectionString: ${{ secrets.SQL_CONNECTION_STRING }}
+          # Opt-in allowlist for the dev Azure SQL host so EntityTestDataCleanup's safety guard
+          # accepts it. The guard always rejects any host containing "prod" regardless of this list.
+          INTEGRATION_TEST_ALLOWED_SQL_HOSTS: rajfinancial-dev.database.windows.net
           Entra__TenantId: ${{ secrets.ENTRA_TENANT_ID }}
           Entra__RopcClientId: ${{ secrets.ENTRA_ROPC_CLIENT_ID }}
           Entra__ApiScope: ${{ secrets.ENTRA_API_SCOPE }}
