@@ -7,21 +7,16 @@ namespace RajFinancial.Api.Observability;
 /// <summary>
 ///     Entities OTel instruments shared by
 ///     <see cref="RajFinancial.Api.Functions.Entities.EntityFunctions" /> and
-///     <see cref="RajFinancial.Api.Services.EntityService.EntityService" />. Exposes wrapper methods
-///     so callers don't take a direct dependency on <see cref="Counter{T}" /> / <see cref="Histogram{T}" /> /
-///     <see cref="ActivitySource" /> (keeps callers under Sonar S1200) and so the instruments are
-///     registered exactly once per process (avoids the duplicate-Meter emission bug).
-///
-///     NOTE: Per-domain business counters (entities.*) are tactical and expected to be consolidated
-///     into a centralized counter registry via ADO #628. Do not add new per-domain counters in other
-///     domains without first checking that work item. See AssetsTelemetry and UserProfileTelemetry.
+///     <see cref="RajFinancial.Api.Services.EntityService.EntityService" />.
+///     Business counters (entities.created.count / entities.roles.assigned.count)
+///     are owned by <see cref="RajFinancial.Api.Data.Interceptors.BusinessEventsInterceptor"/>
+///     and exposed via <see cref="TelemetryMeters"/>. Only the EntitiesQueryDuration
+///     histogram lives here — it measures request-path query time, not save events.
 /// </summary>
 internal static class EntityTelemetry
 {
     internal const string SourceName = ObservabilityDomains.Entities;
 
-    private const string EntitiesCreatedInstrument = "entities.created.count";
-    private const string EntityRolesAssignedInstrument = "entities.roles.assigned.count";
     private const string EntitiesQueryDurationInstrument = "entities.query.duration.ms";
 
     // Tag keys.
@@ -61,30 +56,13 @@ internal static class EntityTelemetry
     internal const string QueryOpGetRoles = "get_roles";
 
     private static readonly ActivitySource ActivitySource = new(SourceName);
-    private static readonly Meter Meter = new(SourceName);
 
-    private static readonly Counter<long> EntitiesCreated =
-        Meter.CreateCounter<long>(EntitiesCreatedInstrument);
-
-    private static readonly Counter<long> EntityRolesAssigned =
-        Meter.CreateCounter<long>(EntityRolesAssignedInstrument);
-
+    // Reuse the shared Meter instance so we never end up with two Meter
+    // objects sharing a name (which would double-emit).
     private static readonly Histogram<double> EntitiesQueryDuration =
-        Meter.CreateHistogram<double>(EntitiesQueryDurationInstrument);
+        TelemetryMeters.EntitiesMeter.CreateHistogram<double>(EntitiesQueryDurationInstrument);
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
-
-    internal static void RecordEntityCreated(string entityType)
-    {
-        var tags = new TagList { { EntityTypeTag, entityType } };
-        EntitiesCreated.Add(1, tags);
-    }
-
-    internal static void RecordEntityRoleAssigned(string roleType)
-    {
-        var tags = new TagList { { EntityRoleTypeTag, roleType } };
-        EntityRolesAssigned.Add(1, tags);
-    }
 
     internal static void RecordQueryDuration(string queryOp, double elapsedMs)
     {

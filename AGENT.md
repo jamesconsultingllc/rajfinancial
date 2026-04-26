@@ -833,6 +833,16 @@ Every new service, middleware, function group, or domain module must:
 | Authorization | `RajFinancial.Api.Authorization` | `7000–7999` |
 | Testing / diagnostics | `RajFinancial.Api.Testing` | `9000–9999` |
 
+### Business Counters: Centralized Interceptor Only
+
+**Domain-event counters (created/updated/deleted/etc.) are emitted exclusively by `BusinessEventsInterceptor` (`src/Api/Data/Interceptors/`).** Services and functions MUST NOT call `Counter<long>.Add(...)` for these events directly.
+
+- **Single source of truth** is `src/Api/Observability/TelemetryMeters.cs` — one `Meter` per domain, one `Counter<long>` per business event. Do **not** re-declare a duplicate `Meter` with the same name elsewhere; doing so causes the counter to double-emit.
+- The interceptor snapshots `ChangeTracker` in `SavingChanges[Async]`, drains-and-emits in `SavedChanges[Async]` (success), and emits the userprofile-conflict counter in `SaveChangesFailed[Async]` (failure) using the two-arm rule (test `DbUpdateConcurrencyException` first because it inherits from `DbUpdateException`).
+- Helpers like `AssetsTelemetry`, `EntityTelemetry`, `ClientManagementTelemetry`, and `UserProfileTelemetry` keep only an `ActivitySource`, tag-name constants, and validation-time / histogram instruments (e.g., `EnsureDuration`, `SelfAssignmentBlocked`). They do **not** declare per-domain `Counter<long>` fields.
+- **To add a new domain event:** add the `Counter<long>` to `TelemetryMeters`, then extend `BusinessEventsInterceptor.Snapshot` to map the EF entity state transition to a `PendingBusinessEvent`. Do **not** sprinkle `RecordXxx` helpers across services.
+- Span enrichment for `user.id` / `user.tenant_id` / route values is handled by `TelemetryEnrichmentMiddleware` (`src/Api/Middleware/`). Functions MUST NOT manually `SetTag("user.id", ...)` on every activity — the middleware tags the per-invocation `Activity.Current` once.
+
 ### Canonical Function / Service Pattern
 
 See [`docs/patterns/service-function-pattern.md`](docs/patterns/service-function-pattern.md) for the single written standard covering function ↔ service ↔ middleware responsibilities, authorization modes, activity naming, layered exception recording, and IDOR handling. Reviewers should reject PRs that drift from that pattern.
@@ -942,6 +952,8 @@ Source-gen emits a cached delegate with an `IsEnabled` guard before argument eva
 Reviewers **MUST** block PRs that:
 - Introduce direct `logger.LogX(...)` calls in `src/Api` (enforced by CA1848/CA1873 analyzers too).
 - Add a new service/module without declaring an `ActivitySource` and `Meter`.
+- Add a per-domain `Counter<long>.Add(...)` for a business event from a service or function — these MUST go through `BusinessEventsInterceptor` + `TelemetryMeters`.
+- Re-declare a `Meter` with a name already in `TelemetryMeters` (causes double-emit).
 - Add an external call (DB, HTTP, queue, cache) without wrapping in `ActivitySource.StartActivity(...)`.
 - Raise default log level in `appsettings.Production.json` above `Warning` without explicit justification.
 - Wire Application Insights exporter for Development environment.
