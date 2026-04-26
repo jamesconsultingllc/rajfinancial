@@ -102,6 +102,20 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
 
+    /// <summary>
+    ///     Test hook: snapshot the ChangeTracker without going through the full
+    ///     EF Core interception pipeline. Production code paths should never
+    ///     call this directly — they go through <c>SavingChanges[Async]</c>.
+    /// </summary>
+    internal void SnapshotForTesting(DbContext? context) => Snapshot(context);
+
+    /// <summary>
+    ///     Test hook: drive the failure emission path directly. Production code
+    ///     paths should never call this — they go through <c>SaveChangesFailed[Async]</c>.
+    /// </summary>
+    internal void EmitFailureAndClearForTesting(Exception? exception) =>
+        EmitFailureAndClearInternal(exception);
+
     private void Snapshot(DbContext? context)
     {
         pending.Clear();
@@ -237,7 +251,10 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         }
     }
 
-    private void EmitFailureAndClear(DbContextErrorEventData eventData)
+    private void EmitFailureAndClear(DbContextErrorEventData eventData) =>
+        EmitFailureAndClearInternal(eventData.Exception);
+
+    private void EmitFailureAndClearInternal(Exception? exception)
     {
         // Order matters: DbUpdateConcurrencyException : DbUpdateException.
         // Test the subtype first so a concurrency exception with a Modified
@@ -246,10 +263,10 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         // concurrency) while the base type matches Added profiles (PK conflict
         // from a concurrent JIT insert) — see plan AB#628 §two-arm rule.
         var isUserProfileConcurrencyConflict =
-            (eventData.Exception is DbUpdateConcurrencyException
+            (exception is DbUpdateConcurrencyException
              && pending.Any(e => e is UserProfileModified))
-            || (eventData.Exception is DbUpdateException
-                && eventData.Exception is not DbUpdateConcurrencyException
+            || (exception is DbUpdateException
+                && exception is not DbUpdateConcurrencyException
                 && pending.Any(e => e is UserProfileAdded));
 
         if (isUserProfileConcurrencyConflict)
