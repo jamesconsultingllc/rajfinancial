@@ -23,6 +23,7 @@
 // own interceptor instance (and therefore its own snapshot list).
 // ============================================================================
 
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -206,36 +207,48 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
             Emit(ev);
     }
 
+    // Uses TagList (struct) to avoid per-call KeyValuePair array allocation on
+    // the SaveChanges hot path. Tag values that are enum .ToString() results are
+    // strings (no boxing); bool values box into TagList's inline storage but no
+    // heap array is allocated.
     private static void Emit(PendingBusinessEvent ev)
     {
         switch (ev)
         {
             case AssetCreated created:
-                TelemetryMeters.AssetsCreated.Add(
-                    1,
-                    new KeyValuePair<string, object?>(ASSET_TYPE_TAG, created.AssetType));
+            {
+                var tags = new TagList { { ASSET_TYPE_TAG, created.AssetType } };
+                TelemetryMeters.AssetsCreated.Add(1, tags);
                 break;
+            }
             case AssetUpdated updated:
-                TelemetryMeters.AssetsUpdated.Add(
-                    1,
-                    new KeyValuePair<string, object?>(ASSET_TYPE_TAG, updated.AssetType),
-                    new KeyValuePair<string, object?>(ASSET_TYPE_SWITCH_TAG, updated.TypeSwitch));
+            {
+                var tags = new TagList
+                {
+                    { ASSET_TYPE_TAG, updated.AssetType },
+                    { ASSET_TYPE_SWITCH_TAG, updated.TypeSwitch },
+                };
+                TelemetryMeters.AssetsUpdated.Add(1, tags);
                 break;
+            }
             case AssetDeleted deleted:
-                TelemetryMeters.AssetsDeleted.Add(
-                    1,
-                    new KeyValuePair<string, object?>(ASSET_TYPE_TAG, deleted.AssetType));
+            {
+                var tags = new TagList { { ASSET_TYPE_TAG, deleted.AssetType } };
+                TelemetryMeters.AssetsDeleted.Add(1, tags);
                 break;
+            }
             case EntityCreated entity:
-                TelemetryMeters.EntitiesCreated.Add(
-                    1,
-                    new KeyValuePair<string, object?>(ENTITY_TYPE_TAG, entity.EntityType));
+            {
+                var tags = new TagList { { ENTITY_TYPE_TAG, entity.EntityType } };
+                TelemetryMeters.EntitiesCreated.Add(1, tags);
                 break;
+            }
             case EntityRoleAssigned role:
-                TelemetryMeters.EntityRolesAssigned.Add(
-                    1,
-                    new KeyValuePair<string, object?>(ENTITY_ROLE_TYPE_TAG, role.RoleType));
+            {
+                var tags = new TagList { { ENTITY_ROLE_TYPE_TAG, role.RoleType } };
+                TelemetryMeters.EntityRolesAssigned.Add(1, tags);
                 break;
+            }
             case GrantCreated:
                 TelemetryMeters.GrantsCreated.Add(1);
                 break;

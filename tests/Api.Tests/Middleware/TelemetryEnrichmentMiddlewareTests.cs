@@ -217,7 +217,15 @@ internal sealed class BindingDataFunctionContext : FunctionContext
     public override IDictionary<object, object> Items
     {
         get => items;
-        set => _ = value;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            items.Clear();
+            foreach (var pair in value)
+            {
+                items[pair.Key] = pair.Value;
+            }
+        }
     }
 
     public override BindingContext BindingContext => bindingContext;
