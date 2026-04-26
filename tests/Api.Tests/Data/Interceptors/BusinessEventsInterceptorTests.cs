@@ -25,13 +25,33 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
     private readonly MeterListener listener;
     private readonly List<CapturedMeasurement> captured = [];
 
+    // Allow-list of business-event counter instruments emitted by
+    // BusinessEventsInterceptor. Filtering on the exact instrument name
+    // (instead of just the meter name) keeps these tests immune to other
+    // counters or histograms registered on the same meters by parallel tests
+    // or by domain telemetry helpers (e.g. the EntitiesQueryDuration
+    // histogram or clientmanagement.self_assignment.blocked.count counter).
+    private static readonly HashSet<string> BusinessEventInstrumentNames =
+    [
+        TelemetryMeters.AssetsCreatedInstrument,
+        TelemetryMeters.AssetsUpdatedInstrument,
+        TelemetryMeters.AssetsDeletedInstrument,
+        TelemetryMeters.EntitiesCreatedInstrument,
+        TelemetryMeters.EntityRolesAssignedInstrument,
+        TelemetryMeters.GrantsCreatedInstrument,
+        TelemetryMeters.GrantsRevokedInstrument,
+        TelemetryMeters.UserProfileJitProvisionedInstrument,
+        TelemetryMeters.UserProfileSyncInstrument,
+        TelemetryMeters.UserProfileConcurrentConflictsInstrument,
+    ];
+
     public BusinessEventsInterceptorTests()
     {
         listener = new MeterListener
         {
             InstrumentPublished = (instrument, meterListener) =>
             {
-                if (IsDomainMeter(instrument.Meter.Name))
+                if (IsBusinessEventInstrument(instrument))
                 {
                     meterListener.EnableMeasurementEvents(instrument);
                 }
@@ -401,6 +421,10 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
     {
         captured.Add(new CapturedMeasurement(instrument.Name, measurement, tags.ToArray()));
     }
+
+    private static bool IsBusinessEventInstrument(Instrument instrument) =>
+        IsDomainMeter(instrument.Meter.Name)
+        && BusinessEventInstrumentNames.Contains(instrument.Name);
 
     private static bool IsDomainMeter(string meterName) =>
         meterName is ObservabilityDomains.Assets

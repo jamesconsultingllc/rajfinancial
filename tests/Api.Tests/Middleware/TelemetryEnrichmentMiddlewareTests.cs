@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker;
+using Moq;
 using RajFinancial.Api.Middleware;
 
 namespace RajFinancial.Api.Tests.Middleware;
@@ -44,24 +46,85 @@ public sealed class TelemetryEnrichmentMiddlewareTests
     }
 
     [Fact]
+    public async Task Tags_user_role_from_function_context_user_roles()
+    {
+        // GetUserRoles + UserRoleMapper.MapHighestPriority maps Administrator > Advisor > Client.
+        var context = new BindingDataFunctionContext()
+            .WithAuthentication(Guid.NewGuid())
+            .WithRoles("Client", "Advisor");
+
+        using var activity = TestActivitySource.StartActivity("test");
+        var middleware = new TelemetryEnrichmentMiddleware();
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        activity!.GetTagItem("user.role").Should().Be("Advisor");
+    }
+
+    [Fact]
+    public async Task Skips_user_role_when_no_roles_are_present()
+    {
+        var context = new BindingDataFunctionContext()
+            .WithAuthentication(Guid.NewGuid());
+
+        using var activity = TestActivitySource.StartActivity("test");
+        var middleware = new TelemetryEnrichmentMiddleware();
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        activity!.GetTagItem("user.role").Should().BeNull();
+    }
+
+    [Fact]
     public async Task Tags_allow_listed_route_values_from_binding_data()
     {
-        var assetId = Guid.NewGuid();
-        var entityId = Guid.NewGuid();
+        // Real Azure Functions HTTP triggers populate `id` and `roleId` from
+        // route templates like `entities/{id}/roles/{roleId}`. Earlier
+        // semantic names (assetId/entityId/grantId) never appear in BindingData.
+        var id = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
         var context = new BindingDataFunctionContext(new Dictionary<string, object?>
         {
-            ["assetId"] = assetId,
-            ["entityId"] = entityId,
+            ["id"] = id,
+            ["roleId"] = roleId,
             ["someUnrelatedKey"] = "ignored",
+            ["assetId"] = "should-be-ignored",
         });
 
         using var activity = TestActivitySource.StartActivity("test");
         var middleware = new TelemetryEnrichmentMiddleware();
         await middleware.Invoke(context, _ => Task.CompletedTask);
 
-        activity!.GetTagItem("route.assetId").Should().Be(assetId.ToString());
-        activity.GetTagItem("route.entityId").Should().Be(entityId.ToString());
+        activity!.GetTagItem("route.id").Should().Be(id.ToString());
+        activity.GetTagItem("route.roleId").Should().Be(roleId.ToString());
         activity.GetTagItem("route.someUnrelatedKey").Should().BeNull();
+        activity.GetTagItem("route.assetId").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Tags_route_template_with_function_name_for_http_triggers()
+    {
+        var context = new BindingDataFunctionContext()
+            .WithAuthentication(Guid.NewGuid())
+            .WithFunctionDefinition("GetAssetById", "httpTrigger");
+
+        using var activity = TestActivitySource.StartActivity("test");
+        var middleware = new TelemetryEnrichmentMiddleware();
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        activity!.GetTagItem("route.template").Should().Be("GetAssetById");
+    }
+
+    [Fact]
+    public async Task Skips_route_template_for_non_http_triggers()
+    {
+        var context = new BindingDataFunctionContext()
+            .WithAuthentication(Guid.NewGuid())
+            .WithFunctionDefinition("OnTimerTick", "timerTrigger");
+
+        using var activity = TestActivitySource.StartActivity("test");
+        var middleware = new TelemetryEnrichmentMiddleware();
+        await middleware.Invoke(context, _ => Task.CompletedTask);
+
+        activity!.GetTagItem("route.template").Should().BeNull();
     }
 
     [Fact]
@@ -105,6 +168,7 @@ internal sealed class BindingDataFunctionContext : FunctionContext
 {
     private readonly Dictionary<object, object> items = new();
     private readonly TestBindingContext bindingContext;
+    private FunctionDefinition? functionDefinition;
 
     public BindingDataFunctionContext(IReadOnlyDictionary<string, object?>? bindingData = null)
     {
@@ -124,6 +188,32 @@ internal sealed class BindingDataFunctionContext : FunctionContext
         return this;
     }
 
+    public BindingDataFunctionContext WithRoles(params string[] roles)
+    {
+        items[FunctionContextKeys.UserRoles] = (IReadOnlyList<string>)roles;
+        return this;
+    }
+
+    public BindingDataFunctionContext WithFunctionDefinition(string name, string triggerType)
+    {
+        var binding = new Mock<BindingMetadata>();
+        binding.SetupGet(b => b.Name).Returns("req");
+        binding.SetupGet(b => b.Type).Returns(triggerType);
+        binding.SetupGet(b => b.Direction).Returns(BindingDirection.In);
+
+        var inputBindings = new Dictionary<string, BindingMetadata>
+        {
+            ["req"] = binding.Object,
+        }.ToImmutableDictionary();
+
+        var def = new Mock<FunctionDefinition>();
+        def.SetupGet(d => d.Name).Returns(name);
+        def.SetupGet(d => d.InputBindings).Returns(inputBindings);
+
+        functionDefinition = def.Object;
+        return this;
+    }
+
     public override IDictionary<object, object> Items
     {
         get => items;
@@ -139,7 +229,7 @@ internal sealed class BindingDataFunctionContext : FunctionContext
     public override RetryContext? RetryContext => null;
 #pragma warning restore CS8764
     public override IServiceProvider InstanceServices { get; set; } = null!;
-    public override FunctionDefinition FunctionDefinition => null!;
+    public override FunctionDefinition FunctionDefinition => functionDefinition!;
     public override IInvocationFeatures Features => null!;
     public override CancellationToken CancellationToken => CancellationToken.None;
 
