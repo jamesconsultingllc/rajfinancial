@@ -251,7 +251,9 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         await SnapshotAndFail(interceptor, db, new DbUpdateException("jit race"));
 
         captured.Should().ContainSingle(m =>
-            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
+            .Which.Tags.Should()
+            .Contain(new KeyValuePair<string, object?>("conflict.type", "jit_race"));
         captured.Should().NotContain(m =>
             m.Instrument == TelemetryMeters.UserProfileJitProvisionedInstrument);
     }
@@ -271,8 +273,12 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
 
         await SnapshotAndFail(interceptor, db, new DbUpdateConcurrencyException("modify race"));
 
-        captured.Where(m => m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
-            .Should().HaveCount(1, because: "subtype-first ordering must not double-emit");
+        var conflicts = captured
+            .Where(m => m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
+            .ToList();
+        conflicts.Should().HaveCount(1, because: "subtype-first ordering must not double-emit");
+        conflicts[0].Tags.Should()
+            .Contain(new KeyValuePair<string, object?>("conflict.type", "modify_race"));
         captured.Should().NotContain(m => m.Instrument == TelemetryMeters.UserProfileSyncInstrument);
     }
 
@@ -344,7 +350,9 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         act.Should().Throw<DbUpdateException>();
 
         captured.Should().ContainSingle(m =>
-            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
+            .Which.Tags.Should()
+            .Contain(new KeyValuePair<string, object?>("conflict.type", "jit_race"));
         captured.Should().NotContain(m =>
             m.Instrument == TelemetryMeters.UserProfileJitProvisionedInstrument);
     }
@@ -379,7 +387,9 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         await act.Should().ThrowAsync<DbUpdateException>();
 
         captured.Should().ContainSingle(m =>
-            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
+            .Which.Tags.Should()
+            .Contain(new KeyValuePair<string, object?>("conflict.type", "jit_race"));
         captured.Should().NotContain(m =>
             m.Instrument == TelemetryMeters.UserProfileJitProvisionedInstrument);
     }
@@ -406,7 +416,9 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         act.Should().Throw<DbUpdateException>();
 
         captured.Should().ContainSingle(m =>
-            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument)
+            .Which.Tags.Should()
+            .Contain(new KeyValuePair<string, object?>("conflict.type", "jit_race"));
     }
 
     // =========================================================================

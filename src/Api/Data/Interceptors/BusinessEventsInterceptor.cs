@@ -48,6 +48,9 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
     private const string ASSET_TYPE_SWITCH_TAG = "asset.type_switch";
     private const string ENTITY_TYPE_TAG = "entity.type";
     private const string ENTITY_ROLE_TYPE_TAG = "entity.role.type";
+    private const string TagConflictType = "conflict.type";
+    private const string ConflictTypeJitRace = "jit_race";
+    private const string ConflictTypeModifyRace = "modify_race";
 
     private List<PendingBusinessEvent> pending = [];
 
@@ -272,19 +275,27 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         // Order matters: DbUpdateConcurrencyException : DbUpdateException.
         // Test the subtype first so a concurrency exception with a Modified
         // UserProfile only emits once. Both arms emit the same counter — the
-        // distinction is that the subtype matches Modified profiles (optimistic
-        // concurrency) while the base type matches Added profiles (PK conflict
-        // from a concurrent JIT insert) — see plan AB#628 §two-arm rule.
-        var isUserProfileConcurrencyConflict =
-            (exception is DbUpdateConcurrencyException
-             && pending.Any(e => e is UserProfileModified))
-            || (exception is DbUpdateException
-                && exception is not DbUpdateConcurrencyException
-                && pending.Any(e => e is UserProfileAdded));
-
-        if (isUserProfileConcurrencyConflict)
+        // distinction is encoded in the conflict.type tag: modify_race for
+        // optimistic-concurrency mismatches on Modified profiles, jit_race for
+        // PK conflicts from a concurrent JIT insert (Added profiles) — see
+        // plan AB#628 §two-arm rule.
+        string? conflictType = null;
+        if (exception is DbUpdateConcurrencyException
+            && pending.Any(e => e is UserProfileModified))
         {
-            TelemetryMeters.UserProfileConcurrentConflicts.Add(1);
+            conflictType = ConflictTypeModifyRace;
+        }
+        else if (exception is DbUpdateException
+                 && exception is not DbUpdateConcurrencyException
+                 && pending.Any(e => e is UserProfileAdded))
+        {
+            conflictType = ConflictTypeJitRace;
+        }
+
+        if (conflictType is not null)
+        {
+            var tags = new TagList { { TagConflictType, conflictType } };
+            TelemetryMeters.UserProfileConcurrentConflicts.Add(1, tags);
         }
 
         // Always clear so a retry on the same DbContext doesn't double-emit.
