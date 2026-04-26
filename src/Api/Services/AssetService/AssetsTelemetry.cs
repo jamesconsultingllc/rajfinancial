@@ -19,6 +19,7 @@
 // ============================================================================
 
 using System.Diagnostics;
+using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Observability;
 
 namespace RajFinancial.Api.Services.AssetService;
@@ -52,5 +53,5 @@ internal static class AssetsTelemetry
     internal const string TagAssetsCount = "assets.count";
     internal const string TagTypeSwitch = "asset.type_switch";
 
-    internal static readonly ActivitySource ActivitySource = new(RajFinancial.Api.Configuration.ObservabilityDomains.Assets);
+    internal static readonly ActivitySource ActivitySource = new(ObservabilityDomains.Assets);
 }

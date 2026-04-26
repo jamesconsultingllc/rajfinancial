@@ -1,5 +1,6 @@
 using System.Diagnostics.Metrics;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using RajFinancial.Api.Configuration;
@@ -280,6 +281,115 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
     }
 
     // =========================================================================
+    // Synchronous SaveChanges coverage — the production runtime is fully async,
+    // but the sync overrides on BusinessEventsInterceptor are live code and
+    // must hit the same Snapshot / DrainAndEmit / EmitFailureAndClearInternal
+    // helpers as their async siblings.
+    // =========================================================================
+
+    [Fact]
+    public void Sync_SaveChanges_adding_an_asset_emits_assets_created_count()
+    {
+        using var db = NewDb(out _);
+
+        db.Assets.Add(NewAsset(AssetType.BankAccount));
+        db.SaveChanges();
+
+        var hit = captured.Should()
+            .ContainSingle(m => m.Instrument == TelemetryMeters.AssetsCreatedInstrument)
+            .Subject;
+        hit.Value.Should().Be(1);
+        hit.Tags.Should().Contain(new KeyValuePair<string, object?>("asset.type", "BankAccount"));
+    }
+
+    [Fact]
+    public void Sync_SaveChanges_duplicate_user_profile_pk_emits_concurrent_conflicts()
+    {
+        using var connection = NewSqliteConnection();
+
+        var sharedId = Guid.NewGuid();
+
+        using (var seed = NewSqliteDb(connection))
+        {
+            seed.UserProfiles.Add(NewProfile(sharedId));
+            seed.SaveChanges();
+        }
+
+        captured.Clear();
+
+        using var db = NewSqliteDb(connection);
+        db.UserProfiles.Add(NewProfile(sharedId));
+
+        var act = () => db.SaveChanges();
+        act.Should().Throw<DbUpdateException>();
+
+        captured.Should().ContainSingle(m =>
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+        captured.Should().NotContain(m =>
+            m.Instrument == TelemetryMeters.UserProfileJitProvisionedInstrument);
+    }
+
+    // =========================================================================
+    // End-to-end EF Core wiring tests — drive a real DbUpdateException through
+    // SaveChanges[Async] using the SQLite in-memory provider (which enforces
+    // primary-key uniqueness, unlike the InMemory provider) to verify that
+    // the registered BusinessEventsInterceptor receives SaveChangesFailed[Async]
+    // and emits the expected counter.
+    // =========================================================================
+
+    [Fact]
+    public async Task EndToEnd_DuplicatePrimaryKey_async_emits_concurrent_conflicts()
+    {
+        await using var connection = NewSqliteConnection();
+
+        var sharedId = Guid.NewGuid();
+
+        await using (var seed = NewSqliteDb(connection))
+        {
+            seed.UserProfiles.Add(NewProfile(sharedId));
+            await seed.SaveChangesAsync();
+        }
+
+        captured.Clear();
+
+        await using var db = NewSqliteDb(connection);
+        db.UserProfiles.Add(NewProfile(sharedId));
+
+        var act = async () => await db.SaveChangesAsync();
+        await act.Should().ThrowAsync<DbUpdateException>();
+
+        captured.Should().ContainSingle(m =>
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+        captured.Should().NotContain(m =>
+            m.Instrument == TelemetryMeters.UserProfileJitProvisionedInstrument);
+    }
+
+    [Fact]
+    public void EndToEnd_DuplicatePrimaryKey_sync_emits_concurrent_conflicts()
+    {
+        using var connection = NewSqliteConnection();
+
+        var sharedId = Guid.NewGuid();
+
+        using (var seed = NewSqliteDb(connection))
+        {
+            seed.UserProfiles.Add(NewProfile(sharedId));
+            seed.SaveChanges();
+        }
+
+        captured.Clear();
+
+        using var db = NewSqliteDb(connection);
+        db.UserProfiles.Add(NewProfile(sharedId));
+
+        var act = () => db.SaveChanges();
+        act.Should().Throw<DbUpdateException>();
+
+        captured.Should().ContainSingle(m =>
+            m.Instrument == TelemetryMeters.UserProfileConcurrentConflictsInstrument);
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
@@ -326,12 +436,58 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         return new ApplicationDbContext(builder.Options);
     }
 
+    private static SqliteConnection NewSqliteConnection()
+    {
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+
+        // Hand-rolled UserProfiles schema. EnsureCreated() can't be used here
+        // because the production model declares "nvarchar(max)" column types
+        // that are SQL Server-specific. The test only needs a single table
+        // with PK enforcement to drive a real DbUpdateException through the
+        // interceptor pipeline.
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE UserProfiles (
+                Id TEXT NOT NULL PRIMARY KEY,
+                Email TEXT NOT NULL,
+                DisplayName TEXT NOT NULL,
+                FirstName TEXT NOT NULL,
+                LastName TEXT NOT NULL,
+                Role TEXT NOT NULL,
+                TenantId TEXT NOT NULL,
+                PhoneNumber TEXT NULL,
+                IsProfileComplete INTEGER NOT NULL,
+                IsActive INTEGER NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NULL,
+                LastLoginAt TEXT NULL,
+                PreferencesJson TEXT NULL
+            );
+            """;
+        cmd.ExecuteNonQuery();
+
+        return connection;
+    }
+
+    private static ApplicationDbContext NewSqliteDb(SqliteConnection connection)
+    {
+        var builder = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(new BusinessEventsInterceptor());
+        return new ApplicationDbContext(builder.Options);
+    }
+
     /// <summary>
     ///     Drives the snapshot → fail lifecycle directly via internal test
-    ///     hooks. EF Core does not always run <c>SaveChangesFailedAsync</c> on
-    ///     interceptors when another interceptor throws in
-    ///     <c>SavingChangesAsync</c>, so a deterministic test bypasses the EF
-    ///     pipeline entirely.
+    ///     hooks. The unit tests in this file exercise the
+    ///     <c>SaveChangesFailedAsync</c> handler logic in isolation;
+    ///     production failure modes (DB rejection on duplicate PK, optimistic
+    ///     concurrency token mismatch) reliably trigger
+    ///     <c>SaveChangesFailedAsync</c>, and that EF Core wiring is verified
+    ///     end-to-end by the SQLite-backed tests below
+    ///     (<see cref="EndToEnd_DuplicatePrimaryKey_async_emits_concurrent_conflicts"/>
+    ///     and <see cref="EndToEnd_DuplicatePrimaryKey_sync_emits_concurrent_conflicts"/>).
     /// </summary>
     private static Task SnapshotAndFail(
         BusinessEventsInterceptor interceptor,
@@ -371,9 +527,9 @@ public sealed class BusinessEventsInterceptorTests : IDisposable
         UpdatedAt = DateTimeOffset.UtcNow,
     };
 
-    private static UserProfile NewProfile() => new()
+    private static UserProfile NewProfile(Guid? id = null) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id ?? Guid.NewGuid(),
         Email = "test@example.com",
         DisplayName = "Test User",
         TenantId = Guid.NewGuid(),
