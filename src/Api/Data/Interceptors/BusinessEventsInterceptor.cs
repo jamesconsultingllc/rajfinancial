@@ -10,9 +10,14 @@
 //                                immutable list of pending events. Snapshotting
 //                                is required because EF detaches/changes the
 //                                state of entries after a successful save.
-//   - SavedChangesAsync        — atomically swap the snapshot out (so a nested
-//                                SaveChanges doesn't get our pending events)
-//                                and emit one counter increment per event.
+//   - SavedChangesAsync        — swap the active and draining list references
+//                                (so a nested SaveChanges during emission lands
+//                                in a fresh empty list instead of getting our
+//                                pending events) and emit one counter increment
+//                                per drained event. The drained list is then
+//                                cleared in place so its backing array is
+//                                reused on the next snapshot — no per-emit
+//                                List<> allocation on the hot path.
 //   - SaveChangesFailedAsync   — emit userprofile.concurrent.conflicts.count
 //                                only. All other domains do nothing on
 //                                failure. Two arms — DbUpdateConcurrencyException
@@ -52,7 +57,16 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
     private const string ConflictTypeJitRace = "jit_race";
     private const string ConflictTypeModifyRace = "modify_race";
 
-    private List<PendingBusinessEvent> pending = [];
+    // Two-list swap eliminates per-emit List<> allocation. 'active' receives
+    // snapshotted events; 'draining' is the spare slot. On DrainAndEmit we
+    // swap the references, iterate the local capture, then Clear() the
+    // drained list in place so its backing array is reused. EF Core does not
+    // invoke interceptors concurrently on the same DbContext, so plain field
+    // swap is sufficient — the only reentrancy we guard against is a nested
+    // SaveChanges triggered from within our own emission callback, which
+    // lands in the now-empty 'active' list.
+    private List<PendingBusinessEvent> active = [];
+    private List<PendingBusinessEvent> draining = [];
 
     /// <inheritdoc/>
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -122,7 +136,7 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
 
     private void Snapshot(DbContext? context)
     {
-        pending.Clear();
+        active.Clear();
 
         if (context is null)
             return;
@@ -135,19 +149,19 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
                     SnapshotAsset(asset, entry);
                     break;
                 case Entity entity when entry.State == EntityState.Added:
-                    pending.Add(new EntityCreated(entity.Type.ToString()));
+                    active.Add(new EntityCreated(entity.Type.ToString()));
                     break;
                 case EntityRole role when entry.State == EntityState.Added:
-                    pending.Add(new EntityRoleAssigned(role.RoleType.ToString()));
+                    active.Add(new EntityRoleAssigned(role.RoleType.ToString()));
                     break;
                 case DataAccessGrant grant:
                     SnapshotGrant(grant, entry);
                     break;
                 case UserProfile when entry.State == EntityState.Added:
-                    pending.Add(new UserProfileAdded());
+                    active.Add(new UserProfileAdded());
                     break;
                 case UserProfile when entry.State == EntityState.Modified:
-                    pending.Add(new UserProfileModified());
+                    active.Add(new UserProfileModified());
                     break;
             }
         }
@@ -158,20 +172,20 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         switch (entry.State)
         {
             case EntityState.Added:
-                pending.Add(new AssetCreated(asset.Type.ToString()));
+                active.Add(new AssetCreated(asset.Type.ToString()));
                 break;
             case EntityState.Modified:
                 var typeSwitch = !Equals(
                     entry.OriginalValues[TYPE_PROPERTY],
                     entry.CurrentValues[TYPE_PROPERTY]);
-                pending.Add(new AssetUpdated(asset.Type.ToString(), typeSwitch));
+                active.Add(new AssetUpdated(asset.Type.ToString(), typeSwitch));
                 break;
             case EntityState.Deleted:
                 // OriginalValues is the correct semantic source for the
                 // pre-delete type. Fall back to the live property if EF
                 // somehow returns null (defensive).
                 var deletedType = entry.OriginalValues[TYPE_PROPERTY];
-                pending.Add(new AssetDeleted(deletedType?.ToString() ?? asset.Type.ToString()));
+                active.Add(new AssetDeleted(deletedType?.ToString() ?? asset.Type.ToString()));
                 break;
         }
     }
@@ -183,7 +197,7 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         switch (entry.State)
         {
             case EntityState.Added:
-                pending.Add(new GrantCreated());
+                active.Add(new GrantCreated());
                 break;
             case EntityState.Modified:
                 // Revoke is a soft-delete (Status flips to Revoked). Detect by
@@ -193,7 +207,7 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
                 if (!Equals(originalStatus, GrantStatus.Revoked)
                     && Equals(currentStatus, GrantStatus.Revoked))
                 {
-                    pending.Add(new GrantRevoked());
+                    active.Add(new GrantRevoked());
                 }
                 break;
         }
@@ -201,13 +215,20 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
 
     private void DrainAndEmit()
     {
-        // Atomic swap so a nested SaveChanges (e.g., triggered by a downstream
-        // SavedChanges handler) starts with a fresh snapshot instead of
-        // re-emitting our events.
-        var snapshot = Interlocked.Exchange(ref pending, []);
+        // Two-list swap: move 'active' aside into 'draining' (which was empty
+        // from the previous drain) and use the freed list as the new 'active'.
+        // A reentrant Snapshot triggered from inside Emit lands in the new
+        // empty 'active'; the outer drain iterates its local capture so a
+        // nested DrainAndEmit reassigning the fields does not disturb it.
+        // After emission we Clear() the captured list in place — backing
+        // array is reused, no per-emit allocation.
+        (active, draining) = (draining, active);
+        var snapshot = draining;
 
         foreach (var ev in snapshot)
             Emit(ev);
+
+        snapshot.Clear();
     }
 
     // Uses TagList (struct) to avoid per-call KeyValuePair array allocation on
@@ -281,13 +302,13 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         // plan AB#628 §two-arm rule.
         string? conflictType = null;
         if (exception is DbUpdateConcurrencyException
-            && pending.Any(e => e is UserProfileModified))
+            && active.Any(e => e is UserProfileModified))
         {
             conflictType = ConflictTypeModifyRace;
         }
         else if (exception is DbUpdateException
                  && exception is not DbUpdateConcurrencyException
-                 && pending.Any(e => e is UserProfileAdded))
+                 && active.Any(e => e is UserProfileAdded))
         {
             conflictType = ConflictTypeJitRace;
         }
@@ -299,7 +320,7 @@ public sealed class BusinessEventsInterceptor : SaveChangesInterceptor
         }
 
         // Always clear so a retry on the same DbContext doesn't double-emit.
-        pending.Clear();
+        active.Clear();
     }
 
     // -------------------------------------------------------------------------
