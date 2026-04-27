@@ -1,0 +1,90 @@
+# Local development stack for RAJ Financial.
+#
+# Run with: scripts/dev-up.ps1 (or scripts/dev-up.sh on macOS/Linux).
+# That script sources the SA password from a secrets store and exports
+# RAJFIN_DEV_MSSQL_SA_PASSWORD before invoking docker compose.
+#
+# Manual run:
+#   $env:RAJFIN_DEV_MSSQL_SA_PASSWORD = "<your-dev-password>"   # PowerShell
+#   export RAJFIN_DEV_MSSQL_SA_PASSWORD="<your-dev-password>"   # bash/zsh
+#   docker compose -f docker-compose.dev.yml up -d --wait
+#
+# This file is for LOCAL DEVELOPMENT ONLY. Never reuse for any environment
+# that touches real customer data.
+#
+# See docs/local-development.md for the full setup runbook.
+
+name: rajfin-dev
+
+services:
+  rajfin-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: rajfin-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${RAJFIN_DEV_MSSQL_SA_PASSWORD:?RAJFIN_DEV_MSSQL_SA_PASSWORD env var is required - run scripts/dev-up.ps1 (or .sh) instead of plain docker compose}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - rajfin-sqlserver-data:/var/opt/mssql
+    healthcheck:
+      # Active healthcheck: actually execute a query against master.
+      # `sqlcmd` ships at /opt/mssql-tools18/bin/sqlcmd in this image.
+      # `-C` trusts the self-signed cert; `-N` enables encryption.
+      # Lesson from `structura-sql` running unhealthy for 2 days: a passive
+      # TCP-listen check is not enough — bootstrap can leave the listener
+      # up while master is still recovering.
+      test:
+        - "CMD-SHELL"
+        - >
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+          -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -C -N -l 5 -t 5
+          || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      # Generous start_period — Apple Silicon runs this image under
+      # emulation and first boot can take 45-60s.
+      start_period: 60s
+    restart: unless-stopped
+
+  rajfin-azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: rajfin-azurite
+    # Default well-known dev account is fine for local; no env needed.
+    # (Account: devstoreaccount1, key: well-known. See Azurite docs.)
+    ports:
+      - "10000:10000"   # blob
+      - "10001:10001"   # queue
+      - "10002:10002"   # table
+    volumes:
+      - rajfin-azurite-data:/data
+    command:
+      - "azurite"
+      - "--location"
+      - "/data"
+      - "--blobHost"
+      - "0.0.0.0"
+      - "--queueHost"
+      - "0.0.0.0"
+      - "--tableHost"
+      - "0.0.0.0"
+      - "--skipApiVersionCheck"
+    healthcheck:
+      # Azurite exposes no HTTP /health endpoint and the image ships without
+      # curl/wget. Use a TCP probe via /dev/tcp (busybox sh supports it).
+      test:
+        - "CMD-SHELL"
+        - "echo > /dev/tcp/127.0.0.1/10000 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  rajfin-sqlserver-data:
+    name: rajfin-sqlserver-data
+  rajfin-azurite-data:
+    name: rajfin-azurite-data

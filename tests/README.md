@@ -4,11 +4,11 @@ This directory contains the test projects for Raj Financial. The tests are organ
 
 ## Test Projects
 
-### 1. UnitTests (`tests/UnitTests/`)
+### 1. Unit (`tests/Api.Tests/`)
 
 **Purpose**: Fast, isolated tests that verify individual components, services, and business logic.
 
-**Framework**: xUnit with .NET 9.0
+**Framework**: xUnit with .NET 10
 
 **Characteristics**:
 - No external dependencies (databases, APIs, file system)
@@ -43,7 +43,7 @@ public void Calculator_Add_ReturnsCorrectSum()
 
 **Purpose**: Test interactions between components, including database access, API calls, and external services.
 
-**Framework**: xUnit with .NET 9.0
+**Framework**: xUnit with .NET 10
 
 **Characteristics**:
 - Tests multiple components working together
@@ -125,13 +125,13 @@ public async Task UserLogin_WithValidCredentials_SuccessfullyLogsIn()
 ### Unit Tests
 ```powershell
 # Run all unit tests
-dotnet test tests/UnitTests/UnitTests.csproj
+dotnet test tests/Api.Tests/Api.Tests.csproj
 
 # Run with verbose output
-dotnet test tests/UnitTests/UnitTests.csproj --verbosity detailed
+dotnet test tests/Api.Tests/Api.Tests.csproj --verbosity detailed
 
 # Run specific test
-dotnet test tests/UnitTests/UnitTests.csproj --filter "FullyQualifiedName~Calculator_Add"
+dotnet test tests/Api.Tests/Api.Tests.csproj --filter "FullyQualifiedName~Calculator_Add"
 ```
 
 ### Integration Tests
@@ -148,7 +148,7 @@ dotnet test tests/IntegrationTests/IntegrationTests.csproj --settings test.runse
 # Install Playwright browsers (first time only)
 cd tests/AcceptanceTests
 dotnet build
-pwsh bin/Debug/net9.0/playwright.ps1 install chromium
+pwsh bin/Debug/net10.0/playwright.ps1 install chromium
 
 # Run tests against local development server
 $env:BASE_URL = "http://localhost:5000"

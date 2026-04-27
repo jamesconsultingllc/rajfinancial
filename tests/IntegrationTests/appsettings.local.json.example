@@ -1,0 +1,32 @@
+{
+  // ----------------------------------------------------------------------
+  // Copy this file to `appsettings.local.json` (gitignored) and fill in
+  // real values. See docs/local-development.md for the full setup runbook.
+  // ----------------------------------------------------------------------
+  "ConnectionStrings": {
+    // Points at the rajfin-sql container from docker-compose.dev.yml.
+    // Replace <your-dev-sa-password> with the value retrieved from your
+    // secrets store:
+    //   macOS:   security find-generic-password -a "$USER" -s rajfinancial-dev-mssql-sa -w
+    //   Windows: Get-StoredCredential -Target rajfinancial-dev-mssql-sa
+    "SqlConnectionString": "Server=localhost,1433;Database=RAJFinancial;User Id=sa;Password=<your-dev-sa-password>;TrustServerCertificate=True;Encrypt=True;"
+  },
+  "FunctionsHost": {
+    "BaseUrl": "https://localhost:7071"
+  },
+  "Entra": {
+    // Entra External ID tenant subdomain (e.g., "contoso"), not the tenant GUID.
+    "TenantId": "<entra-tenant-subdomain>",
+    // Application (client) ID of the ROPC-enabled public client app registration.
+    "RopcClientId": "<ropc-client-id-guid>",
+    // Full API scope URI (e.g., "api://<api-client-id>/access_as_user").
+    "ApiScope": "api://<api-client-id>/access_as_user",
+    // Test user emails (Entra UPNs) per role for ROPC authentication.
+    // Provision with scripts/configure-user-flows.ps1 (see docs).
+    "TestUsers": {
+      "Administrator": "admin-test@<tenant>.onmicrosoft.com",
+      "Client": "client-test@<tenant>.onmicrosoft.com",
+      "Advisor": "advisor-test@<tenant>.onmicrosoft.com"
+    }
+  }
+}

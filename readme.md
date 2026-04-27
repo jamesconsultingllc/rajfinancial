@@ -1,158 +1,77 @@
-# Raj Financial - Blazor WebAssembly Application
+# RAJ Financial
 
-A modern financial application built with Blazor WebAssembly and deployed to Azure Static Web Apps.
+Personal financial planning platform for high-net-worth households.
+Tracks assets, accounts, transactions, and beneficiaries; generates AI-powered
+insights via Anthropic Claude; and links real-world accounts via Plaid (premium).
 
-## 🚀 Quick Start
+## Stack at a glance
 
-### Prerequisites
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
-- [Git](https://git-scm.com/)
+- **Client:** React 18 + TypeScript + Vite + Tailwind + shadcn/ui + Radix
+  + TanStack Query v5 + MSAL React
+- **API:** .NET 10 Azure Functions (isolated worker)
+- **Data:** Azure SQL + EF Core 10, Azure Redis, Key Vault, Blob Storage
+- **AI:** Claude (Anthropic SDK), `claude-sonnet-4-5-20250929` (BYOK on free
+  tier)
+- **Account linking:** Plaid (premium tier only)
+- **Infra:** Bicep → Azure Static Web Apps + Functions Consumption
+- **Tests:** xUnit (Api.Tests, Architecture.Tests) + Reqnroll BDD
+  (IntegrationTests + e2e Playwright)
 
-### Local Development
-```powershell
-# Clone the repository
-git clone https://github.com/jamesconsultingllc/rajfinancial.git
-cd rajfinancial
+For the deep stack reference, see
+[`docs/features/01-platform-infrastructure.md`](docs/features/01-platform-infrastructure.md).
 
-# Restore dependencies
-dotnet restore src/RajFinancial.sln
+## Get started locally
 
-# Build the solution
-dotnet build src/RajFinancial.sln
+See **[`docs/local-development.md`](docs/local-development.md)** for the
+authoritative setup runbook (prerequisites, Docker stack, `appsettings.local.json`,
+running tests, troubleshooting). Goal is `git clone` → green integration
+tests in under 10 minutes.
 
-# Run the application locally
-cd src/Client
-dotnet run
+Quick version once your toolchain is installed:
+
+```bash
+scripts/check-prereqs.sh   # or scripts/check-prereqs.ps1
+scripts/dev-up.sh          # or scripts/dev-up.ps1
+cd src/Api && func start   # in one terminal
+cd src/Client && npm run dev   # in another
+dotnet test tests/IntegrationTests   # in a third
 ```
 
-## 📁 Project Structure
+## Repository layout
 
 ```
 rajfinancial/
-├── .github/
-│   ├── workflows/              # GitHub Actions CI/CD workflows
-│   └── actions/                # Custom reusable actions
+├── docker-compose.dev.yml      # Local SQL Server + Azurite stack
+├── docs/
+│   ├── local-development.md    # ← Start here for local setup
+│   ├── features/               # Feature specs (source of truth for stack)
+│   ├── adr/                    # Architecture decision records
+│   ├── plans/                  # Active and archived design plans
+│   └── archive/                # Legacy (Blazor-era) docs
+├── infra/                      # Bicep IaC (modules + parameters)
+├── scripts/                    # Operational + dev scripts
+│   ├── check-prereqs.sh|ps1    # Toolchain validator
+│   ├── dev-up.sh|ps1           # Bring up local stack
+│   └── dev-down.sh|ps1
 ├── src/
-│   ├── Client/                 # Blazor WebAssembly project
-│   ├── Api/                    # Azure Functions API
-│   ├── Shared/                 # Shared models and DTOs
-│   └── RajFinancial.sln        # Solution file
+│   ├── Api/                    # .NET 10 Azure Functions (isolated)
+│   ├── Client/                 # React + Vite SPA
+│   └── Shared/                 # Shared contracts & DTOs
 ├── tests/
-│   ├── UnitTests/              # Unit tests (xUnit)
-│   └── AcceptanceTests/        # E2E tests (Playwright + Reqnroll)
-├── scripts/                    # Automation scripts
-│   ├── infra/                  # Infrastructure provisioning
-│   └── *.ps1                   # CI/CD and operational scripts
-├── docs/                       # Documentation
-└── themes/                     # Brand themes (Loveable)
+│   ├── Api.Tests/              # xUnit unit tests
+│   ├── Architecture.Tests/     # Architectural conventions
+│   ├── IntegrationTests/       # Reqnroll BDD against live stack
+│   └── e2e/                    # Playwright acceptance tests
+└── tools/insomnia/             # Insomnia API collections
 ```
 
-## 🔧 GitHub Actions Workflow
+## Contributing
 
-This project uses a comprehensive CI/CD pipeline with:
+Agent workflows are documented in [`AGENT.md`](AGENT.md) and
+[`CLAUDE.md`](CLAUDE.md). Per-task implementation plans land under
+`docs/plans/tasks/<work-item-id>-<slug>.md` and are attached to their
+ADO work item.
 
-- ✅ **Unit Tests** - Run before deployment
-- ✅ **Environment-based Deployment** - Production, Development, and Preview environments
-- ✅ **Settings Synchronization** - Automatic config copying between environments
-- ✅ **Entra Redirect URI Management** - Automatic redirect URI setup for preview environments
-- ✅ **E2E Tests** - Playwright tests after deployment (Chromium, Firefox, WebKit, Edge)
-- ✅ **Automatic Cleanup** - Preview environments cleaned up on PR merge
+## License
 
-### Branch Strategy
-
-| Branch Pattern | Environment | URL |
-|----------------|-------------|-----|
-| `main` | Production | `https://gray-cliff-072f3b510.azurestaticapps.net` |
-| `develop` | Development | `https://gray-cliff-072f3b510-develop.centralus.azurestaticapps.net` |
-| `feature/*` | Preview | Auto-generated preview URL |
-| `hotfix/*` | Preview | Auto-generated preview URL |
-| `release/*` | Preview | Auto-generated preview URL |
-
-## 🛠️ Scripts
-
-All automation scripts are in the [`scripts/`](./scripts/) directory:
-
-| Category | Scripts | Purpose |
-|----------|---------|---------|
-| **Infrastructure** | `infra/register-entra-apps.ps1` | Register SPA & API apps in Entra External ID |
-| **CI/CD Setup** | `setup-entra-oidc.ps1`, `add-entra-federated-credentials.ps1` | Configure GitHub Actions OIDC authentication |
-| **Configuration** | `configure-entra-app-roles.ps1`, `configure-user-flows.ps1` | App roles and MFA configuration |
-
-See [`scripts/README.md`](./scripts/README.md) for detailed documentation.
-
-## 🧪 Testing
-
-```powershell
-# Run unit tests
-dotnet test tests/UnitTests/RajFinancial.UnitTests.csproj
-
-# Run E2E tests (requires app to be running)
-$env:BASE_URL = "http://localhost:5000"
-$env:BROWSER = "chromium"
-dotnet test tests/AcceptanceTests/RajFinancial.AcceptanceTests.csproj
-```
-
-## 🌍 Environments
-
-### Azure Static Web Apps
-
-- **Production**: https://gray-cliff-072f3b510.azurestaticapps.net (main branch)
-- **Development**: https://gray-cliff-072f3b510-develop.centralus.azurestaticapps.net (develop branch)
-- **Preview**: Auto-generated for feature/hotfix/release branches
-
-### Entra External ID Tenants
-
-| Environment | Tenant Domain | MFA |
-|-------------|---------------|-----|
-| Development | `rajfinancialdev.onmicrosoft.com` | Disabled |
-| Production | `rajfinancialprod.onmicrosoft.com` | Enabled |
-
-## 📚 Documentation
-
-- [Scripts Documentation](./scripts/README.md) - Automation scripts guide
-- [UI Design](./docs/RAJ_FINANCIAL_UI.md) - UI component specifications
-- [Execution Plan](./docs/RAJ_FINANCIAL_EXECUTION_PLAN.md) - Development roadmap
-- [Observability Runbook](./docs/observability-runbook.md) - On-call playbook: KQL, `dotnet-counters`, `dotnet-trace`, health endpoints
-- [Copilot Instructions](./.github/copilot-instructions.md) - AI coding guidelines
-
-## 🔐 Security
-
-This project uses:
-- **OIDC federated credentials** - No long-lived secrets for Azure/Entra authentication
-- **Pinned GitHub Actions versions** - Prevent supply chain attacks
-- **Environment-based approvals** - Required for production deployments
-- **Minimal workflow permissions** - Least privilege principle
-- **OWASP compliance** - Following Top 10:2025 security guidelines
-
-## 🤝 Contributing
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Make your changes and commit: `git commit -am "Add new feature"`
-3. Push to the branch: `git push origin feature/my-feature`
-4. Create a Pull Request to `develop`
-
-The workflow will automatically:
-- Run unit tests
-- Deploy to a preview environment
-- Configure Entra redirect URIs
-- Run E2E tests across multiple browsers
-- Clean up the preview when the PR is merged
-
-## 📝 License
-
-Proprietary - RAJ Financial Software
-
-## 🆘 Support
-
-For issues or questions:
-1. Check the [scripts documentation](./scripts/README.md)
-2. Review GitHub Actions workflow logs
-3. Open an issue in GitHub
-
-## 🔗 Resources
-
-- [Azure Static Web Apps](https://docs.microsoft.com/azure/static-web-apps/)
-- [Blazor Documentation](https://docs.microsoft.com/aspnet/core/blazor/)
-- [Entra External ID](https://learn.microsoft.com/entra/external-id/)
-- [Playwright for .NET](https://playwright.dev/dotnet/)
+Proprietary — © James Consulting LLC. All rights reserved.
