@@ -48,6 +48,7 @@ docker compose -f docker-compose.dev.yml ps --format \
   "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
 echo "==> Running EF Core migrations against rajfin-sql..."
+MIGRATIONS_FAILED=0
 if [[ -d "$REPO_ROOT/src/Api" ]] && command -v dotnet >/dev/null 2>&1; then
   pushd "$REPO_ROOT/src/Api" >/dev/null
   if dotnet ef --version >/dev/null 2>&1; then
@@ -57,12 +58,13 @@ if [[ -d "$REPO_ROOT/src/Api" ]] && command -v dotnet >/dev/null 2>&1; then
     # would silently misroute migrations away from our docker container.
     # Force the connection string to point at the rajfin-sql container.
     EF_CONNSTR="Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=${RAJFIN_DEV_MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=true"
-    ConnectionStrings__SqlConnectionString="$EF_CONNSTR" \
-      Values__SqlConnectionString="$EF_CONNSTR" \
-      dotnet ef database update || {
+    if ! ConnectionStrings__SqlConnectionString="$EF_CONNSTR" \
+         Values__SqlConnectionString="$EF_CONNSTR" \
+         dotnet ef database update; then
+      MIGRATIONS_FAILED=1
       echo "⚠ Migrations failed. Stack is up but DB is not ready." >&2
       echo "  Run manually: cd src/Api && dotnet ef database update" >&2
-    }
+    fi
   else
     echo "⚠ dotnet-ef not installed; skipping migrations." >&2
     echo "  Install: dotnet tool install -g dotnet-ef" >&2
@@ -75,10 +77,17 @@ cat <<EOF
 ✅ Local dev stack is ready.
 
 Next steps:
-  - Start API:    cd src/Api && func start
+  - Start API:    cd src/Api && func start --useHttps
   - Start client: cd src/Client && npm run dev
   - Run tests:    dotnet test tests/IntegrationTests
 
 To stop:           scripts/dev-down.sh
 To reset volumes:  scripts/dev-down.sh --volumes
 EOF
+
+if [[ "$MIGRATIONS_FAILED" -ne 0 ]]; then
+  echo "" >&2
+  echo "❌ Containers are up but database migrations failed." >&2
+  echo "   Fix the migration error above before running integration tests." >&2
+  exit 2
+fi

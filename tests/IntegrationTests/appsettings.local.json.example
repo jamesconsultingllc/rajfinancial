@@ -9,7 +9,7 @@
     // secrets store:
     //   macOS:   security find-generic-password -a "$USER" -s rajfinancial-dev-mssql-sa -w
     //   Windows: Get-StoredCredential -Target rajfinancial-dev-mssql-sa
-    "SqlConnectionString": "Server=localhost,1433;Database=RAJFinancial;User Id=sa;Password=<your-dev-sa-password>;TrustServerCertificate=True;Encrypt=True;"
+    "SqlConnectionString": "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=<your-dev-sa-password>;TrustServerCertificate=True;Encrypt=True;"
   },
   "FunctionsHost": {
     "BaseUrl": "https://localhost:7071"

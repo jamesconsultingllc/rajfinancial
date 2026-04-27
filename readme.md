@@ -15,7 +15,7 @@ insights via Anthropic Claude; and links real-world accounts via Plaid (premium)
 - **Account linking:** Plaid (premium tier only)
 - **Infra:** Bicep → Azure Static Web Apps + Functions Consumption
 - **Tests:** xUnit (Api.Tests, Architecture.Tests) + Reqnroll BDD
-  (IntegrationTests + e2e Playwright)
+  (IntegrationTests) + Cucumber.js + Playwright (e2e)
 
 For the deep stack reference, see
 [`docs/features/01-platform-infrastructure.md`](docs/features/01-platform-infrastructure.md).

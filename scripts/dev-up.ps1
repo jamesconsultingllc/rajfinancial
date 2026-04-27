@@ -70,6 +70,7 @@ docker compose -f docker-compose.dev.yml ps --format "table {{.Name}}`t{{.Status
 
 Write-Host "==> Running EF Core migrations against rajfin-sql..." -ForegroundColor Cyan
 $apiDir = Join-Path $RepoRoot 'src/Api'
+$migrationsFailed = $false
 if ((Test-Path $apiDir) -and (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Push-Location $apiDir
     try {
@@ -89,6 +90,7 @@ if ((Test-Path $apiDir) -and (Get-Command dotnet -ErrorAction SilentlyContinue))
             try {
                 & dotnet ef database update
                 if ($LASTEXITCODE -ne 0) {
+                    $script:migrationsFailed = $true
                     Write-Warning "Migrations failed. Stack is up but DB is not ready."
                     Write-Warning "Run manually: cd src/Api; dotnet ef database update"
                 }
@@ -110,10 +112,17 @@ Write-Host @"
 ✅ Local dev stack is ready.
 
 Next steps:
-  - Start API:    cd src/Api; func start
+  - Start API:    cd src/Api; func start --useHttps
   - Start client: cd src/Client; npm run dev
   - Run tests:    dotnet test tests/IntegrationTests
 
 To stop:           scripts/dev-down.ps1
 To reset volumes:  scripts/dev-down.ps1 -Volumes
 "@ -ForegroundColor Green
+
+if ($migrationsFailed) {
+    Write-Host ""
+    Write-Host "❌ Containers are up but database migrations failed." -ForegroundColor Red
+    Write-Host "   Fix the migration error above before running integration tests." -ForegroundColor Red
+    exit 2
+}

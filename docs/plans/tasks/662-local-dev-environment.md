@@ -93,7 +93,7 @@ Pinned-minimum validator. Checks:
 | Azure CLI                     | 2.60+        | `az --version`                                           |
 | GitHub CLI                    | 2.50+        | `gh --version`                                           |
 | EF Core CLI                   | 10.0         | `dotnet ef --version`                                    |
-| pwsh-flavored sqlcmd (opt)    | 2.x          | `sqlcmd -?` (helpful for ad-hoc DB poking, not required) |
+| pwsh-flavored sqlcmd (opt)    | 18.0+        | `sqlcmd -?` (helpful for ad-hoc DB poking, not required) |
 
 Output: green tick / red cross matrix + total pass/fail summary.
 Exit 0 when all pass, non-zero otherwise. The bring-up script gates on this.
@@ -150,7 +150,7 @@ the top.
 1. `scripts/check-prereqs` passes on a stock dev box with the listed
    toolchain installed.
 2. `scripts/dev-up` brings up two healthy containers and seeds a usable
-   `RAJFinancial` database.
+   `RajFinancial_Dev` database.
 3. `dotnet test tests/IntegrationTests` runs with 0 errors caused by missing
    environment (test failures from real bugs are still expected; this
    ticket fixes the *plumbing*, not pre-existing logic defects).
@@ -186,6 +186,6 @@ the top.
 - `docs/features/01-platform-infrastructure.md` — current stack (source of
   truth)
 - `tests/README.md` — existing test-suite docs (will get a small refresh)
-- `~/.openclaw/workspace/MEMORY.md` — per-task plan convention,
-  AB#398 precedent
-- `~/.openclaw/workspace/USER.md` — RAJ Financial project context
+- `AB#398` — precedent for per-task planning conventions
+- `AB#662` — Azure DevOps task context for this local development
+  environment work

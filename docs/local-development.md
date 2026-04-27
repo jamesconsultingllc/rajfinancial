@@ -46,7 +46,7 @@ It prints a green/red matrix and exits non-zero on any required miss.
 ```bash
 git clone https://github.com/jamesconsultingllc/rajfinancial
 cd rajfinancial
-dotnet restore
+dotnet restore src/RajFinancial.sln
 cd src/Client && npm install && cd ../..
 ```
 
@@ -196,14 +196,14 @@ If MSAL gets stuck in a redirect loop, see
 | Unit              | `dotnet test tests/Api.Tests`              | nothing external         |
 | Architecture      | `dotnet test tests/Architecture.Tests`     | nothing external         |
 | **Integration**   | `dotnet test tests/IntegrationTests`       | full Docker stack + `appsettings.local.json` + Entra ROPC test users |
-| Acceptance (e2e)  | `dotnet test tests/e2e`                    | running API + client + Playwright browsers |
+| Acceptance (e2e)  | `cd tests/e2e && npm ci && npm run playwright:install && npm test` | running API + client + Node deps + Playwright browsers |
 
 **First-time Playwright setup:**
 
 ```bash
 cd tests/e2e
-dotnet build
-pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+npm ci
+npm run playwright:install
 ```
 
 ---
@@ -257,11 +257,12 @@ The most common causes are:
 
 ### `rajfin-azurite` is `unhealthy`
 
-The TCP healthcheck uses `/dev/tcp` from busybox sh. If your Azurite image
+The Azurite TCP healthcheck uses a Node-based `net.connect` probe (Node
+is always present in the official Azurite image). If your Azurite image
 diverges (custom build, non-standard distro), update the healthcheck in
 `docker-compose.dev.yml` accordingly.
 
-### "Cannot resolve database 'RAJFinancial'"
+### "Cannot resolve database 'RajFinancial_Dev'"
 
 Migrations haven't run. From repo root:
 

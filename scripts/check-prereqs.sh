@@ -15,17 +15,40 @@ FAIL=0
 WARN=0
 
 # version_ge $have $need
-# Returns 0 iff $have >= $need using natural version-sort.
+# Returns 0 iff $have >= $need.
+#
+# Implementation note: we deliberately do NOT use `sort -V`. That's a GNU
+# coreutils extension and BSD `sort` (default on macOS, FreeBSD) does not
+# support it — on macOS this would silently treat every comparison as
+# false and fail every prereq, which is exactly the opposite of what this
+# script needs to do on the platform we develop on most.
+#
+# Strategy: split each version on '.', compare numeric components left
+# to right. Falls back to 0 for any non-numeric component (covers things
+# like `4.0.5413+abc` or `22.0-rc1`).
 version_ge() {
     local have=$1 need=$2
     [[ -z "$have" || "$have" == "unknown" ]] && return 1
-    # Strip leading 'v' (node prints "v22.x"), trailing '+', any commit suffix.
+    # Strip leading 'v' (node prints "v22.x"), trailing '+' or '-' annotations.
     have=${have#v}
-    have=${have%%+*}
-    have=${have%% *}
-    # `sort -V` gives natural version ordering; if the smallest is $need,
-    # then $have >= $need.
-    [[ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -n1)" == "$need" ]]
+    have=${have%%[+ -]*}
+
+    local IFS=.
+    # shellcheck disable=SC2206
+    local h_parts=($have) n_parts=($need)
+    local max=${#h_parts[@]}
+    (( ${#n_parts[@]} > max )) && max=${#n_parts[@]}
+
+    local i h n
+    for (( i=0; i<max; i++ )); do
+        h=${h_parts[i]:-0}; n=${n_parts[i]:-0}
+        # Force decimal interpretation; strip any trailing non-digits.
+        h=$(( 10#${h//[^0-9]/} + 0 )) 2>/dev/null || h=0
+        n=$(( 10#${n//[^0-9]/} + 0 )) 2>/dev/null || n=0
+        (( h > n )) && return 0
+        (( h < n )) && return 1
+    done
+    return 0   # equal
 }
 
 check() {
