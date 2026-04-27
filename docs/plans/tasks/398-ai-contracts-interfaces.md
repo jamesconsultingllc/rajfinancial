@@ -16,11 +16,12 @@ This is **step 1 of plan §F**:
 ## Scope
 
 **In scope:**
-- Public contract types in `src/Shared/Contracts/Ai/`:
-  - `IChatClientFactory` — resolves an `IChatClient` for a named provider/model.
+- Configuration POCOs in `src/Shared/Contracts/Ai/`:
   - `AiOptions` — root configuration POCO bound from `appsettings:Ai` section.
-  - `AiProviderOptions` — per-provider config (provider id, model, key reference, base URL override).
-  - `AiProviderId` — enum (or string-typed) of supported providers. Initial values: `Anthropic`. (Open future: `AzureOpenAI`, `OpenAI`, `Gemini`, `Ollama`, `DeepSeek`.)
+  - `AiProviderOptions` — per-provider config (model, API-key env-var reference, base URL override).
+  - `AiProviderId` — enum of supported providers. Initial values: `Anthropic`. (Open future: `AzureOpenAI`, `OpenAI`, `Gemini`, `Ollama`, `DeepSeek`.)
+- Factory contract in `src/Api/Services/Ai/Abstractions/`:
+  - `IChatClientFactory` — resolves an `IChatClient` for a named provider. Lives in `Api` (not `Shared`) because it returns the `Microsoft.Extensions.AI.IChatClient` type, and `Shared` is multi-targeted (`net9.0;net10.0`) and intentionally free of MEAI dependencies. See §1 below.
 - XML doc comments on every public type — these become the spec for downstream tasks.
 - A single `README.md` in `src/Shared/Contracts/Ai/` that links back to the umbrella plan and this task plan.
 
@@ -34,12 +35,14 @@ This is **step 1 of plan §F**:
 
 ## Design choices
 
-### 1. Contracts live in `Shared`, not `Api`
+### 1. Config POCOs in `Shared`, factory contract in `Api`
 
-`src/Shared/` is the project both `Api` and tests reference. Putting contracts there means:
-- `tests/Api.Tests/` can mock `IChatClientFactory` without dragging in Api internals.
-- Future test projects (e.g., a dedicated AI test project if scope grows) get the contracts for free.
-- Matches the pattern already used for entity contracts in `src/Shared/Contracts/`.
+The split is deliberate:
+
+- **Config POCOs (`AiOptions`, `AiProviderOptions`, `AiProviderId`) → `src/Shared/Contracts/Ai/`.** They have zero AI runtime deps. Putting them in `Shared` lets `tests/Api.Tests/` and any future test project bind/mock them without dragging in Api internals, and matches the pattern already used for entity contracts in `src/Shared/Contracts/`.
+- **`IChatClientFactory` → `src/Api/Services/Ai/Abstractions/`.** It returns `Microsoft.Extensions.AI.IChatClient`. Putting it in `Shared` would force `Microsoft.Extensions.AI.Abstractions` to be a dependency of the multi-targeted (`net9.0;net10.0`) `Shared` project, polluting every consumer of `Shared` — including tests and any non-AI feature project — with the MEAI surface. Keeping the factory contract in `Api` confines the MEAI dependency to the project that actually uses AI.
+
+Downstream tasks (#397 factory implementation, #545 Anthropic adapter, B1/B2/B3 Features) implement against `RajFinancial.Api.Services.Ai.Abstractions.IChatClientFactory` and bind config from `RajFinancial.Shared.Contracts.Ai.*`.
 
 ### 2. Use `Microsoft.Extensions.AI` abstractions, don't redefine
 
@@ -88,8 +91,8 @@ I'll update the ADO task description to reflect this.
 
 | AC | How met |
 |---|---|
-| Interface contracts exist for AI provider resolution | `IChatClientFactory` |
-| Contracts live in a project both Api and tests can reference | `src/Shared/Contracts/Ai/` |
+| Interface contracts exist for AI provider resolution | `IChatClientFactory` in `src/Api/Services/Ai/Abstractions/` |
+| Configuration POCOs are in a project both Api and tests can reference | `src/Shared/Contracts/Ai/` |
 | Configuration shape is bindable from `appsettings` | `AiOptions` + `AiProviderOptions` POCOs with parameterless ctors and settable properties |
 | No runtime behavior introduced | Zero implementations; nothing in DI |
 | Foundation does not expose user-facing AI surface | No endpoints, no Functions, no AIFunction registrations — verified by grep in PR description |
@@ -104,11 +107,13 @@ I'll update the ADO task description to reflect this.
 
 ```
 src/Shared/Contracts/Ai/
-  IChatClientFactory.cs
   AiOptions.cs
   AiProviderOptions.cs
   AiProviderId.cs
   README.md
+
+src/Api/Services/Ai/Abstractions/
+  IChatClientFactory.cs
 ```
 
 Plus the umbrella plan committed once on this branch:
@@ -120,7 +125,7 @@ docs/plans/tasks/398-ai-contracts-interfaces.md   # this file
 
 ## Risks / open questions
 
-- **MEAI package versions on net9.0 vs net10.0** — `Shared` is multi-target. Will only add MEAI package to `Shared` if needed for the contract types. **Plan: don't add MEAI to `Shared`**; the factory return type can be `Microsoft.Extensions.AI.IChatClient` *referenced through Api* — which means `IChatClientFactory` needs to live where MEAI is referenced. Resolution: put `IChatClientFactory` in `Api/Services/Ai/Abstractions/` (still public, still mockable from tests via `InternalsVisibleTo` already in place), keep config POCOs in `Shared/Contracts/Ai/`. Updating design choice 1 accordingly — partial split, not full Shared.
+- **MEAI package versions on net9.0 vs net10.0** — `Shared` is multi-targeted, and we want it to stay free of MEAI. Decision (locked): the factory contract `IChatClientFactory` lives in `Api/Services/Ai/Abstractions/` (public, mockable from `Api.Tests` directly — they reference `Api`); only the config POCOs go in `Shared/Contracts/Ai/`. See §1 above.
 - **Anthropic SDK package availability for net10.0** — verified during #545, not this task.
 
 ## Done when
