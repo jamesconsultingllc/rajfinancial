@@ -77,11 +77,13 @@ public async Task UserRepository_SaveUser_PersistsToDatabase()
 - Third-party service integration
 - Configuration validation
 
-### 3. AcceptanceTests (`tests/AcceptanceTests/`)
+### 3. End-to-End Tests (`tests/e2e/`)
 
 **Purpose**: End-to-end tests that verify user workflows from the browser perspective using Playwright.
 
-**Framework**: xUnit + Playwright for .NET
+**Framework**: Cucumber.js + Playwright (TypeScript / Node), driven from
+`tests/e2e/`. The .feature files live under `tests/e2e/features` and step
+definitions under `tests/e2e/step-definitions`.
 
 **Characteristics**:
 - Tests complete user scenarios
@@ -90,27 +92,15 @@ public async Task UserRepository_SaveUser_PersistsToDatabase()
 - Slowest tests (seconds to minutes)
 - Runs after deployment in CI/CD
 
-**Example Test**:
-```csharp
-[Fact]
-public async Task UserLogin_WithValidCredentials_SuccessfullyLogsIn()
-{
-    // Arrange
-    var page = await _browser!.NewPageAsync();
-    
-    // Act
-    await page.GotoAsync($"{_baseUrl}/login");
-    await page.FillAsync("#email", "user@example.com");
-    await page.FillAsync("#password", "password123");
-    await page.ClickAsync("button[type='submit']");
-    
-    // Assert
-    await page.WaitForURLAsync("**/dashboard");
-    var welcomeText = await page.TextContentAsync("h1");
-    Assert.Contains("Welcome", welcomeText);
-    
-    await page.CloseAsync();
-}
+**Example Step Definition** (TypeScript):
+```ts
+When('the user logs in with valid credentials', async function () {
+  await this.page.goto(`${process.env.BASE_URL}/login`);
+  await this.page.fill('#email', 'user@example.com');
+  await this.page.fill('#password', 'password123');
+  await this.page.click("button[type='submit']");
+  await this.page.waitForURL('**/dashboard');
+});
 ```
 
 **When to Add Tests**:
@@ -125,38 +115,38 @@ public async Task UserLogin_WithValidCredentials_SuccessfullyLogsIn()
 ### Unit Tests
 ```powershell
 # Run all unit tests
-dotnet test tests/Api.Tests/Api.Tests.csproj
+dotnet test tests/Api.Tests
 
 # Run with verbose output
-dotnet test tests/Api.Tests/Api.Tests.csproj --verbosity detailed
+dotnet test tests/Api.Tests --verbosity detailed
 
 # Run specific test
-dotnet test tests/Api.Tests/Api.Tests.csproj --filter "FullyQualifiedName~Calculator_Add"
+dotnet test tests/Api.Tests --filter "FullyQualifiedName~Calculator_Add"
 ```
 
 ### Integration Tests
 ```powershell
 # Run all integration tests
-dotnet test tests/IntegrationTests/IntegrationTests.csproj
+dotnet test tests/IntegrationTests
 
 # With test database connection string
-dotnet test tests/IntegrationTests/IntegrationTests.csproj --settings test.runsettings
+dotnet test tests/IntegrationTests --settings test.runsettings
 ```
 
-### Acceptance Tests
+### End-to-End Tests
 ```powershell
 # Install Playwright browsers (first time only)
-cd tests/AcceptanceTests
-dotnet build
-pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+cd tests/e2e
+npm ci
+npm run playwright:install
 
 # Run tests against local development server
-$env:BASE_URL = "http://localhost:5000"
-dotnet test tests/AcceptanceTests/AcceptanceTests.csproj
+$env:BASE_URL = "http://localhost:5173"
+npm test
 
 # Run tests against deployed environment
 $env:BASE_URL = "https://your-app.azurestaticapps.net"
-dotnet test tests/AcceptanceTests/AcceptanceTests.csproj
+npm test
 ```
 
 ## CI/CD Integration

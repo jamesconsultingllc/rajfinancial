@@ -73,10 +73,18 @@ services:
       - "--skipApiVersionCheck"
     healthcheck:
       # Azurite exposes no HTTP /health endpoint and the image ships without
-      # curl/wget. Use a TCP probe via /dev/tcp (busybox sh supports it).
+      # curl/wget. Use Node (always present in this image) to TCP-connect
+      # to the blob port. /dev/tcp would be cleaner but is a bash-only
+      # feature, and `CMD-SHELL` runs under POSIX `sh` which does NOT
+      # support /dev/tcp redirection — that would leave the container
+      # stuck `unhealthy`.
       test:
         - "CMD-SHELL"
-        - "echo > /dev/tcp/127.0.0.1/10000 || exit 1"
+        - >
+          node -e "require('net').connect(10000,'127.0.0.1')
+          .on('connect',()=>process.exit(0))
+          .on('error',()=>process.exit(1));
+          setTimeout(()=>process.exit(1),3000).unref();"
       interval: 10s
       timeout: 5s
       retries: 6

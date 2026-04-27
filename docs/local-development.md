@@ -147,11 +147,25 @@ scripts/dev-down.ps1 -Volumes
 
 ```bash
 cd src/Api
-func start
+func start --useHttps
 ```
 
-The Function host listens on `http://localhost:7071`. You can hit
-`http://localhost:7071/api/health` to confirm.
+The `--useHttps` flag is **important**: the integration tests in
+`tests/IntegrationTests` default `FunctionsHost:BaseUrl` to
+`https://localhost:7071`. Running plain `func start` (HTTP only) will
+break those tests until you override the BaseUrl in your
+`appsettings.local.json`.
+
+With HTTPS the host listens on `https://localhost:7071`. The
+function app exposes two health endpoints:
+
+- `https://localhost:7071/api/health/live`  — liveness probe
+- `https://localhost:7071/api/health/ready` — readiness (checks DB,
+  Redis, etc.)
+
+The first time you run `func start --useHttps`, the Functions host
+generates a self-signed dev cert; accept it / trust it as needed for
+your platform. `curl -k` is fine for spot-checks.
 
 Environment variables come from `local.settings.json` (under
 `src/Api/`). If it's missing, copy from `local.settings.json.example` (if

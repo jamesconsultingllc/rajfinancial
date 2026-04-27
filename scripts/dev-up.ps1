@@ -18,18 +18,14 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "==> Loading dev SA password from secrets store..." -ForegroundColor Cyan
 if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
-    # Windows: prefer Credential Manager via cmdkey; fall back to env var
-    # already set, otherwise prompt the user once and save it.
+    # Windows: try the CredentialManager PowerShell module first (if
+    # installed). If neither the module nor an env var is set, print
+    # setup instructions and exit — we deliberately don't prompt-and-save
+    # here so the password choice/storage policy is explicit.
     $cred = $null
     try {
-        $stored = cmdkey /list:rajfinancial-dev-mssql-sa 2>$null
-        if ($stored -match 'rajfinancial-dev-mssql-sa') {
-            # cmdkey doesn't expose the password — we use a small helper:
-            # store the password in Windows Credential Manager via the
-            # CredentialManager PowerShell module if available.
-            if (Get-Module -ListAvailable -Name CredentialManager) {
-                $cred = Get-StoredCredential -Target 'rajfinancial-dev-mssql-sa'
-            }
+        if (Get-Module -ListAvailable -Name CredentialManager) {
+            $cred = Get-StoredCredential -Target 'rajfinancial-dev-mssql-sa'
         }
     } catch {
         $cred = $null
@@ -79,10 +75,26 @@ if ((Test-Path $apiDir) -and (Get-Command dotnet -ErrorAction SilentlyContinue))
     try {
         $efCheck = & dotnet ef --version 2>$null
         if ($LASTEXITCODE -eq 0) {
-            & dotnet ef database update
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Migrations failed. Stack is up but DB is not ready."
-                Write-Warning "Run manually: cd src/Api; dotnet ef database update"
+            # IMPORTANT: DesignTimeDbContextFactory falls back to LocalDB
+            # when no connection string is configured. LocalDB isn't
+            # installed by default on a clean Windows box and doesn't
+            # exist on macOS/Linux, so migrations would silently misroute
+            # away from our docker container. Force the connection string
+            # to point at the rajfin-sql container for the EF invocation.
+            $efConn = "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=$($env:RAJFIN_DEV_MSSQL_SA_PASSWORD);TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=true"
+            $prevConn       = $env:ConnectionStrings__SqlConnectionString
+            $prevValuesConn = $env:Values__SqlConnectionString
+            $env:ConnectionStrings__SqlConnectionString = $efConn
+            $env:Values__SqlConnectionString            = $efConn
+            try {
+                & dotnet ef database update
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Migrations failed. Stack is up but DB is not ready."
+                    Write-Warning "Run manually: cd src/Api; dotnet ef database update"
+                }
+            } finally {
+                $env:ConnectionStrings__SqlConnectionString = $prevConn
+                $env:Values__SqlConnectionString            = $prevValuesConn
             }
         } else {
             Write-Warning "dotnet-ef not installed; skipping migrations."
