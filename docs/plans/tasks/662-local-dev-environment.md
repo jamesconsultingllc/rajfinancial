@@ -44,15 +44,22 @@ run in **under 10 minutes**, by following one document.
 
 Two services, healthchecked, persistent volumes:
 
-| Service        | Image                                            | Ports        | Volume                |
-| -------------- | ------------------------------------------------ | ------------ | --------------------- |
-| `rajfin-sql`     | `mcr.microsoft.com/mssql/server:2022-latest`   | `1433`       | `rajfin-sqlserver-data` |
-| `rajfin-azurite` | `mcr.microsoft.com/azure-storage/azurite:latest` | `10000-10002` | `rajfin-azurite-data` |
+| Service          | Image                                                              | Ports         | Volume                  |
+| ---------------- | ------------------------------------------------------------------ | ------------- | ----------------------- |
+| `rajfin-sql`     | Pinned `mcr.microsoft.com/mssql/server` tag (see `docker-compose.dev.yml`) | `1433`        | `rajfin-sqlserver-data` |
+| `rajfin-azurite` | Pinned `mcr.microsoft.com/azure-storage/azurite` tag (see `docker-compose.dev.yml`) | `10000-10002` | `rajfin-azurite-data`   |
+
+**Note:** The checked-in `docker-compose.dev.yml` is the source of truth for
+exact image versions. Tags are pinned (no `:latest` / `:2022-latest`) so the
+local environment is reproducible; bumping versions is a deliberate edit to
+the compose file.
 
 **SA password:** read from env var `RAJFIN_DEV_MSSQL_SA_PASSWORD` (no default).
-Developers set it once via the bring-up script, which pulls it from a
-secrets store (macOS Keychain / Windows Credential Manager / 1Password CLI).
-Never committed.
+Developers set it once via the bring-up script, which can pull it from a
+supported local secrets store (macOS Keychain, Windows Credential Manager,
+or Linux `pass` / `secret-tool`). If you keep the secret in 1Password (or any
+other manager not listed), export `RAJFIN_DEV_MSSQL_SA_PASSWORD` manually
+before running the script. Never committed.
 
 **Healthcheck (SQL):** invokes `sqlcmd` to actually execute `SELECT 1`
 against `master`. The default mssql container ships without `/opt/mssql-tools18`
@@ -173,7 +180,7 @@ the top.
 - **MSSQL_PID licensing.** We pin `MSSQL_PID=Developer`. The Developer
   edition is free for non-production; doc note: don't reuse this compose
   for any prod-leaning environment.
-- **ARM64 (Apple Silicon) MSSQL image quirks.** The `mssql/server:2022-latest`
+- **ARM64 (Apple Silicon) MSSQL image quirks.** The pinned `mssql/server`
   image runs under emulation on Apple Silicon and is known to be slow on
   startup; the bring-up script's healthcheck wait must give it ≥60s before
   giving up. Document the expected first-run latency.

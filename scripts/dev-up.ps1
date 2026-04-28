@@ -180,31 +180,55 @@ if ((-not (Test-Path $apiDir)) -or (-not (Get-Command dotnet -ErrorAction Silent
 }
 Push-Location $apiDir
 try {
-    $efCheck = & dotnet ef --version 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "==> dotnet-ef not found; installing as a global tool..." -ForegroundColor Yellow
-        & dotnet tool install -g dotnet-ef *>&1 | Out-Host
-        $installExit = $LASTEXITCODE
-        # Make ~/.dotnet/tools visible to this process even on a clean box
-        # where the user hasn't logged out/in since installing the SDK.
-        $toolsPath = if ($IsWindows) {
-            Join-Path $env:USERPROFILE '.dotnet\tools'
-        } else {
-            Join-Path $env:HOME '.dotnet/tools'
+    # Pin to the EF Core major version the API targets (see
+    # src/Api/RajFinancial.Api.csproj). A mismatched global tool can
+    # break `dotnet ef database update` (e.g. tool 9.x against runtime 10.x).
+    $requiredDotnetEfVersion = '10.*'
+    $requiredDotnetEfMajor   = 10
+
+    function Get-DotnetEfMajor {
+        $output = & dotnet ef --version 2>$null
+        if ($LASTEXITCODE -ne 0) { return @{ Installed = $false; Version = $null; Major = $null } }
+        $version = "$output".Trim()
+        # `dotnet ef --version` prints a banner; pull the first x.y[.z] match.
+        $major = $null
+        if ($version -match '(\d+)\.(\d+)(?:\.(\d+))?') {
+            $major = [int]$Matches[1]
+            $version = $Matches[0]
         }
-        if ((Test-Path $toolsPath) -and ($env:PATH -notlike "*$toolsPath*")) {
-            $sep = [System.IO.Path]::PathSeparator
-            $env:PATH = "$toolsPath$sep$env:PATH"
-        }
-        & dotnet ef --version *>$null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "✗ Failed to install dotnet-ef (or it isn't on PATH after install)." -ForegroundColor Red
-            Write-Host "  Try manually: dotnet tool install -g dotnet-ef" -ForegroundColor Red
-            Write-Host "  Then ensure '$toolsPath' is on your PATH and re-run dev-up." -ForegroundColor Red
-            exit 1
-        }
-        Write-Host "✓ dotnet-ef installed." -ForegroundColor Green
+        return @{ Installed = $true; Version = $version; Major = $major }
     }
+
+    $ef = Get-DotnetEfMajor
+    if (-not $ef.Installed) {
+        Write-Host "==> dotnet-ef not found; installing version $requiredDotnetEfVersion as a global tool..." -ForegroundColor Yellow
+        & dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
+    } elseif ($ef.Major -ne $requiredDotnetEfMajor) {
+        Write-Host "==> dotnet-ef $($ef.Version) detected; updating to $requiredDotnetEfVersion to match EF Core runtime..." -ForegroundColor Yellow
+        & dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
+    }
+
+    # Make ~/.dotnet/tools visible to this process even on a clean box
+    # where the user hasn't logged out/in since installing the SDK.
+    $toolsPath = if ($IsWindows) {
+        Join-Path $env:USERPROFILE '.dotnet\tools'
+    } else {
+        Join-Path $env:HOME '.dotnet/tools'
+    }
+    if ((Test-Path $toolsPath) -and ($env:PATH -notlike "*$toolsPath*")) {
+        $sep = [System.IO.Path]::PathSeparator
+        $env:PATH = "$toolsPath$sep$env:PATH"
+    }
+
+    $ef = Get-DotnetEfMajor
+    if ((-not $ef.Installed) -or ($ef.Major -ne $requiredDotnetEfMajor)) {
+        Write-Host "✗ Failed to install/update dotnet-ef $requiredDotnetEfVersion (or it isn't on PATH after install)." -ForegroundColor Red
+        Write-Host "  Try manually: dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red
+        Write-Host "  If not installed at all:  dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red
+        Write-Host "  Then ensure '$toolsPath' is on your PATH and re-run dev-up." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✓ dotnet-ef $($ef.Version) is ready." -ForegroundColor Green
     # IMPORTANT: DesignTimeDbContextFactory falls back to LocalDB
     # when no connection string is configured. LocalDB isn't
     # installed by default on a clean Windows box and doesn't

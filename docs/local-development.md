@@ -183,7 +183,7 @@ If MSAL gets stuck in a redirect loop, see
 | ----------------- | ------------------------------------------ | ------------------------ |
 | Unit              | `dotnet test tests/Api.Tests`              | nothing external         |
 | Architecture      | `dotnet test tests/Architecture.Tests`     | nothing external         |
-| **Integration**   | `dotnet test tests/IntegrationTests`       | full Docker stack + `appsettings.local.json` + Entra ROPC test users |
+| **Integration**   | `dotnet test tests/IntegrationTests`       | localhost: full Docker stack + `appsettings.local.json` (unsigned local JWTs); remote/deployed endpoint also requires Entra ROPC test users |
 | Acceptance (e2e)  | `cd tests/e2e && npm ci && npm run playwright:install && npm test` | running API + client + Node deps + Playwright browsers |
 
 **First-time Playwright setup:**
