@@ -11,7 +11,7 @@ namespace RajFinancial.Api.Services.Contacts;
 /// <remarks>
 ///     Replaced by the real implementation in Phase 2 when the Contacts aggregate
 ///     ships. Test runs swap this for <see cref="SeedableContactResolver" /> via
-///     the <c>RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING</c> env flag.
+///     the <c>ENABLE_CONTACT_TEST_SEEDING</c> env flag.
 /// </remarks>
 internal sealed class PlaceholderContactResolver : IContactResolver
 {

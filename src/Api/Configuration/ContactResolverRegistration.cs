@@ -6,12 +6,12 @@ namespace RajFinancial.Api.Configuration;
 
 /// <summary>
 ///     DI registration for <see cref="IContactResolver"/>. Uses a seedable
-///     implementation when <c>RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING=true</c>
+///     implementation when <c>ENABLE_CONTACT_TEST_SEEDING=true</c>
 ///     and the environment is non-production; otherwise a placeholder.
 /// </summary>
 internal static class ContactResolverRegistration
 {
-    private const string CONTACT_TEST_SEEDING_ENV_VAR = "RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING";
+    private const string CONTACT_TEST_SEEDING_ENV_VAR = "ENABLE_CONTACT_TEST_SEEDING";
 
     public static IServiceCollection AddContactResolver(
         this IServiceCollection services,

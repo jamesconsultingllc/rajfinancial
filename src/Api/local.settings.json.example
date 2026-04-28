@@ -25,7 +25,7 @@
     "//AUTH__USE_UNSIGNED_LOCAL_VALIDATOR": "Required by tests/IntegrationTests. The fixture asserts auth.validator='unsigned_local' when targeting localhost, so the integration suite mints unsigned dev tokens instead of going through Entra.",
     "AUTH__USE_UNSIGNED_LOCAL_VALIDATOR": "true",
 
-    "//RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING": "Enables the test-only POST /api/testing/seed-contact + reset-contacts endpoints AND swaps the DI registration to SeedableContactResolver. Required for the EntityRoles integration scenarios. NEVER set in production.",
-    "RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING": "true"
+    "//ENABLE_CONTACT_TEST_SEEDING": "Enables the test-only POST /api/testing/seed-contact + reset-contacts endpoints AND swaps the DI registration to SeedableContactResolver. Required for the EntityRoles integration scenarios. NEVER set in production.",
+    "ENABLE_CONTACT_TEST_SEEDING": "true"
   }
 }

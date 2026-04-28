@@ -10,7 +10,7 @@ namespace RajFinancial.Api.Functions;
 
 /// <summary>
 ///     Test-only endpoints for seeding integration test data into the running host.
-///     Guarded by the <c>RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING</c> environment flag; returns
+///     Guarded by the <c>ENABLE_CONTACT_TEST_SEEDING</c> environment flag; returns
 ///     404 from every route when the flag is not set, so the endpoint cannot be
 ///     reached in production even if the assembly is deployed there.
 /// </summary>
@@ -104,7 +104,7 @@ public partial class TestingFunctions(
 
     private static bool IsTestSeedingEnabled() =>
         string.Equals(
-            Environment.GetEnvironmentVariable("RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING"),
+            Environment.GetEnvironmentVariable("ENABLE_CONTACT_TEST_SEEDING"),
             "true",
             StringComparison.OrdinalIgnoreCase);
 

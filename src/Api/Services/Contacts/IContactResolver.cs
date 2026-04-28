@@ -13,7 +13,7 @@ namespace RajFinancial.Api.Services.Contacts;
 ///     <para>
 ///         The production-default implementation (<c>PlaceholderContactResolver</c>)
 ///         rejects every GUID. Integration tests register <c>SeedableContactResolver</c>
-///         via the <c>RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING</c> environment flag and seed
+///         via the <c>ENABLE_CONTACT_TEST_SEEDING</c> environment flag and seed
 ///         contact ids through the test-only <c>/api/testing/seed-contact</c>
 ///         endpoint.
 ///     </para>
