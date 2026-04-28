@@ -10,13 +10,14 @@ $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $RepoRoot
 
 Write-Host "==> Checking prerequisites..." -ForegroundColor Cyan
-# Don't hard-exit on prereq fail — dev-up auto-installs the dotnet-ef
-# and Azure Functions Core Tools gaps below. Surface the report so the
-# contributor sees what was missing, but only abort if check-prereqs
-# itself errored (exit code >= 2).
+# Required prereqs (Docker, .NET, Node, pwsh, az, gh) MUST be present —
+# bail fast on any non-zero exit so contributors get a clear, immediate
+# install pointer instead of cryptic downstream failures. Auto-installable
+# items (func, dotnet-ef) are flagged -Optional in check-prereqs.ps1, so
+# they do not contribute to its non-zero exit.
 & "$PSScriptRoot/check-prereqs.ps1"
-if ($LASTEXITCODE -ge 2) {
-    Write-Error "Prereq check errored (exit $LASTEXITCODE). Aborting."
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Prereq check failed (exit $LASTEXITCODE). See docs/local-development.md Prerequisites section."
     exit $LASTEXITCODE
 }
 

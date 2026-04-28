@@ -43,21 +43,21 @@ public void Calculator_Add_ReturnsCorrectSum()
 
 **Purpose**: Test interactions between components, including database access, API calls, and external services.
 
-**Framework**: xUnit with .NET 10
+**Framework**: [Reqnroll](https://reqnroll.net/) BDD on top of the xUnit runner (.NET 10). Scenarios live in `*.feature` files; step definitions are C# under `StepDefinitions/`. The Functions host is **not** auto-started — tests connect to a host you launch separately (`func start --useHttps` after `pwsh ./scripts/dev-up.ps1`).
 
 **Characteristics**:
-- Tests multiple components working together
-- May use test databases or mocked services
-- Slower than unit tests (seconds per test)
-- Verifies integration points
+- Tests multiple components working together against a running Functions host
+- Uses the SQL container brought up by `docker-compose.dev.yml`
+- Slower than unit tests (seconds per scenario)
+- Verifies HTTP routes, auth, role mapping, JIT provisioning, etc.
 
-**Example Test**:
-```csharp
-[Fact]
-public async Task UserRepository_SaveUser_PersistsToDatabase()
-{
-    // Arrange
-    var repository = new UserRepository(testDbContext);
+**Example Scenario** (`Features/Assets.feature`):
+```gherkin
+Scenario: Owner retrieves their own assets
+  Given the Functions host is running
+  And a UserProfile exists for an authenticated user
+  When I send an authenticated GET request to "/api/assets"
+  Then the HTTP response status should be 200
     var user = new User { Name = "Test User" };
     
     // Act
@@ -126,11 +126,19 @@ dotnet test tests/Api.Tests --filter "FullyQualifiedName~Calculator_Add"
 
 ### Integration Tests
 ```powershell
-# Run all integration tests
+# 1. Bring up the local stack (SQL + Azurite, applies migrations).
+pwsh ./scripts/dev-up.ps1
+
+# 2. Start the Functions host (HTTPS — fixture defaults to https://localhost:7071).
+#    Requires src/Api/local.settings.json to be configured locally; see
+#    docs/local-development.md.
+cd src/Api; func start --useHttps
+
+# 3. In another shell, run the suite.
 dotnet test tests/IntegrationTests
 
-# With test database connection string
-dotnet test tests/IntegrationTests --settings test.runsettings
+# Filter by tag or scenario name:
+dotnet test tests/IntegrationTests --filter "FullyQualifiedName~Assets"
 ```
 
 ### End-to-End Tests
