@@ -58,16 +58,7 @@ Scenario: Owner retrieves their own assets
   And a UserProfile exists for an authenticated user
   When I send an authenticated GET request to "/api/assets"
   Then the HTTP response status should be 200
-    var user = new User { Name = "Test User" };
-    
-    // Act
-    await repository.SaveAsync(user);
-    
-    // Assert
-    var savedUser = await repository.GetByIdAsync(user.Id);
-    Assert.NotNull(savedUser);
-    Assert.Equal("Test User", savedUser.Name);
-}
+  And the response body should be a JSON array
 ```
 
 **When to Add Tests**:

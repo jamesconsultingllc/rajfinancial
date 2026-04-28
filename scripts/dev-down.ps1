@@ -14,7 +14,7 @@ Set-Location $RepoRoot
 # Set a placeholder ONLY for the duration of the compose invocation, then
 # restore the prior value (or unset) so subsequent `dev-up` in the same
 # shell still loads the real password from the secret store.
-$hadSqlPassword = Test-Path Env:\RAJFIN_DEV_MSSQL_SA_PASSWORD
+$hadSqlPassword = -not [string]::IsNullOrWhiteSpace($env:RAJFIN_DEV_MSSQL_SA_PASSWORD)
 $originalSqlPassword = $env:RAJFIN_DEV_MSSQL_SA_PASSWORD
 
 if (-not $hadSqlPassword) {

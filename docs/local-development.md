@@ -177,9 +177,12 @@ The first time you run `func start --useHttps`, the Functions host
 generates a self-signed dev cert; accept it / trust it as needed for
 your platform. `curl -k` is fine for spot-checks.
 
-Environment variables come from `local.settings.json` (under
-`src/Api/`). If it's missing, copy from `local.settings.json.example` (if
-present) or ask a teammate — it's gitignored intentionally.
+Environment variables come from `local.settings.json` (under `src/Api/`).
+On a fresh checkout `pwsh ./scripts/dev-up.ps1` seeds it for you from the
+checked-in template at `src/Api/local.settings.json.example` (it never
+overwrites an existing file). If you edit `local.settings.json` while
+`func start --useHttps` is already running, stop and restart the host so
+the new settings load.
 
 ---
 
@@ -283,10 +286,19 @@ dotnet ef database update
 
 ### `func start` complains about `local.settings.json`
 
-`src/Api/local.settings.json` is gitignored and isn't auto-generated.
-Ask a teammate for a sanitised copy or the values you need
-(at minimum: `AzureWebJobsStorage`, your `ConnectionStrings:SqlConnectionString`,
-and Entra app-registration IDs).
+`src/Api/local.settings.json` is gitignored. On a fresh checkout
+`pwsh ./scripts/dev-up.ps1` seeds it from
+`src/Api/local.settings.json.example`; it does **not** overwrite an
+existing file. If you ran `dev-up.ps1` and the file is still missing,
+copy the template manually:
+
+```bash
+cp src/Api/local.settings.json.example src/Api/local.settings.json
+```
+
+Then replace the placeholder password / Entra GUIDs with real values
+(at minimum: `ConnectionStrings__SqlConnectionString` and
+`SqlConnectionString` should both contain your dev SA password).
 
 ---
 
