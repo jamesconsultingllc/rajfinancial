@@ -49,8 +49,29 @@ cd src/Client && npm install && cd ../..
 ### 2a. Generate and store a dev SA password
 
 The local SQL Server runs in Docker with a strong dev SA password.
-Generate one and stash it in your OS secret store so future sessions
-can pick it up automatically.
+Generate one and stash it in a supported secrets store so future sessions
+can pick it up automatically. `dev-up.ps1` checks **Bitwarden CLI first**
+(works on all platforms), then falls back to the OS-native store.
+
+**Bitwarden CLI (cross-platform, recommended):**
+
+```bash
+# One-time setup (any platform):
+bw login                            # interactive
+export BW_SESSION=$(bw unlock --raw)   # bash / zsh
+# pwsh:    $env:BW_SESSION = bw unlock --raw
+
+# Generate a SQL-complexity-compliant password and store it.
+PW=$(bw generate --passphrase --words 4 --separator '-')
+PW="${PW}#A1z"   # guarantees ≥ 3 of 4 SQL complexity classes
+
+# Create the item (login type, name = rajfinancial-dev-mssql-sa).
+echo '{"type":1,"name":"rajfinancial-dev-mssql-sa","login":{"username":"sa","password":"'"$PW"'"}}' \
+  | bw encode | bw create item
+```
+
+Each new shell only needs `BW_SESSION` re-set (`bw unlock --raw`).
+`dev-up.ps1` reads the password via `bw get password rajfinancial-dev-mssql-sa`.
 
 **macOS (Keychain):**
 
@@ -74,8 +95,9 @@ New-StoredCredential -Target 'rajfinancial-dev-mssql-sa' `
 Write-Host "Stored. Length: $($pw.Length)"
 ```
 
-**Linux:** use `pass` / `age` / `1Password CLI` and export
-`RAJFIN_DEV_MSSQL_SA_PASSWORD` in your shell init.
+**Linux:** use Bitwarden CLI (above), `pass`, or `secret-tool` (libsecret).
+If you keep the secret in a manager `dev-up.ps1` doesn't natively support,
+just export `RAJFIN_DEV_MSSQL_SA_PASSWORD` in your shell init.
 
 ### 2b. Configure `appsettings.local.json`
 

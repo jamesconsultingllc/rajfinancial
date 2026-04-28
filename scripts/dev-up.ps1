@@ -100,7 +100,21 @@ Write-Host "==> Loading dev SA password from secrets store..." -ForegroundColor 
 if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
     $resolved = $null
 
-    if ($IsMacOS) {
+    # Cross-platform first: Bitwarden CLI (`bw`). Works identically on
+    # macOS / Linux / Windows. Requires the vault to be unlocked
+    # (`BW_SESSION` env var set, typically via `bw unlock --raw`).
+    if (Get-Command bw -ErrorAction SilentlyContinue) {
+        $bwStatus = & bw status 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
+        if ($bwStatus -and $bwStatus.status -eq 'unlocked') {
+            $pw = & bw get password 'rajfinancial-dev-mssql-sa' 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = "$pw".Trim() }
+        }
+        elseif ($bwStatus -and $bwStatus.status -eq 'locked') {
+            Write-Host "  (Bitwarden vault is locked. To use it: `$env:BW_SESSION = bw unlock --raw)" -ForegroundColor DarkYellow
+        }
+    }
+
+    if (-not $resolved -and $IsMacOS) {
         # macOS Keychain via the security CLI.
         $sec = Get-Command security -ErrorAction SilentlyContinue
         if ($sec) {
@@ -108,7 +122,7 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
             if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = $pw.Trim() }
         }
     }
-    elseif ($IsLinux) {
+    elseif (-not $resolved -and $IsLinux) {
         # Linux: prefer `pass`, fall back to `secret-tool` (libsecret).
         if (Get-Command pass -ErrorAction SilentlyContinue) {
             $pw = & pass show 'rajfinancial-dev-mssql-sa' 2>$null
@@ -119,7 +133,7 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
             if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = $pw.Trim() }
         }
     }
-    else {
+    elseif (-not $resolved) {
         # Windows: CredentialManager PowerShell module (if installed).
         try {
             if (Get-Module -ListAvailable -Name CredentialManager) {
@@ -135,7 +149,13 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
         Write-Host @"
 ✗ No SA password found.
 
-  Store it once in your OS secret store, or set the env var inline:
+  Store it once in a supported secrets store, or set the env var inline:
+
+  Bitwarden CLI (cross-platform, recommended):
+    bw login                                # one-time
+    `$env:BW_SESSION = bw unlock --raw      # per shell session
+    bw create item ...                      # see docs/local-development.md
+      (item name: rajfinancial-dev-mssql-sa, password field is what we read)
 
   macOS (Keychain):
     security add-generic-password ``

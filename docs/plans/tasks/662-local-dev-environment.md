@@ -56,10 +56,16 @@ the compose file.
 
 **SA password:** read from env var `RAJFIN_DEV_MSSQL_SA_PASSWORD` (no default).
 Developers set it once via the bring-up script, which can pull it from a
-supported local secrets store (macOS Keychain, Windows Credential Manager,
-or Linux `pass` / `secret-tool`). If you keep the secret in 1Password (or any
-other manager not listed), export `RAJFIN_DEV_MSSQL_SA_PASSWORD` manually
-before running the script. Never committed.
+supported secrets store. Lookup order:
+
+1. **Bitwarden CLI (`bw`)** — cross-platform; requires `BW_SESSION` set
+   (typically via `bw unlock --raw`).
+2. OS-native fallback: macOS Keychain (`security`), Windows Credential
+   Manager (`CredentialManager` PowerShell module), or Linux
+   `pass` / `secret-tool`.
+
+If you keep the secret in a manager not in the list above, export
+`RAJFIN_DEV_MSSQL_SA_PASSWORD` manually before running the script. Never committed.
 
 **Healthcheck (SQL):** invokes `sqlcmd` to actually execute `SELECT 1`
 against `master`. The default mssql container ships without `/opt/mssql-tools18`
