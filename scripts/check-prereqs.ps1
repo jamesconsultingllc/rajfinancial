@@ -118,8 +118,11 @@ Test-Tool "Azure CLI"                     az      "2.60"
 Test-Tool "GitHub CLI"                    gh      "2.50"
 
 Write-Host ""
+Write-Host "Required tooling (continued):"
+Test-Tool "EF Core CLI (dotnet-ef)" dotnet-ef "10.0"
+
+Write-Host ""
 Write-Host "Optional (nice to have):"
-Test-Tool "EF Core CLI (dotnet-ef)" dotnet-ef "10.0" -Optional
 Test-Tool "sqlcmd"                  sqlcmd    "18.0" -Optional
 
 Write-Host ""

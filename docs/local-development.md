@@ -25,16 +25,12 @@ Install once per machine. Versions are minimums; newer is generally fine.
 | **PowerShell 7+**                 | 7.4         | preinstalled / `winget install Microsoft.PowerShell` | `brew install --cask powershell` | follow [aka.ms/powershell](https://aka.ms/powershell)       |
 | **Azure CLI**                     | 2.60        | `winget install Microsoft.AzureCLI`    | `brew install azure-cli`           | `curl -sL https://aka.ms/InstallAzureCLIDeb | bash`         |
 | **GitHub CLI**                    | 2.50        | `winget install GitHub.cli`            | `brew install gh`                  | follow [cli.github.com](https://cli.github.com)             |
-| **EF Core CLI** _(optional)_      | 10.0        | `dotnet tool install -g dotnet-ef`     | same                               | same                                                        |
+| **EF Core CLI**                   | 10.0        | `dotnet tool install -g dotnet-ef`     | same                               | same                                                        |
 
 Run the bundled validator any time:
 
-```bash
-# bash / zsh
-scripts/check-prereqs.sh
-
-# PowerShell
-scripts/check-prereqs.ps1
+```pwsh
+pwsh ./scripts/check-prereqs.ps1
 ```
 
 It prints a green/red matrix and exits non-zero on any required miss.
@@ -102,12 +98,8 @@ The real `appsettings.local.json` is gitignored.
 
 Single command, idempotent, prints what it did:
 
-```bash
-# bash / zsh
-scripts/dev-up.sh
-
-# PowerShell
-scripts/dev-up.ps1
+```pwsh
+pwsh ./scripts/dev-up.ps1
 ```
 
 Behind the scenes this:
@@ -121,10 +113,10 @@ Behind the scenes this:
 
 The compose file defines two containers:
 
-| Container         | Image                                               | Ports        | Volume                  |
-| ----------------- | --------------------------------------------------- | ------------ | ----------------------- |
-| `rajfin-sql`      | `mcr.microsoft.com/mssql/server:2022-latest`        | `1433`       | `rajfin-sqlserver-data` |
-| `rajfin-azurite`  | `mcr.microsoft.com/azure-storage/azurite:latest`    | `10000-10002` | `rajfin-azurite-data`  |
+| Container         | Image                                                            | Ports         | Volume                  |
+| ----------------- | ---------------------------------------------------------------- | ------------- | ----------------------- |
+| `rajfin-sql`      | `mcr.microsoft.com/mssql/server:2022-CU24-GDR1-ubuntu-22.04`     | `1433`        | `rajfin-sqlserver-data` |
+| `rajfin-azurite`  | `mcr.microsoft.com/azure-storage/azurite:3.35.0`                 | `10000-10002` | `rajfin-azurite-data`   |
 
 Both have active healthchecks (SQL runs `SELECT 1` via `sqlcmd`, Azurite
 TCP-probes its blob port) so `--wait` actually means "ready", not just
@@ -132,13 +124,9 @@ TCP-probes its blob port) so `--wait` actually means "ready", not just
 
 To stop:
 
-```bash
-scripts/dev-down.sh         # keeps volumes (data persists)
-scripts/dev-down.sh -v      # also wipes volumes (clean slate)
-
-# PowerShell equivalents:
-scripts/dev-down.ps1
-scripts/dev-down.ps1 -Volumes
+```pwsh
+pwsh ./scripts/dev-down.ps1            # keeps volumes (data persists)
+pwsh ./scripts/dev-down.ps1 -Volumes   # also wipes volumes (clean slate)
 ```
 
 ---
@@ -235,8 +223,8 @@ If you don't already have access to the dev tenant, ask Rudy.
 `RAJFIN_DEV_MSSQL_SA_PASSWORD` isn't set in your shell, or doesn't match
 what's stored in the SQL container's volume. Either:
 
-- Re-run `scripts/dev-up.sh` (it re-exports the env var); or
-- `scripts/dev-down.sh -v` to wipe the volume, then `scripts/dev-up.sh`
+- Re-run `pwsh ./scripts/dev-up.ps1` (it re-loads the env var); or
+- `pwsh ./scripts/dev-down.ps1 -Volumes` to wipe the volume, then `pwsh ./scripts/dev-up.ps1`
   again — the new password takes effect on a fresh init.
 
 ### `rajfin-sql` is `unhealthy`

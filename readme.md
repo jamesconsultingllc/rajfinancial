@@ -29,12 +29,12 @@ tests in under 10 minutes.
 
 Quick version once your toolchain is installed:
 
-```bash
-scripts/check-prereqs.sh   # or scripts/check-prereqs.ps1
-scripts/dev-up.sh          # or scripts/dev-up.ps1
-cd src/Api && func start   # in one terminal
-cd src/Client && npm run dev   # in another
-dotnet test tests/IntegrationTests   # in a third
+```pwsh
+pwsh ./scripts/check-prereqs.ps1
+pwsh ./scripts/dev-up.ps1
+cd src/Api; func start --useHttps      # in one terminal
+cd src/Client; npm run dev             # in another
+dotnet test tests/IntegrationTests     # in a third
 ```
 
 ## Repository layout
@@ -50,9 +50,9 @@ rajfinancial/
 │   └── archive/                # Legacy (Blazor-era) docs
 ├── infra/                      # Bicep IaC (modules + parameters)
 ├── scripts/                    # Operational + dev scripts
-│   ├── check-prereqs.sh|ps1    # Toolchain validator
-│   ├── dev-up.sh|ps1           # Bring up local stack
-│   └── dev-down.sh|ps1
+│   ├── check-prereqs.ps1        # Toolchain validator (pwsh, cross-platform)
+│   ├── dev-up.ps1               # Bring up local stack
+│   └── dev-down.ps1             # Tear down local stack
 ├── src/
 │   ├── Api/                    # .NET 10 Azure Functions (isolated)
 │   ├── Client/                 # React + Vite SPA

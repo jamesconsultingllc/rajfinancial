@@ -71,40 +71,43 @@ docker compose -f docker-compose.dev.yml ps --format "table {{.Name}}`t{{.Status
 Write-Host "==> Running EF Core migrations against rajfin-sql..." -ForegroundColor Cyan
 $apiDir = Join-Path $RepoRoot 'src/Api'
 $migrationsFailed = $false
-if ((Test-Path $apiDir) -and (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    Push-Location $apiDir
+if ((-not (Test-Path $apiDir)) -or (-not (Get-Command dotnet -ErrorAction SilentlyContinue))) {
+    Write-Host "✗ dotnet SDK or src/Api directory missing — cannot apply migrations." -ForegroundColor Red
+    exit 1
+}
+Push-Location $apiDir
+try {
+    $efCheck = & dotnet ef --version 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✗ dotnet-ef is required for the local dev environment." -ForegroundColor Red
+        Write-Host "  Install with: dotnet tool install -g dotnet-ef" -ForegroundColor Red
+        Write-Host "  (After install, ensure ~/.dotnet/tools is on your PATH and re-run dev-up.)" -ForegroundColor Red
+        exit 1
+    }
+    # IMPORTANT: DesignTimeDbContextFactory falls back to LocalDB
+    # when no connection string is configured. LocalDB isn't
+    # installed by default on a clean Windows box and doesn't
+    # exist on macOS/Linux, so migrations would silently misroute
+    # away from our docker container. Force the connection string
+    # to point at the rajfin-sql container for the EF invocation.
+    $efConn = "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=$($env:RAJFIN_DEV_MSSQL_SA_PASSWORD);TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=true"
+    $prevConn       = $env:ConnectionStrings__SqlConnectionString
+    $prevValuesConn = $env:Values__SqlConnectionString
+    $env:ConnectionStrings__SqlConnectionString = $efConn
+    $env:Values__SqlConnectionString            = $efConn
     try {
-        $efCheck = & dotnet ef --version 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            # IMPORTANT: DesignTimeDbContextFactory falls back to LocalDB
-            # when no connection string is configured. LocalDB isn't
-            # installed by default on a clean Windows box and doesn't
-            # exist on macOS/Linux, so migrations would silently misroute
-            # away from our docker container. Force the connection string
-            # to point at the rajfin-sql container for the EF invocation.
-            $efConn = "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=$($env:RAJFIN_DEV_MSSQL_SA_PASSWORD);TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=true"
-            $prevConn       = $env:ConnectionStrings__SqlConnectionString
-            $prevValuesConn = $env:Values__SqlConnectionString
-            $env:ConnectionStrings__SqlConnectionString = $efConn
-            $env:Values__SqlConnectionString            = $efConn
-            try {
-                & dotnet ef database update
-                if ($LASTEXITCODE -ne 0) {
-                    $script:migrationsFailed = $true
-                    Write-Warning "Migrations failed. Stack is up but DB is not ready."
-                    Write-Warning "Run manually: cd src/Api; dotnet ef database update"
-                }
-            } finally {
-                $env:ConnectionStrings__SqlConnectionString = $prevConn
-                $env:Values__SqlConnectionString            = $prevValuesConn
-            }
-        } else {
-            Write-Warning "dotnet-ef not installed; skipping migrations."
-            Write-Warning "Install: dotnet tool install -g dotnet-ef"
+        & dotnet ef database update
+        if ($LASTEXITCODE -ne 0) {
+            $script:migrationsFailed = $true
+            Write-Warning "Migrations failed. Stack is up but DB is not ready."
+            Write-Warning "Run manually: cd src/Api; dotnet ef database update"
         }
     } finally {
-        Pop-Location
+        $env:ConnectionStrings__SqlConnectionString = $prevConn
+        $env:Values__SqlConnectionString            = $prevValuesConn
     }
+} finally {
+    Pop-Location
 }
 
 Write-Host @"

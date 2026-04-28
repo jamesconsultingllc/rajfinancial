@@ -62,9 +62,9 @@ on path; we use the explicit path. (Lesson from `structura-sql` running
 **Healthcheck (Azurite):** TCP probe on 10000 — Azurite has no HTTP health
 endpoint and shipping curl into the image is wasteful.
 
-### 2. `scripts/dev-up.ps1` + `scripts/dev-up.sh`
+### 2. `scripts/dev-up.ps1`
 
-Cross-platform bring-up. Steps:
+Cross-platform bring-up via PowerShell 7+. Steps:
 
 1. Source the SA password from secrets store, export as
    `RAJFIN_DEV_MSSQL_SA_PASSWORD` for the compose run.
@@ -76,10 +76,10 @@ Cross-platform bring-up. Steps:
    client with `cd src/Client && npm run dev`. Run integration tests with
    `dotnet test tests/IntegrationTests`."
 
-`scripts/dev-down.ps1` / `dev-down.sh` — symmetric teardown
-(`docker compose down` with optional `-v` flag for volumes).
+`scripts/dev-down.ps1` — symmetric teardown
+(`docker compose down` with optional `-Volumes` flag).
 
-### 3. `scripts/check-prereqs.ps1` + `scripts/check-prereqs.sh`
+### 3. `scripts/check-prereqs.ps1`
 
 Pinned-minimum validator. Checks:
 

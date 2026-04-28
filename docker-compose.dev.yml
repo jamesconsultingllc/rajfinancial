@@ -1,6 +1,6 @@
 # Local development stack for RAJ Financial.
 #
-# Run with: scripts/dev-up.ps1 (or scripts/dev-up.sh on macOS/Linux).
+# Run with: pwsh ./scripts/dev-up.ps1 (cross-platform via PowerShell 7+).
 # That script sources the SA password from a secrets store and exports
 # RAJFIN_DEV_MSSQL_SA_PASSWORD before invoking docker compose.
 #
@@ -18,7 +18,12 @@ name: rajfin-dev
 
 services:
   rajfin-sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    # Pinned tag for reproducibility. Bump deliberately when needed:
+    # 1. Pick a new tag from
+    #    https://mcr.microsoft.com/v2/mssql/server/tags/list
+    # 2. Verify locally with `dev-up` + `dotnet test tests/IntegrationTests`.
+    # 3. Update this line in a single-purpose commit so the bump is bisectable.
+    image: mcr.microsoft.com/mssql/server:2022-CU24-GDR1-ubuntu-22.04
     container_name: rajfin-sql
     environment:
       ACCEPT_EULA: "Y"
@@ -50,7 +55,9 @@ services:
     restart: unless-stopped
 
   rajfin-azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
+    # Pinned tag for reproducibility. Bump procedure: same as rajfin-sql
+    # above, using https://mcr.microsoft.com/v2/azure-storage/azurite/tags/list.
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
     container_name: rajfin-azurite
     # Default well-known dev account is fine for local; no env needed.
     # (Account: devstoreaccount1, key: well-known. See Azurite docs.)
