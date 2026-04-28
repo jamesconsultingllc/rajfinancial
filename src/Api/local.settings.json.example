@@ -1,0 +1,31 @@
+{
+  "//": "Template for src/Api/local.settings.json. Copy this file to local.settings.json (gitignored) and fill in real values. The Functions runtime reads Values:* as environment variables at start; nested keys use the __ separator.",
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ASPNETCORE_ENVIRONMENT": "Development",
+
+    "//ConnectionStrings__SqlConnectionString": "Local SQL container brought up by scripts/dev-up.ps1. SA password is stored in your OS secret store under 'rajfinancial-dev-mssql-sa'. On macOS: security find-generic-password -a \"$USER\" -s rajfinancial-dev-mssql-sa -w",
+    "ConnectionStrings__SqlConnectionString": "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=<dev-sa-password>;TrustServerCertificate=True;Encrypt=True;",
+
+    "//UseManagedIdentity": "Set to false for local dev. The managed-identity interceptor (DatabaseRegistration.cs) defaults to true and tries to swap in an AAD token, which fails locally and breaks the database health check.",
+    "UseManagedIdentity": "false",
+
+    "//EntraExternalId": "Real values come from the rajfinancialprod CIAM tenant. For local-only smoke tests that don't exercise auth, the placeholder GUIDs below are enough to satisfy ConfigHealthCheck. Replace with real values when running scenarios that hit Entra.",
+    "EntraExternalId__Instance": "https://rajfinancialprod.ciamlogin.com/",
+    "EntraExternalId__TenantId": "00000000-0000-0000-0000-000000000000",
+    "EntraExternalId__ClientId": "00000000-0000-0000-0000-000000000000",
+
+    "//AppRoles": "App role GUIDs from the API app registration. Placeholders below are accepted by ConfigHealthCheck (any non-empty, non-<SET-IN-ENVIRONMENT> value passes); use the real GUIDs when running role-based scenarios.",
+    "AppRoles__Client": "00000000-0000-0000-0000-000000000001",
+    "AppRoles__Administrator": "00000000-0000-0000-0000-000000000002",
+    "AppRoles__Advisor": "00000000-0000-0000-0000-000000000003",
+
+    "//AUTH__USE_UNSIGNED_LOCAL_VALIDATOR": "Required by tests/IntegrationTests. The fixture asserts auth.validator='unsigned_local' when targeting localhost, so the integration suite mints unsigned dev tokens instead of going through Entra.",
+    "AUTH__USE_UNSIGNED_LOCAL_VALIDATOR": "true",
+
+    "//RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING": "Enables the test-only POST /api/testing/seed-contact + reset-contacts endpoints AND swaps the DI registration to SeedableContactResolver. Required for the EntityRoles integration scenarios. NEVER set in production.",
+    "RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING": "true"
+  }
+}

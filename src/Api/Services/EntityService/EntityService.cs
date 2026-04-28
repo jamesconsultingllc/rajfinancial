@@ -464,7 +464,7 @@ public partial class EntityService(
             // IContactResolver rejects every GUID (PlaceholderContactResolver),
             // preventing cross-tenant linking via arbitrary client-supplied ids.
             // Integration tests swap in SeedableContactResolver via the
-            // ENABLE_CONTACT_TEST_SEEDING env flag.
+            // RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING env flag.
             await contactResolver.EnsureOwnedByAsync(request.ContactId, entity.UserId);
 
             EntityRoleRules.ValidateRoleCompatibility(roleType, entity.Type, request);

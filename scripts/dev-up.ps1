@@ -81,6 +81,21 @@ function Install-FuncCoreToolsIfMissing {
 
 Install-FuncCoreToolsIfMissing
 
+function Initialize-LocalSettingsFromTemplate {
+    $apiDir   = Join-Path $RepoRoot 'src/Api'
+    $template = Join-Path $apiDir 'local.settings.json.example'
+    $target   = Join-Path $apiDir 'local.settings.json'
+
+    if (-not (Test-Path $template)) { return }
+    if (Test-Path $target) { return }
+
+    Write-Host "==> Seeding src/Api/local.settings.json from local.settings.json.example..." -ForegroundColor Cyan
+    Copy-Item -LiteralPath $template -Destination $target
+    Write-Host "ℹ  Edit src/Api/local.settings.json and replace placeholder values (SA password, Entra IDs, AppRoles GUIDs) before starting the host." -ForegroundColor Yellow
+}
+
+Initialize-LocalSettingsFromTemplate
+
 Write-Host "==> Loading dev SA password from secrets store..." -ForegroundColor Cyan
 if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
     $resolved = $null

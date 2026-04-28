@@ -6,7 +6,7 @@ namespace RajFinancial.IntegrationTests.Support;
 /// <summary>
 ///     Posts seeded <c>(contactId, ownerUserId)</c> pairs to the running Functions
 ///     host's <c>/api/testing/seed-contact</c> endpoint. The host only exposes the
-///     endpoint when the <c>ENABLE_CONTACT_TEST_SEEDING</c> environment variable
+///     endpoint when the <c>RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING</c> environment variable
 ///     is set (see <c>src/Api/local.settings.json</c>). A 404 response means the
 ///     flag is off — in that case the tests should fail loudly rather than pretend
 ///     to have seeded.
@@ -24,7 +24,7 @@ public static class ContactSeedingHelper
         {
             throw new InvalidOperationException(
                 "Functions host returned 404 from /api/testing/seed-contact. " +
-                "Ensure ENABLE_CONTACT_TEST_SEEDING=true is set in src/Api/local.settings.json " +
+                "Ensure RAJFINANCIAL_ENABLE_CONTACT_TEST_SEEDING=true is set in src/Api/local.settings.json " +
                 "and that the host has been restarted after the change.");
         }
 
