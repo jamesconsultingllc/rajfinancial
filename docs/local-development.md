@@ -21,11 +21,11 @@ Install once per machine. Versions are minimums; newer is generally fine.
 | **Docker Desktop**                | 24.0        | `winget install Docker.DockerDesktop`  | `brew install --cask docker`       | follow [docs.docker.com](https://docs.docker.com/engine/install/) |
 | **.NET SDK**                      | 10.0        | `winget install Microsoft.DotNet.SDK.10` | `brew install --cask dotnet-sdk`   | `apt install dotnet-sdk-10.0`                               |
 | **Node.js**                       | 22.x        | `winget install OpenJS.NodeJS.LTS`     | `brew install node@22`             | `nvm install 22`                                            |
-| **Azure Functions Core Tools v4** | 4.0.5413    | `winget install Microsoft.Azure.FunctionsCoreTools` | `brew tap azure/functions && brew install azure-functions-core-tools@4` | `npm i -g azure-functions-core-tools@4` |
+| **Azure Functions Core Tools v4** _(auto-installed by `dev-up.ps1`)_ | 4.0.5413 | `winget install Microsoft.Azure.FunctionsCoreTools` | `brew tap azure/functions && brew install azure-functions-core-tools@4` | `npm i -g azure-functions-core-tools@4` |
 | **PowerShell 7+**                 | 7.4         | preinstalled / `winget install Microsoft.PowerShell` | `brew install --cask powershell` | follow [aka.ms/powershell](https://aka.ms/powershell)       |
 | **Azure CLI**                     | 2.60        | `winget install Microsoft.AzureCLI`    | `brew install azure-cli`           | `curl -sL https://aka.ms/InstallAzureCLIDeb | bash`         |
 | **GitHub CLI**                    | 2.50        | `winget install GitHub.cli`            | `brew install gh`                  | follow [cli.github.com](https://cli.github.com)             |
-| **EF Core CLI**                   | 10.0        | `dotnet tool install -g dotnet-ef`     | same                               | same                                                        |
+| **EF Core CLI** _(auto-installed by `dev-up.ps1`)_ | 10.0 | `dotnet tool install -g dotnet-ef` | same                               | same                                                        |
 
 Run the bundled validator any time:
 

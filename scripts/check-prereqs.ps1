@@ -106,20 +106,60 @@ function Test-Tool {
     }
 }
 
+function Test-DockerCompose {
+    param([string]$MinVersion)
+
+    $label = 'Docker Compose v2 plugin'
+
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        # `docker` itself is the gating prereq above; if it's missing,
+        # the v2-plugin probe is just noise.
+        return
+    }
+
+    $raw = & docker compose version 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $raw) {
+        "  X {0,-30} 'docker compose' subcommand not available (need v2 plugin >= {1})" -f $label, $MinVersion |
+            Write-Host -ForegroundColor Red
+        Write-Host "    Linux: install the docker-compose-plugin package; macOS/Windows: comes with Docker Desktop." -ForegroundColor Red
+        $script:fail++
+        return
+    }
+
+    # Output looks like: "Docker Compose version v2.32.4"
+    $line = ($raw | Select-Object -First 1).ToString()
+    $ver = if ($line -match 'v?(\d+\.\d+(\.\d+)?)') { $matches[1] } else { $null }
+    if (-not $ver) {
+        "  ~ {0,-30} present (couldn't parse version: '{1}')" -f $label, $line |
+            Write-Host -ForegroundColor Yellow
+        $script:warn++
+        return
+    }
+
+    if (Test-VersionGe -Have $ver -Need $MinVersion) {
+        "  + {0,-30} {1} (>= {2})" -f $label, $ver, $MinVersion | Write-Host -ForegroundColor Green
+        $script:pass++
+    } else {
+        "  X {0,-30} {1} -- below required {2}" -f $label, $ver, $MinVersion | Write-Host -ForegroundColor Red
+        $script:fail++
+    }
+}
+
 Write-Host "Checking RAJ Financial local-dev prerequisites..."
 Write-Host ""
 
 Test-Tool "Docker"                        docker  "24.0"
+Test-DockerCompose "2.20"
 Test-Tool ".NET SDK"                      dotnet  "10.0"
 Test-Tool "Node.js"                       node    "22.0"
-Test-Tool "Azure Functions Core Tools v4" func    "4.0.5413"
 Test-Tool "PowerShell 7+"                 pwsh    "7.4"
 Test-Tool "Azure CLI"                     az      "2.60"
 Test-Tool "GitHub CLI"                    gh      "2.50"
 
 Write-Host ""
-Write-Host "Required tooling (continued):"
-Test-Tool "EF Core CLI (dotnet-ef)" dotnet-ef "10.0"
+Write-Host "Auto-installable by dev-up.ps1 (no manual install needed):"
+Test-Tool "Azure Functions Core Tools v4" func      "4.0.5413" -Optional
+Test-Tool "EF Core CLI (dotnet-ef)"       dotnet-ef "10.0"     -Optional
 
 Write-Host ""
 Write-Host "Optional (nice to have):"
