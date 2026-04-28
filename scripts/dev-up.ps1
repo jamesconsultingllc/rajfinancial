@@ -158,8 +158,8 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
       (item name: rajfinancial-dev-mssql-sa, password field is what we read)
 
   macOS (Keychain):
-    security add-generic-password ``
-      -a `"`$USER`" -s rajfinancial-dev-mssql-sa -w '<password>' -U
+    security add-generic-password \
+      -a "$USER" -s rajfinancial-dev-mssql-sa -w '<password>' -U
 
   Windows (CredentialManager PowerShell module):
     Install-Module CredentialManager -Scope CurrentUser
@@ -169,7 +169,7 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
   Linux:
     pass insert rajfinancial-dev-mssql-sa
       (or)
-    secret-tool store --label='RAJ Financial dev SA' ``
+    secret-tool store --label='RAJ Financial dev SA' \
       service rajfinancial-dev-mssql-sa account sa
 
   Inline (any platform, this shell only):
