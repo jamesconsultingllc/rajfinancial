@@ -275,26 +275,26 @@ try {
     # version (no floating ranges) to be reproducible across contributors.
     # Update this when the EF Core packages in the csproj are bumped.
     $requiredDotnetEfVersion = '10.0.2'
-    $requiredDotnetEfMajor   = 10
 
-    function Get-DotnetEfMajor {
+    function Get-DotnetEfVersion {
         $output = & dotnet ef --version 2>$null
-        if ($LASTEXITCODE -ne 0) { return @{ Installed = $false; Version = $null; Major = $null } }
-        $version = "$output".Trim()
-        # `dotnet ef --version` prints a banner; pull the first x.y[.z] match.
-        $major = $null
-        if ($version -match '(\d+)\.(\d+)(?:\.(\d+))?') {
-            $major = [int]$Matches[1]
+        if ($LASTEXITCODE -ne 0) { return @{ Installed = $false; Version = $null } }
+        $raw = "$output".Trim()
+        # `dotnet ef --version` prints a banner; pull the first x.y.z match.
+        $version = $null
+        if ($raw -match '(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?') {
             $version = $Matches[0]
         }
-        return @{ Installed = $true; Version = $version; Major = $major }
+        return @{ Installed = $true; Version = $version }
     }
 
-    $ef = Get-DotnetEfMajor
+    $ef = Get-DotnetEfVersion
     if (-not $ef.Installed) {
         Write-Host "==> dotnet-ef not found; installing version $requiredDotnetEfVersion as a global tool..." -ForegroundColor Yellow
         & dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
-    } elseif ($ef.Major -ne $requiredDotnetEfMajor) {
+    } elseif ($ef.Version -ne $requiredDotnetEfVersion) {
+        # Compare full version, not just the major. Pinning is only meaningful
+        # if 10.0.0/10.0.1 also get bumped to 10.0.2.
         Write-Host "==> dotnet-ef $($ef.Version) detected; updating to $requiredDotnetEfVersion to match EF Core runtime..." -ForegroundColor Yellow
         & dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
     }
@@ -311,8 +311,8 @@ try {
         $env:PATH = "$toolsPath$sep$env:PATH"
     }
 
-    $ef = Get-DotnetEfMajor
-    if ((-not $ef.Installed) -or ($ef.Major -ne $requiredDotnetEfMajor)) {
+    $ef = Get-DotnetEfVersion
+    if ((-not $ef.Installed) -or ($ef.Version -ne $requiredDotnetEfVersion)) {
         Write-Host "✗ Failed to install/update dotnet-ef $requiredDotnetEfVersion (or it isn't on PATH after install)." -ForegroundColor Red
         Write-Host "  Try manually: dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red
         Write-Host "  If not installed at all:  dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red

@@ -27,12 +27,13 @@ Install once per machine. Versions are minimums; newer is generally fine.
 
 ### Optional (not required for `dev-up.ps1` / local stack)
 
-These are handy for day-to-day workflows (Azure portal, PR review, etc.) but are **not** invoked by the local bring-up scripts. `check-prereqs.ps1` prints them as warnings, not failures.
+These are handy for day-to-day workflows (Azure portal, PR review, ad-hoc SQL access, etc.) but are **not** invoked by the local bring-up scripts. `check-prereqs.ps1` validates them as optional tools and prints warnings, not failures, when they are missing.
 
 | Tool                              | Min version | Windows                                | macOS                              | Linux                                                       |
 | --------------------------------- | ----------- | -------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
 | **Azure CLI**                     | 2.60        | `winget install Microsoft.AzureCLI`    | `brew install azure-cli`           | `curl -sL https://aka.ms/InstallAzureCLIDeb | bash`         |
 | **GitHub CLI**                    | 2.50        | `winget install GitHub.cli`            | `brew install gh`                  | follow [cli.github.com](https://cli.github.com)             |
+| **sqlcmd**                        | 18.0        | `winget install Microsoft.Sqlcmd`      | `brew install sqlcmd`              | follow [SQL Server tools docs](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility) |
 
 Run the bundled validator any time:
 
