@@ -84,7 +84,9 @@ Cross-platform bring-up via PowerShell 7+. Steps:
 2. Run `scripts/check-prereqs` first — bail if toolchain is wrong.
 3. `docker compose -f docker-compose.dev.yml up -d --wait` (uses healthchecks).
 4. `dotnet ef database update` against the dev SQL.
-5. Optionally seed test-user mappings (idempotent script, no-op if present).
+5. Do **not** seed Entra/ROPC test-user mappings; that remains a manual
+   step (only required when running the integration suite against a
+   remote/deployed Functions host — localhost runs use unsigned JWTs).
 6. Print: "Stack ready. Start API with `cd src/Api && func start`. Start
    client with `cd src/Client && npm run dev`. Run integration tests with
    `dotnet test tests/IntegrationTests`."

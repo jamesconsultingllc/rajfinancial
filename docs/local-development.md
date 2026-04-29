@@ -110,7 +110,11 @@ Open the new file and fill in:
 
 - `ConnectionStrings:SqlConnectionString` — paste your dev SA password into
   the placeholder spot.
-- `Entra:*` values — pull from the Entra portal or ask your team lead.
+- `Entra:*` values — only required when running integration tests against a
+  remote/deployed Functions host (i.e. `FunctionsHost:BaseUrl` is non-local).
+  For localhost runs the suite uses unsigned JWTs and these can stay as
+  placeholders. When you do need them, pull from the Entra portal or ask
+  your team lead.
 
 The real `appsettings.local.json` is gitignored.
 
