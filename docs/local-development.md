@@ -184,7 +184,14 @@ your platform. `curl -k` is fine for spot-checks.
 Environment variables come from `local.settings.json` (under `src/Api/`).
 On a fresh checkout `pwsh ./scripts/dev-up.ps1` seeds it for you from the
 checked-in template at `src/Api/local.settings.json.example` (it never
-overwrites an existing file). If you edit `local.settings.json` while
+overwrites an existing file). The seeded file contains placeholder values
+— most importantly `<dev-sa-password>` in the SQL connection string(s) —
+so before `func start --useHttps` can connect to the local SQL container
+you must replace those placeholders with the real SA password (the same
+one stored under `rajfinancial-dev-mssql-sa` in your Bitwarden vault or
+OS keychain; see §2a). Update both `ConnectionStrings__SqlConnectionString`
+and the `SqlConnectionString` duplicate so design-time `dotnet ef` and
+the runtime stay in sync. If you edit `local.settings.json` while
 `func start --useHttps` is already running, stop and restart the host so
 the new settings load.
 

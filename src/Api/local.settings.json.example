@@ -5,6 +5,8 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ASPNETCORE_ENVIRONMENT": "Development",
+    "//AZURE_FUNCTIONS_ENVIRONMENT": "Drives builder.Environment for the Functions host. Program.cs refuses to start the unsigned local validator unless this is Development, so keep it set on local checkouts.",
+    "AZURE_FUNCTIONS_ENVIRONMENT": "Development",
 
     "//ConnectionStrings__SqlConnectionString": "Local SQL container brought up by scripts/dev-up.ps1. SA password is stored in your OS secret store under 'rajfinancial-dev-mssql-sa'. On macOS: security find-generic-password -a \"$USER\" -s rajfinancial-dev-mssql-sa -w",
     "ConnectionStrings__SqlConnectionString": "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=<dev-sa-password>;TrustServerCertificate=True;Encrypt=True;",
