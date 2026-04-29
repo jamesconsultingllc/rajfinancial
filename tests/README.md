@@ -4,11 +4,11 @@ This directory contains the test projects for Raj Financial. The tests are organ
 
 ## Test Projects
 
-### 1. UnitTests (`tests/UnitTests/`)
+### 1. Unit (`tests/Api.Tests/`)
 
 **Purpose**: Fast, isolated tests that verify individual components, services, and business logic.
 
-**Framework**: xUnit with .NET 9.0
+**Framework**: xUnit with .NET 10
 
 **Characteristics**:
 - No external dependencies (databases, APIs, file system)
@@ -43,31 +43,22 @@ public void Calculator_Add_ReturnsCorrectSum()
 
 **Purpose**: Test interactions between components, including database access, API calls, and external services.
 
-**Framework**: xUnit with .NET 9.0
+**Framework**: [Reqnroll](https://reqnroll.net/) BDD on top of the xUnit runner (.NET 10). Scenarios live in `*.feature` files; step definitions are C# under `StepDefinitions/`. The Functions host is **not** auto-started — tests connect to a host you launch separately (`func start --useHttps` after `pwsh ./scripts/dev-up.ps1`).
 
 **Characteristics**:
-- Tests multiple components working together
-- May use test databases or mocked services
-- Slower than unit tests (seconds per test)
-- Verifies integration points
+- Tests multiple components working together against a running Functions host
+- Uses the SQL container brought up by `docker-compose.dev.yml`
+- Slower than unit tests (seconds per scenario)
+- Verifies HTTP routes, auth, role mapping, JIT provisioning, etc.
 
-**Example Test**:
-```csharp
-[Fact]
-public async Task UserRepository_SaveUser_PersistsToDatabase()
-{
-    // Arrange
-    var repository = new UserRepository(testDbContext);
-    var user = new User { Name = "Test User" };
-    
-    // Act
-    await repository.SaveAsync(user);
-    
-    // Assert
-    var savedUser = await repository.GetByIdAsync(user.Id);
-    Assert.NotNull(savedUser);
-    Assert.Equal("Test User", savedUser.Name);
-}
+**Example Scenario** (`Features/Assets.feature`):
+```gherkin
+Scenario: Owner retrieves their own assets
+  Given the Functions host is running
+  And a UserProfile exists for an authenticated user
+  When I send an authenticated GET request to "/api/assets"
+  Then the HTTP response status should be 200
+  And the response body should be a JSON array
 ```
 
 **When to Add Tests**:
@@ -77,11 +68,13 @@ public async Task UserRepository_SaveUser_PersistsToDatabase()
 - Third-party service integration
 - Configuration validation
 
-### 3. AcceptanceTests (`tests/AcceptanceTests/`)
+### 3. End-to-End Tests (`tests/e2e/`)
 
 **Purpose**: End-to-end tests that verify user workflows from the browser perspective using Playwright.
 
-**Framework**: xUnit + Playwright for .NET
+**Framework**: Cucumber.js + Playwright (TypeScript / Node), driven from
+`tests/e2e/`. The .feature files live under `tests/e2e/features` and step
+definitions under `tests/e2e/step-definitions`.
 
 **Characteristics**:
 - Tests complete user scenarios
@@ -90,27 +83,15 @@ public async Task UserRepository_SaveUser_PersistsToDatabase()
 - Slowest tests (seconds to minutes)
 - Runs after deployment in CI/CD
 
-**Example Test**:
-```csharp
-[Fact]
-public async Task UserLogin_WithValidCredentials_SuccessfullyLogsIn()
-{
-    // Arrange
-    var page = await _browser!.NewPageAsync();
-    
-    // Act
-    await page.GotoAsync($"{_baseUrl}/login");
-    await page.FillAsync("#email", "user@example.com");
-    await page.FillAsync("#password", "password123");
-    await page.ClickAsync("button[type='submit']");
-    
-    // Assert
-    await page.WaitForURLAsync("**/dashboard");
-    var welcomeText = await page.TextContentAsync("h1");
-    Assert.Contains("Welcome", welcomeText);
-    
-    await page.CloseAsync();
-}
+**Example Step Definition** (TypeScript):
+```ts
+When('the user logs in with valid credentials', async function () {
+  await this.page.goto(`${process.env.BASE_URL}/login`);
+  await this.page.fill('#email', 'user@example.com');
+  await this.page.fill('#password', 'password123');
+  await this.page.click("button[type='submit']");
+  await this.page.waitForURL('**/dashboard');
+});
 ```
 
 **When to Add Tests**:
@@ -125,38 +106,46 @@ public async Task UserLogin_WithValidCredentials_SuccessfullyLogsIn()
 ### Unit Tests
 ```powershell
 # Run all unit tests
-dotnet test tests/UnitTests/UnitTests.csproj
+dotnet test tests/Api.Tests
 
 # Run with verbose output
-dotnet test tests/UnitTests/UnitTests.csproj --verbosity detailed
+dotnet test tests/Api.Tests --verbosity detailed
 
 # Run specific test
-dotnet test tests/UnitTests/UnitTests.csproj --filter "FullyQualifiedName~Calculator_Add"
+dotnet test tests/Api.Tests --filter "FullyQualifiedName~Calculator_Add"
 ```
 
 ### Integration Tests
 ```powershell
-# Run all integration tests
-dotnet test tests/IntegrationTests/IntegrationTests.csproj
+# 1. Bring up the local stack (SQL + Azurite, applies migrations).
+pwsh ./scripts/dev-up.ps1
 
-# With test database connection string
-dotnet test tests/IntegrationTests/IntegrationTests.csproj --settings test.runsettings
+# 2. Start the Functions host (HTTPS — fixture defaults to https://localhost:7071).
+#    Requires src/Api/local.settings.json to be configured locally; see
+#    docs/local-development.md.
+cd src/Api; func start --useHttps
+
+# 3. In another shell, run the suite.
+dotnet test tests/IntegrationTests
+
+# Filter by tag or scenario name:
+dotnet test tests/IntegrationTests --filter "FullyQualifiedName~Assets"
 ```
 
-### Acceptance Tests
+### End-to-End Tests
 ```powershell
 # Install Playwright browsers (first time only)
-cd tests/AcceptanceTests
-dotnet build
-pwsh bin/Debug/net9.0/playwright.ps1 install chromium
+cd tests/e2e
+npm ci
+npm run playwright:install
 
 # Run tests against local development server
-$env:BASE_URL = "http://localhost:5000"
-dotnet test tests/AcceptanceTests/AcceptanceTests.csproj
+$env:BASE_URL = "http://localhost:5173"
+npm test
 
 # Run tests against deployed environment
 $env:BASE_URL = "https://your-app.azurestaticapps.net"
-dotnet test tests/AcceptanceTests/AcceptanceTests.csproj
+npm test
 ```
 
 ## CI/CD Integration
