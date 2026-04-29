@@ -54,6 +54,7 @@ rajfinancial/
 │   ├── dev-up.ps1               # Bring up local stack
 │   └── dev-down.ps1             # Tear down local stack
 ├── src/
+│   ├── RajFinancial.sln        # Solution file (used by `dotnet restore`/`dotnet build`)
 │   ├── Api/                    # .NET 10 Azure Functions (isolated)
 │   ├── Client/                 # React + Vite SPA
 │   └── Shared/                 # Shared contracts & DTOs

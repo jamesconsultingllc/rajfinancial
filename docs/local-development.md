@@ -234,10 +234,15 @@ npm run playwright:install
 
 ## 7. Entra ROPC test users
 
-Integration tests authenticate via ROPC against an Entra External ID
-tenant. The tenant must have a public-client app registration with the
-ROPC flow enabled, and three test users (Administrator / Client / Advisor)
-created and password-set.
+For localhost runs, the integration test harness mints unsigned JWTs
+(it asserts `auth.validator='unsigned_local'` against `https://localhost:7071`),
+so **Entra ROPC setup is not required for local dev**.
+
+ROPC is only needed when integration tests target a **remote or deployed
+host** (e.g., the Functions Host in dev). In that case, the Entra
+External ID tenant must have a public-client app registration with the
+ROPC flow enabled, and three test users (Administrator / Client /
+Advisor) created and password-set.
 
 The provisioning is one-time, and the existing PowerShell scripts in
 `scripts/` handle it:
