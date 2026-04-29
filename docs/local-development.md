@@ -320,19 +320,22 @@ Then replace the placeholder password / Entra GUIDs with real values
 
 ## 9. CI parity
 
-CI is split across workflows:
+CI lives in `.github/workflows/azure-functions.yml`, which has two
+relevant jobs:
 
-- **`Build and Test`** runs Unit + Architecture tests only — it does
-  **not** run the Integration test suite.
-- **`Azure Functions`** (`.github/workflows/azure-functions.yml`)
-  includes an `integration-test-dev` job that runs
+- The **build/unit-test job** runs Unit tests only
+  (`dotnet test tests/Api.Tests/...`) — it does **not** run the
+  `tests/Architecture.Tests` suite or the `tests/IntegrationTests`
+  suite. Architecture tests are local-only today.
+- The **`integration-test-dev` job** runs
   `dotnet test tests/IntegrationTests/...` against the **deployed dev
-  Functions host** (not a local stack), uploading the LivingDoc HTML/NDJSON
-  as the `livingdoc-report` artifact.
+  Functions host** (not a local stack), uploading the LivingDoc
+  HTML/NDJSON as the `livingdoc-report` artifact.
 
 So integration tests *are* exercised in CI, but only post-deploy against
 dev — local runs are still the fastest way to validate a branch before
-pushing, and the only way to catch failures before they reach the dev
-environment. AB#662 doesn't change either workflow; a future work item
-would be needed to bring up SQL + Azurite as GHA service containers and
-run the integration suite pre-deploy.
+pushing, and the only way to run Architecture tests + catch integration
+regressions before they reach the dev environment. AB#662 doesn't change
+either job; a future work item would be needed to wire Architecture.Tests
+into the unit-test job and to bring up SQL + Azurite as GHA service
+containers so the integration suite can run pre-deploy.
