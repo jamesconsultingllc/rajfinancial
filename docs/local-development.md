@@ -43,7 +43,7 @@ It prints a green/red matrix and exits non-zero on any required miss.
 git clone https://github.com/jamesconsultingllc/rajfinancial
 cd rajfinancial
 dotnet restore src/RajFinancial.sln
-cd src/Client && npm install && cd ../..
+cd src/Client && npm ci && cd ../..
 ```
 
 ### 2a. Generate and store a dev SA password
