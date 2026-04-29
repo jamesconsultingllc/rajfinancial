@@ -21,12 +21,42 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+# Minimum Functions Core Tools version. Keep in sync with
+# scripts/check-prereqs.ps1 (Test-Tool 'func' '4.0.5413' -Optional) and
+# the row in docs/local-development.md (Prerequisites section).
+$script:MinFuncVersion = '4.0.5413'
+
+function Test-FuncMeetsMinimum {
+    param([string]$MinVersion)
+    $banner = (& func --version 2>$null) | Select-Object -First 1
+    if (-not $banner) { return @{ Ok = $false; Found = $null } }
+    $found = "$banner".Trim()
+    # `func --version` prints just the version (e.g. "4.0.7030"); fall back
+    # to the first x.y.z match if the format ever changes.
+    if ($found -match '^\d+\.\d+\.\d+$') {
+        $parsed = $found
+    } elseif ($found -match '(\d+\.\d+\.\d+)') {
+        $parsed = $Matches[1]
+    } else {
+        return @{ Ok = $false; Found = $found }
+    }
+    $cmp = [version]$parsed
+    $min = [version]$MinVersion
+    return @{ Ok = ($cmp -ge $min); Found = $parsed }
+}
+
 function Install-FuncCoreToolsIfMissing {
     if (Get-Command func -ErrorAction SilentlyContinue) {
         & func --version *>$null
-        if ($LASTEXITCODE -eq 0) { return }
+        if ($LASTEXITCODE -eq 0) {
+            $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
+            if ($check.Ok) { return }
+            Write-Host "==> Found 'func' $($check.Found) but minimum required is $($script:MinFuncVersion); upgrading..." -ForegroundColor Yellow
+        }
     }
-    Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
+    if (-not (Get-Command func -ErrorAction SilentlyContinue) -or $LASTEXITCODE -ne 0) {
+        Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
+    }
 
     if ($IsMacOS) {
         # Prefer brew (official path), fall back to npm if brew fails. The
@@ -76,7 +106,20 @@ function Install-FuncCoreToolsIfMissing {
         Write-Host "✗ 'func' installed but didn't execute cleanly. Investigate manually." -ForegroundColor Red
         exit 1
     }
-    Write-Host "✓ Azure Functions Core Tools installed." -ForegroundColor Green
+    # Verify the freshly-installed version meets the minimum. Some channels
+    # (older brew formulae, stale npm caches, distro packages) can silently
+    # land a v3.x or sub-4.0.5413 build that will fail at func start --useHttps
+    # against net10. Fail fast here with a clear message instead.
+    $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
+    if (-not $check.Ok) {
+        Write-Host "✗ 'func' $($check.Found) is below the required minimum $($script:MinFuncVersion)." -ForegroundColor Red
+        Write-Host "  Upgrade manually before re-running dev-up:" -ForegroundColor Red
+        Write-Host "    macOS:   brew upgrade azure-functions-core-tools@4    (or)  npm i -g azure-functions-core-tools@4" -ForegroundColor Red
+        Write-Host "    Windows: winget upgrade Microsoft.Azure.FunctionsCoreTools" -ForegroundColor Red
+        Write-Host "    Linux:   npm i -g azure-functions-core-tools@4" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✓ Azure Functions Core Tools installed ($($check.Found))." -ForegroundColor Green
 }
 
 Install-FuncCoreToolsIfMissing
