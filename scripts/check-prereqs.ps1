@@ -153,8 +153,6 @@ Test-DockerCompose "2.20"
 Test-Tool ".NET SDK"                      dotnet  "10.0"
 Test-Tool "Node.js"                       node    "22.0"
 Test-Tool "PowerShell 7+"                 pwsh    "7.4"
-Test-Tool "Azure CLI"                     az      "2.60"
-Test-Tool "GitHub CLI"                    gh      "2.50"
 
 Write-Host ""
 Write-Host "Auto-installable by dev-up.ps1 (no manual install needed):"
@@ -162,7 +160,9 @@ Test-Tool "Azure Functions Core Tools v4" func      "4.0.5413" -Optional
 Test-Tool "EF Core CLI (dotnet-ef)"       dotnet-ef "10.0"     -Optional
 
 Write-Host ""
-Write-Host "Optional (nice to have):"
+Write-Host "Optional (nice to have — not required for dev-up.ps1 / local stack):"
+Test-Tool "Azure CLI"               az        "2.60" -Optional
+Test-Tool "GitHub CLI"              gh        "2.50" -Optional
 Test-Tool "sqlcmd"                  sqlcmd    "18.0" -Optional
 
 Write-Host ""

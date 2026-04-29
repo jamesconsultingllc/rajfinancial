@@ -10,7 +10,7 @@ $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $RepoRoot
 
 Write-Host "==> Checking prerequisites..." -ForegroundColor Cyan
-# Required prereqs (Docker, .NET, Node, pwsh, az, gh) MUST be present —
+# Required prereqs (Docker, .NET, Node, pwsh) MUST be present —
 # bail fast on any non-zero exit so contributors get a clear, immediate
 # install pointer instead of cryptic downstream failures. Auto-installable
 # items (func, dotnet-ef) are flagged -Optional in check-prereqs.ps1, so
