@@ -71,13 +71,15 @@ builder.ConfigureFunctionsWebApplication();
 // 1. Exception handling        — catches all errors and formats responses
 // 2. Authentication            — extracts user context from JWT
 // 3. UserProfile provisioning  — JIT creates/syncs local shadow of Entra user
-// 4. Authorization             — enforces [RequireAuthentication] / [RequireRole]
-// 5. Content negotiation       — handles JSON/MemoryPack serialization
-// 6. Validation                — validates request bodies
+// 4. Telemetry enrichment      — tags Activity with user/tenant/route ids
+// 5. Authorization             — enforces [RequireAuthentication] / [RequireRole]
+// 6. Content negotiation       — handles JSON/MemoryPack serialization
+// 7. Validation                — validates request bodies
 // ============================================================================
 builder.UseMiddleware<ExceptionMiddleware>();
 builder.UseMiddleware<AuthenticationMiddleware>();
 builder.UseMiddleware<UserProfileProvisioningMiddleware>();
+builder.UseMiddleware<TelemetryEnrichmentMiddleware>();
 builder.UseMiddleware<AuthorizationMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();

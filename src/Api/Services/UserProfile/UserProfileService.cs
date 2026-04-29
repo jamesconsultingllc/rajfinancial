@@ -63,7 +63,6 @@ public partial class UserProfileService(
                 await SyncClaimsAsync(profile, userId, email, displayName, mappedRole, now, cancellationToken);
             }
 
-            UserProfileTelemetry.SyncCount.Add(1);
             return profile;
         }
         catch (Exception ex)
@@ -103,14 +102,12 @@ public partial class UserProfileService(
             dbContext.UserProfiles.Add(profile);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            UserProfileTelemetry.JitProvisioned.Add(1);
             LogJitProvisioned(userId, mappedRole);
 
             return (profile, true);
         }
         catch (DbUpdateException)
         {
-            UserProfileTelemetry.ConcurrentConflicts.Add(1);
             LogConcurrentJitDetected(userId);
 
             dbContext.Entry(profile).State = EntityState.Detached;
@@ -165,15 +162,7 @@ public partial class UserProfileService(
             profile.UpdatedAt = now;
         }
 
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            UserProfileTelemetry.ConcurrentConflicts.Add(1);
-            throw;
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -223,15 +212,7 @@ public partial class UserProfileService(
             });
             profile.UpdatedAt = DateTimeOffset.UtcNow;
 
-            try
-            {
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                UserProfileTelemetry.ConcurrentConflicts.Add(1);
-                throw;
-            }
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             LogProfileUpdated(userId, request.DisplayName, request.Locale, request.Timezone, request.Currency);
 

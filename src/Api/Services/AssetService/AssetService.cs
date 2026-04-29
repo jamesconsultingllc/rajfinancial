@@ -157,7 +157,6 @@ public partial class AssetService(
             await db.SaveChangesAsync();
 
             activity?.SetTag(AssetsTelemetry.TagAssetId, asset.Id);
-            AssetsTelemetry.RecordCreated(asset.Type.ToString());
             LogAssetCreated(asset.Id, userId);
 
             return asset.ToDto();
@@ -219,8 +218,6 @@ public partial class AssetService(
 
                 LogAssetTypeChanged(assetId, nowIsDepreciable, asset.UserId);
 
-                AssetsTelemetry.RecordUpdated(newAsset.Type.ToString(), typeSwitch: true);
-
                 return newAsset.ToDto();
             }
 
@@ -249,7 +246,6 @@ public partial class AssetService(
 
             await db.SaveChangesAsync();
 
-            AssetsTelemetry.RecordUpdated(asset.Type.ToString());
             LogAssetUpdated(assetId, requestingUserId);
 
             return asset.ToDto();
@@ -281,7 +277,6 @@ public partial class AssetService(
             db.Assets.Remove(asset);
             await db.SaveChangesAsync();
 
-            AssetsTelemetry.RecordDeleted(asset.Type.ToString());
             LogAssetDeleted(assetId, requestingUserId);
         }
         catch (Exception ex)

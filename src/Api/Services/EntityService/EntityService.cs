@@ -183,8 +183,6 @@ public partial class EntityService(
             activity?.SetTag(EntityTelemetry.EntityIdTag, entity.Id.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-            EntityTelemetry.RecordEntityCreated(entity.Type.ToString());
-
             LogEntityCreated(entity.Id, entity.Type, entity.Name, userId);
 
             return entity.ToDto();
@@ -419,8 +417,6 @@ public partial class EntityService(
             activity?.SetTag(EntityTelemetry.EntityIdTag, entity.Id.ToString());
             activity?.SetTag(EntityTelemetry.EntitySlugTag, entity.Slug);
 
-            EntityTelemetry.RecordEntityCreated(entity.Type.ToString());
-
             return entity.ToDto();
         }
         catch (Exception ex)
@@ -482,8 +478,6 @@ public partial class EntityService(
             await db.SaveChangesAsync();
 
             activity?.SetTag(EntityTelemetry.EntityRoleIdTag, role.Id.ToString());
-
-            EntityTelemetry.RecordEntityRoleAssigned(role.RoleType.ToString());
 
             LogRoleAssigned(role.Id, role.RoleType, entityId, requestingUserId);
 

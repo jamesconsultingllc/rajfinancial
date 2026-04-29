@@ -1,0 +1,367 @@
+# scripts/dev-up.ps1 — bring up the local RAJ Financial dev stack.
+# See docs/local-development.md for the full setup runbook.
+
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+
+$RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+Set-Location $RepoRoot
+
+Write-Host "==> Checking prerequisites..." -ForegroundColor Cyan
+# Required prereqs (Docker, .NET, Node, pwsh) MUST be present —
+# bail fast on any non-zero exit so contributors get a clear, immediate
+# install pointer instead of cryptic downstream failures. Auto-installable
+# items (func, dotnet-ef) are flagged -Optional in check-prereqs.ps1, so
+# they do not contribute to its non-zero exit.
+& "$PSScriptRoot/check-prereqs.ps1"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Prereq check failed (exit $LASTEXITCODE). See docs/local-development.md Prerequisites section."
+    exit $LASTEXITCODE
+}
+
+# Minimum Functions Core Tools version. Keep in sync with
+# scripts/check-prereqs.ps1 (Test-Tool 'func' '4.0.5413' -Optional) and
+# the row in docs/local-development.md (Prerequisites section).
+$script:MinFuncVersion = '4.0.5413'
+
+function Test-FuncMeetsMinimum {
+    param([string]$MinVersion)
+    $banner = (& func --version 2>$null) | Select-Object -First 1
+    if (-not $banner) { return @{ Ok = $false; Found = $null } }
+    $found = "$banner".Trim()
+    # `func --version` prints just the version (e.g. "4.0.7030"); fall back
+    # to the first x.y.z match if the format ever changes.
+    if ($found -match '^\d+\.\d+\.\d+$') {
+        $parsed = $found
+    } elseif ($found -match '(\d+\.\d+\.\d+)') {
+        $parsed = $Matches[1]
+    } else {
+        return @{ Ok = $false; Found = $found }
+    }
+    $cmp = [version]$parsed
+    $min = [version]$MinVersion
+    return @{ Ok = ($cmp -ge $min); Found = $parsed }
+}
+
+function Install-FuncCoreToolsIfMissing {
+    $needsUpgrade = $false
+    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    $funcVersionExitCode = $null
+    if ($funcCommand) {
+        & func --version *>$null
+        $funcVersionExitCode = $LASTEXITCODE
+        if ($funcVersionExitCode -eq 0) {
+            $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
+            if ($check.Ok) { return }
+            $needsUpgrade = $true
+            Write-Host "==> Found 'func' $($check.Found) but minimum required is $($script:MinFuncVersion); upgrading..." -ForegroundColor Yellow
+        }
+    }
+    if (-not $needsUpgrade) {
+        if (-not $funcCommand) {
+            Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
+        } elseif ($funcVersionExitCode -ne 0) {
+            Write-Host "==> Found 'func' but it failed to execute; reinstalling..." -ForegroundColor Yellow
+        }
+    }
+
+    if ($IsMacOS) {
+        # Prefer brew (official path), fall back to npm if brew fails. The
+        # brew formula needs a current Xcode; on stale-Xcode boxes the
+        # build fails outright. npm install of azure-functions-core-tools
+        # works fine on macOS in practice and avoids the Xcode dependency.
+        # When upgrading, use `brew upgrade`/npm `install -g` (which performs
+        # an in-place upgrade) — `brew install` no-ops on already-tapped
+        # formulae and would silently leave a sub-minimum version in place.
+        $brewOk = $false
+        if (Get-Command brew -ErrorAction SilentlyContinue) {
+            & brew tap azure/functions *>&1 | Out-Host
+            if ($needsUpgrade) {
+                & brew upgrade azure-functions-core-tools@4 *>&1 | Out-Host
+            } else {
+                & brew install azure-functions-core-tools@4 *>&1 | Out-Host
+            }
+            if ($LASTEXITCODE -eq 0) { $brewOk = $true }
+        }
+        if (-not $brewOk) {
+            if (Get-Command npm -ErrorAction SilentlyContinue) {
+                Write-Host "==> brew install/upgrade failed or unavailable; falling back to npm." -ForegroundColor Yellow
+                & npm install -g azure-functions-core-tools@4 --unsafe-perm true *>&1 | Out-Host
+            } else {
+                Write-Host "✗ Need brew or npm to install azure-functions-core-tools on macOS." -ForegroundColor Red
+                exit 1
+            }
+        }
+    }
+    elseif ($IsWindows) {
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Host "✗ winget is required to auto-install Functions Core Tools on Windows." -ForegroundColor Red
+            Write-Host "  Install manually: https://learn.microsoft.com/azure/azure-functions/functions-run-local" -ForegroundColor Red
+            exit 1
+        }
+        # `winget install` no-ops when the package is already installed, so
+        # use `winget upgrade` for the version-bump path.
+        if ($needsUpgrade) {
+            & winget upgrade --silent --accept-source-agreements --accept-package-agreements Microsoft.Azure.FunctionsCoreTools *>&1 | Out-Host
+        } else {
+            & winget install --silent --accept-source-agreements --accept-package-agreements Microsoft.Azure.FunctionsCoreTools *>&1 | Out-Host
+        }
+    }
+    else {
+        # Linux fallback: npm-based install. `npm install -g` performs an
+        # in-place upgrade when the package is already installed, so the
+        # same command serves both install and upgrade paths.
+        if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+            Write-Host "✗ npm is required to install azure-functions-core-tools on Linux." -ForegroundColor Red
+            exit 1
+        }
+        & npm install -g azure-functions-core-tools@4 --unsafe-perm true *>&1 | Out-Host
+    }
+
+    if (-not (Get-Command func -ErrorAction SilentlyContinue)) {
+        Write-Host "✗ Functions Core Tools install reported success but 'func' is still not on PATH." -ForegroundColor Red
+        Write-Host "  Open a new shell or update PATH, then re-run dev-up." -ForegroundColor Red
+        exit 1
+    }
+    & func --version *>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✗ 'func' installed but didn't execute cleanly. Investigate manually." -ForegroundColor Red
+        exit 1
+    }
+    # Verify the freshly-installed version meets the minimum. Some channels
+    # (older brew formulae, stale npm caches, distro packages) can silently
+    # land a v3.x or sub-4.0.5413 build that will fail at func start --useHttps
+    # against net10. Fail fast here with a clear message instead.
+    $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
+    if (-not $check.Ok) {
+        Write-Host "✗ 'func' $($check.Found) is below the required minimum $($script:MinFuncVersion)." -ForegroundColor Red
+        Write-Host "  Upgrade manually before re-running dev-up:" -ForegroundColor Red
+        Write-Host "    macOS:   brew upgrade azure-functions-core-tools@4    (or)  npm i -g azure-functions-core-tools@4" -ForegroundColor Red
+        Write-Host "    Windows: winget upgrade Microsoft.Azure.FunctionsCoreTools" -ForegroundColor Red
+        Write-Host "    Linux:   npm i -g azure-functions-core-tools@4" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✓ Azure Functions Core Tools installed ($($check.Found))." -ForegroundColor Green
+}
+
+Install-FuncCoreToolsIfMissing
+
+function Initialize-LocalSettingsFromTemplate {
+    $apiDir   = Join-Path $RepoRoot 'src/Api'
+    $template = Join-Path $apiDir 'local.settings.json.example'
+    $target   = Join-Path $apiDir 'local.settings.json'
+
+    if (-not (Test-Path $template)) { return }
+    if (Test-Path $target) { return }
+
+    Write-Host "==> Seeding src/Api/local.settings.json from local.settings.json.example..." -ForegroundColor Cyan
+    Copy-Item -LiteralPath $template -Destination $target
+    Write-Host "ℹ  Edit src/Api/local.settings.json and replace placeholder values (SA password, Entra IDs, AppRoles GUIDs) before starting the host." -ForegroundColor Yellow
+}
+
+Initialize-LocalSettingsFromTemplate
+
+Write-Host "==> Loading dev SA password from secrets store..." -ForegroundColor Cyan
+if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
+    $resolved = $null
+
+    # Cross-platform first: Bitwarden CLI (`bw`). Works identically on
+    # macOS / Linux / Windows. Requires the vault to be unlocked
+    # (`BW_SESSION` env var set, typically via `bw unlock --raw`).
+    if (Get-Command bw -ErrorAction SilentlyContinue) {
+        $bwStatus = & bw status 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
+        if ($bwStatus -and $bwStatus.status -eq 'unlocked') {
+            $pw = & bw get password 'rajfinancial-dev-mssql-sa' 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = "$pw".Trim() }
+        }
+        elseif ($bwStatus -and $bwStatus.status -eq 'locked') {
+            Write-Host "  (Bitwarden vault is locked. To use it: `$env:BW_SESSION = bw unlock --raw)" -ForegroundColor DarkYellow
+        }
+    }
+
+    if (-not $resolved -and $IsMacOS) {
+        # macOS Keychain via the security CLI.
+        $sec = Get-Command security -ErrorAction SilentlyContinue
+        if ($sec) {
+            $pw = & security find-generic-password -s 'rajfinancial-dev-mssql-sa' -a $env:USER -w 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = $pw.Trim() }
+        }
+    }
+    elseif (-not $resolved -and $IsLinux) {
+        # Linux: prefer `pass`, fall back to `secret-tool` (libsecret).
+        if (Get-Command pass -ErrorAction SilentlyContinue) {
+            $pw = & pass show 'rajfinancial-dev-mssql-sa' 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = ($pw | Select-Object -First 1).Trim() }
+        }
+        if (-not $resolved -and (Get-Command secret-tool -ErrorAction SilentlyContinue)) {
+            $pw = & secret-tool lookup service rajfinancial-dev-mssql-sa account sa 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pw) { $resolved = $pw.Trim() }
+        }
+    }
+    elseif (-not $resolved) {
+        # Windows: CredentialManager PowerShell module (if installed).
+        try {
+            if (Get-Module -ListAvailable -Name CredentialManager) {
+                $cred = Get-StoredCredential -Target 'rajfinancial-dev-mssql-sa'
+                if ($cred) { $resolved = $cred.GetNetworkCredential().Password }
+            }
+        } catch { }
+    }
+
+    if ($resolved) {
+        $env:RAJFIN_DEV_MSSQL_SA_PASSWORD = $resolved
+    } else {
+        Write-Host @"
+✗ No SA password found.
+
+  Store it once in a supported secrets store, or set the env var inline:
+
+  Bitwarden CLI (cross-platform, recommended):
+    bw login                                # one-time
+    `$env:BW_SESSION = bw unlock --raw      # per shell session
+    bw create item ...                      # see docs/local-development.md
+      (item name: rajfinancial-dev-mssql-sa, password field is what we read)
+
+  macOS (Keychain):
+    security add-generic-password \
+      -a "$USER" -s rajfinancial-dev-mssql-sa -w '<password>' -U
+
+  Windows (CredentialManager PowerShell module):
+    Install-Module CredentialManager -Scope CurrentUser
+    New-StoredCredential -Target rajfinancial-dev-mssql-sa `
+      -UserName sa -Password '<password>' -Persist LocalMachine
+
+  Linux:
+    pass insert rajfinancial-dev-mssql-sa
+      (or)
+    secret-tool store --label='RAJ Financial dev SA' \
+      service rajfinancial-dev-mssql-sa account sa
+
+  Inline (any platform, this shell only):
+    `$env:RAJFIN_DEV_MSSQL_SA_PASSWORD = '<password>'
+
+  SQL Server 2022 SA password rules: ≥8 chars, 3 of upper / lower / digit / non-alnum.
+"@ -ForegroundColor Red
+        exit 1
+    }
+}
+
+Write-Host "==> Starting docker-compose stack (--wait for healthchecks)..." -ForegroundColor Cyan
+docker compose -f docker-compose.dev.yml up -d --wait
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "docker compose up failed."
+    exit $LASTEXITCODE
+}
+
+Write-Host "==> Stack health:" -ForegroundColor Cyan
+docker compose -f docker-compose.dev.yml ps --format "table {{.Name}}`t{{.Status}}`t{{.Ports}}"
+
+Write-Host "==> Running EF Core migrations against rajfin-sql..." -ForegroundColor Cyan
+$apiDir = Join-Path $RepoRoot 'src/Api'
+$script:migrationsFailed = $false
+if ((-not (Test-Path $apiDir)) -or (-not (Get-Command dotnet -ErrorAction SilentlyContinue))) {
+    Write-Host "✗ dotnet SDK or src/Api directory missing — cannot apply migrations." -ForegroundColor Red
+    exit 1
+}
+Push-Location $apiDir
+try {
+    # Pin dotnet-ef to a concrete version that matches the
+    # Microsoft.EntityFrameworkCore.* PackageReferences in
+    # src/Api/RajFinancial.Api.csproj. A mismatched global tool can break
+    # `dotnet ef database update` (e.g. tool 9.x against runtime 10.x),
+    # and `dotnet tool install/update --version` requires an exact NuGet
+    # version (no floating ranges) to be reproducible across contributors.
+    # Update this when the EF Core packages in the csproj are bumped.
+    $requiredDotnetEfVersion = '10.0.2'
+
+    function Get-DotnetEfVersion {
+        $output = & dotnet ef --version 2>$null
+        if ($LASTEXITCODE -ne 0) { return @{ Installed = $false; Version = $null } }
+        $raw = "$output".Trim()
+        # `dotnet ef --version` prints a banner; pull the first x.y.z match.
+        $version = $null
+        if ($raw -match '(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?') {
+            $version = $Matches[0]
+        }
+        return @{ Installed = $true; Version = $version }
+    }
+
+    $ef = Get-DotnetEfVersion
+    if (-not $ef.Installed) {
+        Write-Host "==> dotnet-ef not found; installing version $requiredDotnetEfVersion as a global tool..." -ForegroundColor Yellow
+        & dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
+    } elseif ($ef.Version -ne $requiredDotnetEfVersion) {
+        # Compare full version, not just the major. Pinning is only meaningful
+        # if 10.0.0/10.0.1 also get bumped to 10.0.2.
+        Write-Host "==> dotnet-ef $($ef.Version) detected; updating to $requiredDotnetEfVersion to match EF Core runtime..." -ForegroundColor Yellow
+        & dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion *>&1 | Out-Host
+    }
+
+    # Make ~/.dotnet/tools visible to this process even on a clean box
+    # where the user hasn't logged out/in since installing the SDK.
+    $toolsPath = if ($IsWindows) {
+        Join-Path $env:USERPROFILE '.dotnet\tools'
+    } else {
+        Join-Path $env:HOME '.dotnet/tools'
+    }
+    if ((Test-Path $toolsPath) -and ($env:PATH -notlike "*$toolsPath*")) {
+        $sep = [System.IO.Path]::PathSeparator
+        $env:PATH = "$toolsPath$sep$env:PATH"
+    }
+
+    $ef = Get-DotnetEfVersion
+    if ((-not $ef.Installed) -or ($ef.Version -ne $requiredDotnetEfVersion)) {
+        Write-Host "✗ Failed to install/update dotnet-ef $requiredDotnetEfVersion (or it isn't on PATH after install)." -ForegroundColor Red
+        Write-Host "  Try manually: dotnet tool update -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red
+        Write-Host "  If not installed at all:  dotnet tool install -g dotnet-ef --version $requiredDotnetEfVersion" -ForegroundColor Red
+        Write-Host "  Then ensure '$toolsPath' is on your PATH and re-run dev-up." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✓ dotnet-ef $($ef.Version) is ready." -ForegroundColor Green
+    # IMPORTANT: DesignTimeDbContextFactory falls back to LocalDB
+    # when no connection string is configured. LocalDB isn't
+    # installed by default on a clean Windows box and doesn't
+    # exist on macOS/Linux, so migrations would silently misroute
+    # away from our docker container. Force the connection string
+    # to point at the rajfin-sql container for the EF invocation.
+    $efConn = "Server=localhost,1433;Database=RajFinancial_Dev;User Id=sa;Password=$($env:RAJFIN_DEV_MSSQL_SA_PASSWORD);TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=true"
+    $prevConn       = $env:ConnectionStrings__SqlConnectionString
+    $prevValuesConn = $env:Values__SqlConnectionString
+    $env:ConnectionStrings__SqlConnectionString = $efConn
+    $env:Values__SqlConnectionString            = $efConn
+    try {
+        & dotnet ef database update
+        if ($LASTEXITCODE -ne 0) {
+            $script:migrationsFailed = $true
+            Write-Warning "Migrations failed. Stack is up but DB is not ready."
+            Write-Warning "Run manually: cd src/Api; dotnet ef database update"
+        }
+    } finally {
+        $env:ConnectionStrings__SqlConnectionString = $prevConn
+        $env:Values__SqlConnectionString            = $prevValuesConn
+    }
+} finally {
+    Pop-Location
+}
+
+Write-Host @"
+
+✅ Local dev stack is ready.
+
+Next steps:
+  - Start API:    cd src/Api; func start --useHttps
+  - Start client: cd src/Client; npm run dev
+  - Run tests:    dotnet test tests/IntegrationTests
+
+To stop:           pwsh ./scripts/dev-down.ps1
+To reset volumes:  pwsh ./scripts/dev-down.ps1 -Volumes
+"@ -ForegroundColor Green
+
+if ($script:migrationsFailed) {
+    Write-Host ""
+    Write-Host "❌ Containers are up but database migrations failed." -ForegroundColor Red
+    Write-Host "   Fix the migration error above before running integration tests." -ForegroundColor Red
+    exit 2
+}
