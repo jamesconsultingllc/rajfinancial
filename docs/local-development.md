@@ -315,10 +315,19 @@ Then replace the placeholder password / Entra GUIDs with real values
 
 ## 9. CI parity
 
-CI's `Build and Test` workflow runs Unit + Architecture tests only — it
-does **not** run Integration tests. AB#662 leaves that as-is for now;
-CI parity for integration tests is a separate (future) work item, since
-it needs a hosted SQL + Azurite (or per-job Docker services in GHA).
+CI is split across workflows:
 
-If you want CI to fail on a regression that integration tests would catch,
-gate the PR locally first.
+- **`Build and Test`** runs Unit + Architecture tests only — it does
+  **not** run the Integration test suite.
+- **`Azure Functions`** (`.github/workflows/azure-functions.yml`)
+  includes an `integration-test-dev` job that runs
+  `dotnet test tests/IntegrationTests/...` against the **deployed dev
+  Functions host** (not a local stack), uploading the LivingDoc HTML/NDJSON
+  as the `livingdoc-report` artifact.
+
+So integration tests *are* exercised in CI, but only post-deploy against
+dev — local runs are still the fastest way to validate a branch before
+pushing, and the only way to catch failures before they reach the dev
+environment. AB#662 doesn't change either workflow; a future work item
+would be needed to bring up SQL + Azurite as GHA service containers and
+run the integration suite pre-deploy.

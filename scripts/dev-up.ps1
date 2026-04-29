@@ -46,15 +46,17 @@ function Test-FuncMeetsMinimum {
 }
 
 function Install-FuncCoreToolsIfMissing {
+    $needsUpgrade = $false
     if (Get-Command func -ErrorAction SilentlyContinue) {
         & func --version *>$null
         if ($LASTEXITCODE -eq 0) {
             $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
             if ($check.Ok) { return }
+            $needsUpgrade = $true
             Write-Host "==> Found 'func' $($check.Found) but minimum required is $($script:MinFuncVersion); upgrading..." -ForegroundColor Yellow
         }
     }
-    if (-not (Get-Command func -ErrorAction SilentlyContinue) -or $LASTEXITCODE -ne 0) {
+    if (-not $needsUpgrade -and (-not (Get-Command func -ErrorAction SilentlyContinue) -or $LASTEXITCODE -ne 0)) {
         Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
     }
 
@@ -63,15 +65,22 @@ function Install-FuncCoreToolsIfMissing {
         # brew formula needs a current Xcode; on stale-Xcode boxes the
         # build fails outright. npm install of azure-functions-core-tools
         # works fine on macOS in practice and avoids the Xcode dependency.
+        # When upgrading, use `brew upgrade`/npm `install -g` (which performs
+        # an in-place upgrade) — `brew install` no-ops on already-tapped
+        # formulae and would silently leave a sub-minimum version in place.
         $brewOk = $false
         if (Get-Command brew -ErrorAction SilentlyContinue) {
             & brew tap azure/functions *>&1 | Out-Host
-            & brew install azure-functions-core-tools@4 *>&1 | Out-Host
+            if ($needsUpgrade) {
+                & brew upgrade azure-functions-core-tools@4 *>&1 | Out-Host
+            } else {
+                & brew install azure-functions-core-tools@4 *>&1 | Out-Host
+            }
             if ($LASTEXITCODE -eq 0) { $brewOk = $true }
         }
         if (-not $brewOk) {
             if (Get-Command npm -ErrorAction SilentlyContinue) {
-                Write-Host "==> brew install failed or unavailable; falling back to npm." -ForegroundColor Yellow
+                Write-Host "==> brew install/upgrade failed or unavailable; falling back to npm." -ForegroundColor Yellow
                 & npm install -g azure-functions-core-tools@4 --unsafe-perm true *>&1 | Out-Host
             } else {
                 Write-Host "✗ Need brew or npm to install azure-functions-core-tools on macOS." -ForegroundColor Red
@@ -85,10 +94,18 @@ function Install-FuncCoreToolsIfMissing {
             Write-Host "  Install manually: https://learn.microsoft.com/azure/azure-functions/functions-run-local" -ForegroundColor Red
             exit 1
         }
-        & winget install --silent --accept-source-agreements --accept-package-agreements Microsoft.Azure.FunctionsCoreTools *>&1 | Out-Host
+        # `winget install` no-ops when the package is already installed, so
+        # use `winget upgrade` for the version-bump path.
+        if ($needsUpgrade) {
+            & winget upgrade --silent --accept-source-agreements --accept-package-agreements Microsoft.Azure.FunctionsCoreTools *>&1 | Out-Host
+        } else {
+            & winget install --silent --accept-source-agreements --accept-package-agreements Microsoft.Azure.FunctionsCoreTools *>&1 | Out-Host
+        }
     }
     else {
-        # Linux fallback: npm-based install. npm is already a hard prereq.
+        # Linux fallback: npm-based install. `npm install -g` performs an
+        # in-place upgrade when the package is already installed, so the
+        # same command serves both install and upgrade paths.
         if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
             Write-Host "✗ npm is required to install azure-functions-core-tools on Linux." -ForegroundColor Red
             exit 1
@@ -206,7 +223,7 @@ if (-not $env:RAJFIN_DEV_MSSQL_SA_PASSWORD) {
 
   Windows (CredentialManager PowerShell module):
     Install-Module CredentialManager -Scope CurrentUser
-    New-StoredCredential -Target rajfinancial-dev-mssql-sa ``
+    New-StoredCredential -Target rajfinancial-dev-mssql-sa `
       -UserName sa -Password '<password>' -Persist LocalMachine
 
   Linux:
