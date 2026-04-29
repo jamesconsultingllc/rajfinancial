@@ -253,7 +253,7 @@ docker compose -f docker-compose.dev.yml ps --format "table {{.Name}}`t{{.Status
 
 Write-Host "==> Running EF Core migrations against rajfin-sql..." -ForegroundColor Cyan
 $apiDir = Join-Path $RepoRoot 'src/Api'
-$migrationsFailed = $false
+$script:migrationsFailed = $false
 if ((-not (Test-Path $apiDir)) -or (-not (Get-Command dotnet -ErrorAction SilentlyContinue))) {
     Write-Host "✗ dotnet SDK or src/Api directory missing — cannot apply migrations." -ForegroundColor Red
     exit 1
@@ -348,7 +348,7 @@ To stop:           pwsh ./scripts/dev-down.ps1
 To reset volumes:  pwsh ./scripts/dev-down.ps1 -Volumes
 "@ -ForegroundColor Green
 
-if ($migrationsFailed) {
+if ($script:migrationsFailed) {
     Write-Host ""
     Write-Host "❌ Containers are up but database migrations failed." -ForegroundColor Red
     Write-Host "   Fix the migration error above before running integration tests." -ForegroundColor Red
