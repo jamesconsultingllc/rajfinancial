@@ -47,17 +47,24 @@ function Test-FuncMeetsMinimum {
 
 function Install-FuncCoreToolsIfMissing {
     $needsUpgrade = $false
-    if (Get-Command func -ErrorAction SilentlyContinue) {
+    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    $funcVersionExitCode = $null
+    if ($funcCommand) {
         & func --version *>$null
-        if ($LASTEXITCODE -eq 0) {
+        $funcVersionExitCode = $LASTEXITCODE
+        if ($funcVersionExitCode -eq 0) {
             $check = Test-FuncMeetsMinimum -MinVersion $script:MinFuncVersion
             if ($check.Ok) { return }
             $needsUpgrade = $true
             Write-Host "==> Found 'func' $($check.Found) but minimum required is $($script:MinFuncVersion); upgrading..." -ForegroundColor Yellow
         }
     }
-    if (-not $needsUpgrade -and (-not (Get-Command func -ErrorAction SilentlyContinue) -or $LASTEXITCODE -ne 0)) {
-        Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
+    if (-not $needsUpgrade) {
+        if (-not $funcCommand) {
+            Write-Host "==> Azure Functions Core Tools (func) not found; installing..." -ForegroundColor Yellow
+        } elseif ($funcVersionExitCode -ne 0) {
+            Write-Host "==> Found 'func' but it failed to execute; reinstalling..." -ForegroundColor Yellow
+        }
     }
 
     if ($IsMacOS) {
@@ -260,10 +267,14 @@ if ((-not (Test-Path $apiDir)) -or (-not (Get-Command dotnet -ErrorAction Silent
 }
 Push-Location $apiDir
 try {
-    # Pin to the EF Core major version the API targets (see
-    # src/Api/RajFinancial.Api.csproj). A mismatched global tool can
-    # break `dotnet ef database update` (e.g. tool 9.x against runtime 10.x).
-    $requiredDotnetEfVersion = '10.*'
+    # Pin dotnet-ef to a concrete version that matches the
+    # Microsoft.EntityFrameworkCore.* PackageReferences in
+    # src/Api/RajFinancial.Api.csproj. A mismatched global tool can break
+    # `dotnet ef database update` (e.g. tool 9.x against runtime 10.x),
+    # and `dotnet tool install/update --version` requires an exact NuGet
+    # version (no floating ranges) to be reproducible across contributors.
+    # Update this when the EF Core packages in the csproj are bumped.
+    $requiredDotnetEfVersion = '10.0.2'
     $requiredDotnetEfMajor   = 10
 
     function Get-DotnetEfMajor {
