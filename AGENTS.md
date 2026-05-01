@@ -874,6 +874,7 @@ Every new service, middleware, function group, or domain module must:
 | Middleware | `RajFinancial.Api.Middleware` | `5000–5999` |
 | Client Management | `RajFinancial.Api.ClientManagement` | `6000–6999` |
 | Authorization | `RajFinancial.Api.Authorization` | `7000–7999` |
+| AI | `RajFinancial.Api.Ai` | `8000–8999` |
 | Testing / diagnostics | `RajFinancial.Api.Testing` | `9000–9999` |
 
 ### Business Counters: Centralized Interceptor Only
