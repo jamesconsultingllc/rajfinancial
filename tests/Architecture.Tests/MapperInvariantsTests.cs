@@ -8,7 +8,7 @@ namespace RajFinancial.Architecture.Tests;
 // Any type named `*Mapper` must be a pure static class (no state, no
 // instance, no DI). Mappers are value translations and must be trivially
 // reusable without touching a container.
-// Enforced: AGENT.md "Architecture Conventions (Enforced)" rule #2.
+// Enforced: AGENTS.md "Architecture Conventions (Enforced)" rule #2.
 // ============================================================================
 public class MapperInvariantsTests
 {

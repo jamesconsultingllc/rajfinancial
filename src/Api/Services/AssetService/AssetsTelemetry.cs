@@ -4,7 +4,7 @@
 // Centralized ActivitySource, instrument names, tag keys and activity names
 // for the Assets domain. Extracted out of AssetService / AssetFunctions to
 // satisfy the Services_ShouldNotHavePrivateStaticMethods architecture
-// invariant and the AGENT.md "No Magic Strings or Numbers" rule.
+// invariant and the AGENTS.md "No Magic Strings or Numbers" rule.
 //
 // Business counters (assets.created.count / updated / deleted) are owned by
 // `RajFinancial.Api.Data.Interceptors.BusinessEventsInterceptor` and emitted

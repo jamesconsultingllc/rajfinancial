@@ -148,7 +148,7 @@ Currently stack-stale (Blazor/Syncfusion era). Slim it to:
   Functions + Azure SQL + Plaid + Anthropic).
 - "Get started locally" → link to `docs/local-development.md`.
 - "Architecture" → link to `docs/features/01-platform-infrastructure.md`.
-- "Contributing" → AGENT.md / CLAUDE.md links.
+- "Contributing" → AGENTS.md / CLAUDE.md links.
 - License + badges.
 
 Strip everything else.

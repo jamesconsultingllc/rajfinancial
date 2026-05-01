@@ -18,7 +18,10 @@ runtime behavior here — just the shape that `IOptions<AiOptions>` binds to.
   a `Shared` interface would require pulling MEAI into the multi-targeted (`net9.0;net10.0`)
   shared project. Splitting the contracts (config in Shared, factory in Api) keeps Shared free of
   AI runtime dependencies.
-- Factory implementation: `src/Api/Services/Ai/` (Task #397, pending).
+- Factory implementation: `src/Api/Services/Ai/` (Task #397, **done**: `ChatClientFactory`,
+  `AiOptionsValidator`, `IChatClientProvider` strategy seam, and `AddRajFinancialAi(IConfiguration)`
+  DI extension. The DI extension is **defined but not yet called from `Program.cs`** — it will be
+  wired up by #545 when the first concrete `IChatClientProvider` ships).
 - Anthropic provider wiring: `src/Api/Services/Ai/Providers/` (Task #545, pending).
 
 ## Plans

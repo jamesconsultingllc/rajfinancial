@@ -26,7 +26,7 @@ namespace RajFinancial.Architecture.Tests;
 // (the Function should be shaping the HTTP, not the service) or it is reading
 // auth/correlation state by leaning on the boundary instead of accepting
 // arguments. Enforce the boundary here so it cannot drift back in.
-// Enforced: AGENT.md "Architecture Conventions (Enforced)" rule #3 + canonical
+// Enforced: AGENTS.md "Architecture Conventions (Enforced)" rule #3 + canonical
 // service/function pattern (docs/patterns/service-function-pattern.md).
 // ============================================================================
 public class ServiceInvariantsTests

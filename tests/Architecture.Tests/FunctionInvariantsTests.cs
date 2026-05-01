@@ -12,7 +12,7 @@ namespace RajFinancial.Architecture.Tests;
 // or `IAuthorizationService`. All data access and authorization flow through
 // services, so authorization, validation, and cross-cutting logic run exactly
 // once at the right layer (the service).
-// Enforced: AGENT.md "Architecture Conventions (Enforced)" — dependency
+// Enforced: AGENTS.md "Architecture Conventions (Enforced)" — dependency
 // boundaries, ADR 0001 / Mode A authorization.
 // ============================================================================
 public class FunctionInvariantsTests

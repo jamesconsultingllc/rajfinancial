@@ -4,7 +4,7 @@ namespace RajFinancial.Api.Configuration;
 ///     Operational constants for observability wiring (file logging, tracing sampler).
 /// </summary>
 /// <remarks>
-///     Extracted per AGENT.md "No Magic Strings or Numbers". Values are pinned in code
+///     Extracted per AGENTS.md "No Magic Strings or Numbers". Values are pinned in code
 ///     today; if tuning per-environment becomes common, promote to an options object
 ///     bound from configuration.
 /// </remarks>

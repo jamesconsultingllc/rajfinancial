@@ -37,7 +37,7 @@
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Monetary field type | `decimal` (C#) / `number` (TS) | Financial precision; `double` rounds incorrectly |
-| Serializer | **MemoryPack** (DTOs) / **System.Text.Json** (public APIs only) | MemoryPack for internal API (React client) — fast binary format. STJ reserved for future public REST endpoints. DTOs use `double`/`DateTime` (MemoryPack-compatible); entities use `decimal`/`DateTimeOffset` with service-layer conversion. See `AGENT.md` §Serialization |
+| Serializer | **MemoryPack** (DTOs) / **System.Text.Json** (public APIs only) | MemoryPack for internal API (React client) — fast binary format. STJ reserved for future public REST endpoints. DTOs use `double`/`DateTime` (MemoryPack-compatible); entities use `decimal`/`DateTimeOffset` with service-layer conversion. See `AGENTS.md` §Serialization |
 | `currentValue` | **Optional** (`decimal?`) | User may not know value at time of entry |
 | Per-type metadata | **Typed metadata object on DTO** | Discriminated by `AssetType` enum; each type has its own interface |
 | Financial accounts | **Abstract FinancialAccount layer** | `accountNumber` + `institutionName` shared by Investment, Retirement, BankAccount, Insurance, Cryptocurrency |
@@ -1083,7 +1083,7 @@ AssetContactLink {
 | **EF Core Entities** (database) | N/A (EF handles) | `decimal`, `DateTimeOffset` | Financial precision; DB-native types |
 | **Public REST APIs** (future) | **System.Text.Json** | `decimal`, `DateTimeOffset` | Browser compatibility; human-readable JSON |
 
-> **Authoritative reference**: `AGENT.md` §Dual Serialization Strategy
+> **Authoritative reference**: `AGENTS.md` §Dual Serialization Strategy
 
 ### Type mapping rules
 

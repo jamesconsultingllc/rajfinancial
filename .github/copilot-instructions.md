@@ -4,8 +4,9 @@ applyTo: '**'
 
 # Copilot Instructions
 
-> **Global standards**: [`E:\AGENT.md`](file:///E:/AGENT.md) (methodology, security, a11y, i18n).
-> **Project instructions**: [`AGENT.md`](../AGENT.md) (tech stack, structure, conventions).
+> **Read and follow [`AGENTS.md`](../AGENTS.md) at the repository root first.**
+> AGENTS.md is the single source of truth for shared rules, methodology, security, a11y, i18n,
+> tech stack, structure, and conventions.
 > This file contains **Copilot-specific** instructions only.
 
 ---
@@ -115,8 +116,7 @@ Review priority order:
 
 ## Links
 
-- **Global Standards**: [E:\AGENT.md](file:///E:/AGENT.md)
-- **Project Instructions**: [AGENT.md](../AGENT.md)
+- **Project Instructions**: [AGENTS.md](../AGENTS.md)
 - **Claude Instructions**: [CLAUDE.md](../CLAUDE.md)
 - **Feature Docs**: [docs/features/](../docs/features/)
 - **Implementation Plans**: [docs/plans/](../docs/plans/)

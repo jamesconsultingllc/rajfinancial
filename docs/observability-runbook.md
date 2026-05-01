@@ -1,7 +1,7 @@
 # Observability Runbook
 
 > **Audience:** on-call engineers, SREs, developers debugging production/staging issues.
-> **Source of truth for instrumentation policy:** [`AGENT.md` §Observability](../AGENT.md#observability).
+> **Source of truth for instrumentation policy:** [`AGENTS.md` §Observability](../AGENTS.md#observability).
 > This runbook covers **operational usage** — how to diagnose problems using what's been instrumented.
 
 ---
@@ -37,7 +37,7 @@ dotnet tool install --global dotnet-gcdump
 - App Insights resource name + resource group. Keep in your password manager.
 
 ### Reading the instrumentation
-The Functions API is instrumented per AGENT.md §Observability. Seven domains register an `ActivitySource` + `Meter` (see `ObservabilityDomains.All`); `Testing / diagnostics` is a reserved **log EventId range** only (no OTel source/meter is registered for it today):
+The Functions API is instrumented per AGENTS.md §Observability. Seven domains register an `ActivitySource` + `Meter` (see `ObservabilityDomains.All`); `Testing / diagnostics` is a reserved **log EventId range** only (no OTel source/meter is registered for it today):
 
 | Domain | Source / Meter name | EventId range |
 |---|---|---|
@@ -357,11 +357,11 @@ For building custom diagnostics dashboards — see MS Learn [EventPipe guide](ht
 
 ## Don'ts
 
-- **Do NOT add `logger.LogInformation(...)` directly** in production troubleshooting. Use metrics (cheap, sampled, aggregated) or traces (sampled, linked to operation_Id). See AGENT.md §Logging Pattern.
+- **Do NOT add `logger.LogInformation(...)` directly** in production troubleshooting. Use metrics (cheap, sampled, aggregated) or traces (sampled, linked to operation_Id). See AGENTS.md §Logging Pattern.
 - **Do NOT use the classic `TelemetryClient` / `TrackDependency()` API** — maintenance mode, breaks OpenTelemetry correlation.
-- **Do NOT ship new code without instrumentation.** Retrofitting is painful. Per AGENT.md §Observability, every new service/module declares its own `ActivitySource` + `Meter` from day one.
+- **Do NOT ship new code without instrumentation.** Retrofitting is painful. Per AGENTS.md §Observability, every new service/module declares its own `ActivitySource` + `Meter` from day one.
 - **Do NOT probe `/api/health/live` for load-balancer rotation** — it stays 200 even when DB is dead. Use `/api/health/ready`.
-- **Do NOT set prod log level below `Warning`** — see AGENT.md §Log Level Policy. Verbose logs in prod are cost (ingestion) + noise (alert fatigue).
+- **Do NOT set prod log level below `Warning`** — see AGENTS.md §Log Level Policy. Verbose logs in prod are cost (ingestion) + noise (alert fatigue).
 - **Do NOT disable EventPipe.** It's the transport for all the tools above.
 
 ---
@@ -373,4 +373,4 @@ For building custom diagnostics dashboards — see MS Learn [EventPipe guide](ht
 - [Application Insights KQL reference](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/)
 - [High-performance logging with source-generators](https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/high-performance-logging)
 - [EventPipe](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/eventpipe)
-- **Local spec & policy:** [`AGENT.md` §Observability](../AGENT.md#observability) — the authoritative instrumentation standards.
+- **Local spec & policy:** [`AGENTS.md` §Observability](../AGENTS.md#observability) — the authoritative instrumentation standards.

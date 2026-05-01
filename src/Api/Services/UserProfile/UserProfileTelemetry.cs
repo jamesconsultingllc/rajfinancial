@@ -4,7 +4,7 @@
 // Centralized ActivitySource, instrument names, tag keys and activity names
 // for the UserProfile domain. Extracted out of UserProfileService and
 // ProfileFunctions to satisfy the Services_ShouldNotHavePrivateStaticMethods
-// architecture invariant and the AGENT.md "No Magic Strings or Numbers" rule.
+// architecture invariant and the AGENTS.md "No Magic Strings or Numbers" rule.
 //
 // Business counters (userprofile.jit.provisioned.count / userprofile.sync.count
 // / userprofile.concurrent.conflicts.count) are owned by
