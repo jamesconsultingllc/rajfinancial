@@ -43,8 +43,8 @@ Install these when scaffolding a new client-side project. Versions will drift â€
 
 | Package | Purpose |
 |---------|---------|
-| `@playwright/test` | Cross-browser E2E tests |
-| `playwright-bdd` | Gherkin `.feature` files running as Playwright E2E tests |
+| `@playwright/test` | Cross-browser E2E tests used with the repo's Cucumber.js-based E2E layer |
+| `@cucumber/cucumber` | Gherkin `.feature` files and step definitions for Playwright E2E acceptance tests |
 
 ### Accessibility Testing
 
