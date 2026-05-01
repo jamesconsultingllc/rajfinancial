@@ -6,7 +6,7 @@ namespace RajFinancial.Api.Configuration;
 /// <remarks>
 ///     Centralising these avoids duplicated string literals across
 ///     <see cref="RajFinancial.Api.HealthChecks.ConfigHealthCheck"/>, <c>Program.cs</c>,
-///     and options binding extensions. See AGENT.md "No Magic Strings or Numbers".
+///     and options binding extensions. See AGENTS.md "No Magic Strings or Numbers".
 /// </remarks>
 internal static class ConfigurationKeys
 {

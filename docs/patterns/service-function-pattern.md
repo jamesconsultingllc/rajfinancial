@@ -6,7 +6,7 @@
 
 This document is the single written standard for how an HTTP endpoint, its service, and the cross-cutting middleware cooperate in this codebase. It exists so reviewers can reject PRs that drift from the pattern by pointing at one document instead of inferring intent from whichever domain they read first. Three domains (Assets, Entities, ClientManagement) currently implement the same cross-cutting concerns three different ways; this pattern is the convergence target.
 
-If something in this doc contradicts [`AGENT.md`](../../AGENT.md), **AGENT.md wins** — file a PR to update this doc.
+If something in this doc contradicts [`AGENTS.md`](../../AGENTS.md), **AGENTS.md wins** — file a PR to update this doc.
 
 ---
 
@@ -275,7 +275,7 @@ A reviewer flagging any of the above should link to the specific section of this
 
 ## 8. Cross-references
 
-- [`AGENT.md`](../../AGENT.md) — global standards; §789–834 (Observability + Reserved Domain Names) is the companion to §3 here.
+- [`AGENTS.md`](../../AGENTS.md) — global standards; §789–834 (Observability + Reserved Domain Names) is the companion to §3 here.
 - [`src/Api/Middleware/Exception/ExceptionMiddleware.cs`](../../src/Api/Middleware/Exception/ExceptionMiddleware.cs) — exception → HTTP mapping and outer-span recording.
 - [`src/Api/Middleware/Authorization/AuthorizationMiddleware.cs`](../../src/Api/Middleware/Authorization/AuthorizationMiddleware.cs) — role gate; owns the `Authorization.CheckAccess` span.
 - [`src/Api/Middleware/AuthenticationMiddleware.cs`](../../src/Api/Middleware/AuthenticationMiddleware.cs) — populates `FunctionContext` with the caller's identity.

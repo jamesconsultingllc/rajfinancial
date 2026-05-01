@@ -10,7 +10,7 @@ namespace RajFinancial.Api.Configuration;
 ///     when creating their <see cref="System.Diagnostics.ActivitySource"/> and
 ///     <see cref="System.Diagnostics.Metrics.Meter"/> instances, ensuring the names stay
 ///     in lockstep with the source/meter registration in <see cref="ObservabilityRegistration"/>.
-///     See AGENT.md "Observability" section for domain ownership.
+///     See AGENTS.md "Observability" section for domain ownership.
 /// </remarks>
 internal static class ObservabilityDomains
 {

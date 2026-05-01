@@ -488,7 +488,7 @@ Denied flow behaves as the pattern doc prescribes:
 
 3. **`UserProfileProvisioningMiddleware` always runs the JIT side-effects**, even on cached reads (R01–R06 all show `UserProfile.EnsureProfileExists` + `Entities.EnsurePersonalEntity.Service` children under provisioning). S01's extra `INSERT` statements versus R01's pure `SELECT`s are the only tree-shape difference between first-call and cached-call.
 
-4. **R06 denied flow is correct and should not be "fixed"**: the `<Error>` status lives only on the authorization span; upstream spans record exception tags but no status=Error. This is exactly what [`AGENT.md` handled-4xx rule](../../AGENT.md) prescribes.
+4. **R06 denied flow is correct and should not be "fixed"**: the `<Error>` status lives only on the authorization span; upstream spans record exception tags but no status=Error. This is exactly what [`AGENTS.md` handled-4xx rule](../../AGENTS.md) prescribes.
 
 5. **Pre-b2 naming inconsistency confirmed across four domains** (see §6.5). This is the input that makes the §7 decision necessary.
 

@@ -6,7 +6,7 @@ namespace RajFinancial.Api.Middleware;
 /// </summary>
 /// <remarks>
 /// Using constants avoids the typo-risk associated with duplicated string literals across production and
-/// test code. See AGENT.md "No Magic Strings or Numbers" for the general rule.
+/// test code. See AGENTS.md "No Magic Strings or Numbers" for the general rule.
 /// </remarks>
 public static class FunctionContextKeys
 {

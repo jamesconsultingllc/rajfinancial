@@ -68,7 +68,7 @@ rajfinancial/
 
 ## Contributing
 
-Agent workflows are documented in [`AGENT.md`](AGENT.md) and
+Agent workflows are documented in [`AGENTS.md`](AGENTS.md) and
 [`CLAUDE.md`](CLAUDE.md). Per-task implementation plans land under
 `docs/plans/tasks/<work-item-id>-<slug>.md` and are attached to their
 ADO work item.

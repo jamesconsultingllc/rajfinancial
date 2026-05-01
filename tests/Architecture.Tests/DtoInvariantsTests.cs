@@ -11,7 +11,7 @@ namespace RajFinancial.Architecture.Tests;
 // that back the EF model). Value-type enums from `RajFinancial.Shared.Entities.*`
 // (e.g., EntityType, TrustType, AccessType) are deliberately exempt because
 // the wire protocol legitimately mirrors those enum values.
-// Enforced: AGENT.md "Architecture Conventions (Enforced)" — layering rule.
+// Enforced: AGENTS.md "Architecture Conventions (Enforced)" — layering rule.
 // ============================================================================
 public class DtoInvariantsTests
 {

@@ -34,7 +34,7 @@ namespace RajFinancial.Api.Tests.Functions;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         These tests follow AGENT.md step 3 (security unit tests) and are
+///         These tests follow AGENTS.md step 3 (security unit tests) and are
 ///         written before the implementation (red-green-refactor TDD).
 ///     </para>
 ///     <para>
