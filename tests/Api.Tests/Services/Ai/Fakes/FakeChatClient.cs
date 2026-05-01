@@ -9,8 +9,10 @@ namespace RajFinancial.Api.Tests.Services.Ai.Fakes;
 /// </summary>
 internal sealed class FakeChatClient : IChatClient
 {
+    private int _disposeCallCount;
+
     public string Tag { get; }
-    public int DisposeCallCount { get; private set; }
+    public int DisposeCallCount => Volatile.Read(ref _disposeCallCount);
 
     public FakeChatClient(string tag = "fake")
     {
@@ -31,5 +33,5 @@ internal sealed class FakeChatClient : IChatClient
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
-    public void Dispose() => DisposeCallCount++;
+    public void Dispose() => Interlocked.Increment(ref _disposeCallCount);
 }

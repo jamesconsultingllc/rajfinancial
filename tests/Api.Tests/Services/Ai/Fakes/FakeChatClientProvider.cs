@@ -11,6 +11,8 @@ namespace RajFinancial.Api.Tests.Services.Ai.Fakes;
 internal sealed class FakeChatClientProvider : IChatClientProvider
 {
     private readonly Func<AiProviderOptions, IChatClient> _factory;
+    private int _createCallCount;
+    private readonly System.Collections.Concurrent.ConcurrentBag<AiProviderOptions> _receivedOptions = new();
 
     public FakeChatClientProvider(AiProviderId id, Func<AiProviderOptions, IChatClient>? factory = null)
     {
@@ -20,14 +22,14 @@ internal sealed class FakeChatClientProvider : IChatClientProvider
 
     public AiProviderId Id { get; }
 
-    public int CreateCallCount { get; private set; }
+    public int CreateCallCount => Volatile.Read(ref _createCallCount);
 
-    public List<AiProviderOptions> ReceivedOptions { get; } = new();
+    public IReadOnlyCollection<AiProviderOptions> ReceivedOptions => _receivedOptions;
 
     public IChatClient CreateClient(AiProviderOptions options)
     {
-        CreateCallCount++;
-        ReceivedOptions.Add(options);
+        Interlocked.Increment(ref _createCallCount);
+        _receivedOptions.Add(options);
         return _factory(options);
     }
 }

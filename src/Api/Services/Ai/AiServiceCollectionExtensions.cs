@@ -19,15 +19,21 @@ namespace RajFinancial.Api.Services.Ai;
 /// <para>
 /// <b>Foundation-PR scope:</b> this method is <i>defined</i> in #397 but is not yet called
 /// from <c>Program.cs</c>. Wiring is enabled in #545 once at least one
-/// <see cref="IChatClientProvider"/> exists, so a foundation-only deploy never starts a
-/// host with <c>ValidateOnStart</c> failing for missing providers.
+/// <see cref="IChatClientProvider"/> exists. The registered <c>ValidateOnStart</c> hook
+/// validates the bound <see cref="AiOptions"/> shape (e.g. missing or invalid AI
+/// configuration); it does <b>not</b> verify that matching <see cref="IChatClientProvider"/>
+/// implementations are registered for each configured provider id — that check happens
+/// later, lazily, inside <see cref="ChatClientFactory.GetClient(AiProviderId)"/>.
 /// </para>
 /// </remarks>
 internal static class AiServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the AI platform foundation services: options binding + validation +
-    /// <see cref="IChatClientFactory"/>. Idempotent; safe to call once per host.
+    /// <see cref="IChatClientFactory"/>. Intended to be called once per host during
+    /// startup; calling it more than once will register duplicate
+    /// <see cref="IValidateOptions{TOptions}"/> and <see cref="IChatClientFactory"/>
+    /// services.
     /// </summary>
     /// <param name="services">The DI service collection.</param>
     /// <param name="configuration">Application configuration; the <c>Ai</c> section is bound

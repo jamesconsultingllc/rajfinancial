@@ -18,24 +18,30 @@ namespace RajFinancial.Api.Services.Ai;
 /// when the factory is disposed (i.e., on host shutdown).
 /// </para>
 /// <para>
-/// <b>Concurrency:</b> The cache is a <see cref="ConcurrentDictionary{TKey, TValue}"/>;
-/// concurrent <c>GetClient</c> calls for the same provider id return the same instance
-/// (modulo <see cref="ConcurrentDictionary{TKey, TValue}.GetOrAdd"/> semantics: the value
-/// factory may be invoked more than once under contention, but only one result is cached).
+/// <b>Concurrency:</b> The cache stores <see cref="Lazy{T}"/> entries with
+/// <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/>, so
+/// <see cref="IChatClientProvider.CreateClient"/> is invoked at most once per provider id
+/// even under concurrent first access — matching the contract on
+/// <see cref="IChatClientProvider.CreateClient"/>. A client created concurrently with
+/// <see cref="Dispose"/> is detected post-publication and disposed immediately so no
+/// <see cref="IChatClient"/> ever leaks past factory teardown.
 /// </para>
 /// <para>
-/// <b>Security (OWASP A04 / A09):</b> The factory never resolves API keys, never logs
-/// configuration values, and never logs secret material. It logs only provider id and
-/// model name — both already public configuration.
+/// <b>Security (OWASP A04 / A09):</b> The factory never resolves API keys, and never logs
+/// secret or sensitive configuration values. It logs only non-secret diagnostic values —
+/// provider id and model name — both already public configuration.
 /// </para>
 /// </remarks>
 internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposable
 {
     private readonly AiOptions _options;
     private readonly IReadOnlyDictionary<AiProviderId, IChatClientProvider> _providers;
-    private readonly ConcurrentDictionary<AiProviderId, IChatClient> _clients = new();
+    private readonly ConcurrentDictionary<AiProviderId, Lazy<IChatClient>> _clients = new();
+    private readonly object _gate = new();
     private readonly ILogger<ChatClientFactory> _logger;
-    private bool _disposed;
+    private int _disposedFlag;
+
+    private bool IsDisposed => Volatile.Read(ref _disposedFlag) != 0;
 
     public ChatClientFactory(
         IOptions<AiOptions> options,
@@ -50,8 +56,8 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
             ?? throw new InvalidOperationException("AiOptions is null. Ensure AddRajFinancialAi(...) is called during startup.");
         _logger = logger;
 
-        // Materialize providers into a dictionary once. Last-registration-wins semantics if
-        // multiple providers claim the same id (DI registration order); validated below.
+        // Materialize providers into a dictionary once. Duplicate provider ids are rejected
+        // (see ctor below) — there is no last-registration-wins fallback.
         var byId = new Dictionary<AiProviderId, IChatClientProvider>();
         foreach (var provider in providers)
         {
@@ -72,7 +78,7 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
 
     public IChatClient GetClient(AiProviderId providerId)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         if (!_options.Providers.TryGetValue(providerId, out var providerOptions) || providerOptions is null)
         {
@@ -90,43 +96,71 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
                 "Ensure the provider's adapter package is wired in DI.");
         }
 
-        return _clients.GetOrAdd(providerId, id =>
+        // Fast path: client already created and published, no synchronization needed.
+        if (_clients.TryGetValue(providerId, out var existing) && existing.IsValueCreated)
         {
-            var client = provider.CreateClient(providerOptions);
-            if (client is null)
-            {
-                throw new InvalidOperationException(
-                    $"IChatClientProvider for '{id}' returned a null IChatClient.");
-            }
+            return existing.Value;
+        }
 
-            LogProviderClientCreated(id, providerOptions.Model);
-            return client;
-        });
+        // Slow path: creation is serialized against Dispose so a client can never be
+        // published into _clients after Dispose has drained. Lazy<T>(ExecutionAndPublication)
+        // additionally guarantees CreateClient is invoked at most once per provider id —
+        // matching the contract on IChatClientProvider.CreateClient.
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+            var lazy = _clients.GetOrAdd(
+                providerId,
+                id => new Lazy<IChatClient>(
+                    () =>
+                    {
+                        var client = provider.CreateClient(providerOptions);
+                        if (client is null)
+                        {
+                            throw new InvalidOperationException(
+                                $"IChatClientProvider for '{id}' returned a null IChatClient.");
+                        }
+
+                        LogProviderClientCreated(id, providerOptions.Model);
+                        return client;
+                    },
+                    LazyThreadSafetyMode.ExecutionAndPublication));
+
+            return lazy.Value;
+        }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposedFlag, 1) != 0)
         {
             return;
         }
 
-        _disposed = true;
-
-        // Drain the cache and dispose each client. Swallow per-client dispose errors so a
-        // single bad provider doesn't block disposal of the others; surface via logs.
-        foreach (var kvp in _clients)
+        // Block until any in-flight creation finishes, then dispose every cached client.
+        // Anything entering GetClient after the flag flip throws ObjectDisposedException
+        // before publishing a Lazy entry, so the cache cannot grow after this point.
+        lock (_gate)
         {
-            try
+            foreach (var kvp in _clients)
             {
-                kvp.Value.Dispose();
-            }
-            catch (Exception ex)
-            {
-                LogProviderClientDisposeFailed(ex, kvp.Key);
-            }
-        }
+                if (!kvp.Value.IsValueCreated)
+                {
+                    continue;
+                }
 
-        _clients.Clear();
+                try
+                {
+                    kvp.Value.Value.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    LogProviderClientDisposeFailed(ex, kvp.Key);
+                }
+            }
+
+            _clients.Clear();
+        }
     }
 }

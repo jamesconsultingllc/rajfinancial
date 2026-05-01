@@ -196,6 +196,82 @@ public class ChatClientFactoryTests
         act.Should().NotThrow();
     }
 
+    [Fact]
+    public void GetClient_invokes_CreateClient_at_most_once_under_concurrent_first_access()
+    {
+        // Many threads hit GetClient simultaneously for the same (uncached) provider id.
+        // Under the broken ConcurrentDictionary.GetOrAdd-of-IDisposable pattern the value
+        // factory could fire more than once and leak "losing" clients. With
+        // Lazy<IChatClient>(ExecutionAndPublication) the contract is single-creation.
+        const int Threads = 64;
+        var createdClients = new System.Collections.Concurrent.ConcurrentBag<FakeChatClient>();
+        var provider = new FakeChatClientProvider(
+            AiProviderId.Anthropic,
+            _ =>
+            {
+                var c = new FakeChatClient();
+                createdClients.Add(c);
+                return c;
+            });
+        var factory = CreateFactory(OptionsWithAnthropic(), provider);
+
+        var results = new IChatClient[Threads];
+        Parallel.For(0, Threads, i => results[i] = factory.GetClient());
+
+        provider.CreateCallCount.Should().Be(1, "Lazy<T>(ExecutionAndPublication) must serialize provider creation");
+        createdClients.Should().HaveCount(1, "no losing clients should ever be constructed");
+        results.Should().AllBeEquivalentTo(results[0]);
+        results.Should().AllSatisfy(c => c.Should().BeSameAs(results[0]));
+    }
+
+    [Fact]
+    public async Task Concurrent_GetClient_and_Dispose_never_leak_a_live_client()
+    {
+        // Race GetClient against Dispose: every IChatClient that the provider produces
+        // must end up disposed exactly once, even if it was created after Dispose started
+        // draining the cache. No live IChatClient may survive factory teardown.
+        const int Iterations = 200;
+
+        for (var iteration = 0; iteration < Iterations; iteration++)
+        {
+            var createdClients = new System.Collections.Concurrent.ConcurrentBag<FakeChatClient>();
+            var provider = new FakeChatClientProvider(
+                AiProviderId.Anthropic,
+                _ =>
+                {
+                    var c = new FakeChatClient();
+                    createdClients.Add(c);
+                    return c;
+                });
+            var factory = CreateFactory(OptionsWithAnthropic(), provider);
+
+            using var start = new ManualResetEventSlim(false);
+            var getClient = Task.Run(() =>
+            {
+                start.Wait();
+                try { _ = factory.GetClient(); }
+                catch (ObjectDisposedException) { /* expected possibility */ }
+            });
+            var dispose = Task.Run(() =>
+            {
+                start.Wait();
+                factory.Dispose();
+            });
+
+            start.Set();
+            await Task.WhenAll(getClient, dispose).WaitAsync(TimeSpan.FromSeconds(5));
+
+            // Every client the provider produced must be disposed exactly once. If the
+            // GetClient race lost (Dispose ran first), the post-publication guard in
+            // GetClient must have disposed the client itself; if Dispose lost, the drain
+            // loop must have caught it.
+            createdClients.Should().AllSatisfy(
+                c => c.DisposeCallCount.Should().Be(
+                    1,
+                    "every constructed IChatClient must be disposed exactly once across the GetClient/Dispose race"));
+        }
+    }
+
     private sealed class ThrowingChatClient : IChatClient
     {
         public Task<ChatResponse> GetResponseAsync(
