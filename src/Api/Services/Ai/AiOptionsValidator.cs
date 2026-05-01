@@ -38,18 +38,27 @@ internal sealed class AiOptionsValidator : IValidateOptions<AiOptions>
 
         var failures = new List<string>();
 
-        if (options.Providers.Count == 0)
+        // Treat a null Providers dictionary (e.g. config explicitly sets "Ai:Providers": null)
+        // as "no providers configured" so we surface an actionable validation failure rather
+        // than throwing NullReferenceException during ValidateOnStart.
+        var providers = options.Providers;
+
+        if (providers is null)
+        {
+            failures.Add($"{AiOptions.SectionName}:Providers is required.");
+        }
+        else if (providers.Count == 0)
         {
             failures.Add($"{AiOptions.SectionName}:Providers must contain at least one provider entry.");
         }
-        else if (!options.Providers.ContainsKey(options.DefaultProvider))
+        else if (!providers.ContainsKey(options.DefaultProvider))
         {
             failures.Add(
                 $"{AiOptions.SectionName}:DefaultProvider is '{options.DefaultProvider}' but no entry " +
                 $"with that key exists in {AiOptions.SectionName}:Providers.");
         }
 
-        foreach (var (id, provider) in options.Providers)
+        foreach (var (id, provider) in providers ?? Enumerable.Empty<KeyValuePair<AiProviderId, AiProviderOptions>>())
         {
             if (provider is null)
             {

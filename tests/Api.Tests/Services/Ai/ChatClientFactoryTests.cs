@@ -120,6 +120,26 @@ public class ChatClientFactoryTests
     }
 
     [Fact]
+    public void GetClient_throws_InvalidOperationException_when_providers_dictionary_is_null()
+    {
+        // Defense-in-depth: the startup validator already rejects this, but if a misconfigured
+        // host bypassed ValidateOnStart, GetClient must still throw a descriptive
+        // InvalidOperationException — never a NullReferenceException.
+        var options = new AiOptions
+        {
+            DefaultProvider = AiProviderId.Anthropic,
+            Providers = null!,
+        };
+        var provider = new FakeChatClientProvider(AiProviderId.Anthropic);
+        var factory = CreateFactory(options, provider);
+
+        var act = () => factory.GetClient();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Ai:Providers is not configured*");
+    }
+
+    [Fact]
     public void Constructor_throws_when_two_providers_claim_the_same_id()
     {
         var first = new FakeChatClientProvider(AiProviderId.Anthropic);
@@ -261,10 +281,11 @@ public class ChatClientFactoryTests
             start.Set();
             await Task.WhenAll(getClient, dispose).WaitAsync(TimeSpan.FromSeconds(5));
 
-            // Every client the provider produced must be disposed exactly once. If the
-            // GetClient race lost (Dispose ran first), the post-publication guard in
-            // GetClient must have disposed the client itself; if Dispose lost, the drain
-            // loop must have caught it.
+            // Every client the provider produced must be disposed exactly once. Whichever
+            // task wins the race, the IChatClient must end up disposed: if Dispose ran
+            // first, GetClient observes IsDisposed and throws ObjectDisposedException
+            // without publishing a new client; if GetClient won, Dispose's drain loop
+            // disposes everything currently in _clients.
             createdClients.Should().AllSatisfy(
                 c => c.DisposeCallCount.Should().Be(
                     1,

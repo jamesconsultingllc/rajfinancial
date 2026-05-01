@@ -80,6 +80,14 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
+        if (_options.Providers is null)
+        {
+            LogProviderConfigMissing(providerId);
+            throw new InvalidOperationException(
+                $"{AiOptions.SectionName}:Providers is not configured. " +
+                $"Add an entry under {AiOptions.SectionName}:Providers:{providerId}.");
+        }
+
         if (!_options.Providers.TryGetValue(providerId, out var providerOptions) || providerOptions is null)
         {
             LogProviderConfigMissing(providerId);

@@ -110,6 +110,21 @@ public class AiOptionsValidatorTests
     }
 
     [Fact]
+    public void Validate_fails_when_providers_is_null()
+    {
+        var options = new AiOptions
+        {
+            DefaultProvider = AiProviderId.Anthropic,
+            Providers = null!,
+        };
+
+        var result = _validator.Validate(name: null, options);
+
+        result.Failed.Should().BeTrue();
+        result.Failures.Should().Contain(f => f.Contains("Providers is required"));
+    }
+
+    [Fact]
     public void Validate_throws_when_options_is_null()
     {
         var act = () => _validator.Validate(name: null, options: null!);
