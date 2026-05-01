@@ -6,6 +6,49 @@
 
 ---
 
+## Variables
+
+| Variable | Description | Example (Windows) | Example (macOS/Linux) |
+|----------|-------------|--------------------|-----------------------|
+| `${REPOS_ROOT}` | Root directory where tools/repos are cloned | `E:\tools` | `~/tools` |
+
+> **Setup**: Set the `REPOS_ROOT` environment variable on your machine, or mentally substitute the correct path when reading these instructions.
+
+---
+
+## Vertical Slice Implementation
+
+**Implement features as vertical slices — UI to datastore — not horizontal layers.**
+
+When building a feature, complete the full stack for that feature before starting the next:
+
+```
+UI Component → API Client / Hook → API Endpoint → Service Layer → Data Access → Database Schema
+```
+
+### Rules
+
+1. **One feature at a time** — Finish the entire vertical before moving on
+2. **Start from the outside in** — Define the user-facing contract (UI/API shape) first, then work inward
+3. **Tests at every layer** — Each slice includes tests for UI, API, service, and data access
+4. **Commit per slice** — Each vertical slice should be a single, deployable commit
+5. **No partial layers** — Never build "all the API endpoints" then "all the UI" — that's horizontal
+
+### Workflow
+
+```
+1. Define the user story / acceptance criteria
+2. Write BDD feature file (.feature) for the slice
+3. Build UI component (with mock data / stub API)
+4. Build API endpoint + service layer
+5. Build data access + schema migration
+6. Wire everything together
+7. Run full vertical test suite (unit + integration + E2E)
+8. Commit
+```
+
+---
+
 ## Core Principles (Priority Order)
 
 1. **BDD/TDD** - Tests first, always
