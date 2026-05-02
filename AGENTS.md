@@ -1343,9 +1343,45 @@ The server config is in `.mcp.json` and is checked into the repo. The Microsoft 
 
 ---
 
+## Pre-Commit / Pre-Merge Test Gate (MANDATORY)
+
+**Before any `git commit`, `git push`, or `gh pr merge`, run the FULL local test pipeline. CI green is not a substitute — it skips the deployed integration tier on PR builds.**
+
+Required sequence on the branch you're about to commit/merge:
+
+1. **Bring up the dev stack** (idempotent; safe to re-run):
+   ```bash
+   pwsh scripts/dev-up.ps1
+   ```
+   This starts SQL Server + Azurite via `docker-compose.dev.yml`, applies pending EF migrations, and seeds `local.settings.json` if missing.
+
+2. **Run unit + architecture tests:**
+   ```bash
+   dotnet test src/RajFinancial.sln --nologo -v:q
+   ```
+   Required: 0 failures across `Api.Tests` and `Architecture.Tests`.
+
+3. **Start the Functions host** (in a second shell, leave running):
+   ```bash
+   cd src/Api && func start
+   ```
+   Wait for `Host lock lease acquired` and confirm `curl -k https://localhost:7071/api/health/live` returns 200.
+
+4. **Run BDD integration tests against the live host:**
+   ```bash
+   dotnet test tests/IntegrationTests --nologo -v:q
+   ```
+   Required: 0 failures. CI's `Integration Tests (Dev)` job is **skipped** on PRs against `develop` (it only runs after the post-merge Deploy to Dev), so this local run is the *only* pre-merge integration coverage that exists.
+
+5. **Stop the host** (`Ctrl+C`) and optionally `pwsh scripts/dev-down.ps1`.
+
+**Exceptions (documentation-only changes):** if the diff touches only `*.md`, `docs/`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `AGENTS.md`, the integration tier may be skipped. Unit + architecture tests still required.
+
+**Never `gh pr merge --admin` to bypass a failing or unrun integration tier.** If integration tests can't be run locally (e.g., Docker unavailable), state that explicitly and stop — do not merge.
+
 ## Useful Reminders
 
-- **Run tests before committing** - Never commit code that fails tests
+- **Run tests before committing** - Never commit code that fails tests (see Pre-Commit Test Gate above for the required sequence)
 - **Audit dependencies** - Check for vulnerabilities regularly
 - **Use parameterized queries** - Never concatenate SQL
 - **Validate all input** - Server-side validation is mandatory
