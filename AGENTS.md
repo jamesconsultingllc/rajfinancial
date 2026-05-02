@@ -1355,15 +1355,16 @@ Required sequence on the branch you're about to commit/merge:
    ```
    This starts SQL Server + Azurite via `docker-compose.dev.yml`, applies pending EF migrations, and seeds `local.settings.json` if missing.
 
-2. **Run unit + architecture tests:**
+2. **Run unit + architecture tests** (scoped — do **not** run the whole solution here, since `src/RajFinancial.sln` also includes `RajFinancial.IntegrationTests`, which requires the Functions host from step 3):
    ```bash
-   dotnet test src/RajFinancial.sln --nologo -v:q
+   dotnet test tests/Api.Tests --nologo -v:q
+   dotnet test tests/Architecture.Tests --nologo -v:q
    ```
-   Required: 0 failures across `Api.Tests` and `Architecture.Tests`.
+   Required: 0 failures across both projects.
 
-3. **Start the Functions host** (in a second shell, leave running):
+3. **Start the Functions host over HTTPS** (in a second shell, leave running). HTTPS is required because `tests/IntegrationTests` defaults its base URL to `https://localhost:7071`:
    ```bash
-   cd src/Api && func start
+   cd src/Api && func start --useHttps
    ```
    Wait for `Host lock lease acquired` and confirm `curl -k https://localhost:7071/api/health/live` returns 200.
 
