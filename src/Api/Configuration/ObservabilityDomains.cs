@@ -21,6 +21,7 @@ internal static class ObservabilityDomains
     internal const string Middleware = "RajFinancial.Api.Middleware";
     internal const string ClientManagement = "RajFinancial.Api.ClientManagement";
     internal const string Authorization = "RajFinancial.Api.Authorization";
+    internal const string Ai = "RajFinancial.Api.Ai";
 
     /// <summary>All registered domain source/meter names as an immutable read-only view.</summary>
     internal static readonly IReadOnlyList<string> All = new ReadOnlyCollection<string>(
@@ -32,5 +33,6 @@ internal static class ObservabilityDomains
         Middleware,
         ClientManagement,
         Authorization,
+        Ai,
     ]);
 }

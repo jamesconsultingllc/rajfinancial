@@ -31,6 +31,9 @@
     "AUTH__USE_UNSIGNED_LOCAL_VALIDATOR": "true",
 
     "//ENABLE_CONTACT_TEST_SEEDING": "Enables the test-only POST /api/testing/seed-contact + reset-contacts endpoints AND swaps the DI registration to SeedableContactResolver. Required for the EntityRoles integration scenarios. NEVER set in production.",
-    "ENABLE_CONTACT_TEST_SEEDING": "true"
+    "ENABLE_CONTACT_TEST_SEEDING": "true",
+
+    "//ANTHROPIC_API_KEY": "API key for the Anthropic Claude provider (Task #545). Get one from https://console.anthropic.com/. Empty string is fine for tests that don't exercise AI; the AnthropicChatClientProvider only resolves the env var when an IChatClient is requested. Never commit a real key.",
+    "ANTHROPIC_API_KEY": ""
   }
 }

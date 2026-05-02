@@ -217,6 +217,44 @@ public class ChatClientFactoryTests
     }
 
     [Fact]
+    public void Factory_dispatches_to_real_AnthropicChatClientProvider_round_trip()
+    {
+        // End-to-end-ish: register the real provider (not a fake), set the env var the
+        // provider expects, and prove the factory hands back a non-null IChatClient.
+        // No HTTP calls are made — provider construction is local.
+        const string envVar = "RAJFIN_TEST_FACTORY_ROUND_TRIP_KEY";
+        var prior = Environment.GetEnvironmentVariable(envVar);
+        try
+        {
+            Environment.SetEnvironmentVariable(envVar, "test-key");
+            var realProvider = new RajFinancial.Api.Services.Ai.Providers.AnthropicChatClientProvider(
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<
+                    RajFinancial.Api.Services.Ai.Providers.AnthropicChatClientProvider>.Instance);
+            var options = new AiOptions
+            {
+                DefaultProvider = AiProviderId.Anthropic,
+                Providers = new Dictionary<AiProviderId, AiProviderOptions>
+                {
+                    [AiProviderId.Anthropic] = new()
+                    {
+                        Model = "claude-sonnet-4-5",
+                        ApiKeyEnvVar = envVar,
+                    },
+                },
+            };
+            var factory = CreateFactory(options, realProvider);
+
+            var client = factory.GetClient();
+
+            client.Should().NotBeNull();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVar, prior);
+        }
+    }
+
+    [Fact]
     public void GetClient_invokes_CreateClient_at_most_once_under_concurrent_first_access()
     {
         // Many threads hit GetClient simultaneously for the same (uncached) provider id.

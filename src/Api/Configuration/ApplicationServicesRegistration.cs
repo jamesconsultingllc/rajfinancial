@@ -1,4 +1,8 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RajFinancial.Api.Services.Ai;
+using RajFinancial.Api.Services.Ai.Abstractions;
+using RajFinancial.Api.Services.Ai.Providers;
 using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
@@ -13,7 +17,9 @@ namespace RajFinancial.Api.Configuration;
 /// </summary>
 internal static class ApplicationServicesRegistration
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddScoped<IUserProfileService, UserProfileService>();
         services.AddScoped<IAuthorizationService, AuthorizationService>();
@@ -22,6 +28,11 @@ internal static class ApplicationServicesRegistration
         services.AddScoped<
             IEntityService,
             EntityService>();
+
+        // AI platform foundation (Tasks #397/#398/#545).
+        services.AddRajFinancialAi(configuration);
+        services.AddSingleton<IChatClientProvider, AnthropicChatClientProvider>();
+
         return services;
     }
 }
