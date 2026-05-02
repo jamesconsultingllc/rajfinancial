@@ -110,6 +110,20 @@ public class TelemetryAIFunctionTests
         activity.GetTagItem("error.type").Should().Be(nameof(InvalidOperationException));
         activity.Status.Should().Be(ActivityStatusCode.Error);
 
+        // PII guard: the raw exception message must not leak via the standard OTel
+        // exception event tags (exception.message, exception.stacktrace, exception.type).
+        // Our sanitized "tool.exception" event carries only the type + tool metadata.
+        var exceptionEvent = activity.Events.SingleOrDefault(e => e.Name == "tool.exception");
+        exceptionEvent.Name.Should().Be("tool.exception");
+        var exceptionTags = exceptionEvent.Tags.ToDictionary(t => t.Key, t => t.Value);
+        exceptionTags.Should().ContainKey("error.type");
+        exceptionTags["error.type"].Should().Be(typeof(InvalidOperationException).FullName);
+        exceptionTags.Should().NotContainKey("exception.message");
+        exceptionTags.Should().NotContainKey("exception.stacktrace");
+        activity.Events.Should().NotContain(e => e.Name == "exception",
+            because: "Activity.AddException(ex) emits an 'exception' event whose " +
+                     "exception.message tag would bypass the AI redactor.");
+
         meters.Counters.Should().Contain(c =>
             c.Tags.Any(t => t.Key == "tool.outcome" && (string?)t.Value == "error"));
     }

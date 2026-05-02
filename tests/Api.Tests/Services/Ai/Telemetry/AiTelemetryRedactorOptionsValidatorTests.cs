@@ -65,6 +65,23 @@ public class AiTelemetryRedactorOptionsValidatorTests
     }
 
     [Fact]
+    public void Production_with_short_non_placeholder_secret_fails()
+    {
+        var validator = new AiTelemetryRedactorOptionsValidator(
+            new StubEnvironment(Environments.Production));
+
+        var result = validator.Validate(
+            name: null,
+            options: new AiTelemetryRedactorOptions
+            {
+                MerchantHashSecret = new string('x', 16),
+            });
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("32");
+    }
+
+    [Fact]
     public void Staging_with_placeholder_secret_fails()
     {
         var validator = new AiTelemetryRedactorOptionsValidator(

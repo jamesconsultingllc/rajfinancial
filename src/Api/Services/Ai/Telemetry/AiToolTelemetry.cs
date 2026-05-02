@@ -35,6 +35,7 @@ internal static class AiToolTelemetry
     internal const string OutcomeCancelled = "cancelled";
 
     internal const string EventArgsRedacted = "tool.arguments.redacted";
+    internal const string EventToolException = "tool.exception";
 
     internal static readonly ActivitySource ActivitySource = new(ObservabilityDomains.Ai);
     internal static readonly Meter Meter = new(ObservabilityDomains.Ai);

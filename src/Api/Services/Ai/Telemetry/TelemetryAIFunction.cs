@@ -99,11 +99,21 @@ internal sealed class TelemetryAIFunction : AIFunction
         catch (Exception ex)
         {
             errorType = ex.GetType().Name;
-            // Don't pass ex.Message to SetStatus: tool exceptions may include sensitive
-            // argument values that would bypass our argument redaction in tracing exports.
-            // Use the exception type name instead; full details go in the recorded exception event.
+            // Don't pass ex.Message anywhere telemetry might export it: tool exceptions
+            // commonly include argument values (e.g., "merchant 'walmart' not allowed")
+            // which would bypass our argument redaction. Activity.AddException(ex) writes
+            // the raw message to the standard `exception.message` tag, so we deliberately
+            // do NOT call it. Instead we emit a sanitized custom event with only the
+            // exception type and tool metadata.
             activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
-            activity?.AddException(ex);
+            activity?.AddEvent(new ActivityEvent(
+                AiToolTelemetry.EventToolException,
+                tags: new ActivityTagsCollection
+                {
+                    [AiToolTelemetry.TagErrorType] = ex.GetType().FullName,
+                    [AiToolTelemetry.TagToolName] = _inner.Name,
+                    [AiToolTelemetry.TagToolScope] = _scope,
+                }));
             throw;
         }
 #pragma warning restore S1854

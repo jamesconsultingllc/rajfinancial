@@ -14,6 +14,8 @@ namespace RajFinancial.Api.Services.Ai.Telemetry;
 internal sealed class AiTelemetryRedactorOptionsValidator(IHostEnvironment environment)
     : IValidateOptions<AiTelemetryRedactorOptions>
 {
+    internal const int ProductionMinSecretLength = 32;
+
     public ValidateOptionsResult Validate(string? name, AiTelemetryRedactorOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -32,8 +34,17 @@ internal sealed class AiTelemetryRedactorOptionsValidator(IHostEnvironment envir
                 $"{AiTelemetryRedactorOptions.SectionName}:MerchantHashSecret must be " +
                 "explicitly configured outside of Development. The default placeholder " +
                 "value is committed to source and is therefore reversible. Set the " +
-                "environment variable Ai__Telemetry__MerchantHashSecret to at least 32 " +
-                "characters of high-entropy random material.");
+                $"environment variable Ai__Telemetry__MerchantHashSecret to at least " +
+                $"{ProductionMinSecretLength} characters of high-entropy random material.");
+        }
+
+        if ((options.MerchantHashSecret?.Length ?? 0) < ProductionMinSecretLength)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{AiTelemetryRedactorOptions.SectionName}:MerchantHashSecret must be at " +
+                $"least {ProductionMinSecretLength} characters in non-Development " +
+                "environments. Shorter keys are vulnerable to offline brute-force " +
+                "recovery of the merchant hash.");
         }
 
         return ValidateOptionsResult.Success;
