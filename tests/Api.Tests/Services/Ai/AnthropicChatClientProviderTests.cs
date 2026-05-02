@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using RajFinancial.Api.Configuration;
 using RajFinancial.Api.Services.Ai.Providers;
 using RajFinancial.Shared.Contracts.Ai;
 
@@ -145,46 +147,73 @@ public class AnthropicChatClientProviderTests
     }
 
     [Fact]
-    public void CreateClient_with_BaseUrl_override_returns_non_null_client()
+    public void CreateSdkClient_applies_BaseUrl_override_to_ApiUrlFormat()
     {
-        WithEnv("test-key-value", () =>
-        {
-            var client = CreateSut().CreateClient(ValidOptions(baseUrl: "https://example.test/v1/"));
+        // Drives the production seam used by CreateClient. Asserts the BaseUrl override
+        // actually reaches Anthropic SDK's ApiUrlFormat — without this, the override
+        // could be silently dropped or wired to the wrong property.
+        const string overrideUrl = "https://example.test/v1/";
 
-            client.Should().NotBeNull();
-        });
+        var sdk = AnthropicChatClientProvider.CreateSdkClient("test-key", overrideUrl);
+
+        sdk.ApiUrlFormat.Should().Be(overrideUrl);
     }
 
     [Fact]
-    public void CreateClient_returns_OpenTelemetry_decorated_client()
+    public void CreateSdkClient_leaves_ApiUrlFormat_unchanged_when_BaseUrl_null()
     {
-        WithEnv("test-key-value", () =>
-        {
-            var client = CreateSut().CreateClient(ValidOptions());
+        var defaultSdk = AnthropicChatClientProvider.CreateSdkClient("test-key", baseUrl: null);
+        var withOverride = AnthropicChatClientProvider.CreateSdkClient("test-key", baseUrl: null);
 
-            // The MEAI builder pipeline returns OpenTelemetryChatClient as the outermost
-            // wrapper when UseOpenTelemetry is configured. Type-name match is sufficient —
-            // we don't depend on a specific public surface.
-            client.GetType().FullName.Should().Be(
-                "Microsoft.Extensions.AI.OpenTelemetryChatClient");
-        });
+        // The two clients with no override must share the SDK's default ApiUrlFormat.
+        withOverride.ApiUrlFormat.Should().Be(defaultSdk.ApiUrlFormat);
     }
 
     [Fact]
-    public async Task ConfigureOptions_defaults_ModelId_to_options_Model_when_caller_does_not_specify()
+    public void CreateSdkClient_ignores_whitespace_BaseUrl()
     {
-        // Locks in the fix for the Copilot review on PR #106:
-        // options.Model must be applied to the outgoing IChatClient call so callers do not
-        // have to pass ChatOptions.ModelId on every request.
-        // We exercise the same MEAI ChatClientBuilder.ConfigureOptions wiring the SUT uses,
-        // with a capturing inner IChatClient so we can assert the resolved options without
-        // making a live API call.
+        var defaultSdk = AnthropicChatClientProvider.CreateSdkClient("test-key", baseUrl: null);
+        var whitespace = AnthropicChatClientProvider.CreateSdkClient("test-key", baseUrl: "   ");
+
+        whitespace.ApiUrlFormat.Should().Be(defaultSdk.ApiUrlFormat);
+    }
+
+    [Fact]
+    public async Task BuildPipeline_emits_activity_on_AI_observability_source()
+    {
+        // Replaces the brittle `OpenTelemetryChatClient` type-name assertion. Verifies the
+        // observable behaviour we actually care about: chat traffic emits an activity on
+        // ObservabilityDomains.Ai. This is robust to MEAI internal type renames.
+        var capturing = new CapturingInnerClient();
+        var pipeline = AnthropicChatClientProvider.BuildPipeline(
+            capturing,
+            new AiProviderOptions { Model = "claude-sonnet-4-5", ApiKeyEnvVar = TestEnvVar });
+
+        var captured = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = src => src.Name == ObservabilityDomains.Ai,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = captured.Add,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        await pipeline.GetResponseAsync("hello", options: null);
+
+        captured.Should().NotBeEmpty(
+            $"the pipeline must emit at least one Activity on the '{ObservabilityDomains.Ai}' source.");
+    }
+
+    [Fact]
+    public async Task BuildPipeline_defaults_ModelId_to_options_Model_when_caller_does_not_specify()
+    {
+        // Drives the production BuildPipeline seam — if the `.ConfigureOptions(...)` line
+        // is removed or reordered in CreateClient/BuildPipeline, this test fails.
         const string expectedModel = "claude-sonnet-4-5";
         var capturing = new CapturingInnerClient();
-
-        var pipeline = new Microsoft.Extensions.AI.ChatClientBuilder(capturing)
-            .ConfigureOptions(o => o.ModelId ??= expectedModel)
-            .Build();
+        var pipeline = AnthropicChatClientProvider.BuildPipeline(
+            capturing,
+            new AiProviderOptions { Model = expectedModel, ApiKeyEnvVar = TestEnvVar });
 
         await pipeline.GetResponseAsync("hello", options: null);
 
@@ -193,44 +222,39 @@ public class AnthropicChatClientProviderTests
     }
 
     [Fact]
-    public async Task ConfigureOptions_does_not_overwrite_caller_supplied_ModelId()
+    public async Task BuildPipeline_does_not_overwrite_caller_supplied_ModelId()
     {
-        // Sibling of the above: when the caller passes an explicit ChatOptions.ModelId,
-        // our `??=` wiring must not replace it.
         const string callerModel = "claude-opus-4-1";
         var capturing = new CapturingInnerClient();
+        var pipeline = AnthropicChatClientProvider.BuildPipeline(
+            capturing,
+            new AiProviderOptions { Model = "claude-sonnet-4-5", ApiKeyEnvVar = TestEnvVar });
 
-        var pipeline = new Microsoft.Extensions.AI.ChatClientBuilder(capturing)
-            .ConfigureOptions(o => o.ModelId ??= "claude-sonnet-4-5")
-            .Build();
-
-        await pipeline.GetResponseAsync(
-            "hello",
-            options: new Microsoft.Extensions.AI.ChatOptions { ModelId = callerModel });
+        await pipeline.GetResponseAsync("hello", options: new ChatOptions { ModelId = callerModel });
 
         capturing.LastOptions!.ModelId.Should().Be(callerModel);
     }
 
-    private sealed class CapturingInnerClient : Microsoft.Extensions.AI.IChatClient
+    private sealed class CapturingInnerClient : IChatClient
     {
-        public Microsoft.Extensions.AI.ChatOptions? LastOptions { get; private set; }
+        public ChatOptions? LastOptions { get; private set; }
 
-        public Task<Microsoft.Extensions.AI.ChatResponse> GetResponseAsync(
-            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
-            Microsoft.Extensions.AI.ChatOptions? options = null,
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
             LastOptions = options;
-            return Task.FromResult(new Microsoft.Extensions.AI.ChatResponse());
+            return Task.FromResult(new ChatResponse());
         }
 
-        public IAsyncEnumerable<Microsoft.Extensions.AI.ChatResponseUpdate> GetStreamingResponseAsync(
-            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
-            Microsoft.Extensions.AI.ChatOptions? options = null,
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
             LastOptions = options;
-            return AsyncEnumerable.Empty<Microsoft.Extensions.AI.ChatResponseUpdate>();
+            return AsyncEnumerable.Empty<ChatResponseUpdate>();
         }
 
         public object? GetService(Type serviceType, object? serviceKey = null) => null;

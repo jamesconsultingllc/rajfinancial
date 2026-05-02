@@ -1,5 +1,4 @@
 using RajFinancial.Api.Services.Ai.Abstractions;
-using RajFinancial.Api.Services.Ai.Providers;
 
 namespace RajFinancial.Architecture.Tests;
 
@@ -17,8 +16,13 @@ namespace RajFinancial.Architecture.Tests;
 // ============================================================================
 public class AiProviderInvariantsTests
 {
+    // Anchor on the API assembly via the abstraction (IChatClientProvider lives in
+    // RajFinancial.Api.Services.Ai.Abstractions). This decouples the architecture test
+    // from any one concrete provider — Anthropic can be removed or renamed without
+    // breaking the invariant suite, while a new offending provider in the same assembly
+    // is still caught.
     private static readonly System.Reflection.Assembly ApiAssembly =
-        typeof(AnthropicChatClientProvider).Assembly;
+        typeof(IChatClientProvider).Assembly;
 
     private const string ProvidersNamespace = "RajFinancial.Api.Services.Ai.Providers";
 

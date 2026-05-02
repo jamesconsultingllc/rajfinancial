@@ -56,26 +56,45 @@ internal sealed partial class AnthropicChatClientProvider(
                 "variable to a valid Anthropic API key before requesting an AI chat client.");
         }
 
-        var auth = new APIAuthentication(apiKey);
-        var sdkClient = new AnthropicClient(auth);
-        if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+        var sdkClient = CreateSdkClient(apiKey, options.BaseUrl);
+        var instrumented = BuildPipeline(sdkClient.Messages, options);
+
+        LogProviderInitialized(options.Model, options.BaseUrl ?? "<sdk-default>");
+        return instrumented;
+    }
+
+    /// <summary>
+    /// Builds the Anthropic SDK client and applies the optional <see cref="AiProviderOptions.BaseUrl"/>
+    /// override. Exposed as <c>internal</c> so unit tests can verify the override actually
+    /// reaches <see cref="AnthropicClient.ApiUrlFormat"/> without making a live API call.
+    /// </summary>
+    internal static AnthropicClient CreateSdkClient(string apiKey, string? baseUrl)
+    {
+        var sdk = new AnthropicClient(new APIAuthentication(apiKey));
+        if (!string.IsNullOrWhiteSpace(baseUrl))
         {
-            sdkClient.ApiUrlFormat = options.BaseUrl;
+            sdk.ApiUrlFormat = baseUrl;
         }
 
-        IChatClient inner = sdkClient.Messages;
+        return sdk;
+    }
 
-        // Builder applies first-registered as outermost wrapper. We want:
-        //   caller -> OpenTelemetry (observes full call) -> ConfigureOptions (defaults
-        //   ModelId before delegating to the SDK) -> AnthropicClient.Messages
-        var instrumented = new ChatClientBuilder(inner)
+    /// <summary>
+    /// Wraps an inner <see cref="IChatClient"/> with the production observability +
+    /// option-defaulting middleware. Exposed as <c>internal</c> so unit tests can drive the
+    /// exact same pipeline the production <see cref="CreateClient"/> path returns, with a
+    /// capturing inner client.
+    /// </summary>
+    /// <remarks>
+    /// Builder applies first-registered as outermost wrapper. We want:
+    /// <c>caller -&gt; OpenTelemetry (observes full call) -&gt; ConfigureOptions (defaults
+    /// ModelId before delegating to the SDK) -&gt; inner</c>.
+    /// </remarks>
+    internal static IChatClient BuildPipeline(IChatClient inner, AiProviderOptions options) =>
+        new ChatClientBuilder(inner)
             .UseOpenTelemetry(
                 loggerFactory: null,
                 sourceName: ObservabilityDomains.Ai)
             .ConfigureOptions(o => o.ModelId ??= options.Model)
             .Build();
-
-        LogProviderInitialized(options.Model, options.BaseUrl ?? "<sdk-default>");
-        return instrumented;
-    }
 }
