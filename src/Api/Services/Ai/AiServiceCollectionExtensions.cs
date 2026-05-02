@@ -60,6 +60,7 @@ internal static class AiServiceCollectionExtensions
             .Bind(configuration.GetSection(AiTelemetryRedactorOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<AiTelemetryRedactorOptions>, AiTelemetryRedactorOptionsValidator>();
         services.AddSingleton<IAiTelemetryRedactor, DefaultAiTelemetryRedactor>();
         services.AddSingleton<IAiToolRegistry, AiToolRegistry>();
 

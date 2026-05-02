@@ -19,7 +19,7 @@ public class AiToolInvariantsTests
         typeof(IAiToolRegistry).Assembly;
 
     [Fact]
-    public void AiToolRegistry_ShouldBeSealed()
+    public void AiToolRegistry_ShouldBeSealedAndNonPublic()
     {
         var result = Types
             .InAssembly(ApiAssembly)
@@ -29,10 +29,14 @@ public class AiToolInvariantsTests
             .AreClasses()
             .Should()
             .BeSealed()
+            .And()
+            .NotBePublic()
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            "every IAiToolRegistry implementation must be sealed. Offenders: " +
+            "every IAiToolRegistry implementation must be sealed AND non-public " +
+            "(internal). Public exposure would let consumers depend on the concrete " +
+            "type and bypass the read-only interface contract. Offenders: " +
             string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>()));
     }
 

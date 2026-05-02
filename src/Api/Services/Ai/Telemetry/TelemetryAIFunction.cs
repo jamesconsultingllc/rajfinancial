@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
@@ -98,7 +99,11 @@ internal sealed class TelemetryAIFunction : AIFunction
         catch (Exception ex)
         {
             errorType = ex.GetType().Name;
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            // Don't pass ex.Message to SetStatus: tool exceptions may include sensitive
+            // argument values that would bypass our argument redaction in tracing exports.
+            // Use the exception type name instead; full details go in the recorded exception event.
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            activity?.AddException(ex);
             throw;
         }
 #pragma warning restore S1854
@@ -106,12 +111,16 @@ internal sealed class TelemetryAIFunction : AIFunction
         {
             stopwatch.Stop();
 
-            var nameTag = new KeyValuePair<string, object?>(AiToolTelemetry.TagToolName, _inner.Name);
-            var scopeTag = new KeyValuePair<string, object?>(AiToolTelemetry.TagToolScope, _scope);
-            var outcomeTag = new KeyValuePair<string, object?>(AiToolTelemetry.TagToolOutcome, outcome);
+            // TagList is a struct — avoids per-call KeyValuePair[] allocation on the hot path.
+            var tags = new TagList
+            {
+                { AiToolTelemetry.TagToolName, _inner.Name },
+                { AiToolTelemetry.TagToolScope, _scope },
+                { AiToolTelemetry.TagToolOutcome, outcome },
+            };
 
-            AiToolTelemetry.ToolInvocations.Add(1, nameTag, scopeTag, outcomeTag);
-            AiToolTelemetry.ToolDurationMs.Record(stopwatch.Elapsed.TotalMilliseconds, nameTag, scopeTag, outcomeTag);
+            AiToolTelemetry.ToolInvocations.Add(1, tags);
+            AiToolTelemetry.ToolDurationMs.Record(stopwatch.Elapsed.TotalMilliseconds, tags);
 
             if (activity is not null)
             {
