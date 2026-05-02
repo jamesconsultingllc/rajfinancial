@@ -178,6 +178,38 @@ public class AnthropicChatClientProviderTests
         whitespace.ApiUrlFormat.Should().Be(defaultSdk.ApiUrlFormat);
     }
 
+    [Theory]
+    [InlineData("localhost:11434")]
+    [InlineData("/proxy")]
+    [InlineData("not a url")]
+    [InlineData("ftp://example.test")]
+    public void CreateSdkClient_rejects_malformed_BaseUrl(string badUrl)
+    {
+        // Eagerly fail on configuration typos rather than letting them surface as runtime
+        // request errors much later. Only absolute http(s) URIs are accepted.
+        var act = () => AnthropicChatClientProvider.CreateSdkClient("test-key", badUrl);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*absolute http or https URI*");
+    }
+
+    [Fact]
+    public void CreateClient_logs_sdk_default_marker_when_BaseUrl_is_whitespace()
+    {
+        // Whitespace BaseUrl falls back to the SDK default endpoint, so the diagnostics log
+        // must record '<sdk-default>' rather than the raw whitespace value.
+        var capturing = new CapturingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(b => b.AddProvider(capturing));
+        var logger = loggerFactory.CreateLogger<AnthropicChatClientProvider>();
+        var sut = new AnthropicChatClientProvider(logger);
+
+        WithEnv("test-key-value", () =>
+            sut.CreateClient(ValidOptions(baseUrl: "   ")));
+
+        capturing.Lines.Should().Contain(line => line.Contains("<sdk-default>"));
+        capturing.Lines.Should().NotContain(line => line.Contains("'   '"));
+    }
+
     [Fact]
     public async Task BuildPipeline_emits_activity_on_AI_observability_source()
     {

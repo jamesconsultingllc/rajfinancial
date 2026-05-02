@@ -59,7 +59,8 @@ internal sealed partial class AnthropicChatClientProvider(
         var sdkClient = CreateSdkClient(apiKey, options.BaseUrl);
         var instrumented = BuildPipeline(sdkClient.Messages, options);
 
-        LogProviderInitialized(options.Model, options.BaseUrl ?? "<sdk-default>");
+        var loggedBaseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? "<sdk-default>" : options.BaseUrl;
+        LogProviderInitialized(options.Model, loggedBaseUrl);
         return instrumented;
     }
 
@@ -68,11 +69,23 @@ internal sealed partial class AnthropicChatClientProvider(
     /// override. Exposed as <c>internal</c> so unit tests can verify the override actually
     /// reaches <see cref="AnthropicClient.ApiUrlFormat"/> without making a live API call.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <paramref name="baseUrl"/> is non-empty but is not a well-formed absolute
+    /// http(s) URI. Prevents typos like <c>localhost:11434</c> or <c>/proxy</c> from passing
+    /// startup and only failing on the first outgoing request.
+    /// </exception>
     internal static AnthropicClient CreateSdkClient(string apiKey, string? baseUrl)
     {
         var sdk = new AnthropicClient(new APIAuthentication(apiKey));
         if (!string.IsNullOrWhiteSpace(baseUrl))
         {
+            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsed) ||
+                (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new InvalidOperationException(
+                    $"Ai:Providers:Anthropic:BaseUrl must be an absolute http or https URI. Received: '{baseUrl}'.");
+            }
+
             sdk.ApiUrlFormat = baseUrl;
         }
 
