@@ -59,9 +59,37 @@ internal sealed partial class AnthropicChatClientProvider(
         var sdkClient = CreateSdkClient(apiKey, options.BaseUrl);
         var instrumented = BuildPipeline(sdkClient.Messages, options);
 
-        var loggedBaseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? "<sdk-default>" : options.BaseUrl;
-        LogProviderInitialized(options.Model, loggedBaseUrl);
+        LogProviderInitialized(options.Model, RedactBaseUrlForLog(options.BaseUrl));
         return instrumented;
+    }
+
+    /// <summary>
+    /// Returns a log-safe representation of the configured BaseUrl. Strips the userinfo
+    /// component (e.g., <c>https://user:pass@host/...</c>) and query string (which may
+    /// contain signed-URL credentials) so the diagnostics contract — "never log secret
+    /// values" — is preserved even if a proxy or signed URL is configured.
+    /// </summary>
+    internal static string RedactBaseUrlForLog(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return "<sdk-default>";
+        }
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsed))
+        {
+            return "<invalid>";
+        }
+
+        var builder = new UriBuilder(parsed)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty,
+        };
+
+        return builder.Uri.GetLeftPart(UriPartial.Path);
     }
 
     /// <summary>

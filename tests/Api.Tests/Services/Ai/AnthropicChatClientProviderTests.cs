@@ -193,6 +193,27 @@ public class AnthropicChatClientProviderTests
             .WithMessage("*absolute http or https URI*");
     }
 
+    [Theory]
+    [InlineData("https://user:pass@gateway.example/v1/", "https://gateway.example/v1/")]
+    [InlineData("https://example.test/v1/?token=abc&sig=xyz", "https://example.test/v1/")]
+    [InlineData("https://user:pass@example.test/v1/?sig=xyz#frag", "https://example.test/v1/")]
+    [InlineData("https://example.test:8443/v1/", "https://example.test:8443/v1/")]
+    public void RedactBaseUrlForLog_strips_userinfo_and_query(string input, string expected)
+    {
+        // Prevents accidental credential leak in the 'AI provider initialised' log line
+        // when BaseUrl contains userinfo (proxy auth) or query-string secrets (signed URLs).
+        AnthropicChatClientProvider.RedactBaseUrlForLog(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RedactBaseUrlForLog_returns_sdk_default_marker_for_null_or_whitespace(string? input)
+    {
+        AnthropicChatClientProvider.RedactBaseUrlForLog(input).Should().Be("<sdk-default>");
+    }
+
     [Fact]
     public void CreateClient_logs_sdk_default_marker_when_BaseUrl_is_whitespace()
     {
