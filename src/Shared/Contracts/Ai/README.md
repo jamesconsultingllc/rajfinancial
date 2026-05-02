@@ -20,9 +20,11 @@ runtime behavior here — just the shape that `IOptions<AiOptions>` binds to.
   AI runtime dependencies.
 - Factory implementation: `src/Api/Services/Ai/` (Task #397, **done**: `ChatClientFactory`,
   `AiOptionsValidator`, `IChatClientProvider` strategy seam, and `AddRajFinancialAi(IConfiguration)`
-  DI extension. The DI extension is **defined but not yet called from `Program.cs`** — it will be
-  wired up by #545 when the first concrete `IChatClientProvider` ships).
-- Anthropic provider wiring: `src/Api/Services/Ai/Providers/` (Task #545, pending).
+  DI extension — invoked from `ApplicationServicesRegistration.AddApplicationServices` as of #545).
+- Anthropic provider wiring: `src/Api/Services/Ai/Providers/` (Task #545, **done**:
+  `AnthropicChatClientProvider` registered as singleton `IChatClientProvider`,
+  decorated with `Microsoft.Extensions.AI.OpenTelemetryChatClient` on the
+  `RajFinancial.Api.Ai` ActivitySource).
 
 ## Plans
 

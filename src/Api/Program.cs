@@ -128,7 +128,7 @@ else
 
 builder.Services.AddApplicationDatabase(builder.Configuration, builder.Environment);
 builder.Services.AddContactResolver(builder.Environment);
-builder.Services.AddApplicationServices();
+builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddApplicationValidators();
 
 var host = builder.Build();

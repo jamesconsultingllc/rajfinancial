@@ -453,6 +453,30 @@ Scoped suppressions apply to `tests/**`, EF migrations, generated code, and `Pro
 | `release/*` | `develop` | `main` + `develop` | `release/x.y.z` |
 | `hotfix/*` | `main` | `main` + `develop` | `hotfix/x.y.z` |
 
+## Pull Request Review Workflow
+
+**Every PR MUST go through Copilot review and reach zero unresolved comments before merge.**
+
+### Required Loop
+
+1. **Open the PR** targeting `develop` (or `main` for release/hotfix per GitFlow).
+2. **Request a Copilot review immediately** — `gh pr edit <num> --add-reviewer Copilot` or use the GitHub UI ("Request review" → Copilot). Do not wait for human review first.
+3. **Watch for review comments.** Poll with `gh pr view <num> --json reviews,comments` or wait for notifications. Copilot's review typically lands within a few minutes.
+4. **Address every comment.** For each finding:
+   - If valid: fix the code, push the commit, and **resolve** the conversation thread.
+   - If invalid or out-of-scope: reply with a brief justification, then resolve the thread.
+   - Never leave a comment unresolved without an explicit reply.
+5. **Re-request Copilot review** after pushing fixes — `gh pr edit <num> --add-reviewer Copilot` again triggers a fresh pass on the latest commit.
+6. **Iterate steps 3–5 until Copilot's review returns zero new comments** on the latest commit. A clean pass is the merge gate.
+
+### Rules
+
+- **Do not merge** while any Copilot comment is unresolved, even if CI is green.
+- **Do not dismiss** Copilot reviews to bypass the gate — address findings or justify them in-thread.
+- Human reviewers can be added in parallel; the Copilot loop is **additive**, not a substitute.
+- If Copilot flags something already covered by an architecture test or analyzer, link to the rule in your reply and resolve.
+- The loop ends only when a re-review produces **no new actionable comments** — zero is the target, not "low".
+
 ### Solution Structure
 
 ```
@@ -1295,6 +1319,27 @@ The server config is in `.mcp.json` and is checked into the repo so all contribu
 - "Check if the CI workflows passed on this branch"
 - "List open PRs targeting develop"
 - "Show me the failing step in the azure-functions workflow"
+
+#### Azure DevOps MCP
+
+Enables Claude Code to query Azure DevOps directly: work items, build pipelines, repos, wikis. Uses Microsoft's official remote MCP server (`https://mcp.dev.azure.com/jamesconsulting`) — no local install. Authenticates via the Azure CLI's signed-in user, so you must `az login` once.
+
+**Setup (one-time per developer):**
+
+```bash
+az login
+# Confirm you can resolve the org:
+az account show
+```
+
+The server config is in `.mcp.json` and is checked into the repo. The Microsoft Learn docs for this MCP are at https://learn.microsoft.com/azure/devops/integrate/mcp/.
+
+> ADO project for this repo is always **"RAJ Financial Planner"** (org: `jamesconsulting`). Don't prompt for project on `ado-wit_*` calls.
+
+**Use cases:**
+- "Read AB#545 and tell me the acceptance criteria"
+- "Create a child Task under Feature #523 for the Ollama provider"
+- "Show me the latest build for the develop branch pipeline"
 
 ---
 
