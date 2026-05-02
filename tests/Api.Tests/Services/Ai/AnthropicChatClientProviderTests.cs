@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RajFinancial.Api.Services.Ai.Providers;
@@ -167,6 +168,74 @@ public class AnthropicChatClientProviderTests
             client.GetType().FullName.Should().Be(
                 "Microsoft.Extensions.AI.OpenTelemetryChatClient");
         });
+    }
+
+    [Fact]
+    public async Task ConfigureOptions_defaults_ModelId_to_options_Model_when_caller_does_not_specify()
+    {
+        // Locks in the fix for the Copilot review on PR #106:
+        // options.Model must be applied to the outgoing IChatClient call so callers do not
+        // have to pass ChatOptions.ModelId on every request.
+        // We exercise the same MEAI ChatClientBuilder.ConfigureOptions wiring the SUT uses,
+        // with a capturing inner IChatClient so we can assert the resolved options without
+        // making a live API call.
+        const string expectedModel = "claude-sonnet-4-5";
+        var capturing = new CapturingInnerClient();
+
+        var pipeline = new Microsoft.Extensions.AI.ChatClientBuilder(capturing)
+            .ConfigureOptions(o => o.ModelId ??= expectedModel)
+            .Build();
+
+        await pipeline.GetResponseAsync("hello", options: null);
+
+        capturing.LastOptions.Should().NotBeNull();
+        capturing.LastOptions!.ModelId.Should().Be(expectedModel);
+    }
+
+    [Fact]
+    public async Task ConfigureOptions_does_not_overwrite_caller_supplied_ModelId()
+    {
+        // Sibling of the above: when the caller passes an explicit ChatOptions.ModelId,
+        // our `??=` wiring must not replace it.
+        const string callerModel = "claude-opus-4-1";
+        var capturing = new CapturingInnerClient();
+
+        var pipeline = new Microsoft.Extensions.AI.ChatClientBuilder(capturing)
+            .ConfigureOptions(o => o.ModelId ??= "claude-sonnet-4-5")
+            .Build();
+
+        await pipeline.GetResponseAsync(
+            "hello",
+            options: new Microsoft.Extensions.AI.ChatOptions { ModelId = callerModel });
+
+        capturing.LastOptions!.ModelId.Should().Be(callerModel);
+    }
+
+    private sealed class CapturingInnerClient : Microsoft.Extensions.AI.IChatClient
+    {
+        public Microsoft.Extensions.AI.ChatOptions? LastOptions { get; private set; }
+
+        public Task<Microsoft.Extensions.AI.ChatResponse> GetResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Extensions.AI.ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastOptions = options;
+            return Task.FromResult(new Microsoft.Extensions.AI.ChatResponse());
+        }
+
+        public IAsyncEnumerable<Microsoft.Extensions.AI.ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Extensions.AI.ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastOptions = options;
+            return AsyncEnumerable.Empty<Microsoft.Extensions.AI.ChatResponseUpdate>();
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
     }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider

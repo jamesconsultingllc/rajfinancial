@@ -65,10 +65,14 @@ internal sealed partial class AnthropicChatClientProvider(
 
         IChatClient inner = sdkClient.Messages;
 
+        // Builder applies first-registered as outermost wrapper. We want:
+        //   caller -> OpenTelemetry (observes full call) -> ConfigureOptions (defaults
+        //   ModelId before delegating to the SDK) -> AnthropicClient.Messages
         var instrumented = new ChatClientBuilder(inner)
             .UseOpenTelemetry(
                 loggerFactory: null,
                 sourceName: ObservabilityDomains.Ai)
+            .ConfigureOptions(o => o.ModelId ??= options.Model)
             .Build();
 
         LogProviderInitialized(options.Model, options.BaseUrl ?? "<sdk-default>");
