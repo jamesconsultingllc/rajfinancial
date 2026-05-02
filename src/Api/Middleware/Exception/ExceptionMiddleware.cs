@@ -87,6 +87,8 @@ public partial class ExceptionMiddleware(
         ForbiddenException => HttpStatusCode.Forbidden,
         ConflictException or DbUpdateConcurrencyException => HttpStatusCode.Conflict,
         BusinessRuleException => HttpStatusCode.UnprocessableEntity,
+        RateLimitedException { StoreUnavailable: true } => HttpStatusCode.ServiceUnavailable,
+        RateLimitedException => HttpStatusCode.TooManyRequests,
         _ => HttpStatusCode.InternalServerError,
     };
 
@@ -132,6 +134,10 @@ public partial class ExceptionMiddleware(
                 LogBusinessRuleViolation(brex, brex.ErrorCode, brex.Message);
                 await WriteErrorResponseAsync(context, statusCode, brex.ErrorCode, brex.Message);
                 break;
+            case RateLimitedException rlex:
+                LogRateLimited(rlex, rlex.Window.ToString(), rlex.StoreUnavailable, (int)rlex.RetryAfter.TotalSeconds);
+                await WriteRateLimitedResponseAsync(context, statusCode, rlex);
+                break;
             case ConfigurationException confex:
                 LogConfigurationError(confex, confex.Message);
                 await WriteErrorResponseAsync(context, statusCode, MiddlewareErrorCodes.ConfigurationError, "Service configuration error");
@@ -170,12 +176,25 @@ public partial class ExceptionMiddleware(
     [LoggerMessage(EventId = 5008, Level = LogLevel.Error, Message = "Unhandled exception in {FunctionName}: {Message}")]
     private partial void LogUnhandledException(System.Exception ex, string functionName, string message);
 
+    [LoggerMessage(EventId = 5009, Level = LogLevel.Warning,
+        Message = "Rate limit triggered: window={Window} storeUnavailable={StoreUnavailable} retryAfterSeconds={RetryAfterSeconds}")]
+    private partial void LogRateLimited(System.Exception ex, string window, bool storeUnavailable, int retryAfterSeconds);
+
+    private Task WriteRateLimitedResponseAsync(FunctionContext context, HttpStatusCode statusCode, RateLimitedException ex) =>
+        WriteErrorResponseAsync(
+            context,
+            statusCode,
+            RateLimitResponseHelper.ErrorCode(ex),
+            ex.Message,
+            additionalHeaders: RateLimitResponseHelper.BuildHeaders(ex));
+
     private async Task WriteErrorResponseAsync(
         FunctionContext context,
         HttpStatusCode statusCode,
         string code,
         string message,
-        Dictionary<string, object>? details = null)
+        Dictionary<string, object>? details = null,
+        Dictionary<string, string>? additionalHeaders = null)
     {
         var httpRequest = await context.GetHttpRequestDataAsync();
         if (httpRequest == null) return;
@@ -203,6 +222,17 @@ public partial class ExceptionMiddleware(
 
         var bytes = await serializationFactory.SerializeAsync(error, contentType);
         response.Headers.Add(HttpHeaderNames.ContentType, contentType);
+
+        if (additionalHeaders is not null)
+        {
+            foreach (var header in additionalHeaders)
+            {
+                if (response.Headers.Contains(header.Key))
+                    response.Headers.Remove(header.Key);
+                response.Headers.Add(header.Key, header.Value);
+            }
+        }
+
         await response.Body.WriteAsync(bytes);
 
         // Set the response on the context

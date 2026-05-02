@@ -31,5 +31,6 @@ internal static class ExceptionClassification
         UnauthorizedException or
         ConflictException or
         BusinessRuleException or
+        RateLimitedException or
         DbUpdateConcurrencyException;
 }

@@ -25,4 +25,10 @@ public static class MiddlewareErrorCodes
 
     /// <summary>500 - Unhandled exception escaped the middleware chain.</summary>
     public const string InternalError = "INTERNAL_ERROR";
+
+    /// <summary>429 - Per-window rate limit exceeded.</summary>
+    public const string RateLimited = "RATE_LIMITED";
+
+    /// <summary>503 - Rate-limit backing store unreachable; fail-closed policy in effect.</summary>
+    public const string RateLimitStoreUnavailable = "RATE_LIMIT_STORE_UNAVAILABLE";
 }
