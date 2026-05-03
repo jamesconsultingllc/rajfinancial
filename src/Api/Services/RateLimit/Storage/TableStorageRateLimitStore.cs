@@ -83,12 +83,15 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
                 return HandleStoreFailure(activity, ex, policy, "table_init_failed");
             }
 
-            var now = timeProvider.GetUtcNow();
-            var (minRow, hourRow) = ComputeRowKeys(now);
-
             for (var attempt = 0; attempt < options.RetryAttempts; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                // Recompute now/row keys per attempt so that retries crossing a minute/hour
+                // boundary count against the *current* window — not the window the request
+                // entered on. Otherwise contention + backoff produces false rejects and
+                // misleading Retry-After values near boundaries.
+                var now = timeProvider.GetUtcNow();
+                var (minRow, hourRow) = ComputeRowKeys(now);
                 try
                 {
                     var decision = await TryConsumeAttemptAsync(
@@ -289,7 +292,9 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
         // table scan. Acceptable today: cleanup runs weekly, rows are bounded by per-user
         // per-minute/hour retention, and pagination with batched deletes keeps memory flat.
         // Tracked as follow-up for time-bucketed partition redesign if scan latency grows.
-        var filter = $"ExpiresAt lt datetime'{olderThan:yyyy-MM-ddTHH:mm:ssZ}'";
+        // CreateQueryFilter formats the DateTimeOffset with full precision (round-trip "o"),
+        // avoiding the seconds-truncation that hand-rolled `yyyy-MM-ddTHH:mm:ssZ` introduced.
+        var filter = TableClient.CreateQueryFilter($"ExpiresAt lt {olderThan}");
         var pages = client.QueryAsync<RateLimitCounterEntity>(
             filter, maxPerPage: 100, cancellationToken: cancellationToken);
 

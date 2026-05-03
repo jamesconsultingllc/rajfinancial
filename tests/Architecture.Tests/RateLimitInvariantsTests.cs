@@ -30,13 +30,13 @@ public class RateLimitInvariantsTests
             .And()
             .AreClasses()
             .Should()
-            .ResideInNamespace(StorageNamespace)
+            .ResideInNamespaceStartingWith(StorageNamespace)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
             "IRateLimitStore implementations must live under "
             + StorageNamespace
-            + " so the storage abstraction is swappable. Offenders: "
+            + " (or a sub-namespace) so the storage abstraction is swappable. Offenders: "
             + string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>()));
     }
 

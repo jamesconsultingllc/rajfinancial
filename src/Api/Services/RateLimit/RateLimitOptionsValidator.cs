@@ -56,6 +56,10 @@ internal sealed partial class RateLimitOptionsValidator : IValidateOptions<RateL
 
         if (options.JitterMaxMs < 0)
             failures.Add($"{RateLimitOptions.SectionName}:JitterMaxMs must be >= 0.");
+        // Upper bound prevents overflow in DelayJitterAsync (which calls Random.Next(0, maxMs + 1))
+        // and rejects unreasonable backoff delays. 60s is well above any sane retry-jitter budget.
+        if (options.JitterMaxMs > 60_000)
+            failures.Add($"{RateLimitOptions.SectionName}:JitterMaxMs must be <= 60000 (60s upper bound).");
 
         if (options.CleanupRetention <= TimeSpan.Zero)
             failures.Add($"{RateLimitOptions.SectionName}:CleanupRetention must be > 0.");
