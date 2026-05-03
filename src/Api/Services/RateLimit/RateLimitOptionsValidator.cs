@@ -1,10 +1,17 @@
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace RajFinancial.Api.Services.RateLimit;
 
 /// <summary>Shape-validation for <see cref="RateLimitOptions" />. Fails host boot on misconfiguration.</summary>
-internal sealed class RateLimitOptionsValidator : IValidateOptions<RateLimitOptions>
+internal sealed partial class RateLimitOptionsValidator : IValidateOptions<RateLimitOptions>
 {
+    // Azure Table naming rules: 3-63 characters, must start with a letter,
+    // and contain only letters/digits. See:
+    // https://learn.microsoft.com/rest/api/storageservices/understanding-the-table-service-data-model#table-names
+    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9]{2,62}$")]
+    private static partial Regex AzureTableNameRegex();
+
     public ValidateOptionsResult Validate(string? name, RateLimitOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -34,8 +41,10 @@ internal sealed class RateLimitOptionsValidator : IValidateOptions<RateLimitOpti
 
         if (string.IsNullOrWhiteSpace(options.TableName))
             failures.Add($"{RateLimitOptions.SectionName}:TableName is required when Enabled=true.");
-        else if (options.TableName.Length is < 3 or > 63)
-            failures.Add($"{RateLimitOptions.SectionName}:TableName must be 3-63 characters.");
+        else if (!AzureTableNameRegex().IsMatch(options.TableName))
+            failures.Add(
+                $"{RateLimitOptions.SectionName}:TableName must be 3-63 characters, " +
+                "start with a letter, and contain only letters and digits (Azure table naming rules).");
     }
 
     private static void ValidateRetryAndCleanup(RateLimitOptions options, List<string> failures)

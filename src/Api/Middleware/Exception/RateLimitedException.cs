@@ -28,9 +28,9 @@ public sealed class RateLimitedException(TimeSpan retryAfter, bool storeUnavaila
 
     private static string BuildMessage(TimeSpan retryAfter, bool storeUnavailable, RateLimitWindow window)
     {
-        // Must match RateLimitResponseHelper.RetryAfterSeconds so the message agrees
-        // with the Retry-After header (ceiling, minimum 1 second).
-        var seconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+        // Single source of truth for the displayed seconds; agrees with the
+        // Retry-After header, response body, and structured log fields.
+        var seconds = RateLimitResponseHelper.RetryAfterSeconds(retryAfter);
         return storeUnavailable
             ? $"Rate-limit store unavailable; retry after {seconds}s."
             : $"{window} rate-limit exceeded; retry after {seconds}s.";

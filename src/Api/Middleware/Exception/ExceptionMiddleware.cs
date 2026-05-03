@@ -135,7 +135,7 @@ public partial class ExceptionMiddleware(
                 await WriteErrorResponseAsync(context, statusCode, brex.ErrorCode, brex.Message);
                 break;
             case RateLimitedException rlex:
-                LogRateLimited(rlex, rlex.Window.ToString(), rlex.StoreUnavailable, (int)rlex.RetryAfter.TotalSeconds);
+                LogRateLimited(rlex, rlex.Window.ToString(), rlex.StoreUnavailable, RateLimitResponseHelper.RetryAfterSeconds(rlex));
                 await WriteRateLimitedResponseAsync(context, statusCode, rlex);
                 break;
             case ConfigurationException confex:

@@ -139,8 +139,13 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
         RateLimitPolicy policy,
         CancellationToken ct)
     {
-        var minEntity = await GetEntityOrNullAsync(client, userIdHash, minRow, ct).ConfigureAwait(false);
-        var hourEntity = await GetEntityOrNullAsync(client, userIdHash, hourRow, ct).ConfigureAwait(false);
+        // Minute and hour entities live on independent rows; read them concurrently
+        // to halve the read latency on the hot path. TableClient is thread-safe.
+        var minTask = GetEntityOrNullAsync(client, userIdHash, minRow, ct);
+        var hourTask = GetEntityOrNullAsync(client, userIdHash, hourRow, ct);
+        await Task.WhenAll(minTask, hourTask).ConfigureAwait(false);
+        var minEntity = minTask.Result;
+        var hourEntity = hourTask.Result;
 
         var nextMin = (minEntity?.Count ?? 0) + 1;
         var nextHour = (hourEntity?.Count ?? 0) + 1;

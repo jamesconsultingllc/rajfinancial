@@ -33,7 +33,7 @@ public partial class RateLimitCleanupFunction(
         var olderThan = timeProvider.GetUtcNow() - options.CleanupRetention;
         var sw = Stopwatch.StartNew();
         using var activity = RateLimitTelemetry.StartActivity(RateLimitTelemetry.ActivityCleanup);
-        activity?.SetTag("ratelimit.cleanup.older_than", olderThan.ToString("o"));
+        activity?.SetTag(RateLimitTelemetry.CleanupOlderThanTag, olderThan.ToString("o"));
 
         long deleted;
         try
@@ -55,7 +55,7 @@ public partial class RateLimitCleanupFunction(
         sw.Stop();
         RateLimitTelemetry.RecordCleanupDuration(sw.Elapsed.TotalMilliseconds);
         RateLimitTelemetry.RecordCleanupRowsDeleted(deleted);
-        activity?.SetTag("ratelimit.cleanup.rows_deleted", deleted);
+        activity?.SetTag(RateLimitTelemetry.CleanupRowsDeletedTag, deleted);
         LogCleanupCompleted(deleted, sw.Elapsed.TotalMilliseconds);
     }
 }

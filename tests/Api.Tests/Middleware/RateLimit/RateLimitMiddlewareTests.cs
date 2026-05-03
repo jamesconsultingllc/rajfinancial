@@ -167,6 +167,58 @@ public sealed class RateLimitMiddlewareTests
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public async Task Invoke_FailOpenOnStoreException_TagsActivityWithStoreError()
+    {
+        var (mw, resolver, store) = Build();
+        var failOpen = AiPolicy with { FailureMode = RateLimitFailureMode.FailOpen };
+        resolver.Setup(r => r.Resolve(It.IsAny<FunctionContext>())).Returns(failOpen);
+        store.Setup(s => s.TryConsumeAsync(It.IsAny<string>(), failOpen, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("storage offline"));
+
+        var outcome = await CaptureOutcomeTagAsync(() => mw.Invoke(Ctx("AiFn", "u"), Next()));
+
+        outcome.Should().Be(RateLimitTelemetry.OutcomeStoreError,
+            "fail-open store outage must be tagged store_error, not allowed");
+    }
+
+    [Fact]
+    public async Task Invoke_FailClosedOnStoreException_TagsActivityWithStoreError()
+    {
+        var (mw, resolver, store) = Build();
+        resolver.Setup(r => r.Resolve(It.IsAny<FunctionContext>())).Returns(AiPolicy);
+        store.Setup(s => s.TryConsumeAsync(It.IsAny<string>(), AiPolicy, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("storage offline"));
+
+        var outcome = await CaptureOutcomeTagAsync(async () =>
+        {
+            try { await mw.Invoke(Ctx("AiFn", "u"), Next()); }
+            catch (RateLimitedException) { /* expected */ }
+        });
+
+        outcome.Should().Be(RateLimitTelemetry.OutcomeStoreError,
+            "fail-closed store outage must be tagged store_error, not rejected");
+    }
+
+    private static async Task<string?> CaptureOutcomeTagAsync(Func<Task> action)
+    {
+        string? outcome = null;
+        using var listener = new System.Diagnostics.ActivityListener
+        {
+            ShouldListenTo = src => src.Name == RateLimitTelemetry.SourceName,
+            Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
+                System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = a =>
+            {
+                if (a.OperationName == RateLimitTelemetry.ActivityCheck)
+                    outcome = a.GetTagItem(RateLimitTelemetry.OutcomeTag) as string;
+            },
+        };
+        System.Diagnostics.ActivitySource.AddActivityListener(listener);
+        await action();
+        return outcome;
+    }
+
     private sealed class TestFunctionDefinition : FunctionDefinition
     {
         public TestFunctionDefinition(string name) => Name = name;

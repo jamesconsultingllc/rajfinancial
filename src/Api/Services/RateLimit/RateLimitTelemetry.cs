@@ -30,6 +30,8 @@ internal static class RateLimitTelemetry
     internal const string FailureModeTag = "ratelimit.failure_mode";
     internal const string ErrorTypeTag = "error.type";
     internal const string CodeFunctionTag = "code.function";
+    internal const string CleanupOlderThanTag = "ratelimit.cleanup.older_than";
+    internal const string CleanupRowsDeletedTag = "ratelimit.cleanup.rows_deleted";
 
     // Outcome tag values.
     internal const string OutcomeAllowed = "allowed";

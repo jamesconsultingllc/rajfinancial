@@ -8,11 +8,20 @@ namespace RajFinancial.Api.Middleware.Exception;
 /// </summary>
 internal static class RateLimitResponseHelper
 {
-    public static int RetryAfterSeconds(RateLimitedException ex)
+    /// <summary>
+    ///     Canonical Retry-After computation: ceiling-to-seconds with a floor of 1.
+    ///     Used by the response header, the response body, the exception message
+    ///     (<see cref="RateLimitedException" />), and structured log/trace fields
+    ///     so they all report the same value.
+    /// </summary>
+    public static int RetryAfterSeconds(TimeSpan retryAfter)
     {
-        var seconds = (int)Math.Ceiling(ex.RetryAfter.TotalSeconds);
+        var seconds = (int)Math.Ceiling(retryAfter.TotalSeconds);
         return seconds < 1 ? 1 : seconds;
     }
+
+    public static int RetryAfterSeconds(RateLimitedException ex) =>
+        RetryAfterSeconds(ex.RetryAfter);
 
     public static string ErrorCode(RateLimitedException ex) =>
         ex.StoreUnavailable

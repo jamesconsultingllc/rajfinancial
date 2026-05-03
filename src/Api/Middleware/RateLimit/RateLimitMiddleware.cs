@@ -47,8 +47,7 @@ public partial class RateLimitMiddleware(
         var userIdHash = UserIdHashing.Hash(userId);
         var decision = await ConsumeAsync(context, userIdHash, policy);
 
-        activity?.SetTag(RateLimitTelemetry.OutcomeTag,
-            decision.Allowed ? RateLimitTelemetry.OutcomeAllowed : RateLimitTelemetry.OutcomeRejected);
+        activity?.SetTag(RateLimitTelemetry.OutcomeTag, ResolveOutcomeTag(decision));
 
         if (decision.Allowed)
         {
@@ -62,12 +61,27 @@ public partial class RateLimitMiddleware(
         RateLimitTelemetry.RecordRejected(policy.Kind, decision.Window, policy.FailureMode, decision.StoreUnavailable);
         activity?.SetTag(RateLimitTelemetry.WindowTag, decision.Window.ToString());
 
+        var retryAfterSeconds = RateLimitResponseHelper.RetryAfterSeconds(decision.RetryAfter);
         if (decision.StoreUnavailable)
-            LogFailedClosed(context.FunctionDefinition.Name, userIdHash, (int)decision.RetryAfter.TotalSeconds);
+            LogFailedClosed(context.FunctionDefinition.Name, userIdHash, retryAfterSeconds);
         else
-            LogRejected(context.FunctionDefinition.Name, userIdHash, decision.Window, (int)decision.RetryAfter.TotalSeconds);
+            LogRejected(context.FunctionDefinition.Name, userIdHash, decision.Window, retryAfterSeconds);
 
         throw new RateLimitedException(decision.RetryAfter, decision.StoreUnavailable, decision.Window);
+    }
+
+    /// <summary>
+    ///     Outcome tag used on the activity and metric — must match the tag emitted
+    ///     by <see cref="RateLimitTelemetry.RecordRejected" /> so traces and metrics
+    ///     agree (<c>store_error</c> takes precedence over <c>allowed</c>/<c>rejected</c>).
+    /// </summary>
+    private static string ResolveOutcomeTag(RateLimitDecision decision)
+    {
+        if (decision.StoreUnavailable)
+            return RateLimitTelemetry.OutcomeStoreError;
+        return decision.Allowed
+            ? RateLimitTelemetry.OutcomeAllowed
+            : RateLimitTelemetry.OutcomeRejected;
     }
 
     private async Task<RateLimitDecision> ConsumeAsync(
