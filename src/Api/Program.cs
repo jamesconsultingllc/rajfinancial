@@ -73,14 +73,16 @@ builder.ConfigureFunctionsWebApplication();
 // 3. UserProfile provisioning  — JIT creates/syncs local shadow of Entra user
 // 4. Telemetry enrichment      — tags Activity with user/tenant/route ids
 // 5. Authorization             — enforces [RequireAuthentication] / [RequireRole]
-// 6. Content negotiation       — handles JSON/MemoryPack serialization
-// 7. Validation                — validates request bodies
+// 6. Rate limit                — per-policy budget gate (AI / tool endpoints)
+// 7. Content negotiation       — handles JSON/MemoryPack serialization
+// 8. Validation                — validates request bodies
 // ============================================================================
 builder.UseMiddleware<ExceptionMiddleware>();
 builder.UseMiddleware<AuthenticationMiddleware>();
 builder.UseMiddleware<UserProfileProvisioningMiddleware>();
 builder.UseMiddleware<TelemetryEnrichmentMiddleware>();
 builder.UseMiddleware<AuthorizationMiddleware>();
+builder.UseMiddleware<RajFinancial.Api.Middleware.RateLimit.RateLimitMiddleware>();
 builder.UseMiddleware<ContentNegotiationMiddleware>();
 builder.UseMiddleware<ValidationMiddleware>();
 

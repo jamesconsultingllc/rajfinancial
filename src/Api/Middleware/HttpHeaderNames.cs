@@ -15,5 +15,8 @@ internal static class HttpHeaderNames
 
     /// <summary>Bearer scheme prefix (with trailing space) for the <c>Authorization</c> header.</summary>
     public const string BearerSchemePrefix = "Bearer ";
+
+    /// <summary>HTTP <c>Retry-After</c> header (RFC 7231 §7.1.3).</summary>
+    public const string RetryAfter = "Retry-After";
 }
 

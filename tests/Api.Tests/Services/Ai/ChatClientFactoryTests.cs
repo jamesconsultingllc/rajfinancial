@@ -27,7 +27,7 @@ public class ChatClientFactoryTests
     private static ChatClientFactory CreateFactory(
         AiOptions options,
         params IChatClientProvider[] providers) =>
-        new(Options.Create(options), providers, NullLogger<ChatClientFactory>.Instance);
+        new(Options.Create(options), providers, EmptyAiToolRegistry.Instance, NullLogger<ChatClientFactory>.Instance);
 
     [Fact]
     public void GetClient_returns_client_from_default_provider()

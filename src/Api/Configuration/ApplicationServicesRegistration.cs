@@ -7,6 +7,7 @@ using RajFinancial.Api.Services.AssetService;
 using RajFinancial.Api.Services.Authorization;
 using RajFinancial.Api.Services.ClientManagement;
 using RajFinancial.Api.Services.EntityService;
+using RajFinancial.Api.Services.RateLimit;
 using RajFinancial.Api.Services.UserProfile;
 using UserProfileService = RajFinancial.Api.Services.UserProfile.UserProfileService;
 
@@ -32,6 +33,9 @@ internal static class ApplicationServicesRegistration
         // AI platform foundation (Tasks #397/#398/#545).
         services.AddRajFinancialAi(configuration);
         services.AddSingleton<IChatClientProvider, AnthropicChatClientProvider>();
+
+        // B1: rate-limit subsystem (AI/tool endpoints).
+        services.AddRajFinancialRateLimit(configuration);
 
         return services;
     }

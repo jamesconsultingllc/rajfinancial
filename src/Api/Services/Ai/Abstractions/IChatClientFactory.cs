@@ -26,9 +26,16 @@ namespace RajFinancial.Api.Services.Ai.Abstractions;
 /// </para>
 /// <para>
 /// <b>Foundation-PR scope (Feature #396):</b> the factory resolves clients only. It does
-/// <i>not</i> attach AIFunctions, register MCP tools, or apply safety middleware. Those
-/// concerns layer on top of <see cref="IChatClient"/> in subsequent Features and must not
-/// leak into this contract.
+/// <i>not</i> register MCP tools or apply safety middleware. Safety concerns layer on top
+/// of <see cref="IChatClient"/> in subsequent Features and must not leak into this
+/// contract.
+/// </para>
+/// <para>
+/// When an <c>IAiToolRegistry</c> with at least one registered tool is bound, the factory
+/// transparently applies <c>UseFunctionInvocation()</c> on top of the provider's pipeline
+/// so the model can call the registered <see cref="AIFunction"/>s. Per-tool telemetry is
+/// emitted by a decorator wrapping each tool, independent of the chat-client middleware
+/// order; consumers do not need to do anything.
 /// </para>
 /// </remarks>
 public interface IChatClientFactory

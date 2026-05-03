@@ -1198,6 +1198,9 @@ cd tests/e2e && npm test                          # All E2E BDD scenarios
 cd tests/e2e && npm run test:headed               # Headed mode (see browser)
 cd tests/e2e && npm run test:chromium             # Chromium only
 cd tests/e2e && npm run playwright:install        # Install browser binaries
+
+# GitHub PR review iteration
+gh pr edit <PR#> --add-reviewer copilot-pull-request-reviewer  # Re-request Copilot review on a PR
 ```
 
 ---
