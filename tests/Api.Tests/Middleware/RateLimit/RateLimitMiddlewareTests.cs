@@ -78,6 +78,21 @@ public sealed class RateLimitMiddlewareTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t")]
+    public async Task Invoke_BlankUserId_BypassesRateLimitWithoutCallingStore(string userId)
+    {
+        var (mw, resolver, store) = Build();
+        resolver.Setup(r => r.Resolve(It.IsAny<FunctionContext>())).Returns(AiPolicy);
+
+        await mw.Invoke(Ctx("AiFn", userId), Next());
+
+        store.Verify(s => s.TryConsumeAsync(It.IsAny<string>(), It.IsAny<RateLimitPolicy>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task Invoke_AllowedDecision_CallsNext()
     {

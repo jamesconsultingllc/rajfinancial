@@ -58,12 +58,12 @@ internal static class RateLimitTelemetry
 
     internal static Activity? StartActivity(string name) => ActivitySource.StartActivity(name);
 
-    internal static void RecordAllowed(RateLimitPolicyKind kind)
+    internal static void RecordAllowed(RateLimitPolicyKind kind, bool storeUnavailable)
     {
         var tags = new TagList
         {
             { PolicyKindTag, kind.ToString() },
-            { OutcomeTag, OutcomeAllowed },
+            { OutcomeTag, storeUnavailable ? OutcomeStoreError : OutcomeAllowed },
         };
         RequestsAllowed.Add(1, tags);
     }

@@ -285,6 +285,10 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
         }
 
         long deleted = 0;
+        // NOTE: ExpiresAt is not part of PartitionKey/RowKey, so this filter forces a full
+        // table scan. Acceptable today: cleanup runs weekly, rows are bounded by per-user
+        // per-minute/hour retention, and pagination with batched deletes keeps memory flat.
+        // Tracked as follow-up for time-bucketed partition redesign if scan latency grows.
         var filter = $"ExpiresAt lt datetime'{olderThan:yyyy-MM-ddTHH:mm:ssZ}'";
         var pages = client.QueryAsync<RateLimitCounterEntity>(
             filter, maxPerPage: 100, cancellationToken: cancellationToken);

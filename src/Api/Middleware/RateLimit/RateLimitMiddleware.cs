@@ -33,7 +33,7 @@ public partial class RateLimitMiddleware(
 
         if (!context.Items.TryGetValue(FunctionContextKeys.UserId, out var userIdObj) ||
             userIdObj is not string userId ||
-            string.IsNullOrEmpty(userId))
+            string.IsNullOrWhiteSpace(userId))
         {
             LogMissingUserId(context.FunctionDefinition.Name, policy.Kind);
             await next(context);
@@ -51,7 +51,7 @@ public partial class RateLimitMiddleware(
 
         if (decision.Allowed)
         {
-            RateLimitTelemetry.RecordAllowed(policy.Kind);
+            RateLimitTelemetry.RecordAllowed(policy.Kind, decision.StoreUnavailable);
             if (decision.StoreUnavailable)
                 LogFailedOpen(context.FunctionDefinition.Name, userIdHash);
             await next(context);
