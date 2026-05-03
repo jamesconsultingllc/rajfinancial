@@ -45,10 +45,7 @@ public partial class RateLimitMiddleware(
         activity?.SetTag(RateLimitTelemetry.CodeFunctionTag, context.FunctionDefinition.Name);
 
         var userIdHash = UserIdHashing.Hash(userId);
-        var sw = Stopwatch.StartNew();
-        var decision = await ConsumeAsync(context, userIdHash, policy, sw);
-        if (sw.IsRunning) sw.Stop();
-        RateLimitTelemetry.RecordStoreDuration(sw.Elapsed.TotalMilliseconds);
+        var decision = await ConsumeAsync(context, userIdHash, policy);
 
         activity?.SetTag(RateLimitTelemetry.OutcomeTag,
             decision.Allowed ? RateLimitTelemetry.OutcomeAllowed : RateLimitTelemetry.OutcomeRejected);
@@ -76,8 +73,7 @@ public partial class RateLimitMiddleware(
     private async Task<RateLimitDecision> ConsumeAsync(
         FunctionContext context,
         string userIdHash,
-        RateLimitPolicy policy,
-        Stopwatch sw)
+        RateLimitPolicy policy)
     {
         try
         {
@@ -89,7 +85,6 @@ public partial class RateLimitMiddleware(
         }
         catch (System.Exception ex)
         {
-            sw.Stop();
             RateLimitTelemetry.RecordStoreError(ex.GetType().Name);
             LogStoreUnhandled(ex, context.FunctionDefinition.Name, policy.FailureMode);
             return policy.FailureMode == RateLimitFailureMode.FailClosed

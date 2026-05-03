@@ -31,11 +31,11 @@ namespace RajFinancial.Api.Services.Ai.Abstractions;
 /// contract.
 /// </para>
 /// <para>
-/// <b>B1 PR-2 update:</b> when an <c>IAiToolRegistry</c> with at least one registered tool
-/// is bound, the factory transparently applies <c>UseFunctionInvocation()</c> on top of
-/// the provider's pipeline so the model can call the registered <see cref="AIFunction"/>s.
-/// Per-tool telemetry is emitted by a decorator wrapping each tool, independent of the
-/// chat-client middleware order; consumers do not need to do anything.
+/// When an <c>IAiToolRegistry</c> with at least one registered tool is bound, the factory
+/// transparently applies <c>UseFunctionInvocation()</c> on top of the provider's pipeline
+/// so the model can call the registered <see cref="AIFunction"/>s. Per-tool telemetry is
+/// emitted by a decorator wrapping each tool, independent of the chat-client middleware
+/// order; consumers do not need to do anything.
 /// </para>
 /// </remarks>
 public interface IChatClientFactory

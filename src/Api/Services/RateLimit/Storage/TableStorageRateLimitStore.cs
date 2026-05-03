@@ -71,53 +71,55 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
         var sw = Stopwatch.StartNew();
         using var activity = RateLimitTelemetry.StartActivity(RateLimitTelemetry.ActivityStoreTryConsume);
 
-        TableClient client;
         try
         {
-            client = await tableClient.Value.ConfigureAwait(false);
-        }
-        catch (RequestFailedException ex)
-        {
-            return HandleStoreFailure(activity, ex, policy, "table_init_failed");
-        }
-
-        var now = timeProvider.GetUtcNow();
-        var (minRow, hourRow) = ComputeRowKeys(now);
-
-        for (var attempt = 0; attempt < options.RetryAttempts; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+            TableClient client;
             try
             {
-                var decision = await TryConsumeAttemptAsync(
-                    client, userIdHash, minRow, hourRow, now, policy, cancellationToken).ConfigureAwait(false);
-                if (decision is not null)
-                {
-                    sw.Stop();
-                    RateLimitTelemetry.RecordStoreDuration(sw.Elapsed.TotalMilliseconds);
-                    return decision;
-                }
-
-                // Conflict — retry with full-jitter backoff.
-                await DelayJitterAsync(options.JitterMaxMs, cancellationToken).ConfigureAwait(false);
-            }
-            catch (RequestFailedException ex) when (IsTransient(ex))
-            {
-                LogStoreTransientError(ex, attempt);
-                await DelayJitterAsync(options.JitterMaxMs, cancellationToken).ConfigureAwait(false);
+                client = await tableClient.Value.ConfigureAwait(false);
             }
             catch (RequestFailedException ex)
             {
-                return HandleStoreFailure(activity, ex, policy, "request_failed");
+                return HandleStoreFailure(activity, ex, policy, "table_init_failed");
             }
-        }
 
-        // Exhausted retry budget.
-        sw.Stop();
-        RateLimitTelemetry.RecordStoreDuration(sw.Elapsed.TotalMilliseconds);
-        RateLimitTelemetry.RecordStoreError("retry_exhausted");
-        LogStoreRetryExhausted(options.RetryAttempts);
-        return ApplyFailureMode(policy);
+            var now = timeProvider.GetUtcNow();
+            var (minRow, hourRow) = ComputeRowKeys(now);
+
+            for (var attempt = 0; attempt < options.RetryAttempts; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var decision = await TryConsumeAttemptAsync(
+                        client, userIdHash, minRow, hourRow, now, policy, cancellationToken).ConfigureAwait(false);
+                    if (decision is not null)
+                        return decision;
+
+                    // Conflict — retry with full-jitter backoff.
+                    await DelayJitterAsync(options.JitterMaxMs, cancellationToken).ConfigureAwait(false);
+                }
+                catch (RequestFailedException ex) when (IsTransient(ex))
+                {
+                    LogStoreTransientError(ex, attempt);
+                    await DelayJitterAsync(options.JitterMaxMs, cancellationToken).ConfigureAwait(false);
+                }
+                catch (RequestFailedException ex)
+                {
+                    return HandleStoreFailure(activity, ex, policy, "request_failed");
+                }
+            }
+
+            // Exhausted retry budget.
+            RateLimitTelemetry.RecordStoreError("retry_exhausted");
+            LogStoreRetryExhausted(options.RetryAttempts);
+            return ApplyFailureMode(policy);
+        }
+        finally
+        {
+            sw.Stop();
+            RateLimitTelemetry.RecordStoreDuration(sw.Elapsed.TotalMilliseconds);
+        }
     }
 
     /// <summary>
@@ -235,7 +237,9 @@ internal sealed partial class TableStorageRateLimitStore : IRateLimitStore
     private static Task DelayJitterAsync(int maxMs, CancellationToken ct)
     {
         if (maxMs <= 0) return Task.CompletedTask;
-        var delay = Random.Shared.Next(5, Math.Max(6, maxMs));
+        // Full-jitter backoff in [0, maxMs] inclusive (AWS Architecture Blog recipe).
+        // Random.Shared.Next(min, max) is exclusive on max, so pass maxMs + 1.
+        var delay = Random.Shared.Next(0, maxMs + 1);
         return Task.Delay(delay, ct);
     }
 
