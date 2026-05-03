@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RajFinancial.Api.Services.Ai.Abstractions;
+using RajFinancial.Api.Services.Ai.Tools;
 using RajFinancial.Shared.Contracts.Ai;
 
 namespace RajFinancial.Api.Services.Ai;
@@ -36,6 +37,7 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
 {
     private readonly AiOptions _options;
     private readonly IReadOnlyDictionary<AiProviderId, IChatClientProvider> _providers;
+    private readonly IAiToolRegistry _toolRegistry;
     private readonly ConcurrentDictionary<AiProviderId, Lazy<IChatClient>> _clients = new();
     private readonly object _gate = new();
     private readonly ILogger<ChatClientFactory> _logger;
@@ -46,14 +48,17 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
     public ChatClientFactory(
         IOptions<AiOptions> options,
         IEnumerable<IChatClientProvider> providers,
+        IAiToolRegistry toolRegistry,
         ILogger<ChatClientFactory> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(providers);
+        ArgumentNullException.ThrowIfNull(toolRegistry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _options = options.Value
             ?? throw new InvalidOperationException("AiOptions is null. Ensure AddRajFinancialAi(...) is called during startup.");
+        _toolRegistry = toolRegistry;
         _logger = logger;
 
         // Materialize providers into a dictionary once. Duplicate provider ids are rejected
@@ -128,6 +133,19 @@ internal sealed partial class ChatClientFactory : IChatClientFactory, IDisposabl
                         {
                             throw new InvalidOperationException(
                                 $"IChatClientProvider for '{id}' returned a null IChatClient.");
+                        }
+
+                        // Apply tool-calling middleware iff at least one tool is registered.
+                        // This sits OUTSIDE the provider's own pipeline (which already wraps
+                        // OpenTelemetry + ConfigureOptions); per-tool telemetry is emitted
+                        // independently by TelemetryAIFunction so middleware ordering here
+                        // does not affect tool-call observability.
+                        if (!_toolRegistry.IsEmpty)
+                        {
+                            client = new ChatClientBuilder(client)
+                                .UseFunctionInvocation()
+                                .Build();
+                            LogToolCallingEnabled(id, _toolRegistry.Count);
                         }
 
                         LogProviderClientCreated(id, providerOptions.Model);

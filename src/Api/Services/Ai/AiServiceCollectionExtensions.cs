@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RajFinancial.Api.Services.Ai.Abstractions;
+using RajFinancial.Api.Services.Ai.Telemetry;
+using RajFinancial.Api.Services.Ai.Tools;
 using RajFinancial.Shared.Contracts.Ai;
 
 namespace RajFinancial.Api.Services.Ai;
@@ -52,6 +54,15 @@ internal static class AiServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<AiOptions>, AiOptionsValidator>();
         services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+
+        // Tool calling host (PR-2): registry + telemetry redactor.
+        services.AddOptions<AiTelemetryRedactorOptions>()
+            .Bind(configuration.GetSection(AiTelemetryRedactorOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<AiTelemetryRedactorOptions>, AiTelemetryRedactorOptionsValidator>();
+        services.AddSingleton<IAiTelemetryRedactor, DefaultAiTelemetryRedactor>();
+        services.AddSingleton<IAiToolRegistry, AiToolRegistry>();
 
         return services;
     }

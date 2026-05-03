@@ -31,4 +31,10 @@ internal sealed partial class ChatClientFactory
         Level = LogLevel.Warning,
         Message = "Disposing cached AI chat client for provider {ProviderId} threw")]
     private partial void LogProviderClientDisposeFailed(Exception ex, AiProviderId providerId);
+
+    [LoggerMessage(
+        EventId = 8011,
+        Level = LogLevel.Information,
+        Message = "Tool-calling middleware enabled on AI chat client for provider {ProviderId} ({ToolCount} tools)")]
+    private partial void LogToolCallingEnabled(AiProviderId providerId, int toolCount);
 }
